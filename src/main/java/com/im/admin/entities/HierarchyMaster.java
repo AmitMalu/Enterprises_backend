@@ -10,14 +10,14 @@ import lombok.Setter;
 @Table(name = "hierarchy_master")
 public class HierarchyMaster {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "sr_no")
+    private Integer srNo;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", length = 100)
     private String name;
 
-    @Column(name = "name", nullable = false)
-    private String email;
+    @Column(name = "code", length = 50)
+    private String code;
 
 }
