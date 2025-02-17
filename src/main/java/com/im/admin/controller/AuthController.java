@@ -4,6 +4,9 @@ import com.im.admin.util.JwtUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
@@ -19,7 +22,9 @@ public class AuthController {
         // Validate user (hardcoded for demo, replace with DB check)
         if ("admin".equals(username) && "password".equals(password)) {
             String token = jwtUtil.generateToken(username);
-            return ResponseEntity.ok(token);
+            Map<String, String > response = new HashMap<>();
+            response.put("Token", token);
+            return ResponseEntity.ok(response);
         }
         return ResponseEntity.status(401).body("Invalid credentials");
     }
@@ -28,7 +33,7 @@ public class AuthController {
     @PostMapping("/add")
     public String addData(@RequestParam String id) {
 
-        return "Stirng";
+        return "String";
     }
 }
 
