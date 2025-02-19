@@ -3,6 +3,9 @@ package com.im.admin.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 
 @Data
@@ -51,11 +54,14 @@ public class WhiteLabels {
     @Column(name = "postpaid_card_name")
     private String postpaidCardName;
 
-    @ManyToMany
-    @JoinTable(name = "white_label_products",
-            joinColumns = @JoinColumn(name = "white_label_id"),  // Foreign key to WhiteLabels
-            inverseJoinColumns = @JoinColumn(name = "product_id")) // Foreign key to Products
-    private Set<Products> products;
+//    @ManyToMany
+//    @JoinTable(name = "white_label_products",
+//            joinColumns = @JoinColumn(name = "white_label_id"),  // Foreign key to WhiteLabels
+//            inverseJoinColumns = @JoinColumn(name = "product_id")) // Foreign key to Products
+//    private Set<Products> products;
+
+    @Column(name = "products", columnDefinition = "TEXT")
+    private String products; // Store as a comma-separated string
 
     @Column(name = "is_redirect")
     private Boolean isRedirect;
@@ -76,4 +82,12 @@ public class WhiteLabels {
     @JoinColumn(name = "theme_id", nullable = true) // Optional theme
     private Theme theme;
 
+    // Getter & Setter for products as List
+    public List<String> getProductsList() {
+        return products != null ? Arrays.asList(products.split(",")) : new ArrayList<>();
+    }
+
+    public void setProductsList(List<String> productsList) {
+        this.products = String.join(",", productsList);
+    }
 }
