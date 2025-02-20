@@ -2,13 +2,14 @@ package com.im.admin.entities;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
-@Data
+
 @Entity
 @Table(name = "white_labels")
 public class WhiteLabels {
@@ -40,7 +41,7 @@ public class WhiteLabels {
     private String refundAndCancellationURL;
 
     @Column(name = "is_service_allow", nullable = false)
-    private Boolean isServiceAllow;
+    private Boolean isServiceAllow = false;
 
     @Column(name = "allow_prepaid_cards")
     private Boolean allowPrepaidCards;
@@ -79,7 +80,7 @@ public class WhiteLabels {
     private String remarks;
 
     @ManyToOne
-    @JoinColumn(name = "theme_id", nullable = true) // Optional theme
+    @JoinColumn(name = "theme_id", nullable = true)
     private Theme theme;
 
     // Getter & Setter for products as List
@@ -90,4 +91,166 @@ public class WhiteLabels {
     public void setProductsList(List<String> productsList) {
         this.products = String.join(",", productsList);
     }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getDomainURL() {
+        return domainURL;
+    }
+
+    public void setDomainURL(String domainURL) {
+        this.domainURL = domainURL;
+    }
+
+    public String getTermsAndConditionURL() {
+        return termsAndConditionURL;
+    }
+
+    public void setTermsAndConditionURL(String termsAndConditionURL) {
+        this.termsAndConditionURL = termsAndConditionURL;
+    }
+
+    public String getPrivacyPolicyURL() {
+        return privacyPolicyURL;
+    }
+
+    public void setPrivacyPolicyURL(String privacyPolicyURL) {
+        this.privacyPolicyURL = privacyPolicyURL;
+    }
+
+    public String getRefundAndCancellationURL() {
+        return refundAndCancellationURL;
+    }
+
+    public void setRefundAndCancellationURL(String refundAndCancellationURL) {
+        this.refundAndCancellationURL = refundAndCancellationURL;
+    }
+
+    public Boolean getServiceAllow() {
+        return isServiceAllow;
+    }
+
+    public void setServiceAllow(Boolean serviceAllow) {
+        isServiceAllow = serviceAllow;
+    }
+
+    public Boolean getAllowPrepaidCards() {
+        return allowPrepaidCards;
+    }
+
+    public void setAllowPrepaidCards(Boolean allowPrepaidCards) {
+        this.allowPrepaidCards = allowPrepaidCards;
+    }
+
+    public String getPrepaidCardName() {
+        return prepaidCardName;
+    }
+
+    public void setPrepaidCardName(String prepaidCardName) {
+        this.prepaidCardName = prepaidCardName;
+    }
+
+    public Boolean getAllowPostpaidCards() {
+        return allowPostpaidCards;
+    }
+
+    public void setAllowPostpaidCards(Boolean allowPostpaidCards) {
+        this.allowPostpaidCards = allowPostpaidCards;
+    }
+
+    public String getPostpaidCardName() {
+        return postpaidCardName;
+    }
+
+    public void setPostpaidCardName(String postpaidCardName) {
+        this.postpaidCardName = postpaidCardName;
+    }
+
+    public String getProducts() {
+        return products;
+    }
+
+    public void setProducts(String products) {
+        this.products = products;
+    }
+
+    public Boolean getRedirect() {
+        return isRedirect;
+    }
+
+    public void setRedirect(Boolean redirect) {
+        isRedirect = redirect;
+    }
+
+    public String getAppID() {
+        return appID;
+    }
+
+    public void setAppID(String appID) {
+        this.appID = appID;
+    }
+
+    public String getCaptchaSiteKey() {
+        return captchaSiteKey;
+    }
+
+    public void setCaptchaSiteKey(String captchaSiteKey) {
+        this.captchaSiteKey = captchaSiteKey;
+    }
+
+    public String getImAccountMemberID() {
+        return imAccountMemberID;
+    }
+
+    public void setImAccountMemberID(String imAccountMemberID) {
+        this.imAccountMemberID = imAccountMemberID;
+    }
+
+    public Theme getTheme() {
+        return theme;
+    }
+
+    public void setTheme(Theme theme) {
+        this.theme = theme;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
+    }
+
+    public String getCaptchaSecretKey() {
+        return captchaSecretKey;
+    }
+
+    public void setCaptchaSecretKey(String captchaSecretKey) {
+        this.captchaSecretKey = captchaSecretKey;
+    }
+
+
 }
