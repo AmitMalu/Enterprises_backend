@@ -2,10 +2,13 @@ package com.im.admin.entities;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
 @Entity
 @Table(name = "retailer")
+@Getter
+@Setter
 public class Retailer {
 
     @Id
