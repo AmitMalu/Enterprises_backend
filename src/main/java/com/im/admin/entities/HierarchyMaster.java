@@ -1,11 +1,11 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "hierarchy_master")
 public class HierarchyMaster {
