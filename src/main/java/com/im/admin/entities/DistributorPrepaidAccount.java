@@ -1,12 +1,14 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 
 import java.util.Date;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "Distributor_prepaid_account")
 public class DistributorPrepaidAccount {

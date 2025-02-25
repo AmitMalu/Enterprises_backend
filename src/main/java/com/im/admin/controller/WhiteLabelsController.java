@@ -1,4 +1,4 @@
-package com.im.admin.controller.whitelabel;
+package com.im.admin.controller;
 
 import com.im.admin.entities.WhiteLabels;
 import com.im.admin.service.WhiteLabelsService;

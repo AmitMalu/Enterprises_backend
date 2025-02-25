@@ -1,4 +1,4 @@
-package com.im.admin.controller.retailer;
+package com.im.admin.controller;
 
 import com.im.admin.dto.RetailerDTO;
 import com.im.admin.service.RetailerService;
