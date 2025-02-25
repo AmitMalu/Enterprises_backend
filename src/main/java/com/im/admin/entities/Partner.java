@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "partner")
 public class Partner {
@@ -45,51 +47,4 @@ public class Partner {
     @Valid
     private Address outletAddress;
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Address getOutletAddress() {
-        return outletAddress;
-    }
-
-    public void setOutletAddress(Address outletAddress) {
-        this.outletAddress = outletAddress;
-    }
-
-    public Address getAddress() {
-        return address;
-    }
-
-    public void setAddress(Address address) {
-        this.address = address;
-    }
-
-    public String getCompetitor() {
-        return competitor;
-    }
-
-    public void setCompetitor(String competitor) {
-        this.competitor = competitor;
-    }
-
-    public Info getInfo() {
-        return info;
-    }
-
-    public void setInfo(Info info) {
-        this.info = info;
-    }
-
-    public String getParentAccount() {
-        return parentAccount;
-    }
-
-    public void setParentAccount(String parentAccount) {
-        this.parentAccount = parentAccount;
-    }
 }

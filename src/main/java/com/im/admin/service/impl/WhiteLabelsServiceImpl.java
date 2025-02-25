@@ -32,13 +32,13 @@ public class WhiteLabelsServiceImpl implements WhiteLabelsService {
             existing.setTermsAndConditionURL(whiteLabels.getTermsAndConditionURL());
             existing.setPrivacyPolicyURL(whiteLabels.getPrivacyPolicyURL());
             existing.setRefundAndCancellationURL(whiteLabels.getRefundAndCancellationURL());
-            existing.setServiceAllow(whiteLabels.getServiceAllow());
+            existing.setIsServiceAllow(whiteLabels.getIsServiceAllow());
             existing.setAllowPrepaidCards(whiteLabels.getAllowPrepaidCards());
             existing.setPrepaidCardName(whiteLabels.getPrepaidCardName());
             existing.setAllowPostpaidCards(whiteLabels.getAllowPostpaidCards());
             existing.setPostpaidCardName(whiteLabels.getPostpaidCardName());
             existing.setProducts(whiteLabels.getProducts());
-            existing.setRedirect(whiteLabels.getRedirect());
+            existing.setIsRedirect(whiteLabels.getIsRedirect());
             existing.setAppID(whiteLabels.getAppID());
             existing.setCaptchaSiteKey(whiteLabels.getCaptchaSiteKey());
             existing.setCaptchaSecretKey(whiteLabels.getCaptchaSecretKey());

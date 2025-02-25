@@ -1,4 +1,4 @@
-package com.im.admin.controller.partner;
+package com.im.admin.controller;
 
 import com.im.admin.entities.Partner;
 import com.im.admin.service.PartnerService;

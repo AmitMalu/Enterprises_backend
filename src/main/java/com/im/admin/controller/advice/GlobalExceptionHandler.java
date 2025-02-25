@@ -1,6 +1,7 @@
 package com.im.admin.controller.advice;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -15,16 +16,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
-
-    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
 
         ex.getBindingResult().getFieldErrors().forEach(error -> {
-            logger.error("Validation error - Field: {}, Message: {}", error.getField(), error.getDefaultMessage());
+            log.error("Validation error - Field: {}, Message: {}", error.getField(), error.getDefaultMessage());
             errors.put(error.getField(), error.getDefaultMessage());
         });
 

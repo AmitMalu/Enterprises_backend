@@ -1,4 +1,4 @@
-package com.im.admin.controller.superDistributor;
+package com.im.admin.controller;
 
 
 import com.im.admin.entities.SuperDistributor;

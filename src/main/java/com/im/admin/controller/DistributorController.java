@@ -1,4 +1,4 @@
-package com.im.admin.controller.distributor;
+package com.im.admin.controller;
 
 import com.im.admin.dto.DistributorDTO;
 import com.im.admin.service.DistributorService;
