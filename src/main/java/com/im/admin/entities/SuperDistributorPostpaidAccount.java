@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 
+import java.math.BigDecimal;
+import java.sql.Time;
 import java.util.Date;
 
 @Data
@@ -12,34 +14,29 @@ import java.util.Date;
 public class SuperDistributorPostpaidAccount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "sr_no")
-    private Long srNo;
+    @Column(name = "id", nullable = false)
+    private Long id;
 
-    @Column(name = "name")
-    private String name;
+    @Column(name = "total_cash")
+    private BigDecimal totalCash;
 
-    @Column(name = "mobile")
-    private String mobile;
+    @Column(name = "used_cash")
+    private BigDecimal usedCash;
 
-    @Column(name = "im_merchant_number")
-    private String imMerchantNumber;
+    @Column(name = "cut_of_amount")
+    private BigDecimal cutOfAmount;
 
-    @Column(name = "wallet")
-    private String wallet;
+    @Column(name = "available_balance")
+    private BigDecimal availableBalance;
 
-    @Column(name = "created_by")
-    private String createdBy;
+    @Column(name = "last_updated_date")
+    private Date lastUpdateDate;
 
-    @Column(name = "created_on", columnDefinition = "DATETIME")
-    private Date createdOn;
+    @Column(name = "last_updated_time")
+    private Time lastUpdateTime;
 
-    @Column(name = "updated_by")
-    private String updatedBy;
+    @Column(name = "last_updated_amount")
+    private BigDecimal lastUpdatedAmount;
 
-    @Column(name = "updated_on", columnDefinition = "DATETIME")
-    private Date updatedOn;
-
-    @Column(name = "created_ip")
-    private String createdIp;
 
 }
