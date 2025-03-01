@@ -24,8 +24,7 @@ public class VendorServiceImpl implements VendorService {
     @Override
     public Vendor saveVendor(Vendor vendor) {
         log.info("Saving new vendor: {}", vendor.getApiVendorName());
-        Vendor save = vendorRepository.save(vendor);
-        return save;
+        return vendorRepository.save(vendor);
 
     }
 
@@ -63,9 +62,7 @@ public class VendorServiceImpl implements VendorService {
     @Override
     public Page<Vendor> getAllVendors(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Vendor> Vendors = vendorRepository.findAll(pageable);
-        return Vendors;
+        return vendorRepository.findAll(pageable);
     }
-
 
 }
