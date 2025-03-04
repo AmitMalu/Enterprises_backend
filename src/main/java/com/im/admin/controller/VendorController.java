@@ -1,74 +1,66 @@
 package com.im.admin.controller;
 
-import org.springframework.data.domain.Page;
-import com.im.admin.entities.Vendor;
+import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.service.VendorService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/vendor")
+@RequestMapping("/api/vendors")
 @Slf4j
+@Validated
 public class VendorController {
 
     @Autowired
     private VendorService vendorService;
 
+    public VendorController(VendorService vendorService) {
+        this.vendorService = vendorService;
+    }
+
     @PostMapping
-    public ResponseEntity<Vendor> createVendor(@Valid @RequestBody Vendor vendor) {
-        log.info("Received request to create vendor: {}", vendor.getApiVendorName());
-        Vendor savedVendor = vendorService.saveVendor(vendor);
-        log.info("Vendor created successfully with ID: {}", savedVendor.getId());
-        return ResponseEntity.ok(savedVendor);
+    public ResponseEntity<Vendors> createVendor(@Valid @RequestBody Vendors vendor) {
+        log.info("Creating a new vendor: {}", vendor);
+        Vendors savedVendor = vendorService.saveVendor(vendor);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedVendor);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Vendor> updateVendor(@PathVariable Long id, @Valid @RequestBody Vendor vendor) {
-        log.info("Received request to update vendor with ID: {}", id);
-        Vendor updatedVendor = vendorService.updateVendor(id, vendor);
-        log.info("Vendor updated successfully with ID: {}", updatedVendor.getId());
+    public ResponseEntity<Vendors> updateVendor(@PathVariable Long id, @Valid @RequestBody Vendors vendor) {
+        log.info("Updating vendor with ID: {}", id);
+        Vendors updatedVendor = vendorService.updateVendor(id, vendor);
         return ResponseEntity.ok(updatedVendor);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteVendor(@PathVariable Long id) {
-        log.info("Received request to delete vendor with ID: {}", id);
-        vendorService.deleteVendor(id);
-        log.info("Vendor with ID {} deleted successfully", id);
-        return ResponseEntity.ok("Vendor deleted successfully");
+    @GetMapping
+    public ResponseEntity<Page<Vendors>> getAllVendors(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("Fetching all vendors with pagination: page {}, size {}", page, size);
+        Page<Vendors> vendors = vendorService.getAllVendors(PageRequest.of(page, size));
+        return ResponseEntity.ok(vendors);
     }
 
-
     @GetMapping("/{id}")
-    public ResponseEntity<Optional<Vendor>> getVendorById(@PathVariable Long id) {
-        log.info("Received request to fetch vendor with ID: {}", id);
-        Optional<Vendor> vendor = vendorService.getVendorById(id);
-        if (vendor.isPresent()) {
-            log.info("Vendor found with ID: {}", id);
-        } else {
-            log.warn("Vendor with ID {} not found", id);
-        }
+    public ResponseEntity<Vendors> getVendorById(@PathVariable Long id) {
+        log.info("Fetching vendor with ID: {}", id);
+        Vendors vendor = vendorService.getVendorById(id);
         return ResponseEntity.ok(vendor);
     }
 
-
-    @GetMapping
-    public ResponseEntity<Page<Vendor>> getAllVendors(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        log.info("Received request to fetch all vendors with page: {} and size: {}", page, size);
-        Pageable pageable = PageRequest.of(page, size);
-
-        Page<Vendor> vendors = vendorService.getAllVendors(page, size);
-        log.info("Fetched {} vendors", vendors.getTotalElements());
-        return ResponseEntity.ok(vendors);
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteVendor(@PathVariable Long id) {
+        log.info("Deleting vendor with ID: {}", id);
+        vendorService.deleteVendor(id);
+        return ResponseEntity.noContent().build();
     }
 }
