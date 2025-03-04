@@ -1,68 +1,69 @@
 package com.im.admin.service.impl;
 
-import com.im.admin.entities.Distributor;
-import com.im.admin.entities.Vendor;
+import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.VendorRepository;
 import com.im.admin.service.VendorService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import org.springframework.data.domain.Pageable;
-import java.util.Optional;
+import java.time.LocalDateTime;
+
 
 @Service
 @Slf4j
 public class VendorServiceImpl implements VendorService {
 
     @Autowired
-    VendorRepository vendorRepository;
+    private VendorRepository vendorRepository;
 
+    public VendorServiceImpl(VendorRepository vendorRepository) {
+        this.vendorRepository = vendorRepository;
+    }
 
     @Override
-    public Vendor saveVendor(Vendor vendor) {
-        log.info("Saving new vendor: {}", vendor.getApiVendorName());
+    public Vendors saveVendor(Vendors vendor) {
+        vendor.setCreatedOn(LocalDateTime.now());
+        vendor.setCreatedBy("SYSTEM"); // Replace with authenticated user
+        log.info("Saving new vendor: {}", vendor);
         return vendorRepository.save(vendor);
+    }
 
+    @Override
+    public Vendors updateVendor(Long id, Vendors vendor) {
+        Vendors existingVendor = vendorRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id " + id));
+
+        existingVendor.setInfo(vendor.getInfo());
+        existingVendor.setVendorAccount(vendor.getVendorAccount());
+        existingVendor.setEditedOn(LocalDateTime.now());
+        existingVendor.setEditedBy("SYSTEM"); // Replace with authenticated user
+        log.info("Updating vendor with ID {}: {}", id, existingVendor);
+
+        return vendorRepository.save(existingVendor);
+    }
+
+    @Override
+    public Page<Vendors> getAllVendors(Pageable pageable) {
+        log.info("Fetching all vendors with pagination");
+        return vendorRepository.findAll(pageable);
+    }
+
+    @Override
+    public Vendors getVendorById(Long id) {
+        log.info("Fetching vendor with ID: {}", id);
+        return vendorRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id " + id));
     }
 
     @Override
     public void deleteVendor(Long id) {
         log.info("Deleting vendor with ID: {}", id);
-        vendorRepository.deleteById(id);
+        Vendors vendor = vendorRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id " + id));
+        vendorRepository.delete(vendor);
     }
-
-    @Override
-    public Optional<Vendor> getVendorById(Long id) {
-        log.info("Fetching vendor with ID: {}", id);
-        return vendorRepository.findById(id);
-    }
-
-
-    @Override
-    public Vendor updateVendor(Long id, Vendor vendor) {
-        log.info("Updating vendor with ID: {}", id);
-        Optional<Vendor> existingVendor = vendorRepository.findById(id);
-        if (existingVendor.isPresent()) {
-            Vendor updatedVendor = existingVendor.get();
-            updatedVendor.setApiVendorName(vendor.getApiVendorName());
-            updatedVendor.setApiVendorClass(vendor.getApiVendorClass());
-            updatedVendor.setActive(vendor.getActive());
-            updatedVendor.setBankType(vendor.getBankType());
-            updatedVendor.setModesSupported(vendor.getModesSupported());
-            return vendorRepository.save(updatedVendor);
-        } else {
-            throw new RuntimeException("Vendor not found with ID: " + id);
-        }
-
-    }
-
-    @Override
-    public Page<Vendor> getAllVendors(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return vendorRepository.findAll(pageable);
-    }
-
 }
