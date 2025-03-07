@@ -10,12 +10,12 @@ public interface VendorService {
 
     Vendors saveVendor(Vendors vendor);
 
-    Vendors updateVendor(Long id, Vendors vendor);
+    Vendors getVendorById(String id);
 
-    Page<Vendors> getAllVendors(Pageable pageable);
+    Page<Vendors> getAllVendors(int page, int size);
 
-    Vendors getVendorById(Long id);
+    Vendors updateVendor(String id, Vendors vendor);
 
-    void deleteVendor(Long id);
+    void deleteVendor(String id);
 }
 

@@ -17,9 +17,6 @@ class ProductInfo {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "operator_source")
-    private String operatorSource;
-
     @Column(name = "wallet_type")
     private String walletType;
 
@@ -59,5 +56,20 @@ class ProductInfo {
 
     @Column(name = "product_group")
     private String productGroup;
+
+    @Column(name = "reverse_tx")
+    private Boolean reverseTx;
+
+    @Column(name = "cluster_mode")
+    private Boolean clusterMode;
+
+    @Column(name = "is_settlement")
+    private Boolean isSettlement;
+
+    @Column(name = "has_charges")
+    private Boolean hasCharges;
+
+    @Column(name = "blocked")
+    private Boolean blocked;
 }
 
