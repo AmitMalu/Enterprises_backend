@@ -18,8 +18,8 @@ import java.time.LocalDateTime;
 public class Vendors {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", columnDefinition = "CHAR(2)")
+    private String id;
 
     @Embedded
     @Valid

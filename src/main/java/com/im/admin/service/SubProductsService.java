@@ -4,17 +4,16 @@ import com.im.admin.entities.SubProducts;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.Optional;
-
 public interface SubProductsService {
 
-    SubProducts save(SubProducts subProduct);
+    SubProducts saveSubProduct(SubProducts subProduct);
 
-    SubProducts update(Long id, SubProducts subProduct);
+    void deleteSubProduct(String id);
 
-    Page<SubProducts> getAll(Pageable pageable);
+    SubProducts updateSubProduct(String id, SubProducts subProduct);
 
-    Optional<SubProducts> getById(Long id);
+    Page<SubProducts> getAllSubProducts(Pageable pageable);
 
-    void delete(Long id);
+    SubProducts getSubProductById(String id);
 }
+
