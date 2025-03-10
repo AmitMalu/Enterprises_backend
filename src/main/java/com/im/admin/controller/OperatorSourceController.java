@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/operators")
+@RequestMapping("/api/operator-source")
 @Slf4j
 public class OperatorSourceController {
 

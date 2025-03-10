@@ -34,7 +34,7 @@ public class SubOperatorServiceImpl implements SubOperatorService {
         subOperator.setId(commonMethods.generateNextIdForTables("operators", "id"));
         subOperator.setCreatedBy(createdBy);
 
-        log.info("Saving new SubOperator with ID: {}", nextId);
+        //log.info("Saving new SubOperator with ID: {}", nextId);
         return subOperatorRepository.save(subOperator);
     }
 
