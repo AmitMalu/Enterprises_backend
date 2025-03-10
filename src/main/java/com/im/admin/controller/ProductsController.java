@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.ProductDropdownResponseDto;
 import com.im.admin.entities.product.Products;
 import com.im.admin.service.ProductsService;
 import jakarta.validation.Valid;
@@ -59,6 +60,12 @@ public class ProductsController {
         log.info("Received request to fetch product with ID: {}", id);
         Products product = productsService.getProductById(id);
         return ResponseEntity.ok(product);
+    }
+
+    @GetMapping("/dropdown/active")
+    public ResponseEntity<List<ProductDropdownResponseDto>> getAllActiveProducts() {
+        List<ProductDropdownResponseDto> products = productsService.getAllActiveProducts();
+        return ResponseEntity.ok(products);
     }
 }
 

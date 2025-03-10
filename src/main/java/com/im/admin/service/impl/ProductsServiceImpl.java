@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.ProductDropdownResponseDto;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.service.ProductsService;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -79,6 +81,19 @@ public class ProductsServiceImpl implements ProductsService {
         return productsRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found with ID: " + id));
     }
+
+    @Override
+    public List<ProductDropdownResponseDto> getAllActiveProducts() {
+        List<Products> activeProducts = productsRepository.findByActiveTrue();
+
+        return activeProducts.stream()
+                .map(product -> new ProductDropdownResponseDto(
+                        product.getId(),
+                        product.getName(),
+                        product.getProductCode()))
+                .collect(Collectors.toList());
+    }
+
 }
 
 
