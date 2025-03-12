@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.service.SubProductsService;
 import jakarta.validation.Valid;
@@ -11,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/sub-products")
@@ -20,9 +23,14 @@ public class SubProductsController {
     private SubProductsService subProductsService;
 
     @PostMapping
-    public ResponseEntity<SubProducts> saveSubProduct(@RequestBody @Valid SubProducts subProduct) {
-        SubProducts savedProduct = subProductsService.saveSubProduct(subProduct);
-        return new ResponseEntity<>(savedProduct, HttpStatus.CREATED);
+    public ResponseEntity<?> saveSubProduct(@RequestBody @Valid SubProducts subProduct) {
+        try {
+            SubProducts savedProduct = subProductsService.saveSubProduct(subProduct);
+            return new ResponseEntity<>(savedProduct, HttpStatus.CREATED);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ex.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -46,6 +54,12 @@ public class SubProductsController {
     @GetMapping("/{id}")
     public ResponseEntity<SubProducts> getSubProductById(@PathVariable String id) {
         return ResponseEntity.ok(subProductsService.getSubProductById(id));
+    }
+
+    @GetMapping("/dropdown/{productId}")
+    public ResponseEntity<List<SubProductDropdownResponseDto>> getActiveSubProducts(@PathVariable("productId") Short productId) {
+        List<SubProductDropdownResponseDto> subProducts = subProductsService.getActiveSubProductsByProductId(productId);
+        return ResponseEntity.ok(subProducts);
     }
 }
 

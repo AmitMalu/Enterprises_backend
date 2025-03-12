@@ -36,7 +36,7 @@ public class HierarchySelectionController {
     }
 
     @PutMapping("/update/{id}")
-    public ResponseEntity<String> updateHierarchySelection(@PathVariable Long id, @RequestBody List<String> hierarchyNames) {
+    public ResponseEntity<String> updateHierarchySelection(@PathVariable String id, @RequestBody List<String> hierarchyNames) {
         try {
             hierarchyService.updateHierarchySelection(id, hierarchyNames);
             return ResponseEntity.ok("Hierarchy selection updated successfully.");
@@ -59,7 +59,7 @@ public class HierarchySelectionController {
     }
 
     @GetMapping("/getById/{id}")
-    public ResponseEntity<?> getSelectionById(@PathVariable Long id) {
+    public ResponseEntity<?> getSelectionById(@PathVariable String id) {
         try {
             return ResponseEntity.ok(hierarchyService.getSelectionById(id));
         } catch (EntityNotFoundException e) {

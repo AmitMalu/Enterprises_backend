@@ -34,21 +34,29 @@ public class SubProducts {
     @Column(name = "sub_product_title", nullable = false)
     private String subProductTitle;
 
-    @Column(name = "product", nullable = false)
-    @NotNull(message = "Product cannot be null")
-    @NotBlank(message = "Product cannot be blank")
-    private String product;
-
     @Column(name = "sub_product_code", nullable = false, unique = true)
     @NotNull(message = "Sub Product Code cannot be null")
     @NotBlank(message = "Sub Product Code cannot be blank")
     private String subProductCode;
 
+    @Column(name = "product", nullable = false)
+    @NotNull(message = "Product Code cannot be null")
+    @NotBlank(message = "Product Code cannot be blank")
+    private String productCode;
+
+    @Column(name = "product_id")
+    @NotNull(message = "Product Id cannot be null")
+    private Short productId;
+
     @Column(name = "is_settlement", nullable = false)
     @NotNull(message = "Is Settlement is required")
     private Boolean isSettlement;
 
-    @Column(name = "enabled", nullable = false)
+    @Column(name = "is_active", nullable = false)
+    @NotNull(message = "Is Active is required")
+    private Boolean isActive = false;
+
+    @Column(name = "enabled")
     @NotNull(message = "Is Enabled is required")
     private Boolean enabled;
 

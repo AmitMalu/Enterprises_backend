@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.service.SubProductsService;
@@ -11,6 +12,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -24,11 +30,23 @@ public class SubProductsServiceImpl implements SubProductsService {
 
     @Override
     public SubProducts saveSubProduct(SubProducts subProduct) {
+        Optional<SubProducts> existingSubProduct = subProductsRepository
+                .findBySubProductCodeOrSubProductTitle(subProduct.getSubProductCode(), subProduct.getSubProductTitle());
+
+        if (existingSubProduct.isPresent()) {
+            SubProducts existing = existingSubProduct.get();
+            if (existing.getSubProductCode().equals(subProduct.getSubProductCode())) {
+                throw new IllegalArgumentException("Sub Product Code '" + subProduct.getSubProductCode() + "' is already in use.");
+            }
+            if (existing.getSubProductTitle().equals(subProduct.getSubProductTitle())) {
+                throw new IllegalArgumentException("Sub Product Title '" + subProduct.getSubProductTitle() + "' is already in use.");
+            }
+        }
+
         subProduct.setId(commonMethods.generateNextIdForTables("sub_products", "id"));
-        SubProducts savedSubProduct = subProductsRepository.save(subProduct);
-        log.info("SubProduct {} saved successfully.", savedSubProduct.getId());
-        return savedSubProduct;
+        return subProductsRepository.save(subProduct);
     }
+
 
     @Override
     @Transactional
@@ -47,8 +65,9 @@ public class SubProductsServiceImpl implements SubProductsService {
                 .orElseThrow(() -> new RuntimeException("SubProduct with ID " + id + " not found."));
 
         existingSubProduct.setSubProductTitle(subProduct.getSubProductTitle());
-        existingSubProduct.setProduct(subProduct.getProduct());
+        existingSubProduct.setProductCode(subProduct.getProductCode());
         existingSubProduct.setSubProductCode(subProduct.getSubProductCode());
+        existingSubProduct.setProductId(subProduct.getProductId());
         existingSubProduct.setIsSettlement(subProduct.getIsSettlement());
         existingSubProduct.setEnabled(subProduct.getEnabled());
         existingSubProduct.setEditedBy(subProduct.getEditedBy());
@@ -68,6 +87,25 @@ public class SubProductsServiceImpl implements SubProductsService {
     public SubProducts getSubProductById(String id) {
         return subProductsRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("SubProduct with ID " + id + " not found."));
+    }
+
+    @Override
+    public List<SubProductDropdownResponseDto> getActiveSubProductsByProductId(Short productId) {
+        log.info("Fetching sub-products for productId: {}", productId);
+
+        try {
+            List<SubProducts> subProducts = subProductsRepository.findByProductIdAndIsActiveTrue(productId);
+
+            log.info("Found {} active sub-products for productId: {}", subProducts.size(), productId);
+
+            return subProducts.stream()
+                    .map(subProduct -> new SubProductDropdownResponseDto(subProduct.getId(), subProduct.getSubProductTitle(), subProduct.getSubProductCode()))
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("Error while fetching sub-products for productId: {}", productId, e);
+            throw new RuntimeException("Error fetching sub-products", e);
+        }
     }
 }
 

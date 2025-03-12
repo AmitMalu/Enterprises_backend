@@ -10,7 +10,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -49,7 +56,11 @@ public class OperatorsServiceImpl implements OperatorsService {
         existingOperator.setOperatorName(operator.getOperatorName());
         existingOperator.setOperatorAlias(operator.getOperatorAlias());
         existingOperator.setAlias(operator.getAlias());
-        existingOperator.setVendor(operator.getVendor());
+        existingOperator.setProductId(operator.getProductId());
+        existingOperator.setProductCode(operator.getProductCode());
+        existingOperator.setSubProductId(operator.getSubProductId());
+        existingOperator.setSubProductCode(operator.getSubProductCode());
+        existingOperator.setIsActive(operator.getIsActive());
         existingOperator.setEditedBy(operator.getEditedBy());
 
         Operators updatedOperator = operatorsRepository.save(existingOperator);
@@ -83,6 +94,29 @@ public class OperatorsServiceImpl implements OperatorsService {
 
         return operatorsRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Operator not found with ID: " + id));
+    }
+
+    @Override
+    public ResponseEntity<?> getActiveOperatorsBySubProductId(String subProductId) {
+        List<Operators> operators = operatorsRepository.findBySubProductIdAndIsActiveTrue(subProductId);
+
+        if (operators.isEmpty()) {
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "No active operators found for the given SubProduct ID: " + subProductId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+
+        List<Map<String, Object>> result = operators.stream()
+                .map(op -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", op.getId());
+                    map.put("operatorName", op.getOperatorName());
+                    map.put("operatorCode", op.getOperatorCode());
+                    return map;
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(result);
     }
 }
 
