@@ -11,6 +11,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/operators")
 @Slf4j
@@ -57,5 +61,22 @@ public class OperatorsController {
         Page<Operators> operators = operatorsService.getAllOperators(page, size);
         return ResponseEntity.ok(operators);
     }
+
+
+    @GetMapping("/active/{subProductId}")
+    public ResponseEntity<?> getActiveOperators(@PathVariable String subProductId) {
+
+        if (subProductId == null || subProductId.isBlank()) {
+            return ResponseEntity.badRequest().body(Collections.singletonList(
+                    Map.of("error", "subProductId is required")
+            ));
+        }
+        return operatorsService.getActiveOperatorsBySubProductId(subProductId);
+    }
+
+
+
+
+
 }
 

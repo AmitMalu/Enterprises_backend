@@ -10,11 +10,11 @@ public interface HierarchySelectionService {
 
     Map<String, Object> saveHierarchySelection(List<String> hierarchyNames);
 
-    void updateHierarchySelection(Long id, List<String> hierarchyNames);
+    void updateHierarchySelection(String id, List<String> hierarchyNames);
 
     List<SchemeHierarchySelection> getAllSelections(Pageable pageable);
 
-    SchemeHierarchySelection getSelectionById(Long id);
+    SchemeHierarchySelection getSelectionById(String id);
 
 }
 

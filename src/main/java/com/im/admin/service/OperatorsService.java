@@ -2,6 +2,10 @@ package com.im.admin.service;
 
 import com.im.admin.entities.Operators;
 import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
+
+import java.util.List;
+import java.util.Map;
 
 public interface OperatorsService {
 
@@ -14,5 +18,8 @@ public interface OperatorsService {
     Page<Operators> getAllOperators(int page, int size);
 
     Operators getOperatorById(String id);
+
+    ResponseEntity<?> getActiveOperatorsBySubProductId(String subProductId);
+
 }
 

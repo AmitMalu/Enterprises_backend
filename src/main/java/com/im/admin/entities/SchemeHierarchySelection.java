@@ -24,8 +24,8 @@ import java.util.Set;
 public class SchemeHierarchySelection {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 4, nullable = false, unique = true)
+    private String id;
 
     @Column(name = "combination_hash", nullable = false, unique = true)
     private String combinationHash;
