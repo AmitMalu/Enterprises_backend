@@ -3,58 +3,71 @@ package com.im.admin.service.impl;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.service.SubProductsService;
+import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
+import org.springframework.transaction.annotation.Transactional;
 
-@Service
 @Slf4j
+@Service
 public class SubProductsServiceImpl implements SubProductsService {
 
     @Autowired
     private SubProductsRepository subProductsRepository;
 
+    @Autowired
+    private CommonMethods commonMethods;
+
     @Override
-    public SubProducts save(SubProducts subProduct) {
-        log.info("Saving SubProduct: {}", subProduct);
-        return subProductsRepository.save(subProduct);
+    public SubProducts saveSubProduct(SubProducts subProduct) {
+        subProduct.setId(commonMethods.generateNextIdForTables("sub_products", "id"));
+        SubProducts savedSubProduct = subProductsRepository.save(subProduct);
+        log.info("SubProduct {} saved successfully.", savedSubProduct.getId());
+        return savedSubProduct;
     }
 
     @Override
-    public SubProducts update(Long id, SubProducts subProduct) {
-        log.info("Updating SubProduct with ID: {}", id);
-        return subProductsRepository.findById(id).map(existing -> {
-            existing.setSubProductTitle(subProduct.getSubProductTitle());
-            existing.setProduct(subProduct.getProduct());
-            existing.setSubProductCode(subProduct.getSubProductCode());
-            existing.setIsSettlement(subProduct.getIsSettlement());
-            existing.setEnabled(subProduct.getEnabled());
-            existing.setEditedBy(subProduct.getEditedBy());
-            existing.setEditedOn(LocalDateTime.now());
-            return subProductsRepository.save(existing);
-        }).orElseThrow(() -> new RuntimeException("SubProduct not found"));
+    @Transactional
+    public void deleteSubProduct(String id) {
+        if (!subProductsRepository.existsById(id)) {
+            throw new RuntimeException("SubProduct with ID " + id + " not found.");
+        }
+        subProductsRepository.deleteById(id);
+        log.info("Deleted SubProduct with ID: {}", id);
     }
 
     @Override
-    public Page<SubProducts> getAll(Pageable pageable) {
+    @Transactional
+    public SubProducts updateSubProduct(String id, SubProducts subProduct) {
+        SubProducts existingSubProduct = subProductsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("SubProduct with ID " + id + " not found."));
+
+        existingSubProduct.setSubProductTitle(subProduct.getSubProductTitle());
+        existingSubProduct.setProduct(subProduct.getProduct());
+        existingSubProduct.setSubProductCode(subProduct.getSubProductCode());
+        existingSubProduct.setIsSettlement(subProduct.getIsSettlement());
+        existingSubProduct.setEnabled(subProduct.getEnabled());
+        existingSubProduct.setEditedBy(subProduct.getEditedBy());
+
+        SubProducts updatedSubProduct = subProductsRepository.save(existingSubProduct);
+        log.info("Updated SubProduct with ID: {}", id);
+        return updatedSubProduct;
+    }
+
+    @Override
+    public Page<SubProducts> getAllSubProducts(Pageable pageable) {
         log.info("Fetching all SubProducts with pagination");
         return subProductsRepository.findAll(pageable);
     }
 
     @Override
-    public Optional<SubProducts> getById(Long id) {
-        log.info("Fetching SubProduct with ID: {}", id);
-        return subProductsRepository.findById(id);
-    }
-
-    @Override
-    public void delete(Long id) {
-        log.info("Deleting SubProduct with ID: {}", id);
-        subProductsRepository.deleteById(id);
+    public SubProducts getSubProductById(String id) {
+        return subProductsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("SubProduct with ID " + id + " not found."));
     }
 }
+
