@@ -10,8 +10,8 @@ import java.util.Date;
 
 @Data
 @Entity
-@Table(name = "retailer_postpaid_account")
-public class RetailerPostpaidAccount {
+@Table(name = "retailer_prepaid_amount")
+public class RetailerPrepaidAmount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)

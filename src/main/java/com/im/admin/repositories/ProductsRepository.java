@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProductsRepository extends JpaRepository<Products, Short> {
@@ -19,6 +20,9 @@ public interface ProductsRepository extends JpaRepository<Products, Short> {
 
     //@Query("SELECT COALESCE(MAX(p.id), 9) FROM Products p")
     //Short findMaxProductId();
+
+    Optional<Products> findByProductCode(String productCode);
+
 
 
 }

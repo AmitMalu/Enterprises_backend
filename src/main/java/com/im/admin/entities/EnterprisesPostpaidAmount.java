@@ -10,8 +10,8 @@ import lombok.Data;
 
 @Data
 @Entity
-@Table(name = "Enterprises_postpaid_account")
-public class EnterprisesPostpaidAccount {
+@Table(name = "Enterprises_postpaid_amount")
+public class EnterprisesPostpaidAmount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)

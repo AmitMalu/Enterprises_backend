@@ -2,16 +2,14 @@ package com.im.admin.entities;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
-
 import java.math.BigDecimal;
 import java.sql.Time;
 import java.util.Date;
 
 @Data
 @Entity
-@Table(name = "partner_prepaid_account")
-public class PartnerPrepaidAccount {
+@Table(name = "white_label_postpaid_amount")
+public class WhiteLabelPostpaidAmount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
@@ -37,6 +35,5 @@ public class PartnerPrepaidAccount {
 
     @Column(name = "last_updated_amount")
     private BigDecimal lastUpdatedAmount;
-
 
 }
