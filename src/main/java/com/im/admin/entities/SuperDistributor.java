@@ -43,35 +43,4 @@ public class SuperDistributor {
     @Valid
     private Address outletAddress;
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Info getInfo() {
-        return info;
-    }
-
-    public void setInfo(Info info) {
-        this.info = info;
-    }
-
-    public Address getOutletAddress() {
-        return outletAddress;
-    }
-
-    public void setOutletAddress(Address outletAddress) {
-        this.outletAddress = outletAddress;
-    }
-
-    public Address getAddress() {
-        return address;
-    }
-
-    public void setAddress(Address address) {
-        this.address = address;
-    }
 }

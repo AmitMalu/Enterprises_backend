@@ -1,17 +1,17 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
-import lombok.Data;
-
-
 import java.math.BigDecimal;
 import java.sql.Time;
 import java.util.Date;
 
+import jakarta.persistence.*;
+import lombok.Data;
+
 @Data
 @Entity
-@Table(name = "partner_postpaid_account")
-public class PartnerPostpaidAccount {
+@Table(name = "Enterprises_prepaid_amount")
+public class EnterprisesPrepaidAmount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)

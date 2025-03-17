@@ -1,9 +1,12 @@
 package com.im.admin.controller;
 
 
-import com.im.admin.dto.SchemeDTO;
+import com.im.admin.dto.*;
+import com.im.admin.entities.SchemeRate;
+import com.im.admin.entities.VendorRouting;
 import com.im.admin.service.SchemeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,5 +34,37 @@ public class SchemeController {
     public ResponseEntity<Map<String, Object>> saveScheme(@RequestBody SchemeDTO schemeDTO) {
         return ResponseEntity.ok(schemeService.saveScheme(schemeDTO));
     }
+
+    @GetMapping("/operators/{productCode}/{subProductCode}")
+    public ResponseEntity<OperatorProductResponseDTO> getOperatorListBySubProductCode(@PathVariable("subProductCode") String subProductCode,
+                                                               @PathVariable("productCode") String productCode) {
+
+        OperatorProductResponseDTO response = schemeService.getOperatorsAndProduct(productCode, subProductCode);
+        return ResponseEntity.ok(response);
+
+    }
+
+    @PostMapping("/rate")
+    public ResponseEntity<List<SchemeRate>> createSchemeRates(@RequestBody SchemeRateRequestDTO requestDTO) {
+        return ResponseEntity.ok(schemeService.createSchemeRates(requestDTO));
+    }
+
+    @GetMapping("/{operatorCode}")
+    public ResponseEntity<List<SchemeRate>> getSchemeRatesByOperatorCode(@PathVariable String operatorCode) {
+        return ResponseEntity.ok(schemeService.getSchemeRatesByOperatorCode(operatorCode));
+    }
+
+    @PostMapping("/allocateSchemes")
+    public ResponseEntity<String> allocateSchemes(@RequestBody SchemeAllocationRequestDto request) {
+        schemeService.allocateSchemes(request);
+        return ResponseEntity.ok("Schemes allocated successfully for " + request.getHierarchyId());
+    }
+
+    @PostMapping("/routing")
+    public ResponseEntity<?> vendorRouting(@RequestBody VendorRoutingDto vendorRoutingDto) {
+        VendorRouting savedVendorRouting = schemeService.saveVendorRouting(vendorRoutingDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedVendorRouting);
+    }
+
 
 }

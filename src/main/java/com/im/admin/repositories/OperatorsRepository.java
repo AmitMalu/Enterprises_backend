@@ -15,5 +15,8 @@ public interface OperatorsRepository extends JpaRepository<Operators, String> {
 
     List<Operators> findBySubProductIdAndIsActiveTrue(String subProductId);
 
+    List<Operators> findBySubProductCode(String subProductCode);
+
+
 }
 
