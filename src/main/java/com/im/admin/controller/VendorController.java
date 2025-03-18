@@ -1,5 +1,7 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.SubProductDropdownResponseDto;
+import com.im.admin.dto.VendorDropdownResponseDto;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.service.VendorService;
 import jakarta.validation.Valid;
@@ -11,7 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/vendors")
@@ -52,6 +54,21 @@ public class VendorController {
     public ResponseEntity<Void> deleteVendor(@PathVariable String id) {
         vendorsService.deleteVendor(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/dropdown/{subProductId}")
+    public ResponseEntity<?> getActiveVendors(@PathVariable("subProductId") String subProductId) {
+        log.info("Fetching active vendors for subProductId: {}", subProductId);
+
+        List<VendorDropdownResponseDto> vendorList = vendorsService.getActiveVendorBySubProductId(subProductId);
+
+        if (vendorList.isEmpty()) {
+            log.warn("No active vendors found for subProductId: {}", subProductId);
+            return ResponseEntity.status(404).body("No active vendors found for the given subProductId.");
+        }
+
+        log.info("Successfully retrieved {} vendors for subProductId: {}", vendorList.size(), subProductId);
+        return ResponseEntity.ok(vendorList);
     }
 }
 

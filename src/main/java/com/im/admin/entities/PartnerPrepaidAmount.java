@@ -1,19 +1,17 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 
 import java.math.BigDecimal;
 import java.sql.Time;
 import java.util.Date;
 
-@Getter
-@Setter
+@Data
 @Entity
-@Table(name = "Distributor_prepaid_account")
-public class DistributorPrepaidAccount {
+@Table(name = "partner_prepaid_amount")
+public class PartnerPrepaidAmount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)

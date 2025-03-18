@@ -5,9 +5,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface VendorRepository extends JpaRepository<Vendors, String> {
 
-  @Query("SELECT MAX(v.id) FROM Vendors v")
-  String findMaxId();  // Find the highest existing ID
+  List<Vendors> findBySubProductIdAndActiveTrue(String subProductId);
+
+  boolean existsByVendorCode(String vendorCode);
+
+
 }

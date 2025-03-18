@@ -2,14 +2,16 @@ package com.im.admin.entities;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
+
 import java.math.BigDecimal;
 import java.sql.Time;
 import java.util.Date;
 
 @Data
 @Entity
-@Table(name = "white_label_prepaid_account")
-public class WhiteLabelPrepaidAccount {
+@Table(name = "partner_postpaid_Amount")
+public class PartnerPostpaidAmount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)

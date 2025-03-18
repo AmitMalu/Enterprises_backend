@@ -7,6 +7,7 @@ import com.im.admin.exception.DuplicateEntryException;
 import com.im.admin.repositories.HierarchyMasterRepository;
 import com.im.admin.repositories.HierarchySelectionRepository;
 import com.im.admin.service.HierarchySelectionService;
+import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,9 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
     @Autowired
     private HierarchySelectionRepository hierarchySelectionRepository;
 
+    @Autowired
+    private CommonMethods commonMethods;
+
     @Transactional
     @Override
     public Map<String, Object> saveHierarchySelection(List<String> hierarchyNames) {
@@ -39,9 +43,15 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
             throw new DuplicateEntryException("This hierarchy selection already exists!");
         }
 
+        String nextId = commonMethods.generateNextSequentialId(hierarchySelectionRepository.findMaxId());
+        if (nextId == null) {
+            throw new IllegalStateException("ID limit exceeded! Cannot store more than 9999 records.");
+        }
+
         SchemeHierarchySelection selection = new SchemeHierarchySelection();
+        selection.setId(nextId);
         selection.setCombinationHash(combinationHash);
-        selection.setCreatedBy("system"); // Fetch from authentication
+        selection.setCreatedBy("system");
         selection.setEditedBy("Admin");
 
         Set<SchemeHierarchySelectionMapping> mappings = new HashSet<>();
@@ -49,7 +59,7 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
             SchemeHierarchySelectionMapping mapping = new SchemeHierarchySelectionMapping();
             mapping.setSelection(selection);
             mapping.setHierarchy(hierarchy);
-            mapping.setHierarchyCode(hierarchy.getCode()); // Use the hierarchy code
+            mapping.setHierarchyCode(hierarchy.getCode());
             mappings.add(mapping);
         }
 
@@ -71,7 +81,7 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
 
     @Transactional
     @Override
-    public void updateHierarchySelection(Long id, List<String> hierarchyNames) {
+    public void updateHierarchySelection(String id, List<String> hierarchyNames) {
         log.info("Updating hierarchy selection with ID: {}", id);
 
         SchemeHierarchySelection existingSelection = hierarchySelectionRepository.findById(id)
@@ -114,7 +124,7 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
     }
 
     @Override
-    public SchemeHierarchySelection getSelectionById(Long id) {
+    public SchemeHierarchySelection getSelectionById(String id) {
         log.info("Fetching hierarchy selection by ID: {}", id);
         return hierarchySelectionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Hierarchy selection not found!"));
