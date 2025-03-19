@@ -4,6 +4,7 @@ import com.im.admin.dto.RetailerDTO;
 import com.im.admin.entities.Retailer;
 import com.im.admin.repositories.RetailerRepository;
 import com.im.admin.service.RetailerService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -13,7 +14,11 @@ import java.util.stream.Collectors;
 @Transactional
 public class RetailerServiceImpl implements RetailerService {
 
-    private final RetailerRepository retailerRepository;
+    @Autowired
+    private RetailerRepository retailerRepository;
+
+    @Autowired
+    private PhoneNumberValidationService phoneNumberValidationService;
 
     public RetailerServiceImpl(RetailerRepository retailerRepository) {
         this.retailerRepository = retailerRepository;
@@ -21,6 +26,8 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Override
     public RetailerDTO saveRetailer(RetailerDTO retailerDTO) {
+        phoneNumberValidationService.validatePhoneNumber(retailerDTO.getInfo().getMobile());
+
         Retailer retailer = mapToEntity(retailerDTO);
         Retailer savedRetailer = retailerRepository.save(retailer);
         return mapToDTO(savedRetailer);

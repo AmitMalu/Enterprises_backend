@@ -1,39 +1,47 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.sql.Time;
 import java.util.Date;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "white_label_prepaid_amount")
 public class WhiteLabelPrepaidAmount {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "total_cash")
-    private BigDecimal totalCash;
+    @OneToOne
+    @JoinColumn(name = "whitelabel_id", nullable = false, unique = true)
+    private WhiteLabels whiteLabelId;
 
-    @Column(name = "used_cash")
-    private BigDecimal usedCash;
+    @Column(name = "total_cash", precision = 10, scale = 2)
+    private BigDecimal totalCash = BigDecimal.ZERO;
 
-    @Column(name = "cut_of_amount")
-    private BigDecimal cutOfAmount;
+    @Column(name = "used_cash", precision = 10, scale = 2)
+    private BigDecimal usedCash = BigDecimal.ZERO;
 
-    @Column(name = "available_balance")
-    private BigDecimal availableBalance;
+    @Column(name = "cut_of_amount", precision = 10, scale = 2)
+    private BigDecimal cutOfAmount = BigDecimal.ZERO;
+
+    @Column(name = "available_balance", precision = 10, scale = 2)
+    private BigDecimal availableBalance = BigDecimal.ZERO;
 
     @Column(name = "last_updated_date")
-    private Date lastUpdateDate;
+    private Date lastUpdateDate = new Date();
 
     @Column(name = "last_updated_time")
-    private Time lastUpdateTime;
+    private Time lastUpdateTime = new Time(System.currentTimeMillis());
 
-    @Column(name = "last_updated_amount")
-    private BigDecimal lastUpdatedAmount;
+    @Column(name = "last_updated_amount", precision = 10, scale = 2)
+    private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;
 
 }
