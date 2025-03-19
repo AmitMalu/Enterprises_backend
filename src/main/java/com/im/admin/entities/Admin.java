@@ -5,36 +5,35 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
-@Getter
-@Setter
+
 @Entity
 @Table(name = "admin")
-public class Admin {
+@Getter
+@Setter
+public class Admin extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
-    private Long id;
+    @Column(name = "id", nullable = false, unique = true)
+    private String id;
 
     @NotBlank(message = "Name is mandatory")
     @Column(name = "name", nullable = false)
     private String name;
 
     @NotBlank(message = "Mobile Number is mandatory")
-    @Column(name = "mobile_number", nullable = false)
+    @Column(name = "mobile_number", nullable = false, unique = true)
     private String mobileNumber;
 
     @NotBlank(message = "Email is mandatory")
-    @Column(name = "email_id", nullable = false)
+    @Column(name = "email_id", nullable = false, unique = true)
     private String emailId;
 
     @NotBlank(message = "User Name is mandatory")
-    @Column(name = "user_name", nullable = false)
+    @Column(name = "user_name", nullable = false, unique = true)
     private String userName;
 
     @NotBlank(message = "Password is mandatory")
     @Column(name = "password", nullable = false)
     private String password;
-
 
 }

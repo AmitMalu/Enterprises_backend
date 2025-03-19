@@ -2,8 +2,17 @@ package com.im.admin.entities;
 
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.validator.constraints.URL;
+
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -12,15 +21,27 @@ import lombok.Setter;
 public class Enterprises {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
-    private Long id;
+    @Column(name = "enterprise_id", unique = true, nullable = false, length = 15)
+    private String enterpriseId;  // Format: ABC-ET-001
 
-    @Column(name = "parent_account", nullable = false)
+    @NotBlank(message = "Parent account is required")
+    @Column(name = "parent_account")
     private String parentAccount;
 
+    @NotBlank(message = "Company name is required")
     @Column(name = "company_name")
     private String companyName;
+
+    @NotBlank(message = "Mobile is mandatory")
+    @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
+    @Column(name = "mobile_no")
+    private String mobileNo;
+
+    @NotBlank(message = "Abbreviation is required")
+    @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
+    @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
+    @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
+    private String abbreviation;
 
     @Column(name = "company_type")
     private String companyType;
@@ -35,42 +56,39 @@ public class Enterprises {
     @Valid
     private Address registeredAddress;
 
-    @Column(name = "business_description")
+    @Column(name = "business_desc")
     private String businessDesc;
 
-    @Column(name = "website_URL")
+    @URL(message = "Invalid website URL")
+    @Column(name = "website_url")
     private String websiteURL;
 
+    @Pattern(regexp = "[A-Z]{5}[0-9]{4}[A-Z]{1}", message = "Invalid PAN card number")
     @Column(name = "pan_card_number")
     private String panCardNumber;
 
-    @Column(name = "GST_number")
+    @Pattern(regexp = "\\d{2}[A-Z]{5}\\d{4}[A-Z]{1}\\d{1}[A-Z]{1}\\d{1}", message = "Invalid GST number")
+    @Column(name = "gst_number")
     private String GSTNumber;
 
+    @NotBlank(message = "Bank account details are required")
     @Column(name = "bank_account_details")
     private String bankAccountDetails;
 
     @Column(name = "financial_statements")
     private String financialStatements;
 
-    @Column(name = "director_name")
-    private String directorName;
+    @CreationTimestamp
+    @Column(name = "created_on", nullable = false, updatable = false)
+    private LocalDateTime createdOn;
 
-    @Column(name = "director_email_Id")
-    private String directorEmailId;
+    @Column(name = "created_by", nullable = false)
+    private String createdBy;
 
-    @Column(name = "director_mobile_number")
-    private String directorMobileNumber;
+    @UpdateTimestamp
+    @Column(name = "edited_on")
+    private LocalDateTime editedOn;
 
-    @Column(name = "authorized_signatory_name")
-    private String authorizedSignatoryName;
-
-    @Column(name = "authorized_signatory_email")
-    private String authorizedSignatoryEmail;
-
-    //Documents Columns TODO
-    //PANCARD,AADHAR CARD, BANK DEATILS PROOF, GST CERTIFICATE
-
-
-
+    @Column(name = "edited_by")
+    private String editedBy;
 }
