@@ -16,8 +16,12 @@ public class PartnerServiceImpl implements PartnerService {
     @Autowired
     private PartnerRepository partnerRepository;
 
+    @Autowired
+    private PhoneNumberValidationService phoneNumberValidationService;
+
     @Override
     public Partner savePartner(Partner partner) {
+        phoneNumberValidationService.validatePhoneNumber(partner.getInfo().getMobile());
         return partnerRepository.save(partner);
     }
 

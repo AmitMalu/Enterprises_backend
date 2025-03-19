@@ -1,21 +1,18 @@
 package com.im.admin.service;
 
 import com.im.admin.entities.Admin;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import java.util.List;
-import java.util.Optional;
 
 public interface AdminService {
 
     Admin saveAdmin(Admin admin);
 
-    Admin updateAdmin(Long id, Admin admin);
+    Admin getAdminById(String id);
 
-    void deleteAdmin(Long id);
+    List<Admin> getAllAdmins(int page, int size);
 
-    Page<Admin> getAllAdmins(Pageable pageable);
+    Admin updateAdmin(String id, Admin updatedAdmin);
 
-    Optional<Admin> getAdminById(Long id);
+    void deleteAdmin(String id);
 }
 

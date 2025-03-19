@@ -24,8 +24,13 @@ public class DistributorServiceImpl implements DistributorService {
     @Autowired
     private ModelMapper modelMapper;
 
+    @Autowired
+    private PhoneNumberValidationService phoneNumberValidationService;
+
     @Override
     public DistributorDTO saveDistributor(DistributorDTO distributorDTO) {
+        phoneNumberValidationService.validatePhoneNumber(distributorDTO.getInfo().getMobile());
+
         Distributor distributor = modelMapper.map(distributorDTO, Distributor.class);
         Distributor savedDistributor = distributorRepository.save(distributor);
         return modelMapper.map(savedDistributor, DistributorDTO.class);

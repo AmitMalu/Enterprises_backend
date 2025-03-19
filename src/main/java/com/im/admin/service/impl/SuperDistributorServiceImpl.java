@@ -27,10 +27,15 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
     @Autowired
     private SuperDistributorPostpaidAmountRepository superDistributorPostpaidAmountRepository;
 
+    @Autowired
+    private PhoneNumberValidationService phoneNumberValidationService;
+
     @Override
     @Transactional
     public SuperDistributor saveSuperDistributor(SuperDistributor distributor) {
         try {
+            phoneNumberValidationService.validatePhoneNumber(distributor.getMobile());
+
             SuperDistributor savedDistributor = repository.save(distributor);
 
             superDistributorPrepaidAmountRepository.save(new SuperDistributorPrepaidAmount());
@@ -52,7 +57,14 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
     @Override
     public SuperDistributor updateSuperDistributor(Long id, SuperDistributor updatedDistributor) {
         SuperDistributor existingDistributor = getSuperDistributor(id);
-        existingDistributor.setInfo(updatedDistributor.getInfo());
+        existingDistributor.setTitle(updatedDistributor.getTitle());
+        existingDistributor.setName(updatedDistributor.getName());
+        existingDistributor.setMobile(updatedDistributor.getMobile());
+        existingDistributor.setEmail(updatedDistributor.getEmail());
+        existingDistributor.setDob(updatedDistributor.getDob());
+        existingDistributor.setOutletName(updatedDistributor.getOutletName());
+        existingDistributor.setProductGroups(updatedDistributor.getProductGroups());
+        existingDistributor.setCompanyType(updatedDistributor.getCompanyType());
         existingDistributor.setAddress(updatedDistributor.getAddress());
         existingDistributor.setOutletAddress(updatedDistributor.getOutletAddress());
         return repository.save(existingDistributor);
