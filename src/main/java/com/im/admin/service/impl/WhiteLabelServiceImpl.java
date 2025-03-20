@@ -7,6 +7,7 @@ import com.im.admin.repositories.WhiteLabelPostpaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelPrepaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelsRepository;
 import com.im.admin.service.WhiteLabelService;
+import com.im.admin.util.IdGenerator;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,9 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
     @Autowired
     private WhiteLabelPostpaidAmountRepository postpaidRepository;
 
+    @Autowired
+    private IdGenerator idGenerator;
+
     @Transactional
     @Override
     public WhiteLabels saveWhiteLabel(WhiteLabels whiteLabel) {
@@ -38,24 +42,23 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 
         // Generate unique sequential ID
         String abbreviation = whiteLabel.getAbbreviation();
-        long count = whiteLabelRepository.count() + 1;
-        String whiteLabelId = String.format("%s-WL-%03d", abbreviation, count);
-        whiteLabel.setWhiteLabelId(whiteLabelId);
+
+        whiteLabel.setWhiteLabelId(idGenerator.generateHierarchyEntityId("White Label", abbreviation));
 
         WhiteLabels savedWhiteLabel = whiteLabelRepository.save(whiteLabel);
-        log.info("WhiteLabel saved with ID: {}", whiteLabelId);
+        log.info("WhiteLabel saved with ID: {}", savedWhiteLabel.getWhiteLabelId());
 
         // Save Prepaid Record
         WhiteLabelPrepaidAmount prepaid = new WhiteLabelPrepaidAmount();
         prepaid.setWhiteLabelId(savedWhiteLabel);
         prepaidRepository.save(prepaid);
-        log.info("Prepaid amount record created for WhiteLabel: {}", whiteLabelId);
+        log.info("Prepaid amount record created for WhiteLabel: {}", savedWhiteLabel.getWhiteLabelId());
 
         // Save Postpaid Record
         WhiteLabelPostpaidAmount postpaid = new WhiteLabelPostpaidAmount();
         postpaid.setWhiteLabelId(savedWhiteLabel);
         postpaidRepository.save(postpaid);
-        log.info("Postpaid amount record created for WhiteLabel: {}", whiteLabelId);
+        log.info("Postpaid amount record created for WhiteLabel: {}", savedWhiteLabel.getWhiteLabelId());
 
         return savedWhiteLabel;
     }

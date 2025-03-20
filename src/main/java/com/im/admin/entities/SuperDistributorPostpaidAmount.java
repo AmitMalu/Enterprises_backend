@@ -23,6 +23,10 @@ public class SuperDistributorPostpaidAmount {
     @Column(name = "id", nullable = false)
     private Long id;
 
+    @OneToOne
+    @JoinColumn(name = "superDistributor_id", nullable = false, unique = true)
+    private SuperDistributor superDistributorId;
+
     @Column(name = "total_cash")
     private BigDecimal totalCash = BigDecimal.ZERO;
 

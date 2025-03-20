@@ -2,102 +2,124 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.RetailerDTO;
 import com.im.admin.entities.Retailer;
+import com.im.admin.entities.RetailerPostpaidAmount;
+import com.im.admin.entities.RetailerPrepaidAmount;
+import com.im.admin.repositories.RetailerPostpaidAmountRepository;
+import com.im.admin.repositories.RetailerPrepaidAmountRepository;
 import com.im.admin.repositories.RetailerRepository;
 import com.im.admin.service.RetailerService;
+import com.im.admin.util.IdGenerator;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
-@Transactional
 public class RetailerServiceImpl implements RetailerService {
 
     @Autowired
     private RetailerRepository retailerRepository;
 
     @Autowired
-    private PhoneNumberValidationService phoneNumberValidationService;
+    private RetailerPrepaidAmountRepository prepaidAmountRepository;
 
-    public RetailerServiceImpl(RetailerRepository retailerRepository) {
-        this.retailerRepository = retailerRepository;
-    }
+    @Autowired
+    private RetailerPostpaidAmountRepository postpaidAmountRepository;
 
+    @Autowired
+    private IdGenerator idGenerator;
+
+
+    @Transactional
     @Override
-    public RetailerDTO saveRetailer(RetailerDTO retailerDTO) {
-        phoneNumberValidationService.validatePhoneNumber(retailerDTO.getInfo().getMobile());
+    public Retailer createRetailer(Retailer retailer) {
+        log.info("Creating new retailer: {}", retailer.getName());
 
-        Retailer retailer = mapToEntity(retailerDTO);
+        retailer.setRetailerId(idGenerator.generateHierarchyEntityId("Retailer", retailer.getAbbreviation()));
+
         Retailer savedRetailer = retailerRepository.save(retailer);
-        return mapToDTO(savedRetailer);
+        log.info("Retailer created successfully with ID: {}", savedRetailer.getRetailerId());
+
+        RetailerPrepaidAmount prepaidAmount = new RetailerPrepaidAmount();
+        prepaidAmount.setRetailerId(savedRetailer);
+        prepaidAmountRepository.save(prepaidAmount);
+        log.info("Prepaid amount record created for Retailer ID: {}", savedRetailer.getRetailerId());
+
+        RetailerPostpaidAmount postpaidAmount = new RetailerPostpaidAmount();
+        postpaidAmount.setRetailerId(savedRetailer);
+        postpaidAmountRepository.save(postpaidAmount);
+        log.info("Postpaid amount record created for Retailer ID: {}", savedRetailer.getRetailerId());
+
+        return savedRetailer;
     }
 
+    @Transactional
     @Override
-    public RetailerDTO updateRetailer(Long id, RetailerDTO retailerDTO) {
-        Retailer existingRetailer = retailerRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Retailer not found with ID: " + id));
+    public Retailer updateRetailer(String retailerId, Retailer retailerDetails) {
+        log.info("Updating retailer with ID: {}", retailerId);
 
-        existingRetailer.setParentAccount(retailerDTO.getParentAccount());
-        existingRetailer.setInfo(retailerDTO.getInfo());
-        existingRetailer.setMccCategory(retailerDTO.getMccCategory());
-        existingRetailer.setOrmsId(retailerDTO.getOrmsId());
-        existingRetailer.setCompetitor(retailerDTO.getCompetitor());
-        existingRetailer.setAddress(retailerDTO.getAddress());
-        existingRetailer.setOutletAddress(retailerDTO.getOutletAddress());
-        existingRetailer.setDistrict(retailerDTO.getDistrict());
+        Retailer retailer = retailerRepository.findById(retailerId)
+                .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
-        return mapToDTO(retailerRepository.save(existingRetailer));
+        retailer.setParentAccount(retailerDetails.getParentAccount());
+        retailer.setTitle(retailerDetails.getTitle());
+        retailer.setName(retailerDetails.getName());
+        retailer.setMobile(retailerDetails.getMobile());
+        retailer.setEmail(retailerDetails.getEmail());
+        retailer.setDob(retailerDetails.getDob());
+        retailer.setOutletName(retailerDetails.getOutletName());
+        retailer.setCompanyType(retailerDetails.getCompanyType());
+        retailer.setMccCategory(retailerDetails.getMccCategory());
+        retailer.setOrmsId(retailerDetails.getOrmsId());
+        retailer.setCompetitor(retailerDetails.getCompetitor());
+        retailer.setAddress(retailerDetails.getAddress());
+        retailer.setOutletAddress(retailerDetails.getOutletAddress());
+        retailer.setDistrict(retailerDetails.getDistrict());
+
+        Retailer updatedRetailer = retailerRepository.save(retailer);
+        log.info("Retailer updated successfully with ID: {}", updatedRetailer.getRetailerId());
+        return updatedRetailer;
     }
 
+    @Transactional
     @Override
-    public List<RetailerDTO> getAllRetailers() {
-        return retailerRepository.findAll()
-                .stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
-    }
+    public void deleteRetailer(String retailerId) {
+        log.info("Deleting retailer with ID: {}", retailerId);
 
-    @Override
-    public RetailerDTO getRetailerById(Long id) {
-        Retailer retailer = retailerRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Retailer not found with ID: " + id));
-        return mapToDTO(retailer);
-    }
+        Retailer retailer = retailerRepository.findById(retailerId)
+                .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
-    @Override
-    public void deleteRetailer(Long id) {
-        Retailer retailer = retailerRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Retailer not found with ID: " + id));
+        // Delete associated Prepaid & Postpaid Amount records
+        RetailerPrepaidAmount prepaidAmount = prepaidAmountRepository.findByRetailerId_RetailerId(retailerId);
+        if (prepaidAmount != null) {
+            prepaidAmountRepository.delete(prepaidAmount);
+            log.info("Deleted prepaid amount record for Retailer ID: {}", retailerId);
+        }
+
+        RetailerPostpaidAmount postpaidAmount = postpaidAmountRepository.findByRetailerId_RetailerId(retailerId);
+        if (postpaidAmount != null) {
+            postpaidAmountRepository.delete(postpaidAmount);
+            log.info("Deleted postpaid amount record for Retailer ID: {}", retailerId);
+        }
+
         retailerRepository.delete(retailer);
+        log.info("Retailer deleted successfully with ID: {}", retailerId);
     }
 
-    private RetailerDTO mapToDTO(Retailer retailer) {
-        return new RetailerDTO(
-                retailer.getId(),
-                retailer.getParentAccount(),
-                retailer.getInfo(),
-                retailer.getMccCategory(),
-                retailer.getOrmsId(),
-                retailer.getCompetitor(),
-                retailer.getAddress(),
-                retailer.getOutletAddress(),
-                retailer.getDistrict()
-        );
+    @Override
+    public List<Retailer> getAllRetailers() {
+        log.info("Fetching all retailers");
+        return retailerRepository.findAll();
     }
 
-    private Retailer mapToEntity(RetailerDTO retailerDTO) {
-        Retailer retailer = new Retailer();
-        retailer.setId(retailerDTO.getId());
-        retailer.setParentAccount(retailerDTO.getParentAccount());
-        retailer.setInfo(retailerDTO.getInfo());
-        retailer.setMccCategory(retailerDTO.getMccCategory());
-        retailer.setOrmsId(retailerDTO.getOrmsId());
-        retailer.setCompetitor(retailerDTO.getCompetitor());
-        retailer.setAddress(retailerDTO.getAddress());
-        retailer.setOutletAddress(retailerDTO.getOutletAddress());
-        retailer.setDistrict(retailerDTO.getDistrict());
-        return retailer;
+    @Override
+    public Optional<Retailer> getRetailerById(String retailerId) {
+        log.info("Fetching retailer by ID: {}", retailerId);
+        return retailerRepository.findById(retailerId);
     }
 }
 

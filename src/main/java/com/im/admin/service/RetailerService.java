@@ -1,19 +1,22 @@
 package com.im.admin.service;
 
-import com.im.admin.dto.RetailerDTO;
+import com.im.admin.entities.Retailer;
 
 import java.util.List;
 
+import java.util.Optional;
+
 public interface RetailerService {
 
-    RetailerDTO saveRetailer(RetailerDTO retailerDTO);
+    Retailer createRetailer(Retailer retailer);
 
-    RetailerDTO updateRetailer(Long id, RetailerDTO retailerDTO);
+    Retailer updateRetailer(String retailerId, Retailer retailerDetails);
 
-    List<RetailerDTO> getAllRetailers();
+    void deleteRetailer(String retailerId);
 
-    RetailerDTO getRetailerById(Long id);
+    List<Retailer> getAllRetailers();
 
-    void deleteRetailer(Long id);
+    Optional<Retailer> getRetailerById(String retailerId);
 }
+
 

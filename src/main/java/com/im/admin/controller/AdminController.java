@@ -27,7 +27,7 @@ public class AdminController {
     /**
      * Update an Admin.
      */
-    @PutMapping("/admin/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<Admin> updateAdmin(
             @PathVariable String id,
             @RequestBody Admin updatedAdmin) {
@@ -38,7 +38,7 @@ public class AdminController {
     /**
      * Get all Admins with pagination.
      */
-    @GetMapping("/admins")
+    @GetMapping()
     public ResponseEntity<List<Admin>> getAllAdmins(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -49,7 +49,7 @@ public class AdminController {
     /**
      * Get Admin by ID.
      */
-    @GetMapping("/admin/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<Admin> getAdminById(@PathVariable String id) {
         Admin admin = adminService.getAdminById(id);
         return ResponseEntity.ok(admin);

@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -20,9 +21,8 @@ import java.time.LocalDate;
 public class SuperDistributor {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
-    private Long id;
+    @Column(name = "superDistributor_id", unique = true, nullable = false, length = 15)
+    private String superDistributorId;  // Format: ABC-SD-001
 
     @NotBlank(message = "Title is mandatory")
     private String title;
@@ -33,6 +33,12 @@ public class SuperDistributor {
     @NotBlank(message = "Mobile is mandatory")
     @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
     private String mobile;
+
+    @NotBlank(message = "Abbreviation is required")
+    @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
+    @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
+    @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
+    private String abbreviation;
 
     @NotBlank(message = "Email is mandatory")
     @Email(message = "Invalid email format")
@@ -45,8 +51,6 @@ public class SuperDistributor {
 
     @NotBlank(message = "Product Groups are mandatory")
     private String productGroups;
-
-    private String forWhiteLabel;
 
     private String companyType;
 

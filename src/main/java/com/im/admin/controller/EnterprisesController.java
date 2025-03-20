@@ -54,7 +54,7 @@ public class EnterprisesController {
     @DeleteMapping("/delete/{enterpriseId}")
     public ResponseEntity<?> deleteEnterprise(@PathVariable String enterpriseId) {
         enterprisesService.deleteEnterprise(enterpriseId);
-        return ResponseEntity.ok("Enterprise deleted successfully.");
+        return ResponseEntity.ok("Enterprise " + enterpriseId + " deleted successfully.");
     }
 
     // Handle validation errors

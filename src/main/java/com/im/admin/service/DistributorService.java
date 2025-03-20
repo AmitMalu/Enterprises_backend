@@ -1,16 +1,21 @@
 package com.im.admin.service;
 
-import com.im.admin.dto.DistributorDTO;
-import org.springframework.data.domain.Page;
+
+import com.im.admin.entities.Distributor;
+
+import java.util.List;
 
 public interface DistributorService {
 
-    DistributorDTO saveDistributor(DistributorDTO distributorDTO);
+    Distributor createDistributor(Distributor distributor);
 
-    DistributorDTO updateDistributor(Long id, DistributorDTO distributorDTO);
+    Distributor updateDistributor(String id, Distributor distributor);
 
-    DistributorDTO getDistributorById(Long id);
+    List<Distributor> getAllDistributors();
 
-    Page<DistributorDTO> getAllDistributors(int page, int size);
+    Distributor getDistributorById(String id);
+
+    void deleteDistributor(String id);
 }
+
 
