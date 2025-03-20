@@ -22,7 +22,7 @@ import java.util.List;
 public class WhiteLabels {
 
     @Id
-    @Column(name = "whitelabel_id", unique = true, nullable = false, length = 15)
+    @Column(name = "whitelabel_id", nullable = false, length = 15)
     private String whiteLabelId;  // Format: ABC-WL-001
 
     @Column(name = "IM_account_member_ID")

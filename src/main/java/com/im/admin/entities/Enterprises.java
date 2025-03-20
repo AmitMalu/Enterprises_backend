@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 public class Enterprises {
 
     @Id
-    @Column(name = "enterprise_id", unique = true, nullable = false, length = 15)
+    @Column(name = "enterprise_id", nullable = false, length = 15)
     private String enterpriseId;  // Format: ABC-ET-001
 
     @NotBlank(message = "Parent account is required")

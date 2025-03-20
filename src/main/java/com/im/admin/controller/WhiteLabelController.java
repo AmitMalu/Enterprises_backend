@@ -13,7 +13,7 @@ import java.util.List;
 
 
 @RestController
-@RequestMapping("/api/white_labels")
+@RequestMapping("/api/white-labels")
 @Slf4j
 @RequiredArgsConstructor
 public class WhiteLabelController {
@@ -49,7 +49,7 @@ public class WhiteLabelController {
     public ResponseEntity<String> deleteWhiteLabel(@PathVariable String id) {
         log.info("Deleting WhiteLabel: {}", id);
         whiteLabelService.deleteWhiteLabel(id);
-        return ResponseEntity.ok("WhiteLabel deleted successfully");
+        return ResponseEntity.ok("WhiteLabel " + id + " deleted successfully.");
     }
 }
 

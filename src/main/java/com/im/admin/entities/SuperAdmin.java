@@ -1,8 +1,12 @@
 package com.im.admin.entities;
 
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,7 +18,7 @@ import lombok.Setter;
 public class SuperAdmin extends BaseEntity {
 
     @Id
-    @Column(name = "id", nullable = false, unique = true)
+    @Column(name = "id", nullable = false)
     private String id;
 
     @NotBlank(message = "Name is mandatory")
@@ -23,6 +27,7 @@ public class SuperAdmin extends BaseEntity {
 
     @NotBlank(message = "Mobile Number is mandatory")
     @Column(name = "mobile_number", nullable = false, unique = true)
+    @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
     private String mobileNumber;
 
     @NotBlank(message = "Email is mandatory")
