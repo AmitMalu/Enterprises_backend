@@ -1,8 +1,14 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -11,15 +17,38 @@ import lombok.Setter;
 public class Distributor {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
-    private Long id;
+    @Column(name = "distributor_id", nullable = false, length = 15)
+    private String distributorId;
 
     @Column(name = "parent_account", nullable = false)
     private String parentAccount;
 
-    @Embedded
-    private Info info;
+    @NotBlank(message = "Title is mandatory")
+    private String title;
+
+    @NotBlank(message = "Name is mandatory")
+    private String name;
+
+    @NotBlank(message = "Mobile is mandatory")
+    @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
+    private String mobile;
+
+    @NotBlank(message = "Abbreviation is required")
+    @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
+    @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
+    @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
+    private String abbreviation;
+
+    @NotBlank(message = "Email is mandatory")
+    @Email(message = "Invalid email format")
+    private String email;
+
+    private LocalDate dob;
+
+    @NotBlank(message = "Outlet Name is mandatory")
+    private String outletName;
+
+    private String companyType;
 
     @Column(name = "competitor")
     private String competitor;

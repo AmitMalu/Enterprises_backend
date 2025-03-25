@@ -3,11 +3,15 @@ package com.im.admin.service.impl;
 import com.im.admin.entities.SuperDistributor;
 import com.im.admin.entities.SuperDistributorPostpaidAmount;
 import com.im.admin.entities.SuperDistributorPrepaidAmount;
+import com.im.admin.entities.WhiteLabels;
 import com.im.admin.repositories.SuperDistributorPostpaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorPrepaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorRepository;
 import com.im.admin.service.SuperDistributorService;
+import com.im.admin.util.IdGenerator;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,10 +20,11 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SuperDistributorServiceImpl implements SuperDistributorService {
 
     @Autowired
-    private SuperDistributorRepository repository;
+    private SuperDistributorRepository superDistributorRepository;
 
     @Autowired
     private SuperDistributorPrepaidAmountRepository superDistributorPrepaidAmountRepository;
@@ -28,34 +33,44 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
     private SuperDistributorPostpaidAmountRepository superDistributorPostpaidAmountRepository;
 
     @Autowired
-    private PhoneNumberValidationService phoneNumberValidationService;
+    private IdGenerator idGenerator;
 
     @Override
     @Transactional
-    public SuperDistributor saveSuperDistributor(SuperDistributor distributor) {
+    public SuperDistributor saveSuperDistributor(SuperDistributor superDistributor) {
         try {
-            phoneNumberValidationService.validatePhoneNumber(distributor.getMobile());
 
-            SuperDistributor savedDistributor = repository.save(distributor);
+            String abbreviation = superDistributor.getAbbreviation();
 
-            superDistributorPrepaidAmountRepository.save(new SuperDistributorPrepaidAmount());
-            superDistributorPostpaidAmountRepository.save(new SuperDistributorPostpaidAmount());
+            superDistributor.setSuperDistributorId(idGenerator.generateHierarchyEntityId("Super Distributor", abbreviation));
+            SuperDistributor savedDistributor = superDistributorRepository.save(superDistributor);
+
+            SuperDistributorPrepaidAmount prepaidAmount = new SuperDistributorPrepaidAmount();
+            prepaidAmount.setSuperDistributorId(savedDistributor);
+            superDistributorPrepaidAmountRepository.save(prepaidAmount);
+            log.info("Prepaid amount record created for Super Distributor: {}", superDistributor.getSuperDistributorId());
+
+            SuperDistributorPostpaidAmount postpaidAmount = new SuperDistributorPostpaidAmount();
+            postpaidAmount.setSuperDistributorId(savedDistributor);
+            superDistributorPostpaidAmountRepository.save(postpaidAmount);
+            log.info("Postpaid amount record created for Super Distributor: {}", superDistributor.getSuperDistributorId());
 
             return savedDistributor;
         } catch (Exception e) {
+            e.printStackTrace(); // Print detailed error logs
             throw new RuntimeException("Failed to save SuperDistributor and related data", e);
         }
     }
 
 
     @Override
-    public SuperDistributor getSuperDistributor(Long id) {
-        return repository.findById(id)
+    public SuperDistributor getSuperDistributor(String id) {
+        return superDistributorRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("SuperDistributor not found with id: " + id));
     }
 
     @Override
-    public SuperDistributor updateSuperDistributor(Long id, SuperDistributor updatedDistributor) {
+    public SuperDistributor updateSuperDistributor(String id, SuperDistributor updatedDistributor) {
         SuperDistributor existingDistributor = getSuperDistributor(id);
         existingDistributor.setTitle(updatedDistributor.getTitle());
         existingDistributor.setName(updatedDistributor.getName());
@@ -67,21 +82,28 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
         existingDistributor.setCompanyType(updatedDistributor.getCompanyType());
         existingDistributor.setAddress(updatedDistributor.getAddress());
         existingDistributor.setOutletAddress(updatedDistributor.getOutletAddress());
-        return repository.save(existingDistributor);
+        return superDistributorRepository.save(existingDistributor);
     }
+
 
     @Override
     public List<SuperDistributor> getAllSuperDistributors() {
-        return repository.findAll();
+        return superDistributorRepository.findAll();
     }
 
+    @Transactional
     @Override
-    public void deleteSuperDistributor(Long id) {
-        if (repository.existsById(id)) {
-            repository.deleteById(id);
-        } else {
-            throw new RuntimeException("SuperDistributor not found with id: " + id);
-        }
+    public void deleteSuperDistributor(String id) {
+        log.info("Deleting Super Distributor: {}", id);
+
+        SuperDistributor superDistributor = superDistributorRepository.findById(id).orElseThrow(() ->
+                new EntityNotFoundException("SuperDistributor not found with ID: " + id));
+
+        superDistributorPrepaidAmountRepository.deleteBySuperDistributorId(superDistributor);
+        superDistributorPostpaidAmountRepository.deleteBySuperDistributorId(superDistributor);
+        superDistributorRepository.delete(superDistributor);
+        log.info("SuperDistributor deleted successfully: {}", id);
+
     }
 }
 

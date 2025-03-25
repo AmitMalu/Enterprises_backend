@@ -3,6 +3,7 @@ package com.im.admin.controller;
 
 import com.im.admin.entities.SuperDistributor;
 import com.im.admin.service.SuperDistributorService;
+import com.im.admin.service.impl.PhoneNumberValidationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,18 +23,24 @@ public class SuperDistributorController {
     @Autowired
     private SuperDistributorService service;
 
+    @Autowired
+    private PhoneNumberValidationService phoneNumberValidationService;
+
     @PostMapping
     public ResponseEntity<SuperDistributor> save(@Valid @RequestBody SuperDistributor distributor) {
+        phoneNumberValidationService.validatePhoneNumber(distributor.getMobile());
+        //return ResponseEntity.ok(whiteLabelService.saveWhiteLabel(whiteLabel));
+
         return ResponseEntity.status(HttpStatus.CREATED).body(service.saveSuperDistributor(distributor));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SuperDistributor> get(@PathVariable Long id) {
+    public ResponseEntity<SuperDistributor> get(@PathVariable String id) {
         return ResponseEntity.ok(service.getSuperDistributor(id));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<SuperDistributor> update(@PathVariable Long id, @Valid @RequestBody SuperDistributor distributor) {
+    public ResponseEntity<SuperDistributor> update(@PathVariable String id, @Valid @RequestBody SuperDistributor distributor) {
         return ResponseEntity.ok(service.updateSuperDistributor(id, distributor));
     }
 
@@ -43,7 +50,7 @@ public class SuperDistributorController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> delete(@PathVariable Long id) {
+    public ResponseEntity<String> delete(@PathVariable String id) {
         service.deleteSuperDistributor(id);
         return ResponseEntity.ok("SuperDistributor deleted successfully.");
     }

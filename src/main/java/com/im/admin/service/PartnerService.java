@@ -8,14 +8,15 @@ public interface PartnerService {
 
     Partner savePartner(Partner partner);
 
-    Partner updatePartner(Long id, Partner partner);
+    Partner updatePartner(String partnerId, Partner updatedPartner);
 
     List<Partner> getAllPartners();
 
-    Partner getPartnerById(Long id);
+    Partner getPartnerById(String partnerId);
 
-    void deletePartner(Long id);
+    void deletePartner(String partnerId);
 }
+
 
 
 

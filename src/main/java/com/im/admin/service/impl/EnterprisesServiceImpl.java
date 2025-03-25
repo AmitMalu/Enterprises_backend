@@ -7,6 +7,7 @@ import com.im.admin.repositories.EnterprisesPostpaidAmountRepository;
 import com.im.admin.repositories.EnterprisesPrepaidAmountRepository;
 import com.im.admin.repositories.EnterprisesRepository;
 import com.im.admin.service.EnterprisesService;
+import com.im.admin.util.IdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,9 @@ public class EnterprisesServiceImpl implements EnterprisesService {
     @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
 
+    @Autowired
+    private IdGenerator idGenerator;
+
     @Transactional
     @Override
     public Enterprises saveEnterprise(Enterprises enterprise) {
@@ -35,9 +39,8 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         phoneNumberValidationService.validatePhoneNumber(enterprise.getMobileNo());
 
         String abbreviation = enterprise.getAbbreviation();
-        long count = enterpriseRepository.count() + 1;
-        String enterpriseId = String.format("%s-ET-%03d", abbreviation, count);
-        enterprise.setEnterpriseId(enterpriseId);
+
+        enterprise.setEnterpriseId(idGenerator.generateHierarchyEntityId("Enterprises", abbreviation));
 
         Enterprises savedEnterprise = enterpriseRepository.save(enterprise);
 

@@ -28,7 +28,7 @@ public class AdminServiceImpl implements AdminService {
     public Admin saveAdmin(Admin admin) {
         phoneNumberValidationService.validatePhoneNumber(admin.getMobileNumber());
 
-        admin.setId(idGenerator.generateId("A"));
+        admin.setId(idGenerator.generateId("Admin"));
         return adminRepository.save(admin);
     }
 

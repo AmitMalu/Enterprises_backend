@@ -31,7 +31,7 @@ public class SuperAdminServiceImpl implements SuperAdminService {
     public SuperAdmin saveSuperAdmin(SuperAdmin superAdmin) {
         phoneNumberValidationService.validatePhoneNumber(superAdmin.getMobileNumber());
 
-        superAdmin.setId(idGenerator.generateId("SA"));
+        superAdmin.setId(idGenerator.generateId("SuperAdmin"));
         return superAdminRepository.save(superAdmin);
     }
 

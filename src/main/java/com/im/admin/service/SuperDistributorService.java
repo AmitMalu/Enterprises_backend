@@ -8,12 +8,12 @@ public interface SuperDistributorService {
 
     SuperDistributor saveSuperDistributor(SuperDistributor distributor);
 
-    SuperDistributor getSuperDistributor(Long id);
+    SuperDistributor getSuperDistributor(String id);
 
-    SuperDistributor updateSuperDistributor(Long id, SuperDistributor distributor);
+    SuperDistributor updateSuperDistributor(String id, SuperDistributor distributor);
 
     List<SuperDistributor> getAllSuperDistributors();
 
-    void deleteSuperDistributor(Long id);
+    void deleteSuperDistributor(String id);
 }
 
