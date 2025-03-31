@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.im.admin.dto.AbstractRetailerAmount;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,7 +13,7 @@ import java.util.Date;
 @Setter
 @Entity
 @Table(name = "retailer_postpaid_amount")
-public class RetailerPostpaidAmount {
+public class RetailerPostpaidAmount extends AbstractRetailerAmount {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,5 +45,7 @@ public class RetailerPostpaidAmount {
     @Column(name = "last_updated_amount")
     private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;
 
+    @Column(name = "tax_value")
+    private BigDecimal taxValue;
 
 }

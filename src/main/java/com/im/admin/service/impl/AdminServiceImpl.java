@@ -1,6 +1,10 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.entities.Admin;
+import com.im.admin.entities.AdminPostpaidAmount;
+import com.im.admin.entities.AdminPrepaidAmount;
+import com.im.admin.repositories.AdminPostpaidAmountRepository;
+import com.im.admin.repositories.AdminPrepaidAmountRepository;
 import com.im.admin.repositories.AdminRepository;
 import com.im.admin.service.AdminService;
 import com.im.admin.util.IdGenerator;
@@ -22,6 +26,12 @@ public class AdminServiceImpl implements AdminService {
     private PhoneNumberValidationService phoneNumberValidationService;
 
     @Autowired
+    private AdminPostpaidAmountRepository adminPostpaidAmountRepository;
+
+    @Autowired
+    private AdminPrepaidAmountRepository adminPrepaidAmountRepository;
+
+    @Autowired
     private IdGenerator idGenerator;
 
     @Override
@@ -29,7 +39,17 @@ public class AdminServiceImpl implements AdminService {
         phoneNumberValidationService.validatePhoneNumber(admin.getMobileNumber());
 
         admin.setId(idGenerator.generateId("Admin"));
-        return adminRepository.save(admin);
+        Admin saveAdmin  = adminRepository.save(admin);
+
+        AdminPostpaidAmount adminPostpaidAccount = new AdminPostpaidAmount();
+        adminPostpaidAccount.setAdminId(saveAdmin);
+        adminPostpaidAmountRepository.save(adminPostpaidAccount);
+
+        AdminPrepaidAmount adminPrepaidAccount = new AdminPrepaidAmount();
+        adminPrepaidAccount.setAdminId(saveAdmin);
+        adminPrepaidAmountRepository.save(adminPrepaidAccount);
+
+        return saveAdmin;
     }
 
     /**

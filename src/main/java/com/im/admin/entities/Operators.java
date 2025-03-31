@@ -57,6 +57,9 @@ public class Operators {
     @Column(name = "sub_productId")
     private String subProductId;
 
+    @Column(name = "card_bin_no")
+    private String cardBinNo;
+
     @NotNull(message = "Active status is required")
     private Boolean isActive = false;
 

@@ -13,9 +13,9 @@ import lombok.Setter;
 @NoArgsConstructor
 public class SchemeRateSlabDTO {
     private RateType rateType;
-    private SlabType slabType;
+   // private SlabType slabType;
 
-    private Double fixedSlabValue; // Used if SlabType is FIXED
+   // private Double fixedSlabValue; // Used if SlabType is FIXED
     private Double slabStart;       // Used if SlabType is VARIABLE
     private Double slabEnd;         // Used if SlabType is VARIABLE
 

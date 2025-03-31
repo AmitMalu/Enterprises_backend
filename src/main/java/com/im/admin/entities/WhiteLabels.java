@@ -45,9 +45,9 @@ public class WhiteLabels {
     @Column(name = "address")
     private String address;
 
-    @NotBlank(message = "Parent account Id is required")
-    @Column(name = "parent_account_Id")
-    private String parentAccountId;
+    @NotBlank(message = "Parent account is required")
+    @Column(name = "parent_account")
+    private String parentAccount;
 
     @Column(name = "domain_url")
     private String domainURL;
