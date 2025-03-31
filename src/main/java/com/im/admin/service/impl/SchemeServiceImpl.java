@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
+import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.exception.DuplicateEntryException;
 import com.im.admin.repositories.*;
@@ -146,37 +147,47 @@ public class SchemeServiceImpl implements SchemeService {
             schemeRate.setOperatorName(requestDTO.getOperatorName());
             schemeRate.setOperatorCode(requestDTO.getOperatorCode());
             schemeRate.setRateType(slab.getRateType());
-            schemeRate.setSlabType(slab.getSlabType());
+            schemeRate.setSlabStart(slab.getSlabStart());
+            schemeRate.setSlabEnd(slab.getSlabEnd());
 
-            if ("FIXED".equalsIgnoreCase(String.valueOf(slab.getSlabType()))) {
-                if (slab.getFixedSlabValue() == null) {
-                    throw new IllegalArgumentException("Error in slab #" + (i + 1) + ": Fixed slab value is required for FIXED slab type.");
-                }
-                schemeRate.setFixedSlabValue(slab.getFixedSlabValue());
-            } else if ("VARIABLE".equalsIgnoreCase(String.valueOf(slab.getSlabType()))) {
-                if (slab.getSlabStart() == null || slab.getSlabEnd() == null) {
-                    throw new IllegalArgumentException("Error in slab #" + (i + 1) + ": Slab start and slab end are required for VARIABLE slab type.");
-                }
-                schemeRate.setSlabStart(slab.getSlabStart());
-                schemeRate.setSlabEnd(slab.getSlabEnd());
+            // Ensure gross concept: sum of all fields must be exactly equal to gross
+            double im = slab.getIm() == null ? 0.0 : slab.getIm();
+            double enterprise = slab.getEnterprise() == null ? 0.0 : slab.getEnterprise();
+            double whitelabel = slab.getWhitelabel() == null ? 0.0 : slab.getWhitelabel();
+            double superDistributor = slab.getSuperDistributor() == null ? 0.0 : slab.getSuperDistributor();
+            double partner = slab.getPartner() == null ? 0.0 : slab.getPartner();
+            double distributor = slab.getDistributor() == null ? 0.0 : slab.getDistributor();
+            double retailer = slab.getRetailer() == null ? 0.0 : slab.getRetailer();
+
+            double totalDistributed = im + enterprise + whitelabel + superDistributor + partner + distributor + retailer;
+            double gross = slab.getGross();
+
+            if (!Objects.equals(gross, totalDistributed)) {
+                throw new IllegalArgumentException("Error in slab #" + (i + 1) + ": Sum of all fields must be exactly equal to Gross (Expected: " + gross + ", Found: " + totalDistributed + ").");
             }
 
-            Double totalDistributed = slab.getIm() + slab.getEnterprise() + slab.getWhitelabel()
-                    + slab.getSuperDistributor() + slab.getPartner() + slab.getDistributor() + slab.getRetailer();
-
-            if (!Objects.equals(slab.getGross(), totalDistributed)) {
-                throw new IllegalArgumentException("Error in slab #" + (i + 1) + ": Sum of all fields must be exactly equal to Gross (Expected: " + slab.getGross() + ", Found: " + totalDistributed + ").");
+            // Store values based on rateType
+            if (slab.getRateType() == RateType.PERCENTAGE) {
+                schemeRate.setGross(gross / 100);
+                schemeRate.setIm(im / 100);
+                schemeRate.setEnterprise(enterprise / 100);
+                schemeRate.setWhitelabel(whitelabel / 100);
+                schemeRate.setSuperDistributor(superDistributor / 100);
+                schemeRate.setPartner(partner / 100);
+                schemeRate.setDistributor(distributor / 100);
+                schemeRate.setRetailer(retailer / 100);
+            } else {
+                schemeRate.setGross(gross);
+                schemeRate.setIm(im);
+                schemeRate.setEnterprise(enterprise);
+                schemeRate.setWhitelabel(whitelabel);
+                schemeRate.setSuperDistributor(superDistributor);
+                schemeRate.setPartner(partner);
+                schemeRate.setDistributor(distributor);
+                schemeRate.setRetailer(retailer);
             }
 
-            schemeRate.setGross(slab.getGross());
-            schemeRate.setIm(slab.getIm());
-            schemeRate.setEnterprise(slab.getEnterprise());
-            schemeRate.setWhitelabel(slab.getWhitelabel());
-            schemeRate.setSuperDistributor(slab.getSuperDistributor());
-            schemeRate.setPartner(slab.getPartner());
-            schemeRate.setDistributor(slab.getDistributor());
-            schemeRate.setRetailer(slab.getRetailer());
-
+            schemeRate.setCreatedBy("admin");
             schemeRates.add(schemeRate);
         }
 

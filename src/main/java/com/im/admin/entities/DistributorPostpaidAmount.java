@@ -12,7 +12,7 @@ import java.util.Date;
 @Getter
 @Setter
 @Entity
-@Table(name = "Distributor_postpaid_amount")
+@Table(name = "distributor_postpaid_amount")
 public class DistributorPostpaidAmount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

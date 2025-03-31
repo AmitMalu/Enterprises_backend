@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.im.admin.dto.AbstractRetailerAmount;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +14,7 @@ import java.util.Date;
 @Setter
 @Entity
 @Table(name = "retailer_prepaid_amount")
-public class RetailerPrepaidAmount {
+public class RetailerPrepaidAmount extends AbstractRetailerAmount {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -24,7 +24,7 @@ public class SuperDistributorPrepaidAmount {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "superDistributor_id", nullable = false, unique = true)
+    @JoinColumn(name = "super_distributor_id", nullable = false, unique = true)
     private SuperDistributor superDistributorId;
 
     @Column(name = "total_cash")

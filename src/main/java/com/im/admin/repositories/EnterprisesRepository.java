@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface EnterprisesRepository extends JpaRepository<Enterprises, String> {
 
+    //find(String id);
+
 }
 
 

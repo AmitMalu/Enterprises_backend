@@ -93,22 +93,25 @@ public class RetailerServiceImpl implements RetailerService {
         Retailer retailer = retailerRepository.findById(retailerId)
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
-        // Delete associated Prepaid & Postpaid Amount records
-        RetailerPrepaidAmount prepaidAmount = prepaidAmountRepository.findByRetailerId_RetailerId(retailerId);
-        if (prepaidAmount != null) {
-            prepaidAmountRepository.delete(prepaidAmount);
-            log.info("Deleted prepaid amount record for Retailer ID: {}", retailerId);
-        }
+        // Delete associated Prepaid Amount record
+        prepaidAmountRepository.findByRetailerId_RetailerId(retailerId)
+                .ifPresent(prepaidAmount -> {
+                    prepaidAmountRepository.delete(prepaidAmount);
+                    log.info("Deleted prepaid amount record for Retailer ID: {}", retailerId);
+                });
 
-        RetailerPostpaidAmount postpaidAmount = postpaidAmountRepository.findByRetailerId_RetailerId(retailerId);
-        if (postpaidAmount != null) {
-            postpaidAmountRepository.delete(postpaidAmount);
-            log.info("Deleted postpaid amount record for Retailer ID: {}", retailerId);
-        }
+        // Delete associated Postpaid Amount record
+        postpaidAmountRepository.findByRetailerId_RetailerId(retailerId)
+                .ifPresent(postpaidAmount -> {
+                    postpaidAmountRepository.delete(postpaidAmount);
+                    log.info("Deleted postpaid amount record for Retailer ID: {}", retailerId);
+                });
 
+        // Delete retailer
         retailerRepository.delete(retailer);
         log.info("Retailer deleted successfully with ID: {}", retailerId);
     }
+
 
     @Override
     public List<Retailer> getAllRetailers() {

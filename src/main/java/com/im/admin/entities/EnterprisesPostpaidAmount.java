@@ -13,7 +13,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "Enterprises_postpaid_amount")
+@Table(name = "enterprises_postpaid_amount")
 public class EnterprisesPostpaidAmount {
 
     @Id
@@ -22,7 +22,7 @@ public class EnterprisesPostpaidAmount {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "enterprise_id", nullable = false, unique = true)
+    @JoinColumn(name = "enterprises_id", nullable = false, unique = true)
     private Enterprises enterprise;
 
     @Column(name = "total_cash", precision = 10, scale = 2)

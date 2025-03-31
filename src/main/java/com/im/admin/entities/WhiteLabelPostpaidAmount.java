@@ -20,7 +20,7 @@ public class WhiteLabelPostpaidAmount {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "whitelabel_id", nullable = false, unique = true)
+    @JoinColumn(name = "white_label_id", nullable = false, unique = true)
     private WhiteLabels whiteLabelId;
 
     @Column(name = "total_cash", precision = 10, scale = 2)

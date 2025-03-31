@@ -15,6 +15,9 @@ public interface SubProductsRepository extends JpaRepository<SubProducts, String
 
     List<SubProducts> findByProductIdAndIsActiveTrue(Short productId);
 
+    Optional<SubProducts> findBySubProductCode(String subProductCode);
+
+
 }
 
 

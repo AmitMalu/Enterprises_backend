@@ -11,9 +11,9 @@ import lombok.Setter;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "retailer")
 @Getter
 @Setter
+@Table(name = "retailer")
 public class Retailer {
 
     @Id

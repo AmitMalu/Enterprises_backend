@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.entities.SubProducts;
+import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.service.SubProductsService;
 import com.im.admin.util.CommonMethods;
@@ -28,8 +29,18 @@ public class SubProductsServiceImpl implements SubProductsService {
     @Autowired
     private CommonMethods commonMethods;
 
+    @Autowired
+    private ProductsRepository productsRepository;
+
     @Override
     public SubProducts saveSubProduct(SubProducts subProduct) {
+
+        // Check if the provided productId exists
+        boolean productExists = productsRepository.existsById(subProduct.getProductId());
+        if (!productExists) {
+            throw new IllegalArgumentException("Invalid Product ID: " + subProduct.getProductId() + ". Product does not exist.");
+        }
+
         Optional<SubProducts> existingSubProduct = subProductsRepository
                 .findBySubProductCodeOrSubProductTitle(subProduct.getSubProductCode(), subProduct.getSubProductTitle());
 
@@ -69,6 +80,7 @@ public class SubProductsServiceImpl implements SubProductsService {
         existingSubProduct.setSubProductCode(subProduct.getSubProductCode());
         existingSubProduct.setProductId(subProduct.getProductId());
         existingSubProduct.setIsSettlement(subProduct.getIsSettlement());
+        existingSubProduct.setWalletType(subProduct.getWalletType());
         existingSubProduct.setEnabled(subProduct.getEnabled());
         existingSubProduct.setEditedBy(subProduct.getEditedBy());
 

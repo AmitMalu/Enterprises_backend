@@ -1,10 +1,12 @@
 package com.im.admin.repositories;
 
+import com.im.admin.entities.CardType;
 import com.im.admin.entities.Operators;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface OperatorsRepository extends JpaRepository<Operators, String> {
@@ -16,6 +18,10 @@ public interface OperatorsRepository extends JpaRepository<Operators, String> {
     List<Operators> findBySubProductIdAndIsActiveTrue(String subProductId);
 
     List<Operators> findBySubProductCode(String subProductCode);
+
+    Optional<Operators> findByOperatorName(String operatorName);
+
+    Optional<Operators> findByCardBinNo(String cardBinNo);
 
 
 }
