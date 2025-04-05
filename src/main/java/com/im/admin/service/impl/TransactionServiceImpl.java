@@ -15,6 +15,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.NoResultException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Time;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 @Service
@@ -35,9 +37,6 @@ public class TransactionServiceImpl implements TransactionService {
     private SubProductsRepository subProductsRepository;
 
     @Autowired
-    private SchemeRepository schemeRepository;
-
-    @Autowired
     private SchemeRateRepository schemeRateRepository;
 
     @Autowired
@@ -48,9 +47,6 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Autowired
     private RetailerRepository retailerRepository;
-
-    @Autowired
-    private AdminRepository adminRepository;
 
     @Autowired
     private EnterprisesRepository enterprisesRepository;
@@ -82,6 +78,8 @@ public class TransactionServiceImpl implements TransactionService {
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Override
     public String getOperatorDetailsByCardBIN(CardTypeRequestDto cardTypeRequestDto) {
@@ -116,49 +114,158 @@ public class TransactionServiceImpl implements TransactionService {
 
         Products product = productOpt.get();
         Double gstValue = product.getSgst();
+        Double tdsValue = product.getTds();
+        Boolean hasCharges = product.getHasCharges();
+        Boolean isCommission = product.getIsCommissions();
+        String tranxType = product.getTransactionType();
 
         String walletType = getWalletType(request);
         SchemeRate matchedSchemeRate = findMatchingSchemeRate(request);
 
-        return new TransactionSchemeDetailsResponseDto(matchedSchemeRate, walletType, gstValue.toString());
+        return new TransactionSchemeDetailsResponseDto(matchedSchemeRate, walletType, gstValue.toString(), tdsValue.toString(), hasCharges, isCommission, tranxType);
     }
 
     @Override
     @Transactional
-    public String processRetailerTransaction(TransactionSchemeDetailsRequestDto transactionSchemeDetailsRequestDto) {
+    public String processTransaction(TransactionSchemeDetailsRequestDto dto) {
+        String vendorResponse = "failure";
+        String retailerId = dto.getHierarchyId();
+        BigDecimal tranxAmount = BigDecimal.valueOf(dto.getAmount());
+        BigDecimal grossAmount = BigDecimal.valueOf(dto.getSchemeRate().getGross());
+        String walletType = dto.getWalletType().toUpperCase();
+        String taxValue = dto.getGstValue();
+        String tranxType = dto.getTransactionType();
 
-        //TODO call vendor API and get response (if SUCCESS then only below implementation is applicable for FAILURE implementation is not done yet)
-        // callVendor API here
+        Date transactionDate = new Date();
+        Time transactionTime = new Time(System.currentTimeMillis());
 
-        // Extract request details
-        String retailerId = transactionSchemeDetailsRequestDto.getHierarchyId();
-        BigDecimal requestedAmount = BigDecimal.valueOf(transactionSchemeDetailsRequestDto.getAmount());
-        BigDecimal grossAmount = BigDecimal.valueOf(transactionSchemeDetailsRequestDto.getSchemeRate().getGross());
-        String walletType = transactionSchemeDetailsRequestDto.getWalletType().toUpperCase(); // Convert to uppercase for consistency
-        SchemeRate schemeRate = transactionSchemeDetailsRequestDto.getSchemeRate();
-        String taxValue = transactionSchemeDetailsRequestDto.getTaxValue();
-        BigDecimal tdsRate = BigDecimal.valueOf(Long.parseLong(transactionSchemeDetailsRequestDto.getTdsRate()));
+        String baseTransactionId = generateBaseTransactionId(); // One base ID for full flow
 
-        log.info("Processing transaction for Retailer ID: {} | Wallet Type: {} | Requested Amount: {} | Gross Amount: {}",
-                retailerId, walletType, requestedAmount, grossAmount);
+        AbstractRetailerAmount wallet;
 
         if ("PREPAID".equalsIgnoreCase(walletType)) {
-            processPrepaidTransaction(retailerId, requestedAmount, grossAmount, taxValue);
+            wallet = retailerPrepaidAmountRepository.findByRetailerId_RetailerId(retailerId)
+                    .orElseThrow(() -> new RuntimeException("Prepaid wallet not found: " + retailerId));
         } else if ("POSTPAID".equalsIgnoreCase(walletType)) {
-            processPostpaidTransaction(retailerId, requestedAmount, grossAmount, taxValue);
+            wallet = retailerPostpaidAmountRepository.findByRetailerId_RetailerId(retailerId)
+                    .orElseThrow(() -> new RuntimeException("Postpaid wallet not found: " + retailerId));
         } else {
             throw new IllegalArgumentException("Invalid wallet type: " + walletType);
         }
 
-        Retailer retailer = retailerRepository.findByRetailerId(retailerId)
-                .orElseThrow(() -> new RuntimeException("Retailer not found with ID: " + retailerId));
+        if (tranxType.equalsIgnoreCase("credit")) {
+            // 1. Vendor call before credit
+            vendorResponse = "Success"; // Replace with actual call
 
-        distributeCommissionToHierarchies(retailer.getParentAccount(), schemeRate, walletType, tdsRate);
+            if (!vendorResponse.equalsIgnoreCase("Success")) {
+                return "Vendor transaction failed";
+            }
+
+            updateWallet(dto, wallet, tranxAmount, grossAmount, taxValue, tranxType, baseTransactionId);
+            processChargesAndCommission(dto, wallet, grossAmount, taxValue, transactionDate, transactionTime, baseTransactionId);
+
+        } else {
+            // 1. Check balance
+            if (!hasSufficientBalance(retailerId, tranxAmount, walletType)) {
+                return "Insufficient balance";
+            }
+
+            updateWallet(dto, wallet, tranxAmount, grossAmount, taxValue, tranxType, baseTransactionId);
+
+            // 2. Vendor call
+            vendorResponse = "Success"; // Replace with actual call
+            if (!vendorResponse.equalsIgnoreCase("Success")) {
+                return "Vendor transaction failed"; // optionally reverse wallet here
+            }
+
+            processChargesAndCommission(dto, wallet, grossAmount, taxValue, transactionDate, transactionTime, baseTransactionId);
+        }
+
+        // Save wallet changes
+        if (wallet instanceof RetailerPrepaidAmount) {
+            retailerPrepaidAmountRepository.save((RetailerPrepaidAmount) wallet);
+        } else {
+            retailerPostpaidAmountRepository.save((RetailerPostpaidAmount) wallet);
+        }
 
         return "Transaction Successful";
     }
 
-    private void distributeCommissionToHierarchies(String hierarchyId, SchemeRate schemeRate, String walletType, BigDecimal tdsRate) {
+    private void processChargesAndCommission(TransactionSchemeDetailsRequestDto dto, AbstractRetailerAmount wallet,
+                                             BigDecimal grossAmount, String gstValue, Date transactionDate, Time transactionTime, String baseTransactionId) {
+        if (dto.getHasCharge()) {
+            processCharges(dto, wallet, grossAmount, gstValue, transactionDate, transactionTime, baseTransactionId); // GST only
+        }
+
+        if (dto.getIsCommission()) {
+            processCommission(dto, baseTransactionId); // TDS only
+        }
+    }
+
+    private void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractRetailerAmount wallet,
+                                BigDecimal grossAmount, String gstValue, Date transactionDate, Time transactionTime, String baseTransactionId) {
+
+        // Deduct Gross Amount (amount + GST inclusive)
+        BigDecimal balanceBeforeGross = wallet.getAvailableBalance();
+        wallet.setAvailableBalance(balanceBeforeGross.subtract(grossAmount));
+        BigDecimal balanceAfterGross = wallet.getAvailableBalance();
+
+        String chgId = buildTransactionId("CHG", baseTransactionId);
+        insertTransaction(wallet, "DEBIT", grossAmount, balanceBeforeGross, balanceAfterGross,
+                transactionDate, transactionTime, "Deduct Funds (Gross) - " + dto.getWalletType().toUpperCase(), chgId);
+
+        // Extract GST amount from gross
+        BigDecimal gstRate = new BigDecimal(gstValue).divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
+        BigDecimal divisor = BigDecimal.ONE.add(gstRate);
+        BigDecimal baseAmount = grossAmount.divide(divisor, 10, RoundingMode.HALF_UP);
+        BigDecimal gstAmount = baseAmount.multiply(gstRate).setScale(4, RoundingMode.HALF_UP);
+
+        // Track GST separately if needed for reporting
+        BigDecimal balanceBeforeGst = wallet.getAvailableBalance();
+        wallet.setAvailableBalance(balanceBeforeGst.subtract(gstAmount));
+        BigDecimal balanceAfterGst = wallet.getAvailableBalance();
+
+        wallet.setUsedCash(wallet.getUsedCash().add(grossAmount.add(gstAmount)));
+        wallet.setLastUpdatedAmount(gstAmount);
+        wallet.setLastUpdateDate(transactionDate);
+        wallet.setLastUpdateTime(transactionTime);
+
+        String gstId = buildTransactionId("GST", baseTransactionId);
+        insertTransaction(wallet, "DEBIT", gstAmount, balanceBeforeGst, balanceAfterGst,
+                transactionDate, transactionTime, "Deduct Funds (GST) - " + dto.getWalletType().toUpperCase(), gstId);
+    }
+
+    private void processCommission(TransactionSchemeDetailsRequestDto dto, String baseTransactionId) {
+        BigDecimal tdsRate = new BigDecimal(dto.getTdsRate());
+
+        // Commission to Retailer
+        if (dto.getSchemeRate().getRetailer() > 0) {
+            BigDecimal retailerCommission = BigDecimal.valueOf(dto.getSchemeRate().getRetailer());
+            distributeCommissionToHierarchy("RT", dto.getHierarchyId(), retailerCommission, dto.getWalletType(), tdsRate, baseTransactionId);
+        }
+
+        // Upline hierarchy commission
+        Retailer retailer = retailerRepository.findByRetailerId(dto.getHierarchyId())
+                .orElseThrow(() -> new RuntimeException("Retailer not found: " + dto.getHierarchyId()));
+
+        distributeCommissionToHierarchies(retailer.getParentAccount(), dto.getSchemeRate(), dto.getWalletType(), tdsRate, baseTransactionId);
+    }
+
+    public boolean hasSufficientBalance(String retailerId, BigDecimal requestedAmount, String walletType) {
+        String amountTable = getAmountTable("RT", walletType);
+
+        String sql = "SELECT available_balance FROM " + amountTable + " WHERE retailer_id = :retailerId";
+
+        BigDecimal availableBalance = (BigDecimal) entityManager.createNativeQuery(sql)
+                .setParameter("retailerId", retailerId)
+                .getSingleResult();
+
+        log.info("Retailer ID: {} | Available Balance: {} | Requested Amount: {}", retailerId, availableBalance, requestedAmount);
+
+        return availableBalance != null && availableBalance.compareTo(requestedAmount) >= 0;
+    }
+
+    private void distributeCommissionToHierarchies(String hierarchyId, SchemeRate schemeRate, String walletType, BigDecimal tdsRate, String baseTransactionId) {
         if (hierarchyId == null || hierarchyId.isEmpty()) {
             return;
         }
@@ -168,44 +275,104 @@ public class TransactionServiceImpl implements TransactionService {
 
         if (commissionAmount.compareTo(BigDecimal.ZERO) > 0) {
             if ("AD".equals(hierarchyType)) {
-                distributeCommissionToAdmin(hierarchyId, commissionAmount, walletType);
-                return; // Stop further processing
+                distributeCommissionToAdmin(hierarchyId, commissionAmount, walletType, baseTransactionId);
+                return;
             } else {
-                distributeCommissionToHierarchy(hierarchyType, hierarchyId, commissionAmount, walletType, tdsRate);
+                distributeCommissionToHierarchy(hierarchyType, hierarchyId, commissionAmount, walletType, tdsRate, baseTransactionId);
             }
         }
 
         findParentHierarchy(hierarchyId).ifPresent(parentId ->
-                distributeCommissionToHierarchies(parentId, schemeRate, walletType, tdsRate)
+                distributeCommissionToHierarchies(parentId, schemeRate, walletType, tdsRate, baseTransactionId)
         );
     }
 
-    private void distributeCommissionToHierarchy(String hierarchyType, String hierarchyId, BigDecimal commissionAmount, String walletType, BigDecimal tdsRate) {
+    private void creditTdsToAdmin(String sourceHierarchyId, String walletType, BigDecimal tdsAmount, String baseTransactionId) {
+        String adminHierarchyId = getTopLevelAdminIdFromHierarchy(sourceHierarchyId);
+        String transactionTable = getTransactionTable("AD", walletType);
+        String amountTable = getAmountTable("AD", walletType);
+
+        // Step 1: Get Admin's current balance
+        BigDecimal beforeBalance = getCurrentBalance(adminHierarchyId, walletType);
+        BigDecimal afterBalance = beforeBalance.add(tdsAmount);
+
+        String tdsCreditTranxId = buildTransactionId("TDS", baseTransactionId);
+
+        // Step 2: Insert credit transaction for Admin
+        insertTransactionForHierarchy(
+                transactionTable, "CREDIT", tdsAmount, "TDS collected from: " + sourceHierarchyId,
+                adminHierarchyId, walletType, beforeBalance, afterBalance,"Add Funds (TDS) - " + walletType.toUpperCase(), tdsCreditTranxId
+        );
+
+        // Step 3: Update Admin's wallet balance
+        updateAmountTable("AD", adminHierarchyId, amountTable, tdsAmount);
+    }
+
+    private void distributeCommissionToHierarchy(String hierarchyType, String hierarchyId,
+                                                 BigDecimal commissionAmount, String walletType, BigDecimal tdsRate, String baseTransactionId) {
         log.info("Processing commission for {} | Hierarchy ID: {} | Amount: {} | Wallet Type: {} | TDS Rate: {}",
                 hierarchyType, hierarchyId, commissionAmount, walletType, tdsRate);
-
-        BigDecimal tdsAmount = commissionAmount.multiply(tdsRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
 
         String transactionTable = getTransactionTable(hierarchyType, walletType);
         String amountTable = getAmountTable(hierarchyType, walletType);
 
-        insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount, "Commission credited", hierarchyId, walletType);
+        // Step 1: Get Current Balance
+        BigDecimal beforeBalance = getCurrentBalance(hierarchyId, walletType);
 
-        if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
-            insertTransactionForHierarchy(transactionTable, "DEBIT", tdsAmount, "TDS Deduction", hierarchyId, walletType);
+        // Step 2: Credit Commission
+        BigDecimal afterCreditBalance = beforeBalance.add(commissionAmount);
+        String comTxnId = buildTransactionId("COM", baseTransactionId);
+        insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount, "Commission credited",
+                hierarchyId, walletType, beforeBalance, afterCreditBalance,
+                "Add Funds (Commission) - " + walletType.toUpperCase(), comTxnId);
+
+        // Step 3: Calculate TDS (if applicable)
+        BigDecimal tdsAmount = BigDecimal.ZERO;
+        boolean isTdsApplicable = !(hierarchyType.equals("IM") || hierarchyType.equals("AD"));
+        if (isTdsApplicable) {
+            tdsAmount = commissionAmount.multiply(tdsRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         }
 
-        updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount.subtract(tdsAmount)); // Update final amount after TDS deduction
+        // Step 4: Deduct TDS (if applicable)
+        BigDecimal afterTdsBalance = afterCreditBalance.subtract(tdsAmount);
+        if (isTdsApplicable && tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
+            String tdsTxnId = buildTransactionId("TDS", baseTransactionId);
+
+            insertTransactionForHierarchy(transactionTable, "DEBIT", tdsAmount, "TDS Deduction",
+                    hierarchyId, walletType, afterCreditBalance, afterTdsBalance,
+                    "Deduct Funds (TDS) - " + walletType.toUpperCase(), tdsTxnId);
+
+            // Step 5: Credit TDS to Admin (Transaction only, no balance update)
+            creditTdsToAdmin(hierarchyId, walletType, tdsAmount, baseTransactionId);
+        }
+
+        // Step 6: Update hierarchy's own wallet balance
+        updateAmountTable(hierarchyType, hierarchyId, amountTable, afterTdsBalance.subtract(beforeBalance));
     }
 
-    private void distributeCommissionToAdmin(String adminId, BigDecimal commissionAmount, String walletType) {
+    private String getTopLevelAdminIdFromHierarchy(String hierarchyId) {
+        String currentId = hierarchyId;
+
+        while (currentId != null && !extractHierarchyType(currentId).equals("AD")) {
+            Optional<String> parentOpt = findParentHierarchy(currentId);
+            if (parentOpt.isEmpty()) break;
+            currentId = parentOpt.get();
+        }
+
+        return currentId; // Will return the Admin ID
+    }
+
+
+    private void distributeCommissionToAdmin(String adminId, BigDecimal commissionAmount, String walletType, String baseTransactionId) {
         log.info("Processing commission for Admin | Admin ID: {} | Amount: {} | Wallet Type: {} (No TDS Deduction)",
                 adminId, commissionAmount, walletType);
 
         String amountTable = getAmountTable("AD", walletType);
         String transactionTable = getTransactionTable("AD", walletType);
 
-        insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount, "Admin Commission credited", adminId, walletType);
+        String comTxnId = buildTransactionId("COM", baseTransactionId);
+        insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
+                "Admin Commission credited", adminId, walletType, "Add Funds (Commission) - "+ walletType.toUpperCase(), comTxnId);
         updateAmountTable("AD", adminId, amountTable, commissionAmount);
     }
 
@@ -216,16 +383,16 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     private BigDecimal getCommissionAmount(String hierarchyType, SchemeRate schemeRate) {
-        switch (hierarchyType) {
-            case "AD": return BigDecimal.valueOf(schemeRate.getIm());
-            case "ET": return BigDecimal.valueOf(schemeRate.getEnterprise());
-            case "WL": return BigDecimal.valueOf(schemeRate.getWhitelabel());
-            case "SD": return BigDecimal.valueOf(schemeRate.getSuperDistributor());
-            case "PT": return BigDecimal.valueOf(schemeRate.getPartner());
-            case "DT": return BigDecimal.valueOf(schemeRate.getDistributor());
-            case "RT": return BigDecimal.valueOf(schemeRate.getRetailer());
-            default: return BigDecimal.ZERO;
-        }
+        return switch (hierarchyType) {
+            case "AD" -> BigDecimal.valueOf(schemeRate.getIm());
+            case "ET" -> BigDecimal.valueOf(schemeRate.getEnterprise());
+            case "WL" -> BigDecimal.valueOf(schemeRate.getWhitelabel());
+            case "SD" -> BigDecimal.valueOf(schemeRate.getSuperDistributor());
+            case "PT" -> BigDecimal.valueOf(schemeRate.getPartner());
+            case "DT" -> BigDecimal.valueOf(schemeRate.getDistributor());
+            case "RT" -> BigDecimal.valueOf(schemeRate.getRetailer());
+            default -> BigDecimal.ZERO;
+        };
     }
 
     private Optional<String> findParentHierarchy(String hierarchyId) {
@@ -264,56 +431,44 @@ public class TransactionServiceImpl implements TransactionService {
 
     private String getTransactionTable(String hierarchyType, String walletType) {
         String entityName = getEntityName(hierarchyType);
-        return entityName + (walletType.equals("PREPAID") ? "_prepaid_transaction_details" : "_postpaid_transaction_details");
+        return entityName + (walletType.equalsIgnoreCase("PREPAID") ? "_prepaid_transaction_details" : "_postpaid_transaction_details");
     }
 
     private String getAmountTable(String hierarchyType, String walletType) {
         String entityName = getEntityName(hierarchyType);
-        return entityName + (walletType.equals("PREPAID") ? "_prepaid_amount" : "_postpaid_amount");
+        return entityName + (walletType.equalsIgnoreCase("PREPAID") ? "_prepaid_amount" : "_postpaid_amount");
     }
 
-    /**
-     * Converts hierarchyType (like "DT", "SD") to the correct entity name
-     * that matches table naming convention.
-     */
     private String getEntityName(String hierarchyType) {
-        switch (hierarchyType) {
-            case "AD": return "admin";
-            case "ET": return "enterprises";
-            case "WL": return "white_label";
-            case "SD": return "super_distributor";
-            case "PT": return "partner";
-            case "DT": return "distributor";
-            case "RT": return "retailer";
-            default: throw new IllegalArgumentException("Invalid hierarchy type: " + hierarchyType);
-        }
+        return switch (hierarchyType) {
+            case "AD" -> "admin";
+            case "ET" -> "enterprises";
+            case "WL" -> "white_label";
+            case "SD" -> "super_distributor";
+            case "PT" -> "partner";
+            case "DT" -> "distributor";
+            case "RT" -> "retailer";
+            default -> throw new IllegalArgumentException("Invalid hierarchy type: " + hierarchyType);
+        };
     }
 
-    private String formatTableName(String hierarchyType, String walletType, String tableType) {
-        return convertToSnakeCase(hierarchyType) + "_" + walletType.toLowerCase() + "_" + tableType;
-    }
-
-    private String convertToSnakeCase(String input) {
-        return input.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
-    }
-
-    private void insertTransactionForHierarchy(String transactionTable,
-                                               String service, BigDecimal amount, String remarks, String hierarchyId, String walletType) {
-        log.info("Inserting into {} | Type: {} | Amount: {} | Remarks: {} | Hierarchy ID: {}",
-                transactionTable, service, amount, remarks, hierarchyId);
-
-        BigDecimal currentBalance = getCurrentBalance(hierarchyId, walletType);
-
-        BigDecimal beforeTransactionBalance = currentBalance;
+    private void insertTransactionForHierarchy(String transactionTable, String service, BigDecimal amount, String remarks, String hierarchyId, String walletType, String actionOnBalanceAmount, String tranxId) {
+        BigDecimal beforeTransactionBalance = getCurrentBalance(hierarchyId, walletType);
         BigDecimal afterTransactionBalance = service.equals("CREDIT") ? beforeTransactionBalance.add(amount) : beforeTransactionBalance.subtract(amount);
 
+        log.info("Inserting into {} | Type: {} | Amount: {} | Remarks: {} | Hierarchy ID: {} | Before Balance: {} | After Balance: {}",
+                transactionTable, service, amount, remarks, hierarchyId, beforeTransactionBalance, afterTransactionBalance);
+
+        String columnName = getHierarchyColumnName(extractHierarchyType(hierarchyId));
+
         String sql = "INSERT INTO " + transactionTable +
-                " (service, amount, remarks, date_of_transaction, time_of_transaction, " +
-                "ch_bal_before_tran, ch_bal_after_tran) " +
-                "VALUES (:service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance)";
+                " (" + columnName + ",service, amount, remarks, date_of_transaction, time_of_transaction, " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id) " +
+                "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId)";
 
         entityManager.createNativeQuery(sql)
+                .setParameter("hierarchyId", hierarchyId)
                 .setParameter("service", service)
                 .setParameter("amount", amount)
                 .setParameter("remarks", remarks)
@@ -321,11 +476,46 @@ public class TransactionServiceImpl implements TransactionService {
                 .setParameter("timeOfTransaction", new Time(System.currentTimeMillis()))
                 .setParameter("beforeTransactionBalance", beforeTransactionBalance)
                 .setParameter("afterTransactionBalance", afterTransactionBalance)
+                .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
+                .setParameter("finalBalance", afterTransactionBalance)
+                .setParameter("tranxId", tranxId)
+                .executeUpdate();
+    }
+
+    //This method is for commission credit entry
+    private void insertTransactionForHierarchy(String transactionTable, String service, BigDecimal amount, String remarks,
+                                               String hierarchyId, String walletType, BigDecimal beforeTransactionBalance,
+                                               BigDecimal afterTransactionBalance, String actionOnBalance, String tranxId) {
+
+        log.info("Inserting into {} | Type: {} | Amount: {} | Remarks: {} | Hierarchy ID: {} | Before Balance: {} | After Balance: {} | Action: {}",
+                transactionTable, service, amount, remarks, hierarchyId, beforeTransactionBalance, afterTransactionBalance, actionOnBalance);
+
+        String hierarchyColumnName = getHierarchyColumnName(extractHierarchyType(hierarchyId));
+
+        String sql = "INSERT INTO " + transactionTable +
+                " (" + hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id) " +
+                "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId)";
+
+        entityManager.createNativeQuery(sql)
+                .setParameter("hierarchyId", hierarchyId)
+                .setParameter("service", service)
+                .setParameter("amount", amount)
+                .setParameter("remarks", remarks)
+                .setParameter("dateOfTransaction", new Date())
+                .setParameter("timeOfTransaction", new Time(System.currentTimeMillis()))
+                .setParameter("beforeTransactionBalance", beforeTransactionBalance)
+                .setParameter("afterTransactionBalance", afterTransactionBalance)
+                .setParameter("actionOnBalance", actionOnBalance)
+                .setParameter("finalBalance", afterTransactionBalance)
+                .setParameter("tranxId", tranxId)
                 .executeUpdate();
     }
 
     private void updateAmountTable(String hierarchyType, String hierarchyId, String amountTable, BigDecimal amount) {
-        log.info("Updating {} | Hierarchy Type: {} | Hierarchy ID: {} | Amount: {}", amountTable, hierarchyType, hierarchyId, amount);
+        log.info("Updating {} | Hierarchy Type: {} | Hierarchy ID: {} | Final Amount to Add: {}",
+                amountTable, hierarchyType, hierarchyId, amount);
 
         String columnName = getHierarchyColumnName(hierarchyType);
 
@@ -341,28 +531,17 @@ public class TransactionServiceImpl implements TransactionService {
                 .executeUpdate();
     }
 
-    /**
-     * Returns the correct column name based on hierarchy type.
-     */
     private String getHierarchyColumnName(String hierarchyType) {
-        switch (hierarchyType) {
-            case "ET":
-                return "enterprises_id";
-            case "PT":
-                return "partner_id";
-            case "RT":
-                return "retailer_id";
-            case "DT":
-                return "distributor_id";
-            case "SD":
-                return "super_distributor_id";
-            case "WL":
-                return "white_label_id";
-            case "AD":
-                return "admin_id";
-            default:
-                throw new IllegalArgumentException("Invalid hierarchy type: " + hierarchyType);
-        }
+        return switch (hierarchyType) {
+            case "ET" -> "enterprises_id";
+            case "PT" -> "partner_id";
+            case "RT" -> "retailer_id";
+            case "DT" -> "distributor_id";
+            case "SD" -> "super_distributor_id";
+            case "WL" -> "white_label_id";
+            case "AD" -> "admin_id";
+            default -> throw new IllegalArgumentException("Invalid hierarchy type: " + hierarchyType);
+        };
     }
 
     private BigDecimal getCurrentBalance(String hierarchyId, String walletType) {
@@ -381,107 +560,89 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
-
-    private void processPrepaidTransaction(String retailerId, BigDecimal requestedAmount, BigDecimal grossAmount, String taxValue) {
+    private void processPrepaidTransaction(TransactionSchemeDetailsRequestDto dto, String retailerId, BigDecimal requestedAmount, BigDecimal grossAmount, String taxValue, String productCode, String tranxType, String baseTransactionId) {
         RetailerPrepaidAmount prepaidAmount = retailerPrepaidAmountRepository.findByRetailerId_RetailerId(retailerId)
                 .orElseThrow(() -> new RuntimeException("Prepaid account not found for Retailer ID: " + retailerId));
 
-        updateWallet(prepaidAmount, requestedAmount, grossAmount, taxValue);
+        updateWallet(dto, prepaidAmount, requestedAmount, grossAmount, taxValue, tranxType, baseTransactionId);
         retailerPrepaidAmountRepository.save(prepaidAmount);
 
         log.info("Prepaid Transaction Completed: Available Balance = {}", prepaidAmount.getAvailableBalance());
     }
 
-    private void processPostpaidTransaction(String retailerId, BigDecimal requestedAmount, BigDecimal grossAmount, String taxValue) {
+    private void processPostpaidTransaction(TransactionSchemeDetailsRequestDto dto, String retailerId, BigDecimal requestedAmount, BigDecimal grossAmount, String taxValue, String productCode, String tranxType, String baseTransactionId) {
         RetailerPostpaidAmount postpaidAmount = retailerPostpaidAmountRepository.findByRetailerId_RetailerId(retailerId)
                 .orElseThrow(() -> new RuntimeException("Postpaid account not found for Retailer ID: " + retailerId));
 
-        updateWallet(postpaidAmount, requestedAmount, grossAmount, taxValue);
+        updateWallet(dto, postpaidAmount, requestedAmount, grossAmount, taxValue, tranxType, baseTransactionId);
         retailerPostpaidAmountRepository.save(postpaidAmount);
 
         log.info("Postpaid Transaction Completed: Available Balance = {}", postpaidAmount.getAvailableBalance());
     }
 
-    private <T extends AbstractRetailerAmount> void updateWallet(T wallet, BigDecimal requestedAmount, BigDecimal grossAmount, String taxValue) {
+    private <T extends AbstractRetailerAmount> void updateWallet(TransactionSchemeDetailsRequestDto dto, T wallet, BigDecimal requestedAmount,
+                                                                 BigDecimal grossAmount, String taxValue, String tranxType, String baseTransactionId) {
+        String actionOnBalance = "";
 
         Date transactionDate = new Date();
         Time transactionTime = new Time(System.currentTimeMillis());
 
         // *** Credit Operation ***
         BigDecimal balanceBeforeCredit = wallet.getAvailableBalance();
-        wallet.setTotalCash(wallet.getTotalCash().add(requestedAmount));
-        wallet.setAvailableBalance(wallet.getAvailableBalance().add(requestedAmount));
+
+        if (tranxType.equalsIgnoreCase("credit")) {
+            wallet.setTotalCash(wallet.getTotalCash().add(requestedAmount));
+            wallet.setAvailableBalance(wallet.getAvailableBalance().add(requestedAmount));
+            actionOnBalance = "Add Funds - " + dto.getWalletType().toUpperCase();
+
+        } else {
+            wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(requestedAmount));
+            wallet.setTotalCash(wallet.getTotalCash().subtract(requestedAmount));
+            actionOnBalance = "Deduct Funds - " + dto.getWalletType().toUpperCase();
+        }
+
         wallet.setLastUpdatedAmount(requestedAmount);
         wallet.setLastUpdateDate(transactionDate);
         wallet.setLastUpdateTime(transactionTime);
 
         // Insert Credit transaction
-        insertTransaction(wallet, "CREDIT", requestedAmount, balanceBeforeCredit,
-                wallet.getAvailableBalance(), transactionDate, transactionTime);
+        insertTransaction(wallet, tranxType, requestedAmount, balanceBeforeCredit,
+                wallet.getAvailableBalance(), transactionDate, transactionTime, actionOnBalance, baseTransactionId);
 
-        // Convert taxValue to BigDecimal
-        BigDecimal taxRate = new BigDecimal(taxValue).divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
 
-        // Compute (1 + taxRate) with high precision
-        BigDecimal divisor = BigDecimal.ONE.add(taxRate);
-
-        // Calculate base amount (grossAmount / (1 + taxRate)) with high precision
-        BigDecimal baseAmount = grossAmount.divide(divisor, 10, RoundingMode.HALF_UP);
-
-        // Calculate tax amount (baseAmount * taxRate) with high precision
-        BigDecimal taxAmount = baseAmount.multiply(taxRate).setScale(10, RoundingMode.HALF_UP);
-
-        // Round both values to 4 decimal places
-        baseAmount = baseAmount.setScale(4, RoundingMode.HALF_UP);
-        taxAmount = taxAmount.setScale(4, RoundingMode.HALF_UP);
-
-        // *** Combined Debit (Base Amount + Tax Amount) ***
-        BigDecimal totalDebit = baseAmount.add(taxAmount);
-
-        BigDecimal balanceBeforeDebit = wallet.getAvailableBalance();
-        wallet.setUsedCash(wallet.getUsedCash().add(totalDebit));
-        wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(totalDebit));
-        wallet.setLastUpdatedAmount(totalDebit);
-        wallet.setLastUpdateDate(transactionDate);
-        wallet.setLastUpdateTime(transactionTime);
-
-        // ** Insert transaction records separately for tracking **
-        insertTransaction(wallet, "DEBIT", baseAmount, balanceBeforeDebit,
-                balanceBeforeDebit.subtract(baseAmount), transactionDate, transactionTime);
-
-        insertTransaction(wallet, "DEBIT", taxAmount,
-                balanceBeforeDebit.subtract(baseAmount), wallet.getAvailableBalance(), transactionDate, transactionTime);
     }
 
     private void insertTransaction(AbstractRetailerAmount wallet, String transactionType, BigDecimal amount,
-                                   BigDecimal balanceBefore, BigDecimal balanceAfter, Date transactionDate, Time transactionTime) {
+                                   BigDecimal balanceBeforeTranx, BigDecimal balanceAfterTranx, Date transactionDate, Time transactionTime, String actionOnBalance, String tranxId) {
 
         if (wallet instanceof RetailerPrepaidAmount) {
             RetailerPrepaidTransactionDetails transaction = new RetailerPrepaidTransactionDetails();
-            transaction.setTransactionId(UUID.randomUUID().toString());
+            transaction.setTransactionId(tranxId);
             transaction.setDateOfTransaction(transactionDate);
             transaction.setTimeOfTransaction(transactionTime);
             transaction.setService("Retailer Wallet");
-            transaction.setChBalBeforTran(balanceBefore);
+            transaction.setBalBeforeTran(balanceBeforeTranx);
             transaction.setRequestAmount(amount);
             transaction.setAmount(amount);
-            transaction.setChBalAfterTran(balanceAfter);
+            transaction.setBalAfterTran(balanceAfterTranx);
+            transaction.setActionOnBalanceAmount(actionOnBalance);
             transaction.setTranStatus(transactionType);
-            transaction.setChFinalBalance(balanceAfter);
+            transaction.setFinalBalance(balanceAfterTranx);
             transaction.setRetailerId(((RetailerPrepaidAmount) wallet).getRetailerId().getRetailerId());
             retailerPrepaidTransactionDetailsRepository.save(transaction);
         } else if (wallet instanceof RetailerPostpaidAmount) {
             RetailerPostpaidTransactionDetails transaction = new RetailerPostpaidTransactionDetails();
-            transaction.setTransactionId(UUID.randomUUID().toString());
+            transaction.setTransactionId(tranxId);
             transaction.setDateOfTransaction(transactionDate);
             transaction.setTimeOfTransaction(transactionTime);
             transaction.setService("Retailer Wallet");
-            transaction.setChBalBeforTran(balanceBefore);
+            transaction.setBalBeforeTran(balanceBeforeTranx);
+            transaction.setActionOnBalanceAmount(actionOnBalance);
             transaction.setRequestAmount(amount);
             transaction.setAmount(amount);
-            transaction.setChBalAfterTran(balanceAfter);
+            transaction.setBalAfterTran(balanceAfterTranx);
             transaction.setTranStatus(transactionType);
-            transaction.setChFinalBalance(balanceAfter);
+            transaction.setFinalBalance(balanceAfterTranx);
             transaction.setRetailerId(((RetailerPostpaidAmount) wallet).getRetailerId().getRetailerId());
             retailerPostpaidTransactionDetailsRepository.save(transaction);
         }
@@ -528,6 +689,22 @@ public class TransactionServiceImpl implements TransactionService {
                         : request.getAmount() >= rate.getSlabStart() && request.getAmount() <= rate.getSlabEnd())
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No matching Scheme Rate found."));
+    }
+
+    private String generateBaseTransactionId() {
+        String timestamp = new SimpleDateFormat("yyMMddHHmmss").format(new Date());
+        int autoIncrement = getNextTransactionSequence(); // Get from DB or memory (e.g., Redis)
+        return timestamp + String.format("%05d", autoIncrement); // padded to ensure sorting
+    }
+
+
+    private String buildTransactionId(String prefix, String baseId) {
+        return prefix + baseId;
+    }
+
+    private int getNextTransactionSequence() {
+        jdbcTemplate.update("INSERT INTO transaction_sequence () VALUES ()");
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Integer.class);
     }
 
 }

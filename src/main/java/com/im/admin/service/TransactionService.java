@@ -10,6 +10,6 @@ public interface TransactionService {
 
     TransactionSchemeDetailsResponseDto getTransactionSchemeDetails(TransactionSchemeDetailsRequestDto request);
 
-    String processRetailerTransaction(TransactionSchemeDetailsRequestDto request);
+    String processTransaction(TransactionSchemeDetailsRequestDto request);
 }
 

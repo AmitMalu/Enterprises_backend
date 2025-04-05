@@ -45,13 +45,13 @@ public class SuperDistributorPostpaidTransactionDetails {
     @Column(name = "service")
     private String service;
 
-    @Column(name = "ch_bal_before_tran")
-    private BigDecimal chBalBeforTran;
+    @Column(name = "bal_before_tran")
+    private BigDecimal balBeforeTran;
 
     @Column(name = "request_amount")
     private BigDecimal requestAmount;
 
-    @Column(name = "comission")
+    @Column(name = "commission")
     private BigDecimal commission;
 
     @Column(name = "service_charges")
@@ -60,17 +60,17 @@ public class SuperDistributorPostpaidTransactionDetails {
     @Column(name = "amount")
     private BigDecimal amount;
 
-    @Column(name = "action_onbalance_amount")
-    private BigDecimal actionOnbalanceAmount;
+    @Column(name = "action_on_balance_amount")
+    private String actionOnBalanceAmount;
 
-    @Column(name = "ch_bal_after_tran")
-    private BigDecimal chBalAfterTran;
+    @Column(name = "bal_after_tran")
+    private BigDecimal balAfterTran;
 
     @Column(name = "tran_status")
     private String tranStatus;
 
-    @Column(name = "ch_final_balance")
-    private BigDecimal chFinalBalance;
+    @Column(name = "final_balance")
+    private BigDecimal finalBalance;
 
     @Column(name = "ip_address")
     private String ipAddress;
@@ -108,8 +108,7 @@ public class SuperDistributorPostpaidTransactionDetails {
     @Column(name = "kyc")
     private String kyc;
 
-    @Column(name = "partner_id")
-    private Integer partnerId;
-
+    @Column(name = "super_distributor_id")
+    private String superDistributorId;
 
 }

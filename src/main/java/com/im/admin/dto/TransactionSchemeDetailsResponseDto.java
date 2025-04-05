@@ -15,6 +15,11 @@ public class TransactionSchemeDetailsResponseDto {
 
     private SchemeRate matchedSchemeRate;
     private String walletType;   //Prepaid, Postpaid, etc
-    private String taxValue;    // gst, tds, etc
+    private String gstRate;
+    private String tdsRate;
+
+    private Boolean hasCharge;
+    private Boolean isCommission;
+    private String transactionType;        //credit, debit
 
 }
