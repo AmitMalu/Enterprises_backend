@@ -44,6 +44,9 @@ public class Products {
     @Column(name = "is_visible", nullable = false)
     private Boolean isVisible;
 
+    @Column(name = "transaction_type")
+    private String transactionType;
+
     @Column(name = "is_commissions")
     private Boolean isCommissions;
 

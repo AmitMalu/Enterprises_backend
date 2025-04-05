@@ -36,7 +36,7 @@ public class TransactionController {
     @PostMapping("/process-transaction")
     public ResponseEntity<String> processTransaction(@RequestBody TransactionSchemeDetailsRequestDto request) {
         log.info("Received request to process transaction: {}", request);
-        String response = transactionService.processRetailerTransaction(request);
+        String response = transactionService.processTransaction(request);
         return ResponseEntity.ok(response);
     }
 }

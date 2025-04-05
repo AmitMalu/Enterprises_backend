@@ -37,10 +37,10 @@ public class RetailerPostpaidAmount extends AbstractRetailerAmount {
     private BigDecimal availableBalance = BigDecimal.ZERO;
 
     @Column(name = "last_updated_date")
-    private Date lastUpdateDate = new Date(System.currentTimeMillis());
+    private Date lastUpdatedDate = new Date(System.currentTimeMillis());
 
     @Column(name = "last_updated_time")
-    private Time lastUpdateTime = new Time(System.currentTimeMillis());
+    private Time lastUpdatedTime = new Time(System.currentTimeMillis());
 
     @Column(name = "last_updated_amount")
     private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;

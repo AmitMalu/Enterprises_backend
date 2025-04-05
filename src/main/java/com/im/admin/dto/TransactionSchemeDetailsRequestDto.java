@@ -13,7 +13,7 @@ public class TransactionSchemeDetailsRequestDto {
 
     private String productCode;
     private String subProductCode;
-    private String hierarchyId;           // SuperDistributorId, PartnerId, DistributorId, RetailerId, etc
+    private String hierarchyId;           // RetailerId
     private Double amount;
     private Double confirmAmount;
     private String operatorCode;
@@ -21,7 +21,11 @@ public class TransactionSchemeDetailsRequestDto {
 
     private String walletType;           //Prepaid, Postpaid, etc
     private SchemeRate schemeRate;       //This amount we get from another api for calculation
-    private String taxValue;             //gst
+    private String gstValue;             //gst
     private String tdsRate;             //tds
+
+    private Boolean hasCharge;
+    private Boolean isCommission;
+    private String transactionType;        //credit, debit
 
 }
