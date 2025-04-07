@@ -108,8 +108,8 @@ public class AdminPostpaidTransactionDetails {
     @Column(name = "kyc")
     private String kyc;
 
-    @Column(name = "admin_id")
-    private String adminId;
+    @Column(name = "hierarchy_id")
+    private String hierarchyId;
 
 
 }
