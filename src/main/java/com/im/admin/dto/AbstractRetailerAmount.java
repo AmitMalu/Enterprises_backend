@@ -6,6 +6,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.sql.Time;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Date;
 
 @Getter
@@ -16,8 +18,8 @@ public abstract class AbstractRetailerAmount {
     protected BigDecimal availableBalance;
     protected BigDecimal usedCash;
     protected BigDecimal lastUpdatedAmount;
-    protected Date lastUpdateDate;
-    protected Time lastUpdateTime;
+    protected LocalDate lastUpdateDate;
+    protected LocalTime lastUpdateTime;
     protected BigDecimal taxValue;
 
 }
