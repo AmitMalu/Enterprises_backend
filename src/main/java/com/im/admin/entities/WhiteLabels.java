@@ -118,6 +118,9 @@ public class WhiteLabels {
     @Column(name = "edited_by")
     private String editedBy;
 
+    @Column(name = "is_admin")
+    private Boolean isAdmin;
+
     // Getter & Setter for products as List
     public List<String> getProductsList() {
         return products != null ? Arrays.asList(products.split(",")) : new ArrayList<>();
