@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.im.admin.dto.AbstractRetailerAmount;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.sql.Time;
@@ -14,7 +15,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "admin_prepaid_amount")
-public class AdminPrepaidAmount {
+public class AdminPrepaidAmount extends AbstractRetailerAmount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
@@ -37,10 +38,10 @@ public class AdminPrepaidAmount {
     private BigDecimal availableBalance = BigDecimal.ZERO;
 
     @Column(name = "last_updated_date")
-    private Date lastUpdateDate = new Date();
+    private Date lastUpdatedDate = new Date(System.currentTimeMillis());
 
     @Column(name = "last_updated_time")
-    private Time lastUpdateTime = new Time(System.currentTimeMillis());
+    private Time lastUpdatedTime = new Time(System.currentTimeMillis());
 
     @Column(name = "last_updated_amount", precision = 10, scale = 2)
     private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;

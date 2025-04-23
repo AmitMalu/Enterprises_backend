@@ -4,11 +4,13 @@ package com.im.admin.dto;
 import com.im.admin.entities.SchemeRate;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
 @AllArgsConstructor
+@NoArgsConstructor
 public class TransactionSchemeDetailsRequestDto {
 
     private String productCode;
@@ -27,5 +29,6 @@ public class TransactionSchemeDetailsRequestDto {
     private Boolean hasCharge;
     private Boolean isCommission;
     private String transactionType;        //credit, debit
+    private String baseTranxId;              //25041815234800204
 
 }
