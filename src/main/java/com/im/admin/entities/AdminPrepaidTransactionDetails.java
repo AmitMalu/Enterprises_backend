@@ -23,6 +23,9 @@ public class AdminPrepaidTransactionDetails {
     @Column(name = "hierarchy_id")
     private String hierarchyId;
 
+    @Column(name = "admin_id")
+    private String adminId;
+
     @Column(name = "date_of_transaction")
     private LocalDate dateOfTransaction;
 

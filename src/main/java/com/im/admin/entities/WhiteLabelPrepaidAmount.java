@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.im.admin.dto.AbstractRetailerAmount;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,7 +13,7 @@ import java.util.Date;
 @Setter
 @Entity
 @Table(name = "white_label_prepaid_amount")
-public class WhiteLabelPrepaidAmount {
+public class WhiteLabelPrepaidAmount extends AbstractRetailerAmount {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,10 +37,10 @@ public class WhiteLabelPrepaidAmount {
     private BigDecimal availableBalance = BigDecimal.ZERO;
 
     @Column(name = "last_updated_date")
-    private Date lastUpdateDate = new Date();
+    private Date lastUpdatedDate = new Date(System.currentTimeMillis());
 
     @Column(name = "last_updated_time")
-    private Time lastUpdateTime = new Time(System.currentTimeMillis());
+    private Time lastUpdatedTime = new Time(System.currentTimeMillis());
 
     @Column(name = "last_updated_amount", precision = 10, scale = 2)
     private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;

@@ -5,7 +5,7 @@ import com.im.admin.entities.WhiteLabelPrepaidAmount;
 import com.im.admin.entities.WhiteLabels;
 import com.im.admin.repositories.WhiteLabelPostpaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelPrepaidAmountRepository;
-import com.im.admin.repositories.WhiteLabelsRepository;
+import com.im.admin.repositories.WhiteLabelRepository;
 import com.im.admin.service.WhiteLabelService;
 import com.im.admin.util.IdGenerator;
 import jakarta.persistence.EntityNotFoundException;
@@ -24,7 +24,7 @@ import java.util.List;
 public class WhiteLabelServiceImpl implements WhiteLabelService {
 
     @Autowired
-    private  WhiteLabelsRepository whiteLabelRepository;
+    private  WhiteLabelRepository whiteLabelRepository;
 
     @Autowired
     private WhiteLabelPrepaidAmountRepository prepaidRepository;

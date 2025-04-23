@@ -4,6 +4,7 @@ package com.im.admin.controller;
 import com.im.admin.dto.CardTypeRequestDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.dto.TransactionSchemeDetailsResponseDto;
+import com.im.admin.dto.UpdateTransactionStatusRequest;
 import com.im.admin.service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -39,4 +40,11 @@ public class TransactionController {
         String response = transactionService.processTransaction(request);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/update-status")
+    public ResponseEntity<String> updateTransactionStatus(@RequestBody UpdateTransactionStatusRequest request) {
+        transactionService.updateTransactionStatus(request);
+        return ResponseEntity.ok("Transaction status updated successfully");
+    }
+
 }

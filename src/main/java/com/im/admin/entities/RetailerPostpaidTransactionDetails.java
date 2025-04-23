@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.im.admin.util.AbstractRetailerTransactionDetails;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -18,7 +19,7 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "retailer_postpaid_transaction_details")
-public class RetailerPostpaidTransactionDetails {
+public class RetailerPostpaidTransactionDetails implements AbstractRetailerTransactionDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -122,4 +123,18 @@ public class RetailerPostpaidTransactionDetails {
     @Column(name = "request_domain_name")
     private String requestDomainName;
 
+    @Override
+    public String getOperatorCode() {
+        return "";
+    }
+
+    @Override
+    public String getProductCode() {
+        return "";
+    }
+
+    @Override
+    public String getSubProductCode() {
+        return "";
+    }
 }
