@@ -7,6 +7,7 @@ import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
 import com.im.admin.service.TransactionService;
 import com.im.admin.util.AbstractRetailerTransactionDetails;
+import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.NoResultException;
@@ -50,19 +51,19 @@ public class TransactionServiceImpl implements TransactionService {
     private RetailerRepository retailerRepository;
 
     @Autowired
-    private EnterprisesRepository enterprisesRepository;
-
-    @Autowired
-    private WhiteLabelRepository whiteLabelsRepository;
-
-    @Autowired
-    private SuperDistributorRepository superDistributorRepository;
+    private DistributorRepository distributorRepository;
 
     @Autowired
     private PartnerRepository partnerRepository;
 
     @Autowired
-    private DistributorRepository distributorRepository;
+    private SuperDistributorRepository superDistributorRepository;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelsRepository;
+
+    @Autowired
+    private EnterprisesRepository enterprisesRepository;
 
     @Autowired
     private RetailerPostpaidAmountRepository retailerPostpaidAmountRepository;
@@ -98,10 +99,10 @@ public class TransactionServiceImpl implements TransactionService {
     private PartnerPostpaidAmountRepository partnerPostpaidAmountRepository;
 
     @Autowired
-    private PartnerPostpaidTransactionDetailsRepository partnerPostpaidTransactionDetailsRepository;
+    private PartnerPrepaidAmountRepository partnerPrepaidAmountRepository;
 
     @Autowired
-    private PartnerPrepaidAmountRepository partnerPrepaidAmountRepository;
+    private PartnerPostpaidTransactionDetailsRepository partnerPostpaidTransactionDetailsRepository;
 
     @Autowired
     private PartnerPrepaidTransactionDetailsRepository partnerPrepaidTransactionDetailsRepository;
@@ -125,10 +126,10 @@ public class TransactionServiceImpl implements TransactionService {
     private WhiteLabelPrepaidAmountRepository whiteLabelPrepaidAmountRepository;
 
     @Autowired
-    private WhiteLabelPostpaidTransactionDetailsRepository whiteLabelPostpaidTransactionDetailsRepository;
+    private WhiteLabelPostpaidAmountRepository whiteLabelPostpaidAmountRepository;
 
     @Autowired
-    private WhiteLabelPostpaidAmountRepository whiteLabelPostpaidAmountRepository;
+    private WhiteLabelPostpaidTransactionDetailsRepository whiteLabelPostpaidTransactionDetailsRepository;
 
     @Autowired
     private EnterprisesPrepaidTransactionDetailsRepository enterprisesPrepaidTransactionDetailsRepository;
@@ -159,6 +160,9 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired
+    private CommonMethods commonMethods;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -210,7 +214,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional
     public String processTransaction(TransactionSchemeDetailsRequestDto dto) {
-        String baseTransactionId = generateBaseTransactionId(); // Single base ID for full flow
+        String baseTransactionId = commonMethods.generateBaseTransactionId(); // Single base ID for full flow
 
         String retailerId = dto.getHierarchyId();
         BigDecimal tranxAmount = BigDecimal.valueOf(dto.getAmount());
@@ -219,7 +223,7 @@ public class TransactionServiceImpl implements TransactionService {
         String taxValue = dto.getGstValue();
         String tranxType = dto.getTransactionType().toLowerCase();
 
-        AbstractRetailerAmount wallet = getWalletByType(walletType, retailerId);
+        AbstractWalletAmountTable wallet = getWalletByType(walletType, retailerId);
 
         if (tranxType.equals("credit")) {
             // Vendor call BEFORE wallet impact
@@ -373,7 +377,7 @@ public class TransactionServiceImpl implements TransactionService {
 //        }
 //    }
 
-    private void saveWallet(String walletType, AbstractRetailerAmount wallet) {
+    private void saveWallet(String walletType, AbstractWalletAmountTable wallet) {
         if ("PREPAID".equals(walletType)) {
             retailerPrepaidAmountRepository.save((RetailerPrepaidAmount) wallet);
         } else {
@@ -381,7 +385,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
-    private AbstractRetailerAmount getWalletByType(String walletType, String hierarchyId) {
+    private AbstractWalletAmountTable getWalletByType(String walletType, String hierarchyId) {
         String hierarchyType = extractHierarchyType(hierarchyId); // e.g. "RT", "WL", "AD", etc.
 
         switch (hierarchyType) {
@@ -398,7 +402,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
-    private AbstractRetailerAmount getRetailerWallet(String walletType, String retailerId) {
+    private AbstractWalletAmountTable getRetailerWallet(String walletType, String retailerId) {
         if ("PREPAID".equals(walletType)) {
             return retailerPrepaidAmountRepository.findByRetailerId_RetailerId(retailerId)
                     .orElseThrow(() -> new RuntimeException("Retailer Prepaid wallet not found: " + retailerId));
@@ -409,7 +413,7 @@ public class TransactionServiceImpl implements TransactionService {
         throw new IllegalArgumentException("Invalid wallet type for Retailer: " + walletType);
     }
 
-    private AbstractRetailerAmount getWhiteLabelWallet(String walletType, String whiteLabelId) {
+    private AbstractWalletAmountTable getWhiteLabelWallet(String walletType, String whiteLabelId) {
         if ("PREPAID".equals(walletType)) {
             return whiteLabelPrepaidAmountRepository.findByWhiteLabelId_WhiteLabelId(whiteLabelId)
                     .orElseThrow(() -> new RuntimeException("WhiteLabel Prepaid wallet not found: " + whiteLabelId));
@@ -420,7 +424,7 @@ public class TransactionServiceImpl implements TransactionService {
         throw new IllegalArgumentException("Invalid wallet type for WhiteLabel: " + walletType);
     }
 
-    private AbstractRetailerAmount getAdminWallet(String walletType, String adminId) {
+    private AbstractWalletAmountTable getAdminWallet(String walletType, String adminId) {
         if ("PREPAID".equals(walletType)) {
             return adminPrepaidAmountRepository.findByAdminId_Id(adminId)
                     .orElseThrow(() -> new RuntimeException("Admin Prepaid wallet not found: " + adminId));
@@ -436,7 +440,7 @@ public class TransactionServiceImpl implements TransactionService {
         return "PENDING"; // or PENDING, FAILURE, SUCCESS
     }
 
-    private void processChargesAndCommission(TransactionSchemeDetailsRequestDto dto, AbstractRetailerAmount wallet,
+    private void processChargesAndCommission(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
                                              BigDecimal grossAmount, String gstValue, String baseTransactionId, String tranStatus) {
         if (dto.getHasCharge()) {
             processCharges(dto, wallet, grossAmount, gstValue, baseTransactionId, tranStatus); // GST only
@@ -447,7 +451,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
-    private void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractRetailerAmount wallet,
+    private void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
                                 BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
 
         BigDecimal grossAmount;
@@ -493,8 +497,8 @@ public class TransactionServiceImpl implements TransactionService {
         // Step 4: Update wallet meta
         wallet.setUsedCash(wallet.getUsedCash().add(baseAmount.add(gstAmount)));
         wallet.setLastUpdatedAmount(gstAmount);
-        wallet.setLastUpdateDate(LocalDate.now());
-        wallet.setLastUpdateTime(LocalTime.now());
+        wallet.setLastUpdatedDate(LocalDate.now());
+        wallet.setLastUpdatedTime(LocalTime.now());
 
         // Step 5: Credit GST to Admin
         creditGstToAdminOrWhitelabel(dto.getHierarchyId(), dto.getWalletType(), gstAmount, baseTransactionId, tranStatus, dto);
@@ -1233,7 +1237,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
-    private <T extends AbstractRetailerAmount> void updateWallet(TransactionSchemeDetailsRequestDto dto, T wallet, BigDecimal requestedAmount,
+    private <T extends AbstractWalletAmountTable> void updateWallet(TransactionSchemeDetailsRequestDto dto, T wallet, BigDecimal requestedAmount,
                                                                  String tranxType, String baseTransactionId, String tranStatus, String service) {
 
         String actionOnBalance;
@@ -1258,8 +1262,8 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         wallet.setLastUpdatedAmount(requestedAmount);
-        wallet.setLastUpdateDate(LocalDate.now());
-        wallet.setLastUpdateTime(LocalTime.now());
+        wallet.setLastUpdatedDate(LocalDate.now());
+        wallet.setLastUpdatedTime(LocalTime.now());
 
         // Insert transaction
         insertTransaction(wallet, tranStatus, requestedAmount, balanceBefore,
@@ -1304,7 +1308,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
-    private <T extends AbstractRetailerAmount> void handlePendingTransaction(T wallet,
+    private <T extends AbstractWalletAmountTable> void handlePendingTransaction(T wallet,
                                                                              String tranxType,
                                                                              BigDecimal requestedAmount,
                                                                              String baseTransactionId,
@@ -1317,8 +1321,8 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         wallet.setLastUpdatedAmount(requestedAmount);
-        wallet.setLastUpdateDate(LocalDate.now());
-        wallet.setLastUpdateTime(LocalTime.now());
+        wallet.setLastUpdatedDate(LocalDate.now());
+        wallet.setLastUpdatedTime(LocalTime.now());
 
         insertTransaction(wallet, "PENDING", requestedAmount, balanceBefore,
                 wallet.getAvailableBalance(), "Vendor Pending - " + tranxType.toUpperCase(),
@@ -1326,7 +1330,7 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
 
-    private void insertTransaction(AbstractRetailerAmount wallet, String tranStatus, BigDecimal amount,
+    private void insertTransaction(AbstractWalletAmountTable wallet, String tranStatus, BigDecimal amount,
                                    BigDecimal balanceBeforeTranx, BigDecimal balanceAfterTranx, String actionOnBalance, String tranxId, String service, TransactionSchemeDetailsRequestDto dto) {
 
         if (wallet instanceof RetailerPrepaidAmount) {
@@ -1406,20 +1410,20 @@ public class TransactionServiceImpl implements TransactionService {
                 .orElseThrow(() -> new RuntimeException("No matching Scheme Rate found."));
     }
 
-    private String generateBaseTransactionId() {
-        String timestamp = new SimpleDateFormat("yyMMddHHmmss").format(new Date());
-        int autoIncrement = getNextTransactionSequence(); // Get from DB or memory (e.g., Redis)
-        return timestamp + String.format("%05d", autoIncrement); // padded to ensure sorting
-    }
+//    private String generateBaseTransactionId() {
+//        String timestamp = new SimpleDateFormat("yyMMddHHmmss").format(new Date());
+//        int autoIncrement = getNextTransactionSequence(); // Get from DB or memory (e.g., Redis)
+//        return timestamp + String.format("%05d", autoIncrement); // padded to ensure sorting
+//    }
 
     private String buildTransactionId(String prefix, String baseId) {
         return prefix + baseId;
     }
 
-    private int getNextTransactionSequence() {
-        jdbcTemplate.update("INSERT INTO transaction_sequence () VALUES ()");
-        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Integer.class);
-    }
+//    private int getNextTransactionSequence() {
+//        jdbcTemplate.update("INSERT INTO transaction_sequence () VALUES ()");
+//        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Integer.class);
+//    }
 
     private BigDecimal calculateCommissionAmount(double rate, BigDecimal transactionAmount, String rateType) {
         BigDecimal commissionRate = BigDecimal.valueOf(rate);
@@ -1756,7 +1760,7 @@ public class TransactionServiceImpl implements TransactionService {
         newRequest.setTransactionType(schemeDetails.getTransactionType());
         newRequest.setBaseTranxId(baseTransactionId);
 
-        AbstractRetailerAmount wallet = getWalletByType(walletType, retailerId);
+        AbstractWalletAmountTable wallet = getWalletByType(walletType, retailerId);
 
         // Step 4: Update based on status
         if (("PENDING".equalsIgnoreCase(request.getOldStatus()) && "SUCCESS".equalsIgnoreCase(request.getNewStatus())) ||
@@ -1870,7 +1874,7 @@ public class TransactionServiceImpl implements TransactionService {
         String tranxType = dto.getTransactionType().toLowerCase();
         String baseTransactionId = dto.getBaseTranxId();
 
-        AbstractRetailerAmount wallet = getWalletByType(walletType, retailerId);
+        AbstractWalletAmountTable wallet = getWalletByType(walletType, retailerId);
 
         if (tranxType.equals("credit")) {
 

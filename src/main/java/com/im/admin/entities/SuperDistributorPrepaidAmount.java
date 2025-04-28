@@ -1,22 +1,19 @@
 package com.im.admin.entities;
 
+import com.im.admin.dto.AbstractWalletAmountTable;
 import jakarta.persistence.*;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
-
 import java.math.BigDecimal;
-import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.Date;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "super_distributor_prepaid_amount")
-public class SuperDistributorPrepaidAmount {
+public class SuperDistributorPrepaidAmount extends AbstractWalletAmountTable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,10 +37,10 @@ public class SuperDistributorPrepaidAmount {
     private BigDecimal availableBalance = BigDecimal.ZERO;
 
     @Column(name = "last_updated_date")
-    private Date lastUpdateDate = new Date(System.currentTimeMillis());
+    private LocalDate lastUpdatedDate;
 
     @Column(name = "last_updated_time")
-    private Time lastUpdateTime = new Time(System.currentTimeMillis());
+    private LocalTime lastUpdatedTime;
 
     @Column(name = "last_updated_amount")
     private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;

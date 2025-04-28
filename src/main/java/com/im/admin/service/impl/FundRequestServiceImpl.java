@@ -1,0 +1,203 @@
+package com.im.admin.service.impl;
+
+
+import com.im.admin.dto.AbstractWalletAmountTable;
+import com.im.admin.dto.FundRequestActionDto;
+import com.im.admin.dto.FundRequestDto;
+import com.im.admin.entities.FundRequest;
+import com.im.admin.entities.enums.ConstantStatus;
+import com.im.admin.entities.enums.WalletType;
+import com.im.admin.repositories.AdminRepository;
+import com.im.admin.repositories.FundRequestRepository;
+import com.im.admin.repositories.WhiteLabelRepository;
+import com.im.admin.service.FundRequestService;
+import com.im.admin.util.CommonMethods;
+import jakarta.persistence.EntityManager;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.sql.Time;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Date;
+import java.util.Optional;
+
+@Service
+@Slf4j
+public class FundRequestServiceImpl implements FundRequestService {
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Autowired
+    private CommonMethods commonMethods;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelRepository;
+
+    @Autowired
+    private AdminRepository adminRepository;
+
+    @Autowired
+    private FundRequestRepository fundRequestRepository;
+
+    @Transactional
+    @Override
+    public void raiseFundRequest(FundRequestDto fundRequestDto) {
+        FundRequest fundRequest = new FundRequest();
+        fundRequest.setRequesterHierarchyId(fundRequestDto.getRequesterHierarchyId());
+        fundRequest.setRequestedAmount(fundRequestDto.getRequestedAmount());
+        fundRequest.setWalletType(fundRequestDto.getWalletType());
+
+        String currentId = fundRequestDto.getRequesterHierarchyId();
+
+        while (true) {
+            Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
+            if (parentOpt.isEmpty()) {
+                throw new RuntimeException("No approver found for hierarchy: " + fundRequestDto.getRequesterHierarchyId());
+            }
+
+            String parentId = parentOpt.get();
+            String parentType = commonMethods.extractHierarchyType(parentId);
+
+            if ("WL".equals(parentType)) {
+                whiteLabelRepository.findById(parentId).ifPresent(wl -> {
+                    if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+                        fundRequest.setApproveOrRejectHierarchyId(wl.getWhiteLabelId());
+                        fundRequest.setApproveOrRejectDate(LocalDate.now());
+                        fundRequest.setApproveOrRejectTime(LocalTime.now());
+                    }
+                });
+                if (fundRequest.getApproveOrRejectHierarchyId() != null) {
+                    break;
+                }
+            }
+
+            if ("IM".equals(parentType) || "AD".equals(parentType)) {
+                adminRepository.findById(parentId).ifPresent(ad -> {
+                    fundRequest.setApproveOrRejectHierarchyId(ad.getId());
+                    fundRequest.setApproveOrRejectDate(LocalDate.now());
+                    fundRequest.setApproveOrRejectTime(LocalTime.now());
+                });
+                if (fundRequest.getApproveOrRejectHierarchyId() != null) {
+                    break;
+                }
+            }
+
+            currentId = parentId;
+        }
+
+        fundRequestRepository.save(fundRequest);
+    }
+
+    @Transactional
+    @Override
+    public void takeActionOnFundRequest(FundRequestActionDto actionDto) {
+        FundRequest fundRequest = fundRequestRepository.findById(actionDto.getFundRequestId())
+                .orElseThrow(() -> new RuntimeException("Fund Request not found"));
+
+        if (fundRequest.getStatus() != ConstantStatus.PENDING) {
+            throw new RuntimeException("Fund Request already processed");
+        }
+
+        ConstantStatus newStatus = actionDto.getStatus();
+        fundRequest.setStatus(newStatus);
+        fundRequest.setRemarks(actionDto.getRemarks());
+        fundRequest.setApproveOrRejectDate(LocalDate.now());
+        fundRequest.setApproveOrRejectTime(LocalTime.now());
+
+        if (newStatus == ConstantStatus.APPROVED) {
+            // Fetch details
+            String requesterId = fundRequest.getRequesterHierarchyId();
+            String approverId = fundRequest.getApproveOrRejectHierarchyId();
+            WalletType walletType = fundRequest.getWalletType();
+            BigDecimal amount = fundRequest.getRequestedAmount();
+
+            String baseTransactionId = commonMethods.generateBaseTransactionId();
+
+            // Step 1: Debit approver's wallet
+            AbstractWalletAmountTable approverWallet = commonMethods.getWalletByType(walletType.name(), approverId);
+            BigDecimal approverBalance = approverWallet.getAvailableBalance(); // assuming your wallet entity has "amount" field
+
+            // Check if sufficient balance
+            if (approverBalance.compareTo(amount) < 0) {
+                throw new RuntimeException("Insufficient balance in approver's wallet: " + approverId);
+            }
+
+            updateWallet(approverWallet, approverId, walletType, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+
+            // Step 2: Credit requester's wallet
+            AbstractWalletAmountTable requesterWallet = commonMethods.getWalletByType(walletType.name(), requesterId);
+            updateWallet(requesterWallet, requesterId, walletType, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
+        }
+
+        fundRequestRepository.save(fundRequest);
+    }
+
+
+    private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
+                                                                    String tranxType, String baseTransactionId, String tranStatus, String service) {
+
+        String actionOnBalance;
+
+        // *** Credit or Debit Operation ***
+        BigDecimal balanceBefore = wallet.getAvailableBalance();
+
+        if (tranxType.equalsIgnoreCase("credit")) {
+            wallet.setTotalCash(wallet.getTotalCash().add(amount));
+            wallet.setAvailableBalance(wallet.getAvailableBalance().add(amount));
+            actionOnBalance = "Add Funds - " + walletType.name();
+        } else {
+            wallet.setTotalCash(wallet.getTotalCash().subtract(amount));
+            wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(amount));
+            actionOnBalance = "Deduct Funds - " +  walletType.name();
+        }
+
+        wallet.setLastUpdatedAmount(amount);
+        wallet.setLastUpdatedDate(LocalDate.now());
+        wallet.setLastUpdatedTime(LocalTime.now());
+
+        // Insert transaction
+        insertTransaction(walletType.name(), hierarchyId, tranStatus, amount, balanceBefore,
+                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service);
+
+    }
+
+
+    private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount, BigDecimal beforeBalance,
+                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service) {
+
+        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
+        String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
+        String columnName = commonMethods.getHierarchyColumnName(hierarchyType);
+
+        log.info("Inserting into {} | Type: {} | Amount: {} | Hierarchy ID: {} | Before Balance: {} | After Balance: {}",
+                transactionTableName, service, amount, hierarchyId, beforeBalance, afterBalance);
+
+        String sql = "INSERT INTO " + transactionTableName +
+                " (" + columnName + "  ,service, amount, date_of_transaction, time_of_transaction, " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status) " +
+                "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus)";
+
+        entityManager.createNativeQuery(sql)
+                .setParameter("hierarchyId", hierarchyId)
+                .setParameter("service", service)
+                .setParameter("amount", amount)
+                .setParameter("dateOfTransaction", new Date())
+                .setParameter("timeOfTransaction", new Time(System.currentTimeMillis()))
+                .setParameter("beforeTransactionBalance", beforeBalance)
+                .setParameter("afterTransactionBalance", afterBalance)
+                .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
+                .setParameter("finalBalance", afterBalance)
+                .setParameter("tranxId", tranxId)
+                .setParameter("tranStatus", tranStatus)
+                .executeUpdate();
+    }
+
+
+
+}
