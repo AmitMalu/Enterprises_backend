@@ -1,13 +1,11 @@
 package com.im.admin.entities;
 
-import com.im.admin.dto.AbstractRetailerAmount;
+import com.im.admin.dto.AbstractWalletAmountTable;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.sql.Time;
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
-import jakarta.persistence.*;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,7 +13,7 @@ import lombok.Setter;
 @Getter
 @Entity
 @Table(name = "admin_postpaid_amount")
-public class AdminPostpaidAmount extends AbstractRetailerAmount {
+public class AdminPostpaidAmount extends AbstractWalletAmountTable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
@@ -38,10 +36,10 @@ public class AdminPostpaidAmount extends AbstractRetailerAmount {
     private BigDecimal availableBalance = BigDecimal.ZERO;
 
     @Column(name = "last_updated_date")
-    private Date lastUpdatedDate = new Date(System.currentTimeMillis());
+    private LocalDate lastUpdatedDate;
 
     @Column(name = "last_updated_time")
-    private Time lastUpdatedTime = new Time(System.currentTimeMillis());
+    private LocalTime lastUpdatedTime;
 
     @Column(name = "last_updated_amount", precision = 10, scale = 2)
     private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;

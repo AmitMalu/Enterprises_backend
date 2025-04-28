@@ -95,10 +95,6 @@ public class Products {
     @Valid
     private Cluster cluster;
 
-//    @Embedded
-//    @Valid
-//    private Account account;
-
     //Account related Columns
     @NotNull(message = "Minimum postpaid balance is required")
     @Column(name = "minimum_postpaid_balance", nullable = false)
@@ -124,29 +120,9 @@ public class Products {
     //@Column(name = "surcharge", nullable = false)
     //private Boolean surcharge;
 
-    @NotNull(message = "CGST is required")
-    @Column(name = "cgst", nullable = false)
-    private Double cgst;
-
     @NotNull(message = "SGST is required")
     @Column(name = "sgst", nullable = false)
     private Double sgst;
-
-    @NotNull(message = "IGST is required")
-    @Column(name = "igst", nullable = false)
-    private Double igst;
-
-    @NotNull(message = "UGST is required")
-    @Column(name = "ugst", nullable = false)
-    private Double ugst;
-
-    @NotNull(message = "CESS1 is required")
-    @Column(name = "cess1", nullable = false)
-    private Double cess1;
-
-    @NotNull(message = "CESS2 is required")
-    @Column(name = "cess2", nullable = false)
-    private Double cess2;
 
     @NotNull(message = "TDS is required")
     @Column(name = "tds", nullable = false)
