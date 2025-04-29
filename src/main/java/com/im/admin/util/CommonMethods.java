@@ -12,7 +12,10 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.sql.Time;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Date;
 import java.util.Optional;
 
@@ -339,5 +342,65 @@ public class CommonMethods {
                     .orElseThrow(() -> new RuntimeException("Admin Postpaid wallet not found: " + adminId));
         }
         throw new IllegalArgumentException("Invalid wallet type for Admin: " + walletType);
+    }
+
+    public <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
+                                                                    String tranxType, String baseTransactionId, String tranStatus, String service) {
+
+        String actionOnBalance;
+
+        // *** Credit or Debit Operation ***
+        BigDecimal balanceBefore = wallet.getAvailableBalance();
+
+        if (tranxType.equalsIgnoreCase("credit")) {
+            wallet.setTotalCash(wallet.getTotalCash().add(amount));
+            wallet.setAvailableBalance(wallet.getAvailableBalance().add(amount));
+            actionOnBalance = "Add Funds - " + walletType.name();
+        } else {
+            wallet.setTotalCash(wallet.getTotalCash().subtract(amount));
+            wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(amount));
+            actionOnBalance = "Deduct Funds - " +  walletType.name();
+        }
+
+        wallet.setLastUpdatedAmount(amount);
+        wallet.setLastUpdatedDate(LocalDate.now());
+        wallet.setLastUpdatedTime(LocalTime.now());
+
+        // Insert transaction
+        insertTransaction(walletType.name(), hierarchyId, tranStatus, amount, balanceBefore,
+                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service);
+
+    }
+
+
+    private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount, BigDecimal beforeBalance,
+                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service) {
+
+        String hierarchyType = extractHierarchyType(hierarchyId);
+        String transactionTableName = getTransactionTable(hierarchyType, walletType);
+        String columnName = getHierarchyColumnName(hierarchyType);
+
+        log.info("Inserting into {} | Type: {} | Amount: {} | Hierarchy ID: {} | Before Balance: {} | After Balance: {}",
+                transactionTableName, service, amount, hierarchyId, beforeBalance, afterBalance);
+
+        String sql = "INSERT INTO " + transactionTableName +
+                " (" + columnName + "  ,service, amount, date_of_transaction, time_of_transaction, " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status) " +
+                "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus)";
+
+        entityManager.createNativeQuery(sql)
+                .setParameter("hierarchyId", hierarchyId)
+                .setParameter("service", service)
+                .setParameter("amount", amount)
+                .setParameter("dateOfTransaction", new Date())
+                .setParameter("timeOfTransaction", new Time(System.currentTimeMillis()))
+                .setParameter("beforeTransactionBalance", beforeBalance)
+                .setParameter("afterTransactionBalance", afterBalance)
+                .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
+                .setParameter("finalBalance", afterBalance)
+                .setParameter("tranxId", tranxId)
+                .setParameter("tranStatus", tranStatus)
+                .executeUpdate();
     }
 }

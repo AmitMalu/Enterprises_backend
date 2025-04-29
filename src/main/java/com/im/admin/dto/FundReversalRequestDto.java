@@ -1,6 +1,7 @@
 package com.im.admin.dto;
 
 
+import com.im.admin.entities.enums.ConstantStatus;
 import com.im.admin.entities.enums.WalletType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,8 +16,13 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class FundReversalRequestDto {
 
-    private String hierarchyId;
-    private BigDecimal amount;
+    private String parentHierarchyId;
+    private String childHierarchyId;
+    private BigDecimal reversalAmount;
     private WalletType walletType;
-
+    private Long fundReversalRequestId;
+    private ConstantStatus status; // APPROVED or REJECTED
+    private String remarks;
+    private String otp;
 }
+
