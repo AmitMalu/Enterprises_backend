@@ -10,9 +10,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 
 @Entity
@@ -45,9 +42,9 @@ public class WhiteLabels {
     @Column(name = "address")
     private String address;
 
-    @NotBlank(message = "Parent account Id is required")
-    @Column(name = "parent_account_Id")
-    private String parentAccountId;
+    @NotBlank(message = "Parent account is required")
+    @Column(name = "parent_account")
+    private String parentAccount;
 
     @Column(name = "domain_url")
     private String domainURL;
@@ -75,12 +72,6 @@ public class WhiteLabels {
 
     @Column(name = "postpaid_card_name")
     private String postpaidCardName;
-
-//    @ManyToMany
-//    @JoinTable(name = "white_label_products",
-//            joinColumns = @JoinColumn(name = "white_label_id"),  // Foreign key to WhiteLabels
-//            inverseJoinColumns = @JoinColumn(name = "product_id")) // Foreign key to Products
-//    private Set<Products> products;
 
     @Column(name = "products", columnDefinition = "TEXT")
     private String products; // Store as a comma-separated string
@@ -118,13 +109,7 @@ public class WhiteLabels {
     @Column(name = "edited_by")
     private String editedBy;
 
-    // Getter & Setter for products as List
-    public List<String> getProductsList() {
-        return products != null ? Arrays.asList(products.split(",")) : new ArrayList<>();
-    }
-
-    public void setProductsList(List<String> productsList) {
-        this.products = String.join(",", productsList);
-    }
+    @Column(name = "is_admin")
+    private Boolean isAdmin;
 
 }

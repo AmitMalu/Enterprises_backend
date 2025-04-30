@@ -18,12 +18,7 @@ public interface ProductsRepository extends JpaRepository<Products, Short> {
 
     List<Products> findByActiveTrue();
 
-    //@Query("SELECT COALESCE(MAX(p.id), 9) FROM Products p")
-    //Short findMaxProductId();
-
     Optional<Products> findByProductCode(String productCode);
-
-
 
 }
 

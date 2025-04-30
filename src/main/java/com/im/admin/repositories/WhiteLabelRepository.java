@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface WhiteLabelsRepository extends JpaRepository<WhiteLabels, String> {
+public interface WhiteLabelRepository extends JpaRepository<WhiteLabels, String> {
 
     boolean existsByAbbreviation(String abbreviation);
 

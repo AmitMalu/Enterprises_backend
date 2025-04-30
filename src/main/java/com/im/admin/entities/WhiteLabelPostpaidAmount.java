@@ -1,18 +1,19 @@
 package com.im.admin.entities;
 
+import com.im.admin.dto.AbstractWalletAmountTable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.sql.Time;
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "white_label_postpaid_amount")
-public class WhiteLabelPostpaidAmount {
+public class WhiteLabelPostpaidAmount extends AbstractWalletAmountTable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,7 +21,7 @@ public class WhiteLabelPostpaidAmount {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "whitelabel_id", nullable = false, unique = true)
+    @JoinColumn(name = "white_label_id", nullable = false, unique = true)
     private WhiteLabels whiteLabelId;
 
     @Column(name = "total_cash", precision = 10, scale = 2)
@@ -36,10 +37,10 @@ public class WhiteLabelPostpaidAmount {
     private BigDecimal availableBalance = BigDecimal.ZERO;
 
     @Column(name = "last_updated_date")
-    private Date lastUpdateDate = new Date();
+    private LocalDate lastUpdatedDate;
 
     @Column(name = "last_updated_time")
-    private Time lastUpdateTime = new Time(System.currentTimeMillis());
+    private LocalTime lastUpdatedTime;
 
     @Column(name = "last_updated_amount", precision = 10, scale = 2)
     private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;

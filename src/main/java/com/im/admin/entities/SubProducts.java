@@ -48,6 +48,9 @@ public class SubProducts {
     @NotNull(message = "Product Id cannot be null")
     private Short productId;
 
+    @Column(name = "wallet_type")
+    private String walletType;
+
     @Column(name = "is_settlement", nullable = false)
     @NotNull(message = "Is Settlement is required")
     private Boolean isSettlement;

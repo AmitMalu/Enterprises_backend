@@ -24,6 +24,9 @@ public class SuperDistributor {
     @Column(name = "superDistributor_id", unique = true, nullable = false, length = 15)
     private String superDistributorId;  // Format: ABC-SD-001
 
+    @Column(name = "parent_account", nullable = false)
+    private String parentAccount;
+
     @NotBlank(message = "Title is mandatory")
     private String title;
 
