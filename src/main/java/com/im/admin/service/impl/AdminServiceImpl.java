@@ -3,9 +3,11 @@ package com.im.admin.service.impl;
 import com.im.admin.entities.Admin;
 import com.im.admin.entities.AdminPostpaidAmount;
 import com.im.admin.entities.AdminPrepaidAmount;
+import com.im.admin.entities.UserDetails;
 import com.im.admin.repositories.AdminPostpaidAmountRepository;
 import com.im.admin.repositories.AdminPrepaidAmountRepository;
 import com.im.admin.repositories.AdminRepository;
+import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.service.AdminService;
 import com.im.admin.util.IdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,9 @@ public class AdminServiceImpl implements AdminService {
     private AdminPrepaidAmountRepository adminPrepaidAmountRepository;
 
     @Autowired
+    private UserDetailsRepository userDetailsRepository;
+
+    @Autowired
     private IdGenerator idGenerator;
 
     @Override
@@ -40,6 +45,8 @@ public class AdminServiceImpl implements AdminService {
 
         admin.setId(idGenerator.generateId("Admin"));
         Admin saveAdmin  = adminRepository.save(admin);
+
+        saveUserDetails(admin);
 
         AdminPostpaidAmount adminPostpaidAccount = new AdminPostpaidAmount();
         adminPostpaidAccount.setAdminId(saveAdmin);
@@ -50,6 +57,19 @@ public class AdminServiceImpl implements AdminService {
         adminPrepaidAmountRepository.save(adminPrepaidAccount);
 
         return saveAdmin;
+    }
+
+    private void saveUserDetails(Admin admin) {
+
+        UserDetails userDetails = new UserDetails();
+        userDetails.setMobileNumber(admin.getMobileNumber());
+        userDetails.setLoginUserName(admin.getUserName());
+        userDetails.setLoginPassword(admin.getPassword());
+        userDetails.setCreatedBy("Admin");
+        userDetails.setEditedBy("Admin");
+
+        userDetailsRepository.save(userDetails);
+
     }
 
     /**

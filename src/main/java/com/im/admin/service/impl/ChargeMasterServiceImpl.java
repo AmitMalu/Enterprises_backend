@@ -126,7 +126,7 @@ public class ChargeMasterServiceImpl implements ChargeMasterService {
         );
 
         // 5. Update retailer wallet (debit)
-        updateWalletAmount("retailer", retailer.getRetailerId(), walletType, -totalAmount);
+        updateWalletAmount("retailer", retailer.getRetailerId(), walletType, totalAmount);
 
         String currentId = retailer.getRetailerId();
 
