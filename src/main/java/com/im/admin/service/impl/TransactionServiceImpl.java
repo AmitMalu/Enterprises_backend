@@ -1823,8 +1823,6 @@ public class TransactionServiceImpl implements TransactionService {
             return "SUCCESS → FAILURE reversal completed.";
         }
 
-
-
         return "Invalid status update requested.";
     }
 

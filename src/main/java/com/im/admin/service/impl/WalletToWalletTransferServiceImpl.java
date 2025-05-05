@@ -1,9 +1,10 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.AbstractWalletAmountTable;
-import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.dto.WalletToWalletTransferDto;
 import com.im.admin.entities.enums.WalletType;
+import com.im.admin.repositories.AdminRepository;
+import com.im.admin.repositories.WhiteLabelRepository;
 import com.im.admin.service.WalletToWalletTransferService;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
@@ -17,6 +18,7 @@ import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -27,6 +29,12 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelRepository;
+
+    @Autowired
+    private AdminRepository adminRepository;
 
 
     @Transactional
@@ -51,15 +59,56 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
         String baseTransactionId = commonMethods.generateBaseTransactionId();
 
         AbstractWalletAmountTable fromWalletTable = commonMethods.getWalletByType(fromWallet.name(), hierarchyId);
-        updateWallet(fromWalletTable, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS","DEBIT");
+        updateWallet(fromWalletTable, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+
+        String currentId = hierarchyId;
+
+        while (true) {
+            Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
+            if (parentOpt.isEmpty()) {
+                throw new RuntimeException("No approver found for hierarchy: " + hierarchyId);
+            }
+
+            String parentId = parentOpt.get();
+            String parentType = commonMethods.extractHierarchyType(parentId);
+
+            if ("WL".equals(parentType)) {
+                whiteLabelRepository.findById(parentId).ifPresent(wl -> {
+
+                    AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), wl.getWhiteLabelId());
+                    updateWallet(from, hierarchyId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "DEBIT");
+
+                    AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), wl.getWhiteLabelId());
+                    updateWallet(to, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+
+                });
+                break;
+
+            }
+
+            if ("IM".equals(parentType) || "AD".equals(parentType)) {
+                adminRepository.findById(parentId).ifPresent(ad -> {
+
+                    AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), ad.getId());
+                    updateWallet(from, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+
+                    AbstractWalletAmountTable to = commonMethods.getWalletByType(fromWallet.name(), ad.getId());
+                    updateWallet(to, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+
+                });
+                break;
+            }
+
+            currentId = parentId;
+        }
 
         AbstractWalletAmountTable tomWalletTable = commonMethods.getWalletByType(toWallet.name(), hierarchyId);
-        updateWallet(tomWalletTable, hierarchyId, toWallet, amount, "Credit", baseTransactionId, "SUCCESS","CREDIT");
+        updateWallet(tomWalletTable, hierarchyId, toWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
 
     }
 
     private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-                                                                 String tranxType, String baseTransactionId, String tranStatus, String service) {
+                                                                    String tranxType, String baseTransactionId, String tranStatus, String service) {
 
         String actionOnBalance;
 
@@ -73,7 +122,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
         } else {
             wallet.setTotalCash(wallet.getTotalCash().subtract(amount));
             wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(amount));
-            actionOnBalance = "Deduct Funds - " +  walletType.name();
+            actionOnBalance = "Deduct Funds - " + walletType.name();
         }
 
         wallet.setLastUpdatedAmount(amount);

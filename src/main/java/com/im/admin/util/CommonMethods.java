@@ -121,22 +121,6 @@ public class CommonMethods {
         return String.format("%03d", nextId);
     }
 
-    public String generateNextSequentialIdForScheme(String lastId) {
-
-        if (lastId == null) {
-            return "0001";
-        }
-
-        int nextId = Integer.parseInt(lastId) + 1;
-
-        if (nextId > 9999) {
-            return null;
-        }
-
-        return String.format("%03d", nextId);
-    }
-
-
     public String generateBaseTransactionId() {
         String timestamp = new SimpleDateFormat("yyMMddHHmmss").format(new Date());
         int autoIncrement = getNextTransactionSequence(); // Get from DB or memory (e.g., Redis)
