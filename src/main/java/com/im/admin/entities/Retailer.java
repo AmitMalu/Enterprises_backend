@@ -80,4 +80,15 @@ public class Retailer {
     @Column(name = "district")
     private String district;
 
+    @Column(name = "status")
+    private String status = "PENDING";
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason = "-";
+
+    @Column(name = "remarks")
+    private String remarks;
+
+
+
 }

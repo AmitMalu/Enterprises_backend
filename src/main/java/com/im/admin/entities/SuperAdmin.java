@@ -42,6 +42,15 @@ public class SuperAdmin extends BaseEntity {
     @Column(name = "password", nullable = false)
     private String password;
 
+    @Column(name = "status")
+    private String status = "PENDING";
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason = "-";
+
+    @Column(name = "remarks")
+    private String remarks;
+
 
 }
 
