@@ -1,6 +1,8 @@
 package com.im.admin.controller.advice;
 
 
+import com.im.admin.exception.NoPendingRecordsFoundException;
+import com.im.admin.response.CommonResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +41,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<?> handleResponseStatusException(ResponseStatusException ex) {
         return ResponseEntity.status(ex.getStatusCode()).body(Collections.singletonMap("error", ex.getReason()));
+    }
+
+    @ExceptionHandler(NoPendingRecordsFoundException.class)
+    public ResponseEntity<CommonResponse<String>> handleNoPendingRecords(NoPendingRecordsFoundException ex) {
+        return ResponseEntity.ok(new CommonResponse<>(404, ex.getMessage(), null));
     }
 }
 

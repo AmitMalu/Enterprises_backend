@@ -1,6 +1,9 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -10,26 +13,42 @@ import java.time.LocalTime;
 
 @Getter
 @Setter
+@IdClass(UserDetailsId.class)
 @Entity
 @Table(name = "user_details")
 public class UserDetails {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
-
-    @Column(name = "mobile_no")
+    @Column(name = "mobile_number", nullable = false)
+    @NotBlank(message = "Mobile number is required")
+    @Pattern(regexp = "\\d{10}", message = "Mobile number must be 10 digits")
     private String mobileNumber;
+
+    @Id
+    @Column(name = "hierarchy_id")
+    private String hierarchyId;  //ABC-RT-578, YUR-ET-674, FHR-PT-675
+
+    @Column(name = "hierarchy_code")
+    private String hierarchyCode;  //RT, DT, PT
 
     @Column(name = "login_username", unique = true, nullable = false)
     private String loginUserName;
 
     @Column(name = "login_passwd")
+    @Pattern(
+            regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\\-={}\\[\\]:;\"'<>,.?/~`]).{8,}$",
+            message = "Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, and one special character"
+    )
     private String loginPassword;
 
     @Column(name = "user_login_status")
     private Boolean userLoginStatus = false;
+
+    @Column(name = "last_login_date")
+    private LocalDate lastLoginDate;
+
+    @Column(name = "last_login_time")
+    private LocalTime lastLoginTime;
 
     @Column(name = "user_status")
     private String userStatus = "Pending";
@@ -37,8 +56,18 @@ public class UserDetails {
     @Column(name = "otp")
     private String otp;
 
-    @Column(name = "otp_generation_time")
-    private LocalTime otpGenerationTime;
+    @NotBlank(message = "Email is required")
+    @Email(message = "Invalid email format")
+    private String email;
+
+    @Column(name = "otp_expiry_time")
+    private LocalTime otpExpiryTime;
+
+    @Column(name = "channel")
+    private String channel;   //web or mobile
+
+    @Column(name = "geo_location")
+    private String geoLocation;
 
     @CreationTimestamp
     @Column(name = "created_date", nullable = false, updatable = false)
@@ -52,14 +81,14 @@ public class UserDetails {
     private String createdBy;
 
     @CreationTimestamp
-    @Column(name = "edited_date", nullable = false, updatable = false)
+    @Column(name = "edited_date", nullable = false, updatable = true)
     private LocalDate editedDate;
 
     @CreationTimestamp
-    @Column(name = "edited_time", nullable = false, updatable = false)
+    @Column(name = "edited_time", nullable = false, updatable = true)
     private LocalTime editedTime;
 
-    @Column(name = "edited_by", nullable = false, updatable = false)
+    @Column(name = "edited_by", nullable = false, updatable = true)
     private String editedBy;
 
 

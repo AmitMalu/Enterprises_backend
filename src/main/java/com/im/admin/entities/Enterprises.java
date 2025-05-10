@@ -37,6 +37,10 @@ public class Enterprises {
     @Column(name = "mobile_no")
     private String mobileNo;
 
+    @NotBlank(message = "Email is mandatory")
+    @Email(message = "Invalid email format")
+    private String emailId;
+
     @NotBlank(message = "Abbreviation is required")
     @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
     @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
@@ -91,4 +95,13 @@ public class Enterprises {
 
     @Column(name = "edited_by")
     private String editedBy;
+
+    @Column(name = "status")
+    private String status = "PENDING";
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason = "-";
+
+    @Column(name = "remarks")
+    private String remarks;
 }

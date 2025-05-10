@@ -10,9 +10,9 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class CommonResponse {
+public class CommonResponse<T> {
 
-    private Boolean isSuccess;
+    private int statusCode;
     private String message;
-    //private T data;
+    private T data;
 }

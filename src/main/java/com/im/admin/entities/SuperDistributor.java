@@ -37,6 +37,10 @@ public class SuperDistributor {
     @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
     private String mobile;
 
+    @NotBlank(message = "Email is mandatory")
+    @Email(message = "Invalid email format")
+    private String emailId;
+
     @NotBlank(message = "Abbreviation is required")
     @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
     @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
@@ -80,5 +84,14 @@ public class SuperDistributor {
     })
     @Valid
     private Address outletAddress;
+
+    @Column(name = "status")
+    private String status = "PENDING";
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason = "-";
+
+    @Column(name = "remarks")
+    private String remarks;
 
 }
