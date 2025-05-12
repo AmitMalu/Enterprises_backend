@@ -1,11 +1,13 @@
 package com.im.admin.config;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 
 import com.im.admin.controller.AESController;
 import com.im.admin.util.AESEncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -27,6 +29,26 @@ public class AESFilter extends OncePerRequestFilter {
 
 	private final UrlPathHelper pathHelper = new UrlPathHelper();
 
+	@Value("${app.security.base-secret}")
+	private String baseSecret;
+
+	@Value("${app.security.pbkdf2-iterations}")
+	private int iterations;
+
+	@Value("${app.security.pbkdf2-keylength}")
+	private int keyLength;
+
+	private static final Map<String, String> HIERARCHY_SALTS = Map.of(
+			"RT", "nP4jXs9mQwU2dT8v",        // Retailer
+			"DT", "fG9kRz1bYpV8jQwT",        // Distributor
+			"PT", "hD1fL9zWjT4gM7pR",        // Partner
+			"SD", "sZ7dEx2kLwV3tQrM",        // SuperDistributor
+			"WL", "kL7tF1yXsQp3vJbW",        // Whitelabel
+			"ET", "dP5mSzR2xTgWq4Bv",        // Enterprise
+			"AD", "j5vR6fTpCq9LzH2b",        // Admin
+			"SA", "xC8mV2r9LpW6qTjZ"         // SuperAdmin
+	);
+
 	@Autowired
 	private AESController aesController;
 
@@ -40,7 +62,7 @@ public class AESFilter extends OncePerRequestFilter {
 			filterChain.doFilter(request, response);
 		} else {
 			String token = request.getHeader("Authorization");
-			if (!StringUtils.hasText(token) && token.length() > 7) {
+			if (StringUtils.hasText(token) && token.startsWith("Bearer ")) {
 				token = token.substring(7);
 
 				try {
@@ -76,10 +98,34 @@ public class AESFilter extends OncePerRequestFilter {
 	}
 
 	private String decryptToken(String token) throws Exception {
+		if (token == null || token.isBlank()) {
+			throw new IllegalArgumentException("Missing argument: token is empty");
+		}
+
+		log.info("Decrypting token: {}", token);
+
+		String[] parts = token.split("\\|", 2); // Split into hierarchyCode and token
+		if (parts.length != 2) {
+			throw new IllegalArgumentException("Invalid token format. Expected hierarchyCode|encryptedToken");
+		}
+
+		String hierarchyCode = parts[0];
+		String encryptedToken = parts[1];
+
+		String salt = HIERARCHY_SALTS.getOrDefault(hierarchyCode, "defaultSalt");
+
+		log.info("Generating encryption key using hierarchy type: {}", hierarchyCode);
+
+		byte[] derivedKey = AESEncryptionUtil.deriveKey(baseSecret, salt, iterations, keyLength);
+
 		byte[] secretKey = this.aesController.getSecretKey();
-		return AESEncryptionUtil.decryptss(token, secretKey);
+		if (secretKey == null || secretKey.length == 0) {
+			throw new IllegalStateException("Secret key is not initialized");
+		}
+
+		return AESEncryptionUtil.decryptEnterprises(encryptedToken, derivedKey);
 	}
-	
+
 	// Fix the expiration check in the filter
 	private boolean isTokenExpired(String generationTimestamp, String expirationTimestamp) {
 	    try {
