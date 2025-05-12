@@ -32,16 +32,28 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+//    @Bean
+//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+//        http
+//                .csrf(csrf -> csrf.disable())
+//                .authorizeHttpRequests(auth -> auth
+//                        .requestMatchers(PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.toArray(new String[0])).permitAll()
+//                        .anyRequest().authenticated()
+//                )
+//                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+//                .addFilterBefore(aesFilter, UsernamePasswordAuthenticationFilter.class);
+//        return http.build();
+//    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                //.cors().and().authorizeRequests().requestMatchers("/prepaidCard/api/**").authenticated()
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.toArray(new String[0])).permitAll()
-                        .anyRequest().authenticated()
-                )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(aesFilter, UsernamePasswordAuthenticationFilter.class);
+                        .anyRequest().permitAll()  // Allow all requests without authentication
+                );
+
         return http.build();
     }
 
