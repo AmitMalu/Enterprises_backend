@@ -1,6 +1,7 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -32,6 +33,10 @@ public class WhiteLabels {
     @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
     @Column(name = "mobile_no")
     private String mobileNo;
+
+    @NotBlank(message = "Email is mandatory")
+    @Email(message = "Invalid email format")
+    private String emailId;
 
     @NotBlank(message = "Abbreviation is required")
     @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
@@ -111,5 +116,11 @@ public class WhiteLabels {
 
     @Column(name = "is_admin")
     private Boolean isAdmin;
+
+    @Column(name = "status")
+    private String status = "PENDING";
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason = "-";
 
 }
