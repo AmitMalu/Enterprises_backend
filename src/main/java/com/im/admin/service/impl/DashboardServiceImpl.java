@@ -65,9 +65,13 @@ public class DashboardServiceImpl implements DashboardService {
         // Total pending transactions (Prepaid + Postpaid)
         BigDecimal pendingTransaction = pendingPrepaid.add(pendingPostpaid);
 
+        //Pending onboarding count
+        Long pendingOnboarding = dashboardQueryRepository.fetchPendingOnboarding();
+
         DashboardResponseDto response = new DashboardResponseDto();
         response.setTotalTransaction(totalTransaction);
         response.setPendingTransaction(pendingTransaction);
+        response.setPendingOnboarding(pendingOnboarding);
 
         return response;
     }

@@ -48,7 +48,6 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                //.cors().and().authorizeRequests().requestMatchers("/prepaidCard/api/**").authenticated()
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().permitAll()  // Allow all requests without authentication
