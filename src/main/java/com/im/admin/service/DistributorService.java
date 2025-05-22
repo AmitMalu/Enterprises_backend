@@ -2,15 +2,19 @@ package com.im.admin.service;
 
 
 import com.im.admin.entities.Distributor;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 public interface DistributorService {
 
-    Distributor createDistributor(Distributor distributor);
+    Distributor createDistributor(Distributor distributor, MultipartFile aadhaarCardFrontImage, MultipartFile aadhaarCardBackImage, MultipartFile panCardImage, MultipartFile shopImage, MultipartFile businessProofImage) throws IOException;
 
-    Distributor updateDistributor(String id, Distributor distributor);
-
+    Distributor updateDistributor(String id,
+                                  Distributor distributor, MultipartFile aadhaarCardFrontImage,
+                                  MultipartFile aadhaarCardBackImage, MultipartFile panCardImage,
+                                  MultipartFile shopImage, MultipartFile businessProofImage) throws IOException;
     List<Distributor> getAllDistributors();
 
     Distributor getDistributorById(String id);
