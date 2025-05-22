@@ -1,6 +1,8 @@
 package com.im.admin.controller.advice;
 
 
+import com.im.admin.exception.CustomValidationException;
+import com.im.admin.exception.FileValidationException;
 import com.im.admin.exception.NoPendingRecordsFoundException;
 import com.im.admin.response.CommonResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -17,11 +19,26 @@ import javax.naming.AuthenticationException;
 import java.nio.file.AccessDeniedException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(CustomValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationException(CustomValidationException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", HttpStatus.BAD_REQUEST.value());
+        response.put("error", "Validation Failed");
+        response.put("messages", ex.getErrors().stream()
+                .map(err -> err.getField() + ": " + err.getMessage())
+                .collect(Collectors.toList())
+        );
+
+        return ResponseEntity.badRequest().body(response);
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
@@ -60,6 +77,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleAuthenticationException(AuthenticationException ex) {
         log.error("Authentication failed: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authentication failed");
+    }
+
+    @ExceptionHandler(FileValidationException.class)
+    public ResponseEntity<String> handleFileValidationException(FileValidationException ex) {
+        return ResponseEntity.badRequest().body(ex.getMessage());
     }
 }
 

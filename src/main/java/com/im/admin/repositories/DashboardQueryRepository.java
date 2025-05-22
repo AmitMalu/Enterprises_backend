@@ -73,4 +73,26 @@ public class DashboardQueryRepository {
         return map;
     }
 
+    public Long fetchPendingOnboarding() {
+        String sql = """
+        SELECT SUM(pending_count) FROM (
+            SELECT COUNT(*) AS pending_count FROM retailer WHERE status = 'PENDING'
+            UNION ALL
+            SELECT COUNT(*) FROM distributor WHERE status = 'PENDING'
+            UNION ALL
+            SELECT COUNT(*) FROM partner WHERE status = 'PENDING'
+            UNION ALL
+            SELECT COUNT(*) FROM super_distributor WHERE status = 'PENDING'
+            UNION ALL
+            SELECT COUNT(*) FROM enterprises WHERE status = 'PENDING'
+            UNION ALL
+            SELECT COUNT(*) FROM white_labels WHERE status = 'PENDING'
+        ) AS total_pending
+    """;
+
+        Object result = entityManager.createNativeQuery(sql).getSingleResult();
+        return ((Number) result).longValue();
+    }
+
+
 }

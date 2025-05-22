@@ -1,27 +1,28 @@
 package com.im.admin.service.impl;
 
-import com.im.admin.dto.DistributorDTO;
+import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.DistributorPostpaidAmount;
 import com.im.admin.entities.DistributorPrepaidAmount;
+import com.im.admin.exception.CustomValidationException;
 import com.im.admin.repositories.DistributorPostpaidAmountRepository;
 import com.im.admin.repositories.DistributorPrepaidAmountRepository;
 import com.im.admin.repositories.DistributorRepository;
 import com.im.admin.service.DistributorService;
 import com.im.admin.util.IdGenerator;
+import com.im.admin.util.ImageHandlerUtil;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -39,12 +40,67 @@ public class DistributorServiceImpl implements DistributorService {
     @Autowired
     private IdGenerator idGenerator;
 
+    @Autowired
+    private ImageHandlerUtil imageHandlerUtil;
+
+    @Autowired
+    private Validator validator;
+
+    @Autowired
+    private PhoneNumberValidationService phoneNumberValidationService;
+
     @Transactional
     @Override
-    public Distributor createDistributor(Distributor distributor) {
+    public Distributor createDistributor(Distributor distributor,
+                                         MultipartFile aadhaarCardFrontImage,
+                                         MultipartFile aadhaarCardBackImage,
+                                         MultipartFile panCardImage,
+                                         MultipartFile shopImage,
+                                         MultipartFile businessProofImage) throws IOException {
+
+        // Field Validation
+        Set<ConstraintViolation<Distributor>> violations = validator.validate(distributor);
+        List<FieldErrorDetailsDTO> errors = violations.stream()
+                .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
+                .collect(Collectors.toList());
+
+        // Phone validation
+        try {
+            phoneNumberValidationService.validatePhoneNumber(distributor.getMobile());
+        } catch (IllegalArgumentException ex) {
+            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+        }
+
+        // Image validation
+        Map<String, MultipartFile> imageMap = new HashMap<>();
+        imageMap.put("aadhaarCardFrontImage", aadhaarCardFrontImage);
+        imageMap.put("aadhaarCardBackImage", aadhaarCardBackImage);
+        imageMap.put("panCardImage", panCardImage);
+        imageMap.put("shopImage", shopImage);
+        imageMap.put("businessProofImage", businessProofImage);
+
+
+        for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
+            if (entry.getValue() == null || entry.getValue().isEmpty()) {
+                errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
+            }
+        }
+
+        if (!errors.isEmpty()) {
+            throw new CustomValidationException(errors);
+        }
 
         distributor.setDistributorId(idGenerator.generateHierarchyEntityId("Distributor", distributor.getAbbreviation()));
+        String folder = "Distributor";
 
+        // Upload Images
+        imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, distributor::setAadhaarCardFrontImage);
+        imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, distributor::setAadhaarCardBackImage);
+        imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, distributor::setPanCardImage);
+        imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, distributor::setShopImage);
+        imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, distributor::setBusinessProofImage);
+
+        // Save distributor and amounts
         Distributor savedDistributor = distributorRepository.save(distributor);
 
         DistributorPrepaidAmount prepaid = new DistributorPrepaidAmount();
@@ -60,26 +116,69 @@ public class DistributorServiceImpl implements DistributorService {
 
     @Transactional
     @Override
-    public Distributor updateDistributor(String id, Distributor distributor) {
+    public Distributor updateDistributor(String id,
+                                         Distributor distributor,
+                                         MultipartFile aadhaarCardFrontImage,
+                                         MultipartFile aadhaarCardBackImage,
+                                         MultipartFile panCardImage,
+                                         MultipartFile shopImage,
+                                         MultipartFile businessProofImage) throws IOException {
+
         Distributor existingDistributor = distributorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Distributor not found"));
 
-        existingDistributor.setTitle(distributor.getTitle());
-        existingDistributor.setName(distributor.getName());
-        existingDistributor.setMobile(distributor.getMobile());
-        existingDistributor.setAbbreviation(distributor.getAbbreviation());
-        existingDistributor.setEmail(distributor.getEmail());
-        existingDistributor.setDob(distributor.getDob());
-        existingDistributor.setOutletName(distributor.getOutletName());
-        existingDistributor.setCompanyType(distributor.getCompanyType());
-        existingDistributor.setCompetitor(distributor.getCompetitor());
-        existingDistributor.setAddress(distributor.getAddress());
-        existingDistributor.setOutletAddress(distributor.getOutletAddress());
+        if (existingDistributor.equals(distributor)) {
+            return existingDistributor;
+        }
+
+        // Validate mobile
+        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+        try {
+            phoneNumberValidationService.validatePhoneNumber(distributor.getMobile());
+        } catch (IllegalArgumentException ex) {
+            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+        }
+
+        if (!errors.isEmpty()) {
+            throw new CustomValidationException(errors);
+        }
+
+        if (distributor.getTitle() != null) existingDistributor.setTitle(distributor.getTitle());
+        if (distributor.getName() != null) existingDistributor.setName(distributor.getName());
+        if (distributor.getMobile() != null) existingDistributor.setMobile(distributor.getMobile());
+        if (distributor.getAbbreviation() != null) existingDistributor.setAbbreviation(distributor.getAbbreviation());
+        if (distributor.getEmail() != null) existingDistributor.setEmail(distributor.getEmail());
+        if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
+        if (distributor.getOutletName() != null) existingDistributor.setOutletName(distributor.getOutletName());
+        if (distributor.getCompanyType() != null) existingDistributor.setCompanyType(distributor.getCompanyType());
+        if (distributor.getCompetitor() != null) existingDistributor.setCompetitor(distributor.getCompetitor());
+        if (distributor.getAddress() != null) existingDistributor.setAddress(distributor.getAddress());
+        if (distributor.getOutletAddress() != null) existingDistributor.setOutletAddress(distributor.getOutletAddress());
+
+
+        // Optional image updates
+        String folder = "Distributor";
+        if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingDistributor::setAadhaarCardFrontImage);
+        }
+        if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingDistributor::setAadhaarCardBackImage);
+        }
+        if (panCardImage != null && !panCardImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingDistributor::setPanCardImage);
+        }
+        if (shopImage != null && !shopImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingDistributor::setShopImage);
+        }
+        if (businessProofImage != null && !businessProofImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingDistributor::setBusinessProofImage);
+        }
 
         return distributorRepository.save(existingDistributor);
     }
 
-    // ✅ Get All Distributors
+
+    //Get All Distributors
     @Override
     public List<Distributor> getAllDistributors() {
         return distributorRepository.findAll();
