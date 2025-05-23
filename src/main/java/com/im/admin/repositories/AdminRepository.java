@@ -11,6 +11,7 @@ public interface AdminRepository extends JpaRepository<Admin, String> {
 
     List<Admin> findByStatus(String status);
 
+    //boolean existsByAbbreviation(String abbreviation);
 
 }
 

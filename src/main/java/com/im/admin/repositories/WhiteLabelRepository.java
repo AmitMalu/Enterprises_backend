@@ -13,7 +13,6 @@ public interface WhiteLabelRepository extends JpaRepository<WhiteLabels, String>
 
     List<WhiteLabels> findByStatus(String status);
 
-
 }
 
 
