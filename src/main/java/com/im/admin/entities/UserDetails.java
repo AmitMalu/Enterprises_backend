@@ -91,5 +91,8 @@ public class UserDetails {
     @Column(name = "edited_by", nullable = false, updatable = true)
     private String editedBy;
 
+    @Column(name = " role_id")
+    private String  role_id;
+
 
 }

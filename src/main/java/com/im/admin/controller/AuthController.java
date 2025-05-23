@@ -1,7 +1,11 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.LoginRequestDto;
+import com.im.admin.entities.ImSubRole;
+import com.im.admin.entities.SchemeAllocation;
 import com.im.admin.entities.UserDetails;
+import com.im.admin.repositories.ImSubRoleRepository;
+import com.im.admin.repositories.SchemeAllocationRepository;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.util.JwtUtil;
@@ -15,10 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalTime;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/auth")
@@ -32,6 +33,12 @@ public class AuthController {
 
     @Autowired
     private UserDetailsRepository userDetailsRepository;
+
+    @Autowired
+    private ImSubRoleRepository imSubRoleRepository;
+
+    @Autowired
+    private SchemeAllocationRepository schemeAllocationRepository;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
@@ -104,6 +111,7 @@ public class AuthController {
                     .body(new CommonResponse<>(400, "OTP expired", null));
         }
 
+
         if (!user.getOtp().equals(otp)) {
             return ResponseEntity.ok()
                     .body(new CommonResponse<>(400, "Invalid OTP", null));
@@ -119,8 +127,33 @@ public class AuthController {
             user.setOtp(null);
             user.setOtpExpiryTime(null);
             userDetailsRepository.save(user);
+            // Prepare final login response
+            Map<String, Object> responseMap = new HashMap<>();
+            responseMap.put("token", token);
 
-            return ResponseEntity.ok(new CommonResponse<>(200, "OTP verified successfully", token));
+            String hierarchyCode = user.getHierarchyCode();
+
+            if ("AD".equalsIgnoreCase(hierarchyCode) || "WL-AD".equalsIgnoreCase(hierarchyCode)) {
+                responseMap.put("role_id", user.getRole_id());
+
+                ImSubRole subRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                if (subRole != null) {
+                    responseMap.put("sub_role_id", subRole.getSubRoleId());
+                }
+            }
+
+
+            if ("RT".equalsIgnoreCase(hierarchyCode)) {
+                List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
+                List<String> subProductCodes = schemes.stream()
+                        .map(SchemeAllocation::getSubProductCode)
+                        .distinct()
+                        .toList();
+                responseMap.put("sub_product_codes", subProductCodes);
+            }
+
+
+            return ResponseEntity.ok(new CommonResponse<>(200, "OTP verified successfully", responseMap));
         } else {
             // Handle error response if status is not OK
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
