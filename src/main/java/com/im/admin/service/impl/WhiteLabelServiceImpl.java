@@ -164,7 +164,7 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
         if (whiteLabels.getIsAdmin() != null) existingWhiteLabels.setIsAdmin(whiteLabels.getIsAdmin());
 
         // Optional image updates
-        String folder = "Distributor";
+        String folder = "White Label";
         if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
             imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingWhiteLabels::setAadhaarCardFrontImage);
         }

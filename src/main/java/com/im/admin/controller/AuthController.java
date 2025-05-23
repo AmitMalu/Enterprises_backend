@@ -18,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 
@@ -40,9 +41,9 @@ public class AuthController {
     @Autowired
     private SchemeAllocationRepository schemeAllocationRepository;
 
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
-
         String username = loginRequestDto.getUserName();
         Optional<UserDetails> optionalUser = userDetailsRepository.findByMobileNumber(username);
 
@@ -51,35 +52,60 @@ public class AuthController {
         }
 
         if (optionalUser.isEmpty()) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(401, "Invalid credentials: user not found", null));
+            return ResponseEntity.ok(new CommonResponse<>(401, "Invalid credentials: user not found", null));
         }
 
         UserDetails user = optionalUser.get();
 
+        if (isUserLocked(user)) {
+            return ResponseEntity.ok(new CommonResponse<>(403, "Account is locked due to multiple failed attempts. Try again later.", null));
+        }
+
         if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(403, "User account is not active. Please contact support.", null));
+            return ResponseEntity.ok(new CommonResponse<>(403, "User account is not active. Please contact support.", null));
         }
 
         if (passwordEncoder.matches(loginRequestDto.getPassword(), user.getLoginPassword())) {
+            // Reset failed attempts on successful login
+            user.setFailedAttempts(0);
+            user.setLockTime(null);
 
             String otp = OtpUtil.generateOtp();
-
             user.setOtp(otp);
             user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
+
             userDetailsRepository.save(user);
 
             Map<String, String> otpData = new HashMap<>();
             otpData.put("otp", otp);
 
             return ResponseEntity.ok(new CommonResponse<>(200, "OTP sent successfully", otpData));
-        }
+        } else {
+            // Increase failed attempts
+            int attempts = user.getFailedAttempts() != null ? user.getFailedAttempts() : 0;
+            attempts += 1; // Increment before setting
+            user.setFailedAttempts(attempts);
 
-        return ResponseEntity.ok()
-                .body(new CommonResponse<>(401, "Invalid credentials", null));
+            if (attempts >= 5) {
+                user.setLockTime(LocalDateTime.now());
+            }
+
+            userDetailsRepository.save(user);
+
+            String message = attempts >= 5 ?
+                    "Account locked due to 5 failed attempts. Try again in 5 minutes." :
+                    "Invalid credentials. Attempt " + attempts + " of 5.";
+
+            return ResponseEntity.ok(new CommonResponse<>(401, message, null));
+        }
     }
 
+    private boolean isUserLocked(UserDetails user) {
+        if (user.getLockTime() == null) return false;
+
+        LocalDateTime now = LocalDateTime.now();
+        return now.isBefore(user.getLockTime().plusMinutes(5));
+    }
 
     @PostMapping("/verify-otp")
     public ResponseEntity<?> verifyOtp(@RequestParam String username, @RequestParam String otp) {
