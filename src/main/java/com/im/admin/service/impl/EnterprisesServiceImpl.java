@@ -1,18 +1,28 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.FieldErrorDetailsDTO;
+import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Enterprises;
 import com.im.admin.entities.EnterprisesPostpaidAmount;
 import com.im.admin.entities.EnterprisesPrepaidAmount;
+import com.im.admin.exception.CustomValidationException;
 import com.im.admin.repositories.EnterprisesPostpaidAmountRepository;
 import com.im.admin.repositories.EnterprisesPrepaidAmountRepository;
 import com.im.admin.repositories.EnterprisesRepository;
 import com.im.admin.service.EnterprisesService;
 import com.im.admin.util.IdGenerator;
+import com.im.admin.util.ImageHandlerUtil;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class EnterprisesServiceImpl implements EnterprisesService {
@@ -32,17 +42,69 @@ public class EnterprisesServiceImpl implements EnterprisesService {
     @Autowired
     private IdGenerator idGenerator;
 
+    @Autowired
+    private ImageHandlerUtil imageHandlerUtil;
+
+    @Autowired
+    private Validator validator;
+
     @Transactional
     @Override
-    public Enterprises saveEnterprise(Enterprises enterprise) {
+    public Enterprises saveEnterprise(Enterprises enterprises,
+                                         MultipartFile aadhaarCardFrontImage,
+                                         MultipartFile aadhaarCardBackImage,
+                                         MultipartFile panCardImage,
+                                         MultipartFile shopImage,
+                                         MultipartFile businessProofImage) throws IOException {
 
-        phoneNumberValidationService.validatePhoneNumber(enterprise.getMobileNo());
+        // Field Validation
+        Set<ConstraintViolation<Enterprises>> violations = validator.validate(enterprises);
+        List<FieldErrorDetailsDTO> errors = violations.stream()
+                .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
+                .collect(Collectors.toList());
 
-        String abbreviation = enterprise.getAbbreviation();
+        // Phone validation
+        try {
+            phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNo());
+        } catch (IllegalArgumentException ex) {
+            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+        }
 
-        enterprise.setEnterpriseId(idGenerator.generateHierarchyEntityId("Enterprises", abbreviation));
+        // Image validation
+        Map<String, MultipartFile> imageMap = new HashMap<>();
+        imageMap.put("aadhaarCardFrontImage", aadhaarCardFrontImage);
+        imageMap.put("aadhaarCardBackImage", aadhaarCardBackImage);
+        imageMap.put("panCardImage", panCardImage);
+        imageMap.put("shopImage", shopImage);
+        imageMap.put("businessProofImage", businessProofImage);
 
-        Enterprises savedEnterprise = enterpriseRepository.save(enterprise);
+
+        for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
+            if (entry.getValue() == null || entry.getValue().isEmpty()) {
+                errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
+            }
+        }
+
+        if (enterpriseRepository.existsByAbbreviation(enterprises.getAbbreviation())) {
+            errors.add(new FieldErrorDetailsDTO("abbreviation",
+                    "Abbreviation '" + enterprises.getAbbreviation() + "' already exists."));
+        }
+
+        if (!errors.isEmpty()) {
+            throw new CustomValidationException(errors);
+        }
+
+        enterprises.setEnterpriseId(idGenerator.generateHierarchyEntityId("Enterprises", enterprises.getAbbreviation()));
+        String folder = "Enterprises";
+
+        // Upload Images
+        imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, enterprises::setAadhaarCardFrontImage);
+        imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, enterprises::setAadhaarCardBackImage);
+        imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, enterprises::setPanCardImage);
+        imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, enterprises::setShopImage);
+        imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, enterprises::setBusinessProofImage);
+
+        Enterprises savedEnterprise = enterpriseRepository.save(enterprises);
 
         EnterprisesPrepaidAmount prepaid = new EnterprisesPrepaidAmount();
         prepaid.setEnterprise(savedEnterprise);
@@ -57,22 +119,65 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
     @Transactional
     @Override
-    public Enterprises updateEnterprise(String enterpriseId, Enterprises enterpriseDetails) {
-        Enterprises existingEnterprise = enterpriseRepository.findById(enterpriseId)
-                .orElseThrow(() -> new RuntimeException("Enterprise not found with ID: " + enterpriseId));
+    public Enterprises updateEnterprise(String id,
+                                         Enterprises enterprises,
+                                         MultipartFile aadhaarCardFrontImage,
+                                         MultipartFile aadhaarCardBackImage,
+                                         MultipartFile panCardImage,
+                                         MultipartFile shopImage,
+                                         MultipartFile businessProofImage) throws IOException {
 
-        existingEnterprise.setCompanyName(enterpriseDetails.getCompanyName());
-        existingEnterprise.setMobileNo(enterpriseDetails.getMobileNo());
-        existingEnterprise.setCompanyType(enterpriseDetails.getCompanyType());
-        existingEnterprise.setRegisteredAddress(enterpriseDetails.getRegisteredAddress());
-        existingEnterprise.setBusinessDesc(enterpriseDetails.getBusinessDesc());
-        existingEnterprise.setWebsiteURL(enterpriseDetails.getWebsiteURL());
-        existingEnterprise.setPanCardNumber(enterpriseDetails.getPanCardNumber());
-        existingEnterprise.setGSTNumber(enterpriseDetails.getGSTNumber());
-        existingEnterprise.setBankAccountDetails(enterpriseDetails.getBankAccountDetails());
-        existingEnterprise.setFinancialStatements(enterpriseDetails.getFinancialStatements());
+        Enterprises existingEnterprises = enterpriseRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Distributor not found"));
 
-        return enterpriseRepository.save(existingEnterprise);
+        if (existingEnterprises.equals(enterprises)) {
+            return existingEnterprises;
+        }
+
+        // Validate mobile
+        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+        try {
+            phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNo());
+        } catch (IllegalArgumentException ex) {
+            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+        }
+
+        if (!errors.isEmpty()) {
+            throw new CustomValidationException(errors);
+        }
+
+        //if (enterprises.getTit != null) existingEnterprises.setTitle(enterprises.getTitle());
+        //if (enterprises.getName() != null) existingEnterprises.setName(enterprises.getName());
+        if (enterprises.getMobileNo() != null) existingEnterprises.setMobileNo(enterprises.getMobileNo());
+        if (enterprises.getAbbreviation() != null) existingEnterprises.setAbbreviation(enterprises.getAbbreviation());
+        if (enterprises.getEmailId() != null) existingEnterprises.setEmailId(enterprises.getEmailId());
+        //if (enterprises.getDob() != null) existingEnterprises.setDob(enterprises.getDob());
+        //if (enterprises.getOutletName() != null) existingEnterprises.setOutletName(enterprises.getOutletName());
+        if (enterprises.getCompanyType() != null) existingEnterprises.setCompanyType(enterprises.getCompanyType());
+        //if (enterprises.getCompetitor() != null) existingEnterprises.setCompetitor(enterprises.getCompetitor());
+        if (enterprises.getRegisteredAddress() != null) existingEnterprises.setRegisteredAddress(enterprises.getRegisteredAddress());
+        //if (enterprises.getOutletAddress() != null) existingEnterprises.setOutletAddress(enterprises.getOutletAddress());
+
+
+        // Optional image updates
+        String folder = "Enterprises";
+        if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingEnterprises::setAadhaarCardFrontImage);
+        }
+        if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingEnterprises::setAadhaarCardBackImage);
+        }
+        if (panCardImage != null && !panCardImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingEnterprises::setPanCardImage);
+        }
+        if (shopImage != null && !shopImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingEnterprises::setShopImage);
+        }
+        if (businessProofImage != null && !businessProofImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingEnterprises::setBusinessProofImage);
+        }
+
+        return enterpriseRepository.save(existingEnterprises);
     }
 
     @Override

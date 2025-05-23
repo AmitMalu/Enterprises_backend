@@ -49,7 +49,7 @@ public class RetailerController {
 
         CommonResponse<Retailer> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
-        response.setMessage("Distributor created successfully");
+        response.setMessage("Retailer created successfully");
         response.setData(savedRetailer);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -51,6 +52,7 @@ public class SuperDistributor {
     @Email(message = "Invalid email format")
     private String email;
 
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dob;
 
     @NotBlank(message = "Outlet Name is mandatory")
@@ -60,10 +62,6 @@ public class SuperDistributor {
     private String productGroups;
 
     private String companyType;
-
-//    @Embedded
-//    @Valid
-//    private Info info;
 
     @Embedded
     @AttributeOverrides({
@@ -93,5 +91,20 @@ public class SuperDistributor {
 
     @Column(name = "remarks")
     private String remarks;
+
+    @Column(name = "aadhaar_card_front_image")
+    private String aadhaarCardFrontImage;
+
+    @Column(name = "aadhaar_card_back_image")
+    private String aadhaarCardBackImage;
+
+    @Column(name = "pan_card_image")
+    private String panCardImage;
+
+    @Column(name = "shop_image")
+    private String shopImage;
+
+    @Column(name = "business_proof_image")
+    private String businessProofImage;
 
 }

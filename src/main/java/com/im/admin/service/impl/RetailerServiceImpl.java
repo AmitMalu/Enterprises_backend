@@ -90,6 +90,11 @@ public class RetailerServiceImpl implements RetailerService {
             }
         }
 
+        if (retailerRepository.existsByAbbreviation(retailer.getAbbreviation())) {
+            errors.add(new FieldErrorDetailsDTO("abbreviation",
+                    "Abbreviation '" + retailer.getAbbreviation() + "' already exists."));
+        }
+
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }

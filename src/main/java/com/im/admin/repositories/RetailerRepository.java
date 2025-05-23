@@ -14,5 +14,7 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
 
     List<Retailer> findByStatus(String status);
 
+    boolean existsByAbbreviation(String abbrivation);
+
 }
 

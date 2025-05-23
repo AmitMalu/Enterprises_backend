@@ -11,5 +11,7 @@ public interface SuperDistributorRepository extends JpaRepository<SuperDistribut
 
     List<SuperDistributor> findByStatus(String status);
 
+    boolean existsByAbbreviation(String abbreviation);
+
 }
 

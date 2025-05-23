@@ -1,14 +1,21 @@
 package com.im.admin.controller;
 
+import com.im.admin.entities.Distributor;
 import com.im.admin.entities.WhiteLabels;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.WhiteLabelService;
+import com.im.admin.util.JsonUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 
@@ -21,16 +28,53 @@ public class WhiteLabelController {
     @Autowired
     private WhiteLabelService whiteLabelService;
 
-    @PostMapping("/save")
-    public ResponseEntity<WhiteLabels> saveWhiteLabel(@Valid @RequestBody WhiteLabels whiteLabel) {
-        log.info("Saving WhiteLabel: {}", whiteLabel);
-        return ResponseEntity.ok(whiteLabelService.saveWhiteLabel(whiteLabel));
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommonResponse<WhiteLabels>> saveWhiteLabel(
+            @RequestPart("data") String whiteLabelsJson,
+            @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
+            @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
+            @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
+            @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
+            @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
+    ) throws IOException {
+
+        WhiteLabels whiteLabels = JsonUtil.parseJson(whiteLabelsJson, WhiteLabels.class);
+
+        WhiteLabels savedWhiteLabel = whiteLabelService.saveWhiteLabel(
+                whiteLabels, aadhaarCardFrontImage, aadhaarCardBackImage, panCardImage, shopImage, businessProofImage);
+
+        CommonResponse<WhiteLabels> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.OK.value());
+        response.setMessage("Distributor created successfully");
+        response.setData(savedWhiteLabel);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping("/update/{id}")
-    public ResponseEntity<WhiteLabels> updateWhiteLabel(@PathVariable String id, @Valid @RequestBody WhiteLabels whiteLabel) {
-        log.info("Updating WhiteLabel: {}", id);
-        return ResponseEntity.ok(whiteLabelService.updateWhiteLabel(id, whiteLabel));
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<WhiteLabels> updateWhiteLabel(
+            @PathVariable String id,
+            @RequestPart("data") String whiteLabelsJson,
+            @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
+            @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
+            @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
+            @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
+            @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
+    ) throws IOException {
+
+        WhiteLabels whiteLabels = JsonUtil.parseJson(whiteLabelsJson, WhiteLabels.class);
+
+        WhiteLabels updatedDistributor = whiteLabelService.updateWhiteLabel(
+                id,
+                whiteLabels,
+                aadhaarCardFrontImage,
+                aadhaarCardBackImage,
+                panCardImage,
+                shopImage,
+                businessProofImage
+        );
+
+        return ResponseEntity.ok(updatedDistributor);
     }
 
     @GetMapping("/getAll")

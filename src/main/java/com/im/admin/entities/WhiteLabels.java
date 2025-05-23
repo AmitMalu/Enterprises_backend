@@ -123,4 +123,19 @@ public class WhiteLabels {
     @Column(name = "rejection_reason")
     private String rejectionReason = "-";
 
+    @Column(name = "aadhaar_card_front_image")
+    private String aadhaarCardFrontImage;
+
+    @Column(name = "aadhaar_card_back_image")
+    private String aadhaarCardBackImage;
+
+    @Column(name = "pan_card_image")
+    private String panCardImage;
+
+    @Column(name = "shop_image")
+    private String shopImage;
+
+    @Column(name = "business_proof_image")
+    private String businessProofImage;
+
 }
