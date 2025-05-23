@@ -1,10 +1,13 @@
 package com.im.admin.config;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Map;
 import java.util.Set;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.controller.AESController;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.util.AESEncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -73,7 +76,7 @@ public class AESFilter extends OncePerRequestFilter {
 					String expirationTimestampStr = creds[1];
 					if (this.isTokenExpired(tokenGenerationTimestampStr, expirationTimestampStr)) {
 						log.error("Unauthorized access - Token expired");
-						this.throwException(response);
+						this.sendErrorResponse(response, 401, "Token is expired.");
 						return;
 					}
 
@@ -126,30 +129,41 @@ public class AESFilter extends OncePerRequestFilter {
 		return AESEncryptionUtil.decryptEnterprises(encryptedToken, derivedKey);
 	}
 
-	// Fix the expiration check in the filter
 	private boolean isTokenExpired(String generationTimestamp, String expirationTimestamp) {
-	    try {
-	        long expirationTime = Long.parseLong(expirationTimestamp);
-	        long currentTime = System.currentTimeMillis(); // Get current time
+		try {
+			long expirationTime = Long.parseLong(expirationTimestamp);
+			long currentTime = System.currentTimeMillis();
 
-	        log.info("Token Generation Time: {}", generationTimestamp);
-	        log.info("Token Expiration Time: {}", expirationTimestamp);
-	        log.info("Current System Time: {}", currentTime);
+			log.info("Token Generation Time: {}", generationTimestamp);
+			log.info("Token Expiration Time: {}", expirationTimestamp);
+			log.info("Current System Time: {}", currentTime);
 
-	        boolean isExpired = currentTime > expirationTime;
-	        if (isExpired) {
-	            log.warn("Token is expired. Current time [{}] is greater than expiration time [{}]", currentTime, expirationTime);
-	            throw new RuntimeException("Token is expired...");
-	        } else {
-	            log.info("Token is still valid.");
-	        }
+			if (currentTime > expirationTime) {
+				log.warn("Token is expired.");
+				return true;
+			}
+			return false;
 
-	        return isExpired;
-	    } catch (NumberFormatException e) {
-	        log.error("Invalid timestamp format. Generation: [{}], Expiration: [{}], Error: {}", generationTimestamp, expirationTimestamp, e.getMessage());
-	        return true; // Assume invalid token if parsing fails
-	    }
+		} catch (NumberFormatException e) {
+			log.error("Invalid timestamp format: {}", e.getMessage());
+			return true; // treat invalid timestamp as expired
+		}
 	}
+
+	private void sendErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
+		response.setStatus(status);
+		response.setContentType("application/json");
+
+		CommonResponse<Object> commonResponse = new CommonResponse<>();
+		commonResponse.setStatusCode(status);
+		commonResponse.setMessage(message);
+		commonResponse.setData(null);
+
+		PrintWriter writer = response.getWriter();
+		writer.write(new ObjectMapper().writeValueAsString(commonResponse));
+		writer.flush();
+	}
+
 
 	private void throwException(HttpServletResponse response) throws IOException {
 		response.setStatus(401);
