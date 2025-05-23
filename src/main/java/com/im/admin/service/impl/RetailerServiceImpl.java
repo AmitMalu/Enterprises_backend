@@ -1,20 +1,29 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.dto.RetailerDTO;
+import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Retailer;
 import com.im.admin.entities.RetailerPostpaidAmount;
 import com.im.admin.entities.RetailerPrepaidAmount;
+import com.im.admin.exception.CustomValidationException;
 import com.im.admin.repositories.RetailerPostpaidAmountRepository;
 import com.im.admin.repositories.RetailerPrepaidAmountRepository;
 import com.im.admin.repositories.RetailerRepository;
 import com.im.admin.service.RetailerService;
 import com.im.admin.util.IdGenerator;
+import com.im.admin.util.ImageHandlerUtil;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
-import java.util.Optional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,13 +42,68 @@ public class RetailerServiceImpl implements RetailerService {
     @Autowired
     private IdGenerator idGenerator;
 
+    @Autowired
+    private Validator validator;
+
+    @Autowired
+    private ImageHandlerUtil imageHandlerUtil;
+
+    @Autowired
+    private PhoneNumberValidationService phoneNumberValidationService;
 
     @Transactional
     @Override
-    public Retailer createRetailer(Retailer retailer) {
+    public Retailer createRetailer(Retailer retailer,
+                                   MultipartFile aadhaarCardFrontImage,
+                                   MultipartFile aadhaarCardBackImage,
+                                   MultipartFile panCardImage,
+                                   MultipartFile shopImage,
+                                   MultipartFile businessProofImage) throws IOException {
+
         log.info("Creating new retailer: {}", retailer.getName());
 
+        // Field Validation
+        Set<ConstraintViolation<Retailer>> violations = validator.validate(retailer);
+        List<FieldErrorDetailsDTO> errors = violations.stream()
+                .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
+                .collect(Collectors.toList());
+
+        // Phone validation
+        try {
+            phoneNumberValidationService.validatePhoneNumber(retailer.getMobile());
+        } catch (IllegalArgumentException ex) {
+            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+        }
+
+        // Image validation
+        Map<String, MultipartFile> imageMap = new HashMap<>();
+        imageMap.put("aadhaarCardFrontImage", aadhaarCardFrontImage);
+        imageMap.put("aadhaarCardBackImage", aadhaarCardBackImage);
+        imageMap.put("panCardImage", panCardImage);
+        imageMap.put("shopImage", shopImage);
+        imageMap.put("businessProofImage", businessProofImage);
+
+
+        for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
+            if (entry.getValue() == null || entry.getValue().isEmpty()) {
+                errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
+            }
+        }
+
+        if (!errors.isEmpty()) {
+            throw new CustomValidationException(errors);
+        }
+
         retailer.setRetailerId(idGenerator.generateHierarchyEntityId("Retailer", retailer.getAbbreviation()));
+        String folder = "Retailer";
+
+        // Upload Images
+        imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, retailer::setAadhaarCardFrontImage);
+        imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, retailer::setAadhaarCardBackImage);
+        imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, retailer::setPanCardImage);
+        imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, retailer::setShopImage);
+        imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, retailer::setBusinessProofImage);
+
 
         Retailer savedRetailer = retailerRepository.save(retailer);
         log.info("Retailer created successfully with ID: {}", savedRetailer.getRetailerId());
@@ -59,30 +123,65 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Transactional
     @Override
-    public Retailer updateRetailer(String retailerId, Retailer retailerDetails) {
-        log.info("Updating retailer with ID: {}", retailerId);
+    public Retailer updateRetailer(String retailerId,
+                                         Retailer retailer,
+                                         MultipartFile aadhaarCardFrontImage,
+                                         MultipartFile aadhaarCardBackImage,
+                                         MultipartFile panCardImage,
+                                         MultipartFile shopImage,
+                                         MultipartFile businessProofImage) throws IOException {
 
-        Retailer retailer = retailerRepository.findById(retailerId)
-                .orElseThrow(() -> new RuntimeException("Retailer not found"));
+        Retailer existingRetailer = retailerRepository.findById(retailerId)
+                .orElseThrow(() -> new EntityNotFoundException("Retailer not found"));
 
-        retailer.setParentAccount(retailerDetails.getParentAccount());
-        retailer.setTitle(retailerDetails.getTitle());
-        retailer.setName(retailerDetails.getName());
-        retailer.setMobile(retailerDetails.getMobile());
-        retailer.setEmail(retailerDetails.getEmail());
-        retailer.setDob(retailerDetails.getDob());
-        retailer.setOutletName(retailerDetails.getOutletName());
-        retailer.setCompanyType(retailerDetails.getCompanyType());
-        retailer.setMccCategory(retailerDetails.getMccCategory());
-        retailer.setOrmsId(retailerDetails.getOrmsId());
-        retailer.setCompetitor(retailerDetails.getCompetitor());
-        retailer.setAddress(retailerDetails.getAddress());
-        retailer.setOutletAddress(retailerDetails.getOutletAddress());
-        retailer.setDistrict(retailerDetails.getDistrict());
+        if (existingRetailer.equals(retailer)) {
+            return existingRetailer;
+        }
 
-        Retailer updatedRetailer = retailerRepository.save(retailer);
-        log.info("Retailer updated successfully with ID: {}", updatedRetailer.getRetailerId());
-        return updatedRetailer;
+        // Validate mobile
+        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+        try {
+            phoneNumberValidationService.validatePhoneNumber(retailer.getMobile());
+        } catch (IllegalArgumentException ex) {
+            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+        }
+
+        if (!errors.isEmpty()) {
+            throw new CustomValidationException(errors);
+        }
+
+        if (retailer.getTitle() != null) existingRetailer.setTitle(retailer.getTitle());
+        if (retailer.getName() != null) existingRetailer.setName(retailer.getName());
+        if (retailer.getMobile() != null) existingRetailer.setMobile(retailer.getMobile());
+        if (retailer.getAbbreviation() != null) existingRetailer.setAbbreviation(retailer.getAbbreviation());
+        if (retailer.getEmail() != null) existingRetailer.setEmail(retailer.getEmail());
+        if (retailer.getDob() != null) existingRetailer.setDob(retailer.getDob());
+        if (retailer.getOutletName() != null) existingRetailer.setOutletName(retailer.getOutletName());
+        if (retailer.getCompanyType() != null) existingRetailer.setCompanyType(retailer.getCompanyType());
+        if (retailer.getCompetitor() != null) existingRetailer.setCompetitor(retailer.getCompetitor());
+        if (retailer.getAddress() != null) existingRetailer.setAddress(retailer.getAddress());
+        if (retailer.getOutletAddress() != null) existingRetailer.setOutletAddress(retailer.getOutletAddress());
+
+
+        // Optional image updates
+        String folder = "Retailer";
+        if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingRetailer::setAadhaarCardFrontImage);
+        }
+        if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingRetailer::setAadhaarCardBackImage);
+        }
+        if (panCardImage != null && !panCardImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingRetailer::setPanCardImage);
+        }
+        if (shopImage != null && !shopImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingRetailer::setShopImage);
+        }
+        if (businessProofImage != null && !businessProofImage.isEmpty()) {
+            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingRetailer::setBusinessProofImage);
+        }
+
+        return retailerRepository.save(existingRetailer);
     }
 
     @Transactional

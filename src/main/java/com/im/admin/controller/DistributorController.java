@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.im.admin.entities.Distributor;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DistributorService;
 import com.im.admin.service.impl.PhoneNumberValidationService;
+import com.im.admin.util.JsonUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +31,7 @@ public class DistributorController {
     private DistributorService distributorService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> createDistributor(
+    public ResponseEntity<CommonResponse<Distributor>> createDistributor(
             @RequestPart("data") String distributorJson,
             @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
             @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
@@ -38,15 +40,17 @@ public class DistributorController {
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        Distributor distributor = objectMapper.readValue(distributorJson, Distributor.class);
+        Distributor distributor = JsonUtil.parseJson(distributorJson, Distributor.class);
 
         Distributor savedDistributor = distributorService.createDistributor(
                 distributor, aadhaarCardFrontImage, aadhaarCardBackImage, panCardImage, shopImage, businessProofImage);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedDistributor);
+        CommonResponse<Distributor> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.OK.value());
+        response.setMessage("Distributor created successfully");
+        response.setData(savedDistributor);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -60,10 +64,7 @@ public class DistributorController {
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        Distributor distributor = objectMapper.readValue(distributorJson, Distributor.class);
+        Distributor distributor = JsonUtil.parseJson(distributorJson, Distributor.class);
 
         Distributor updatedDistributor = distributorService.updateDistributor(
                 id,
@@ -77,7 +78,6 @@ public class DistributorController {
 
         return ResponseEntity.ok(updatedDistributor);
     }
-
 
     @GetMapping
     public ResponseEntity<List<Distributor>> getAllDistributors() {

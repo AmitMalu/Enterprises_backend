@@ -11,5 +11,7 @@ public interface DistributorRepository extends JpaRepository<Distributor, String
 
     List<Distributor> findByStatus(String status);
 
+    boolean existsByAbbreviation(String abbreviation);
+
 }
 
