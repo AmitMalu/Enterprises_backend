@@ -86,6 +86,11 @@ public class DistributorServiceImpl implements DistributorService {
             }
         }
 
+        if (distributorRepository.existsByAbbreviation(distributor.getAbbreviation())) {
+            errors.add(new FieldErrorDetailsDTO("abbreviation",
+                    "Abbreviation '" + distributor.getAbbreviation() + "' already exists."));
+        }
+
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }

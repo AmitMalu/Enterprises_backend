@@ -1,17 +1,23 @@
 package com.im.admin.controller;
 
+import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Partner;
+import com.im.admin.entities.Retailer;
 import com.im.admin.service.PartnerService;
 import com.im.admin.service.impl.PhoneNumberValidationService;
+import com.im.admin.util.JsonUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 
@@ -26,17 +32,47 @@ public class PartnerController {
     @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
 
-    @PostMapping
-    public ResponseEntity<Partner> createPartner(@RequestBody @Valid Partner partner) {
-        log.info("Received request to create Partner: {}", partner.getName());
-        phoneNumberValidationService.validatePhoneNumber(partner.getMobile());
-        return ResponseEntity.ok(partnerService.savePartner(partner));
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> createRetailer(
+            @RequestPart("data") String partnerJson,
+            @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
+            @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
+            @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
+            @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
+            @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
+    ) throws IOException {
+        log.info("Received request to create Partner: {}", partnerJson);
+        Partner partner = JsonUtil.parseJson(partnerJson, Partner.class);
+
+        Partner savedPartner= partnerService.savePartner(
+                partner, aadhaarCardFrontImage, aadhaarCardBackImage, panCardImage, shopImage, businessProofImage);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedPartner);
     }
 
-    @PutMapping("/{partnerId}")
-    public ResponseEntity<Partner> updatePartner(@PathVariable String partnerId, @RequestBody @Valid Partner updatedPartner) {
-        log.info("Received request to update Partner with ID: {}", partnerId);
-        return ResponseEntity.ok(partnerService.updatePartner(partnerId, updatedPartner));
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Partner> updatePartner(
+            @PathVariable String id,
+            @RequestPart("data") String partnerJson,
+            @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
+            @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
+            @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
+            @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
+            @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
+    ) throws IOException {
+
+        Partner partner = JsonUtil.parseJson(partnerJson, Partner.class);
+
+        Partner updatedPartner = partnerService.updatePartner(
+                id,
+                partner,
+                aadhaarCardFrontImage,
+                aadhaarCardBackImage,
+                panCardImage,
+                shopImage,
+                businessProofImage
+        );
+
+        return ResponseEntity.ok(updatedPartner);
     }
 
     @GetMapping

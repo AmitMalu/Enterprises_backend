@@ -1,13 +1,16 @@
 package com.im.admin.controller.advice;
 
 
+import com.im.admin.dto.CustomResponseDTO;
 import com.im.admin.exception.CustomValidationException;
 import com.im.admin.exception.FileValidationException;
 import com.im.admin.exception.NoPendingRecordsFoundException;
+import com.im.admin.exception.UserNotFoundException;
 import com.im.admin.response.CommonResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -52,6 +55,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errors);
     }
 
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<CustomResponseDTO> handleUserNotFound(UserNotFoundException ex) {
+        log.error("UserNotFoundException: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new CustomResponseDTO(400, ex.getMessage()));
+    }
+
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
@@ -82,6 +93,33 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(FileValidationException.class)
     public ResponseEntity<String> handleFileValidationException(FileValidationException ex) {
         return ResponseEntity.badRequest().body(ex.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<CommonResponse<Object>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
+        String message = "Duplicate entry or constraint violation";
+
+        if (ex.getRootCause() != null && ex.getRootCause().getMessage() != null) {
+            if (ex.getRootCause().getMessage().contains("abbreviation")) {
+                message = "Abbreviation must be unique. This value already exists.";
+            }
+        }
+
+        CommonResponse<Object> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.BAD_REQUEST.value());
+        response.setMessage(message);
+        response.setData(null);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<CommonResponse<Object>> handleGeneralException(Exception ex) {
+        CommonResponse<Object> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        response.setMessage("Something went wrong");
+        response.setData(null);
+        return ResponseEntity.ok(response);
     }
 }
 
