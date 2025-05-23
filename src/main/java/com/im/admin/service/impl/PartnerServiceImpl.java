@@ -84,6 +84,11 @@ public class PartnerServiceImpl implements PartnerService {
             }
         }
 
+        if (partnerRepository.existsByAbbreviation(partner.getAbbreviation())) {
+            errors.add(new FieldErrorDetailsDTO("abbreviation",
+                    "Abbreviation '" + partner.getAbbreviation() + "' already exists."));
+        }
+
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }

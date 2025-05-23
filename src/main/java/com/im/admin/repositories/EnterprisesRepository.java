@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface EnterprisesRepository extends JpaRepository<Enterprises, String> {
 
-    //find(String id);
+    boolean existsByAbbreviation(String abbreviation);
 
     List<Enterprises> findByStatus(String status);
 

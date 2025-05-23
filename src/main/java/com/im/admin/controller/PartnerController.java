@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Partner;
 import com.im.admin.entities.Retailer;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.PartnerService;
 import com.im.admin.service.impl.PhoneNumberValidationService;
 import com.im.admin.util.JsonUtil;
@@ -33,7 +34,7 @@ public class PartnerController {
     private PhoneNumberValidationService phoneNumberValidationService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> createRetailer(
+    public ResponseEntity<CommonResponse<Partner>> createRetailer(
             @RequestPart("data") String partnerJson,
             @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
             @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
@@ -46,7 +47,13 @@ public class PartnerController {
 
         Partner savedPartner= partnerService.savePartner(
                 partner, aadhaarCardFrontImage, aadhaarCardBackImage, panCardImage, shopImage, businessProofImage);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedPartner);
+
+        CommonResponse<Partner> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.OK.value());
+        response.setMessage("Partner created successfully");
+        response.setData(savedPartner);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
