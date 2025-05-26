@@ -36,13 +36,14 @@ public class Retailer {
     @NotBlank(message = "Name is mandatory")
     private String name;
 
-    @NotBlank(message = "Mobile is mandatory")
+    @NotBlank(message = "Mobile Number is mandatory")
+    @Column(name = "mobile_number", nullable = false, unique = true)
     @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
-    private String mobile;
+    private String mobileNumber;
 
     @NotBlank(message = "Email is mandatory")
     @Email(message = "Invalid email format")
-    private String email;
+    private String emailId;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dob;

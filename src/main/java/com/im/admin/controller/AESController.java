@@ -101,7 +101,7 @@ public class AESController {
 
 			Optional<UserDetails> optionalUser = userDetailsRepository.findByMobileNumber(username);
 			if (optionalUser.isEmpty()) {
-				optionalUser = userDetailsRepository.findByEmail(username);
+				optionalUser = userDetailsRepository.findByEmailId(username);
 			}
 
 			if (optionalUser.isEmpty()) {

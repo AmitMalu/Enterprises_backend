@@ -34,9 +34,10 @@ public class SuperDistributor {
     @NotBlank(message = "Name is mandatory")
     private String name;
 
-    @NotBlank(message = "Mobile is mandatory")
+    @NotBlank(message = "Mobile Number is mandatory")
+    @Column(name = "mobile_number", nullable = false, unique = true)
     @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
-    private String mobile;
+    private String mobileNumber;
 
     @NotBlank(message = "Email is mandatory")
     @Email(message = "Invalid email format")
@@ -47,10 +48,6 @@ public class SuperDistributor {
     @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
     @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
     private String abbreviation;
-
-    @NotBlank(message = "Email is mandatory")
-    @Email(message = "Invalid email format")
-    private String email;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dob;

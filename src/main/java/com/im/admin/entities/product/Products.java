@@ -29,9 +29,6 @@ public class Products {
     @Column(name = "name", nullable = false)
     private String name;
 
-    //@Column(name = "wallet_type")
-    //private String walletType;
-
     @NotNull(message = "Product code cannot be null")
     @NotBlank(message = "Product code cannot be blank")
     @Column(name = "product_code", nullable = false, unique = true)
@@ -115,10 +112,6 @@ public class Products {
     @NotNull(message = "Maximum single transaction amount is required")
     @Column(name = "maximum_single_transaction_amount", nullable = false)
     private Double maximumSingleTransactionAmount;
-
-    // @NotNull(message = "Surcharge status is required")
-    //@Column(name = "surcharge", nullable = false)
-    //private Boolean surcharge;
 
     @NotNull(message = "SGST is required")
     @Column(name = "sgst", nullable = false)

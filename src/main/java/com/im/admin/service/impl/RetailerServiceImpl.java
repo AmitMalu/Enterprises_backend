@@ -70,7 +70,7 @@ public class RetailerServiceImpl implements RetailerService {
 
         // Phone validation
         try {
-            phoneNumberValidationService.validatePhoneNumber(retailer.getMobile());
+            phoneNumberValidationService.validatePhoneNumber(retailer.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -146,7 +146,7 @@ public class RetailerServiceImpl implements RetailerService {
         // Validate mobile
         List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
-            phoneNumberValidationService.validatePhoneNumber(retailer.getMobile());
+            phoneNumberValidationService.validatePhoneNumber(retailer.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -157,9 +157,9 @@ public class RetailerServiceImpl implements RetailerService {
 
         if (retailer.getTitle() != null) existingRetailer.setTitle(retailer.getTitle());
         if (retailer.getName() != null) existingRetailer.setName(retailer.getName());
-        if (retailer.getMobile() != null) existingRetailer.setMobile(retailer.getMobile());
+        if (retailer.getMobileNumber() != null) existingRetailer.setMobileNumber(retailer.getMobileNumber());
         if (retailer.getAbbreviation() != null) existingRetailer.setAbbreviation(retailer.getAbbreviation());
-        if (retailer.getEmail() != null) existingRetailer.setEmail(retailer.getEmail());
+        if (retailer.getEmailId() != null) existingRetailer.setEmailId(retailer.getEmailId());
         if (retailer.getDob() != null) existingRetailer.setDob(retailer.getDob());
         if (retailer.getOutletName() != null) existingRetailer.setOutletName(retailer.getOutletName());
         if (retailer.getCompanyType() != null) existingRetailer.setCompanyType(retailer.getCompanyType());
