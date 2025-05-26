@@ -32,10 +32,10 @@ public class Enterprises {
     @Column(name = "company_name")
     private String companyName;
 
-    @NotBlank(message = "Mobile is mandatory")
+    @NotBlank(message = "Mobile Number is mandatory")
+    @Column(name = "mobile_number", nullable = false, unique = true)
     @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
-    @Column(name = "mobile_no")
-    private String mobileNo;
+    private String mobileNumber;
 
     @NotBlank(message = "Email is mandatory")
     @Email(message = "Invalid email format")
@@ -58,7 +58,7 @@ public class Enterprises {
             @AttributeOverride(name = "zipCode", column = @Column(name = "main_zip_code"))
     })
     @Valid
-    private Address registeredAddress;
+    private Address address;
 
     @Column(name = "business_desc")
     private String businessDesc;
@@ -74,13 +74,6 @@ public class Enterprises {
     @Pattern(regexp = "\\d{2}[A-Z]{5}\\d{4}[A-Z]{1}\\d{1}[A-Z]{1}\\d{1}", message = "Invalid GST number")
     @Column(name = "gst_number")
     private String GSTNumber;
-
-    @NotBlank(message = "Bank account details are required")
-    @Column(name = "bank_account_details")
-    private String bankAccountDetails;
-
-    @Column(name = "financial_statements")
-    private String financialStatements;
 
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)

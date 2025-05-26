@@ -20,6 +20,9 @@ public class SchemeAllocation {
     @Column(name = "sub_product_code", nullable = false)
     private String subProductCode;
 
+    @Column(name = "product_code", nullable = false)
+    private String productCode;
+
     @Column(name = "scheme_code", nullable = false)
     private String schemeCode;
 }

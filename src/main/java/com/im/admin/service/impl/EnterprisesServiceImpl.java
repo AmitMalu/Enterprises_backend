@@ -65,7 +65,7 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
         // Phone validation
         try {
-            phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNo());
+            phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -137,7 +137,7 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         // Validate mobile
         List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
-            phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNo());
+            phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -148,14 +148,14 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
         //if (enterprises.getTit != null) existingEnterprises.setTitle(enterprises.getTitle());
         //if (enterprises.getName() != null) existingEnterprises.setName(enterprises.getName());
-        if (enterprises.getMobileNo() != null) existingEnterprises.setMobileNo(enterprises.getMobileNo());
+        if (enterprises.getMobileNumber() != null) existingEnterprises.setMobileNumber(enterprises.getMobileNumber());
         if (enterprises.getAbbreviation() != null) existingEnterprises.setAbbreviation(enterprises.getAbbreviation());
         if (enterprises.getEmailId() != null) existingEnterprises.setEmailId(enterprises.getEmailId());
         //if (enterprises.getDob() != null) existingEnterprises.setDob(enterprises.getDob());
         //if (enterprises.getOutletName() != null) existingEnterprises.setOutletName(enterprises.getOutletName());
         if (enterprises.getCompanyType() != null) existingEnterprises.setCompanyType(enterprises.getCompanyType());
         //if (enterprises.getCompetitor() != null) existingEnterprises.setCompetitor(enterprises.getCompetitor());
-        if (enterprises.getRegisteredAddress() != null) existingEnterprises.setRegisteredAddress(enterprises.getRegisteredAddress());
+        if (enterprises.getAddress() != null) existingEnterprises.setAddress(enterprises.getAddress());
         //if (enterprises.getOutletAddress() != null) existingEnterprises.setOutletAddress(enterprises.getOutletAddress());
 
 

@@ -10,10 +10,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "card_type")
+@Table(name = "card_type_master")
 @AllArgsConstructor
 @NoArgsConstructor
-public class CardType {
+public class CardTypeMaster {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

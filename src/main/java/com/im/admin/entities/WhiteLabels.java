@@ -29,10 +29,10 @@ public class WhiteLabels {
     @Column(name = "title", nullable = false)
     private String title;
 
-    @NotBlank(message = "Mobile is mandatory")
+    @NotBlank(message = "Mobile Number is mandatory")
+    @Column(name = "mobile_number", nullable = false, unique = true)
     @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
-    @Column(name = "mobile_no")
-    private String mobileNo;
+    private String mobileNumber;
 
     @NotBlank(message = "Email is mandatory")
     @Email(message = "Invalid email format")
