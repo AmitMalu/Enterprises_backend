@@ -1,5 +1,7 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.DistributorPostpaidAmount;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -49,6 +52,12 @@ public class DistributorServiceImpl implements DistributorService {
     @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+    @Autowired
+    private ObjectMapper objectMapper;
+
+
     @Transactional
     @Override
     public Distributor createDistributor(Distributor distributor,
@@ -57,6 +66,8 @@ public class DistributorServiceImpl implements DistributorService {
                                          MultipartFile panCardImage,
                                          MultipartFile shopImage,
                                          MultipartFile businessProofImage) throws IOException {
+
+        LocalDateTime RequestDateTime = LocalDateTime.now();
 
         // Field Validation
         Set<ConstraintViolation<Distributor>> violations = validator.validate(distributor);
@@ -115,6 +126,22 @@ public class DistributorServiceImpl implements DistributorService {
         DistributorPostpaidAmount postpaid = new DistributorPostpaidAmount();
         postpaid.setDistributorId(savedDistributor);
         postpaidAmountRepository.save(postpaid);
+
+
+        LocalDateTime ResponseDateTime = LocalDateTime.now();
+        String DistributorRequest  = objectMapper.writeValueAsString(distributor);
+        String DistributorResponse  = objectMapper.writeValueAsString(savedDistributor);
+
+        commonFunctions.saveHierarchyLogs(
+                RequestDateTime,
+                DistributorRequest,
+                null, // IP address as null
+                ResponseDateTime,
+                DistributorResponse
+        );
+
+
+
 
         return savedDistributor;
     }

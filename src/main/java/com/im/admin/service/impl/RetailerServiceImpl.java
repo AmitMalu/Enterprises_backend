@@ -1,5 +1,7 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.dto.RetailerDTO;
 import com.im.admin.entities.Distributor;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -51,6 +54,11 @@ public class RetailerServiceImpl implements RetailerService {
     @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Transactional
     @Override
     public Retailer createRetailer(Retailer retailer,
@@ -61,6 +69,8 @@ public class RetailerServiceImpl implements RetailerService {
                                    MultipartFile businessProofImage) throws IOException {
 
         log.info("Creating new retailer: {}", retailer.getName());
+
+        LocalDateTime RequestDateTime = LocalDateTime.now();
 
         // Field Validation
         Set<ConstraintViolation<Retailer>> violations = validator.validate(retailer);
@@ -122,6 +132,18 @@ public class RetailerServiceImpl implements RetailerService {
         postpaidAmount.setRetailerId(savedRetailer);
         postpaidAmountRepository.save(postpaidAmount);
         log.info("Postpaid amount record created for Retailer ID: {}", savedRetailer.getRetailerId());
+
+        LocalDateTime ResponseDateTime = LocalDateTime.now();
+        String retailerRequest  = objectMapper.writeValueAsString(retailer);
+        String retailerResponse  = objectMapper.writeValueAsString(savedRetailer);
+
+        commonFunctions.saveHierarchyLogs(
+                RequestDateTime,
+                retailerRequest,
+                null, // IP address as null
+                ResponseDateTime,
+                retailerResponse
+        );
 
         return savedRetailer;
     }

@@ -1,5 +1,7 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Partner;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -50,6 +53,12 @@ public class PartnerServiceImpl implements PartnerService {
     @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+    @Autowired
+    private ObjectMapper objectMapper;
+
+
     @Transactional
     @Override
     public Partner savePartner(Partner partner,
@@ -57,6 +66,8 @@ public class PartnerServiceImpl implements PartnerService {
                                MultipartFile aadhaarCardBackImage,
                                MultipartFile panCardImage, MultipartFile shopImage,
                                MultipartFile businessProofImage) throws IOException {
+
+        LocalDateTime RequestDateTime = LocalDateTime.now();
         // Field Validation
         Set<ConstraintViolation<Partner>> violations = validator.validate(partner);
         List<FieldErrorDetailsDTO> errors = violations.stream()
@@ -112,6 +123,19 @@ public class PartnerServiceImpl implements PartnerService {
         PartnerPostpaidAmount postpaidAmount = new PartnerPostpaidAmount();
         postpaidAmount.setPartnerId(savedPartner);
         partnerPostpaidAmountRepository.save(postpaidAmount);
+
+
+        LocalDateTime ResponseDateTime = LocalDateTime.now();
+        String PartnerRequest  = objectMapper.writeValueAsString(partner);
+        String PartnerResponse  = objectMapper.writeValueAsString(savedPartner);
+
+        commonFunctions.saveHierarchyLogs(
+                RequestDateTime,
+                PartnerRequest,
+                null, // IP address as null
+                ResponseDateTime,
+                PartnerResponse
+        );
 
         log.info("Successfully saved Partner: {}", savedPartner.getPartnerId());
         return savedPartner;

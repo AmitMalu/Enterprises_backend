@@ -1,5 +1,7 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Enterprises;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,6 +51,11 @@ public class EnterprisesServiceImpl implements EnterprisesService {
     @Autowired
     private Validator validator;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Transactional
     @Override
     public Enterprises saveEnterprise(Enterprises enterprises,
@@ -56,6 +64,8 @@ public class EnterprisesServiceImpl implements EnterprisesService {
                                          MultipartFile panCardImage,
                                          MultipartFile shopImage,
                                          MultipartFile businessProofImage) throws IOException {
+
+        LocalDateTime RequestDateTime = LocalDateTime.now();
 
         // Field Validation
         Set<ConstraintViolation<Enterprises>> violations = validator.validate(enterprises);
@@ -114,6 +124,17 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         postpaid.setEnterprise(savedEnterprise);
         postpaidRepository.save(postpaid);
 
+        LocalDateTime ResponseDateTime = LocalDateTime.now();
+        String EnterpriseRequest  = objectMapper.writeValueAsString(enterprises);
+        String EnterpriseResponse  = objectMapper.writeValueAsString(savedEnterprise);
+
+        commonFunctions.saveHierarchyLogs(
+                RequestDateTime,
+                EnterpriseRequest,
+                null, // IP address as null
+                ResponseDateTime,
+                EnterpriseResponse
+        );
         return savedEnterprise;
     }
 
