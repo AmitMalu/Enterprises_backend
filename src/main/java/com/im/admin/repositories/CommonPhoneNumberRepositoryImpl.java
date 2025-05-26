@@ -19,12 +19,12 @@ public class CommonPhoneNumberRepositoryImpl implements CommonPhoneNumberReposit
             SELECT CASE
                 WHEN EXISTS (SELECT 1 FROM super_admin WHERE mobile_number = :phoneNumber) THEN 'Super Admin'
                 WHEN EXISTS (SELECT 1 FROM admin WHERE mobile_number = :phoneNumber) THEN 'Admin'
-                WHEN EXISTS (SELECT 1 FROM enterprises WHERE mobile_no = :phoneNumber) THEN 'Enterprise'
-                WHEN EXISTS (SELECT 1 FROM white_labels WHERE mobile_no = :phoneNumber) THEN 'Whitelabel'
-                WHEN EXISTS (SELECT 1 FROM super_distributor WHERE mobile = :phoneNumber) THEN 'SuperDistributor'
-                WHEN EXISTS (SELECT 1 FROM partner WHERE mobile = :phoneNumber) THEN 'Partner'
-                WHEN EXISTS (SELECT 1 FROM distributor WHERE mobile = :phoneNumber) THEN 'Distributor'
-                WHEN EXISTS (SELECT 1 FROM retailer WHERE mobile = :phoneNumber) THEN 'Retailer'
+                WHEN EXISTS (SELECT 1 FROM enterprises WHERE mobile_number = :phoneNumber) THEN 'Enterprise'
+                WHEN EXISTS (SELECT 1 FROM white_labels WHERE mobile_number = :phoneNumber) THEN 'Whitelabel'
+                WHEN EXISTS (SELECT 1 FROM super_distributor WHERE mobile_number = :phoneNumber) THEN 'SuperDistributor'
+                WHEN EXISTS (SELECT 1 FROM partner WHERE mobile_number = :phoneNumber) THEN 'Partner'
+                WHEN EXISTS (SELECT 1 FROM distributor WHERE mobile_number = :phoneNumber) THEN 'Distributor'
+                WHEN EXISTS (SELECT 1 FROM retailer WHERE mobile_number = :phoneNumber) THEN 'Retailer'
                 ELSE NULL END
         """;
 
