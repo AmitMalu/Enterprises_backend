@@ -1,5 +1,7 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -49,6 +52,12 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
     @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+    @Autowired
+    private ObjectMapper objectMapper;
+
+
     @Transactional
     @Override
     public SuperDistributor saveSuperDistributor(SuperDistributor superDistributor,
@@ -57,6 +66,8 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
                                          MultipartFile panCardImage,
                                          MultipartFile shopImage,
                                          MultipartFile businessProofImage) throws IOException {
+
+        LocalDateTime RequestDateTime = LocalDateTime.now();
 
         // Field Validation
         Set<ConstraintViolation<SuperDistributor>> violations = validator.validate(superDistributor);
@@ -116,8 +127,19 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
             superDistributorPostpaidAmountRepository.save(postpaidAmount);
             log.info("Postpaid amount record created for Super Distributor: {}", superDistributor.getSuperDistributorId());
 
-            return savedDistributor;
+        LocalDateTime ResponseDateTime = LocalDateTime.now();
+        String SuperDistributerRequest  = objectMapper.writeValueAsString(superDistributor);
+        String SuperDistributerResponse  = objectMapper.writeValueAsString(savedDistributor);
 
+        commonFunctions.saveHierarchyLogs(
+                RequestDateTime,
+                SuperDistributerRequest,
+                null, // IP address as null
+                ResponseDateTime,
+                SuperDistributerResponse
+        );
+
+            return savedDistributor;
     }
 
     @Override
