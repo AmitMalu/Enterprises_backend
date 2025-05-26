@@ -59,7 +59,7 @@ public class UserDetails {
 
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
-    private String email;
+    private String emailId;
 
     @Column(name = "otp_expiry_time")
     private LocalTime otpExpiryTime;

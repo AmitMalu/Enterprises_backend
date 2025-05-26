@@ -107,7 +107,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(rt.getStatus())) return "Already processed";
                 if (isApproved) {
                     rt.setStatus("APPROVED");
-                    response = createUserDetails(hierarchyType, rt.getRetailerId(), rt.getMobile(), rt.getEmail(), rt.getName());
+                    response = createUserDetails(hierarchyType, rt.getRetailerId(), rt.getMobileNumber(), rt.getEmailId(), rt.getName());
                 } else {
                     rt.setStatus("REJECTED");
                     rt.setRejectionReason(rejectionReason);
@@ -121,7 +121,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(dt.getStatus())) return "Already processed";
                 if (isApproved) {
                     dt.setStatus("APPROVED");
-                    response = createUserDetails(hierarchyType, dt.getDistributorId(), dt.getMobile(), dt.getEmail(), dt.getName());
+                    response = createUserDetails(hierarchyType, dt.getDistributorId(), dt.getMobileNumber(), dt.getEmailId(), dt.getName());
                 } else {
                     dt.setStatus("REJECTED");
                     dt.setRejectionReason(rejectionReason);
@@ -135,7 +135,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(pt.getStatus())) return "Already processed";
                 if (isApproved) {
                     pt.setStatus("APPROVED");
-                    response = createUserDetails(hierarchyType, pt.getPartnerId(), pt.getMobile(), pt.getEmail(), pt.getName());
+                    response = createUserDetails(hierarchyType, pt.getPartnerId(), pt.getMobileNumber(), pt.getEmailId(), pt.getName());
                 } else {
                     pt.setStatus("REJECTED");
                     pt.setRejectionReason(rejectionReason);
@@ -149,7 +149,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(sd.getStatus())) return "Already processed";
                 if (isApproved) {
                     sd.setStatus("APPROVED");
-                    response = createUserDetails(hierarchyType, sd.getSuperDistributorId(), sd.getMobile(), sd.getEmail(), sd.getName());
+                    response = createUserDetails(hierarchyType, sd.getSuperDistributorId(), sd.getMobileNumber(), sd.getEmailId(), sd.getName());
                 } else {
                     sd.setStatus("REJECTED");
                     sd.setRejectionReason(rejectionReason);
@@ -163,7 +163,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(wl.getStatus())) return "Already processed";
                 if (isApproved) {
                     wl.setStatus("APPROVED");
-                    response = createUserDetails(hierarchyType, wl.getWhiteLabelId(), wl.getMobileNo(), wl.getEmailId(), wl.getTitle());
+                    response = createUserDetails(hierarchyType, wl.getWhiteLabelId(), wl.getMobileNumber(), wl.getEmailId(), wl.getTitle());
                 } else {
                     wl.setStatus("REJECTED");
                     wl.setRejectionReason(rejectionReason);
@@ -177,7 +177,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(et.getStatus())) return "Already processed";
                 if (isApproved) {
                     et.setStatus("APPROVED");
-                    response = createUserDetails(hierarchyType, et.getEnterpriseId(), et.getMobileNo(), et.getEmailId(), et.getCompanyName());
+                    response = createUserDetails(hierarchyType, et.getEnterpriseId(), et.getMobileNumber(), et.getEmailId(), et.getCompanyName());
                 } else {
                     et.setStatus("REJECTED");
                     et.setRejectionReason(rejectionReason);
@@ -216,7 +216,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         user.setHierarchyCode(hierarchyType);
         user.setHierarchyId(hierarchyId);
         user.setMobileNumber(mobileNo);
-        user.setEmail(email);
+        user.setEmailId(email);
         user.setLoginPassword(encodedPassword);
         user.setUserStatus("Active");
         user.setCreatedBy("ADMIN");

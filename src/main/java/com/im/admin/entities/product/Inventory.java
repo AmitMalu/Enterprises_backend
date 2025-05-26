@@ -22,9 +22,6 @@ class Inventory {
     @Column(name = "inventory_price", nullable = false)
     private Double inventoryPrice;
 
-    @Column(name = "sub_products")
-    private String subProducts;
-
     @NotNull(message = "Virtual status is required")
     @Column(name = "is_virtual", nullable = false)
     private Boolean isVirtual;

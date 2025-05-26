@@ -70,7 +70,7 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 
         // Phone validation
         try {
-            phoneNumberValidationService.validatePhoneNumber(whiteLabels.getMobileNo());
+            phoneNumberValidationService.validatePhoneNumber(whiteLabels.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -147,7 +147,7 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
         // Validate mobile
         List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
-            phoneNumberValidationService.validatePhoneNumber(whiteLabels.getMobileNo());
+            phoneNumberValidationService.validatePhoneNumber(whiteLabels.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -157,7 +157,7 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
         }
 
         if (whiteLabels.getTitle() != null) existingWhiteLabels.setTitle(whiteLabels.getTitle());
-        if (whiteLabels.getMobileNo() != null) existingWhiteLabels.setMobileNo(whiteLabels.getMobileNo());
+        if (whiteLabels.getMobileNumber() != null) existingWhiteLabels.setMobileNumber(whiteLabels.getMobileNumber());
         if (whiteLabels.getAbbreviation() != null) existingWhiteLabels.setAbbreviation(whiteLabels.getAbbreviation());
         if (whiteLabels.getEmailId() != null) existingWhiteLabels.setEmailId(whiteLabels.getEmailId());
         if (whiteLabels.getAddress() != null) existingWhiteLabels.setAddress(whiteLabels.getAddress());

@@ -31,8 +31,9 @@ public class Distributor {
     private String name;
 
     @NotBlank(message = "Mobile is mandatory")
+    @Column(name = "mobile_number", nullable = false, unique = true)
     @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
-    private String mobile;
+    private String mobileNumber;
 
     @NotBlank(message = "Abbreviation is required")
     @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
@@ -42,7 +43,7 @@ public class Distributor {
 
     @NotBlank(message = "Email is mandatory")
     @Email(message = "Invalid email format")
-    private String email;
+    private String emailId;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dob;

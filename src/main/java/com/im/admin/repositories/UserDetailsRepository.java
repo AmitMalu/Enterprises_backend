@@ -12,7 +12,7 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
 
     Optional<UserDetails> findByMobileNumber(String mobileNumber);
 
-    Optional<UserDetails> findByEmail(String email);
+    Optional<UserDetails> findByEmailId(String email);
 
 
 }

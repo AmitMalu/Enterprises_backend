@@ -66,7 +66,7 @@ public class DistributorServiceImpl implements DistributorService {
 
         // Phone validation
         try {
-            phoneNumberValidationService.validatePhoneNumber(distributor.getMobile());
+            phoneNumberValidationService.validatePhoneNumber(distributor.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -139,7 +139,7 @@ public class DistributorServiceImpl implements DistributorService {
         // Validate mobile
         List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
-            phoneNumberValidationService.validatePhoneNumber(distributor.getMobile());
+            phoneNumberValidationService.validatePhoneNumber(distributor.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -150,9 +150,9 @@ public class DistributorServiceImpl implements DistributorService {
 
         if (distributor.getTitle() != null) existingDistributor.setTitle(distributor.getTitle());
         if (distributor.getName() != null) existingDistributor.setName(distributor.getName());
-        if (distributor.getMobile() != null) existingDistributor.setMobile(distributor.getMobile());
+        if (distributor.getMobileNumber() != null) existingDistributor.setMobileNumber(distributor.getMobileNumber());
         if (distributor.getAbbreviation() != null) existingDistributor.setAbbreviation(distributor.getAbbreviation());
-        if (distributor.getEmail() != null) existingDistributor.setEmail(distributor.getEmail());
+        if (distributor.getEmailId() != null) existingDistributor.setEmailId(distributor.getEmailId());
         if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
         if (distributor.getOutletName() != null) existingDistributor.setOutletName(distributor.getOutletName());
         if (distributor.getCompanyType() != null) existingDistributor.setCompanyType(distributor.getCompanyType());

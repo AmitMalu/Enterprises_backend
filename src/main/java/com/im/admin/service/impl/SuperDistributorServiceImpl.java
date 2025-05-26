@@ -66,7 +66,7 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 
         // Phone validation
         try {
-            phoneNumberValidationService.validatePhoneNumber(superDistributor.getMobile());
+            phoneNumberValidationService.validatePhoneNumber(superDistributor.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -146,7 +146,7 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
         // Validate mobile
         List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
-            phoneNumberValidationService.validatePhoneNumber(superDistributor.getMobile());
+            phoneNumberValidationService.validatePhoneNumber(superDistributor.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -157,9 +157,9 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 
         if (superDistributor.getTitle() != null) existingSuperDistributor.setTitle(superDistributor.getTitle());
         if (superDistributor.getName() != null) existingSuperDistributor.setName(superDistributor.getName());
-        if (superDistributor.getMobile() != null) existingSuperDistributor.setMobile(superDistributor.getMobile());
+        if (superDistributor.getMobileNumber() != null) existingSuperDistributor.setMobileNumber(superDistributor.getMobileNumber());
         if (superDistributor.getAbbreviation() != null) existingSuperDistributor.setAbbreviation(superDistributor.getAbbreviation());
-        if (superDistributor.getEmail() != null) existingSuperDistributor.setEmail(superDistributor.getEmail());
+        if (superDistributor.getEmailId() != null) existingSuperDistributor.setEmailId(superDistributor.getEmailId());
         if (superDistributor.getDob() != null) existingSuperDistributor.setDob(superDistributor.getDob());
         if (superDistributor.getOutletName() != null) existingSuperDistributor.setOutletName(superDistributor.getOutletName());
         if (superDistributor.getCompanyType() != null) existingSuperDistributor.setCompanyType(superDistributor.getCompanyType());

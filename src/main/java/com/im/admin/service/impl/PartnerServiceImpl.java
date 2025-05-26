@@ -65,7 +65,7 @@ public class PartnerServiceImpl implements PartnerService {
 
         // Phone validation
         try {
-            phoneNumberValidationService.validatePhoneNumber(partner.getMobile());
+            phoneNumberValidationService.validatePhoneNumber(partner.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -137,7 +137,7 @@ public class PartnerServiceImpl implements PartnerService {
         // Validate mobile
         List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
-            phoneNumberValidationService.validatePhoneNumber(partner.getMobile());
+            phoneNumberValidationService.validatePhoneNumber(partner.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
@@ -148,9 +148,9 @@ public class PartnerServiceImpl implements PartnerService {
 
         if (partner.getTitle() != null) existingPartner.setTitle(partner.getTitle());
         if (partner.getName() != null) existingPartner.setName(partner.getName());
-        if (partner.getMobile() != null) existingPartner.setMobile(partner.getMobile());
+        if (partner.getMobileNumber() != null) existingPartner.setMobileNumber(partner.getMobileNumber());
         if (partner.getAbbreviation() != null) existingPartner.setAbbreviation(partner.getAbbreviation());
-        if (partner.getEmail() != null) existingPartner.setEmail(partner.getEmail());
+        if (partner.getEmailId() != null) existingPartner.setEmailId(partner.getEmailId());
         if (partner.getDob() != null) existingPartner.setDob(partner.getDob());
         if (partner.getOutletName() != null) existingPartner.setOutletName(partner.getOutletName());
         if (partner.getCompanyType() != null) existingPartner.setCompanyType(partner.getCompanyType());

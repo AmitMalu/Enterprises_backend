@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/auth")
@@ -48,7 +49,7 @@ public class AuthController {
         Optional<UserDetails> optionalUser = userDetailsRepository.findByMobileNumber(username);
 
         if (optionalUser.isEmpty()) {
-            optionalUser = userDetailsRepository.findByEmail(username);
+            optionalUser = userDetailsRepository.findByEmailId(username);
         }
 
         if (optionalUser.isEmpty()) {
@@ -117,7 +118,7 @@ public class AuthController {
             optionalUser = userDetailsRepository.findByMobileNumber(username);
         } else {
             // User entered email
-            optionalUser = userDetailsRepository.findByEmail(username);
+            optionalUser = userDetailsRepository.findByEmailId(username);
         }
 
         if (optionalUser.isEmpty()) {
@@ -168,17 +169,19 @@ public class AuthController {
                 }
             }
 
-
             if ("RT".equalsIgnoreCase(hierarchyCode)) {
                 List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
-                List<String> subProductCodes = schemes.stream()
-                        .map(SchemeAllocation::getSubProductCode)
-                        .distinct()
-                        .toList();
-                responseMap.put("sub_product_codes", subProductCodes);
+
+                // Group by product_code and collect list of sub_product_codes
+                Map<String, List<String>> productToSubProductsMap = schemes.stream()
+                        .collect(Collectors.groupingBy(
+                                SchemeAllocation::getProductCode,
+                                Collectors.mapping(SchemeAllocation::getSubProductCode, Collectors.toList())
+                        ));
+
+                responseMap.put("product_sub_product_codes", productToSubProductsMap);
             }
-
-
+            
             return ResponseEntity.ok(new CommonResponse<>(200, "OTP verified successfully", responseMap));
         } else {
             // Handle error response if status is not OK
@@ -194,7 +197,7 @@ public class AuthController {
         if (username.matches("\\d{10}")) {
             optionalUser = userDetailsRepository.findByMobileNumber(username);
         } else {
-            optionalUser = userDetailsRepository.findByEmail(username);
+            optionalUser = userDetailsRepository.findByEmailId(username);
         }
 
         if (optionalUser.isEmpty()) {
@@ -247,7 +250,7 @@ public class AuthController {
         if (username.matches("\\d{10}")) {
             optionalUser = userDetailsRepository.findByMobileNumber(username);
         } else {
-            optionalUser = userDetailsRepository.findByEmail(username);
+            optionalUser = userDetailsRepository.findByEmailId(username);
         }
 
         if (optionalUser.isEmpty()) {
@@ -277,7 +280,7 @@ public class AuthController {
         if (username.matches("\\d{10}")) {
             optionalUser = userDetailsRepository.findByMobileNumber(username);
         } else {
-            optionalUser = userDetailsRepository.findByEmail(username);
+            optionalUser = userDetailsRepository.findByEmailId(username);
         }
 
         if (optionalUser.isEmpty()) {
