@@ -1,5 +1,7 @@
 package com.im.admin.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.LoginRequestDto;
 import com.im.admin.entities.ImSubRole;
 import com.im.admin.entities.SchemeAllocation;
@@ -42,9 +44,26 @@ public class AuthController {
     @Autowired
     private SchemeAllocationRepository schemeAllocationRepository;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+    @Autowired
+    private ObjectMapper objectMapper;
+
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
+
+        LocalDateTime requestTime = LocalDateTime.now(); // capture request time
+        String requestJson = "";
+        String responseJson = "";
+
+        try {
+            requestJson = objectMapper.writeValueAsString(loginRequestDto);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
         String username = loginRequestDto.getUserName();
         Optional<UserDetails> optionalUser = userDetailsRepository.findByMobileNumber(username);
 
@@ -53,18 +72,41 @@ public class AuthController {
         }
 
         if (optionalUser.isEmpty()) {
-            return ResponseEntity.ok(new CommonResponse<>(401, "Invalid credentials: user not found", null));
+            CommonResponse<?> response = new CommonResponse<>(401, "Invalid credentials: user not found", null);
+            try {
+                responseJson = objectMapper.writeValueAsString(response);
+                commonFunctions.saveLoginLogs( requestJson, requestTime, responseJson,LocalDateTime.now(),null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return ResponseEntity.ok(response);
         }
 
         UserDetails user = optionalUser.get();
 
         if (isUserLocked(user)) {
-            return ResponseEntity.ok(new CommonResponse<>(403, "Account is locked due to multiple failed attempts. Try again later.", null));
+            CommonResponse<?> response = new CommonResponse<>(403, "Account is locked due to multiple failed attempts. Try again later.", null);
+            try {
+                responseJson = objectMapper.writeValueAsString(response);
+                commonFunctions.saveLoginLogs( requestJson, requestTime, responseJson,LocalDateTime.now(),null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return ResponseEntity.ok(response);
         }
 
         if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
-            return ResponseEntity.ok(new CommonResponse<>(403, "User account is not active. Please contact support.", null));
+
+            CommonResponse<?> response = new CommonResponse<>(403, "User account is not active. Please contact support.", null);
+            try {
+                responseJson = objectMapper.writeValueAsString(response);
+                commonFunctions.saveLoginLogs( requestJson, requestTime, responseJson,LocalDateTime.now(),null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return ResponseEntity.ok(response);
         }
+
 
         if (passwordEncoder.matches(loginRequestDto.getPassword(), user.getLoginPassword())) {
             // Reset failed attempts on successful login
@@ -80,7 +122,16 @@ public class AuthController {
             Map<String, String> otpData = new HashMap<>();
             otpData.put("otp", otp);
 
-            return ResponseEntity.ok(new CommonResponse<>(200, "OTP sent successfully", otpData));
+            CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData);
+            try {
+                responseJson = objectMapper.writeValueAsString(response);
+                commonFunctions.saveLoginLogs( requestJson, requestTime, responseJson,LocalDateTime.now(),null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return ResponseEntity.ok(response);
+
+
         } else {
             // Increase failed attempts
             int attempts = user.getFailedAttempts() != null ? user.getFailedAttempts() : 0;
@@ -97,9 +148,17 @@ public class AuthController {
                     "Account locked due to 5 failed attempts. Try again in 5 minutes." :
                     "Invalid credentials. Attempt " + attempts + " of 5.";
 
-            return ResponseEntity.ok(new CommonResponse<>(401, message, null));
+            CommonResponse<?> response = new CommonResponse<>(401, message, null);
+            try {
+                responseJson = objectMapper.writeValueAsString(response);
+                commonFunctions.saveLoginLogs( requestJson, requestTime, responseJson,LocalDateTime.now(),null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return ResponseEntity.ok(response);
         }
-    }
+        }
 
     private boolean isUserLocked(UserDetails user) {
         if (user.getLockTime() == null) return false;
