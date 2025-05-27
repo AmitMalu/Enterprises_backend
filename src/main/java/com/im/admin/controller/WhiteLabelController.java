@@ -45,7 +45,7 @@ public class WhiteLabelController {
 
         CommonResponse<WhiteLabels> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
-        response.setMessage("Distributor created successfully");
+        response.setMessage("White Label Created Successfully");
         response.setData(savedWhiteLabel);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

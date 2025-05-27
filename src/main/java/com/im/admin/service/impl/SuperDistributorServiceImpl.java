@@ -183,8 +183,6 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
         if (superDistributor.getAbbreviation() != null) existingSuperDistributor.setAbbreviation(superDistributor.getAbbreviation());
         if (superDistributor.getEmailId() != null) existingSuperDistributor.setEmailId(superDistributor.getEmailId());
         if (superDistributor.getDob() != null) existingSuperDistributor.setDob(superDistributor.getDob());
-        if (superDistributor.getOutletName() != null) existingSuperDistributor.setOutletName(superDistributor.getOutletName());
-        if (superDistributor.getCompanyType() != null) existingSuperDistributor.setCompanyType(superDistributor.getCompanyType());
         if (superDistributor.getAddress() != null) existingSuperDistributor.setAddress(superDistributor.getAddress());
         if (superDistributor.getOutletAddress() != null) existingSuperDistributor.setOutletAddress(superDistributor.getOutletAddress());
 
