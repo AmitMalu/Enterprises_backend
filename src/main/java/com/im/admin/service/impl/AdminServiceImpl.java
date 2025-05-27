@@ -1,5 +1,8 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.entities.Admin;
 import com.im.admin.entities.AdminPostpaidAmount;
 import com.im.admin.entities.AdminPrepaidAmount;
@@ -15,6 +18,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,14 +45,23 @@ public class AdminServiceImpl implements AdminService {
     @Autowired
     private IdGenerator idGenerator;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+
     @Override
     public Admin saveAdmin(Admin admin) {
         phoneNumberValidationService.validatePhoneNumber(admin.getMobileNumber());
 
-        admin.setId(idGenerator.generateId("Admin"));
-        Admin saveAdmin  = adminRepository.save(admin);
+        LocalDateTime RequestDateTime = LocalDateTime.now();
 
-        saveUserDetails(admin);
+        admin.setId(idGenerator.generateId("Admin"));
+        Admin saveAdmin = adminRepository.save(admin);
+
+        saveUserDetails(saveAdmin);
 
         AdminPostpaidAmount adminPostpaidAccount = new AdminPostpaidAmount();
         adminPostpaidAccount.setAdminId(saveAdmin);
@@ -55,6 +70,26 @@ public class AdminServiceImpl implements AdminService {
         AdminPrepaidAmount adminPrepaidAccount = new AdminPrepaidAmount();
         adminPrepaidAccount.setAdminId(saveAdmin);
         adminPrepaidAmountRepository.save(adminPrepaidAccount);
+
+        LocalDateTime ResponseDateTime = LocalDateTime.now();
+
+        String DistributorRequest = null;
+        String DistributorResponse = null;
+        try {
+            DistributorRequest = objectMapper.writeValueAsString(admin);
+            DistributorResponse = objectMapper.writeValueAsString(saveAdmin);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace(); // Optional: Log it
+        }
+
+
+        commonFunctions.saveImLogs(
+                DistributorRequest,
+                RequestDateTime,
+                null, // IP address as null
+                DistributorResponse,
+                ResponseDateTime
+        );
 
         return saveAdmin;
     }
@@ -65,8 +100,15 @@ public class AdminServiceImpl implements AdminService {
         userDetails.setMobileNumber(admin.getMobileNumber());
         userDetails.setLoginUserName(admin.getUserName());
         userDetails.setLoginPassword(admin.getPassword());
+        userDetails.setHierarchyId(admin.getId());
+        userDetails.setEmailId(admin.getEmailId());
+
         userDetails.setCreatedBy("Admin");
+        userDetails.setCreatedDate(LocalDate.now());
+        userDetails.setCreatedTime(LocalTime.now());
         userDetails.setEditedBy("Admin");
+        userDetails.setEditedDate(LocalDate.now());
+        userDetails.setEditedTime(LocalTime.now());
 
         userDetailsRepository.save(userDetails);
 
