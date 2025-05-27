@@ -183,9 +183,6 @@ public class RetailerServiceImpl implements RetailerService {
         if (retailer.getAbbreviation() != null) existingRetailer.setAbbreviation(retailer.getAbbreviation());
         if (retailer.getEmailId() != null) existingRetailer.setEmailId(retailer.getEmailId());
         if (retailer.getDob() != null) existingRetailer.setDob(retailer.getDob());
-        if (retailer.getOutletName() != null) existingRetailer.setOutletName(retailer.getOutletName());
-        if (retailer.getCompanyType() != null) existingRetailer.setCompanyType(retailer.getCompanyType());
-        if (retailer.getCompetitor() != null) existingRetailer.setCompetitor(retailer.getCompetitor());
         if (retailer.getAddress() != null) existingRetailer.setAddress(retailer.getAddress());
         if (retailer.getOutletAddress() != null) existingRetailer.setOutletAddress(retailer.getOutletAddress());
 

@@ -177,7 +177,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(et.getStatus())) return "Already processed";
                 if (isApproved) {
                     et.setStatus("APPROVED");
-                    response = createUserDetails(hierarchyType, et.getEnterpriseId(), et.getMobileNumber(), et.getEmailId(), et.getCompanyName());
+                    response = createUserDetails(hierarchyType, et.getEnterpriseId(), et.getMobileNumber(), et.getEmailId(), et.getName());
                 } else {
                     et.setStatus("REJECTED");
                     et.setRejectionReason(rejectionReason);

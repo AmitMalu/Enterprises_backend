@@ -8,8 +8,11 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -48,22 +51,11 @@ public class Retailer {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dob;
 
-    @NotBlank(message = "Outlet Name is mandatory")
-    private String outletName;
-
-    private String companyType;
-
-    @Column(name = "mcc_category")
-    private String mccCategory;
-
-    @Column(name = "ORMS_ID")
-    private String ormsId;
-
-    @Column(name = "competitor")
-    private String competitor;
-
     @Embedded
     @AttributeOverrides({
+            @AttributeOverride(name = "outletName", column = @Column(name = "main_outlet_name")),
+            @AttributeOverride(name = "companyType", column = @Column(name = "main_company_type")),
+            @AttributeOverride(name = "companyName", column = @Column(name = "main_company_name")),
             @AttributeOverride(name = "address", column = @Column(name = "main_address")),
             @AttributeOverride(name = "city", column = @Column(name = "main_city")),
             @AttributeOverride(name = "state", column = @Column(name = "main_state")),
@@ -73,6 +65,9 @@ public class Retailer {
 
     @Embedded
     @AttributeOverrides({
+            @AttributeOverride(name = "outletName", column = @Column(name = "outlet_name")),
+            @AttributeOverride(name = "companyType", column = @Column(name = "outlet_company_type")),
+            @AttributeOverride(name = "companyName", column = @Column(name = "outlet_company_name")),
             @AttributeOverride(name = "address", column = @Column(name = "outlet_address")),
             @AttributeOverride(name = "city", column = @Column(name = "outlet_city")),
             @AttributeOverride(name = "state", column = @Column(name = "outlet_state")),
@@ -80,8 +75,14 @@ public class Retailer {
     })
     private Address outletAddress;
 
-    @Column(name = "district")
-    private String district;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "bankName", column = @Column(name = "bank_name")),
+            @AttributeOverride(name = "bankAccountNumber", column = @Column(name = "bank_account_number")),
+            @AttributeOverride(name = "ifscCode", column = @Column(name = "IFSC_code")),
+            @AttributeOverride(name = "branchName", column = @Column(name = "branch_name"))
+    })
+    private BankDetails bankDetails;
 
     @Column(name = "status")
     private String status = "PENDING";
@@ -98,13 +99,93 @@ public class Retailer {
     @Column(name = "aadhaar_card_back_image")
     private String aadhaarCardBackImage;
 
+    @Column(name = "aadhaar_number")
+    private String aadhaarNumber;
+
     @Column(name = "pan_card_image")
     private String panCardImage;
+
+    @Column(name = "pan_number")
+    private String panNumber;
 
     @Column(name = "shop_image")
     private String shopImage;
 
+    @Column(name = "shop_number")
+    private String shopNumber;
+
     @Column(name = "business_proof_image")
     private String businessProofImage;
+
+    @Column(name = "business_number")
+    private String businessNumber;
+
+    @CreationTimestamp
+    @Column(name = "created_on", nullable = false, updatable = false)
+    private LocalDateTime createdOn;
+
+    @Column(name = "created_by", nullable = false, updatable = false)
+    private String createdBy;
+
+    @UpdateTimestamp
+    @Column(name = "last_edited_on")
+    private LocalDateTime lastEditedOn;
+
+    @Column(name = "last_edited_by")
+    private String editedBy;
+
+    @Column(name = "created_by_ip_address", nullable = false, updatable = false)
+    private String createdByIPAddress;
+
+    @PrePersist
+    public void prePersistDefaults() {
+        if (this.address != null) {
+            if (this.address.getOutletName() == null) {
+                this.address.setOutletName("N/A");
+            }
+            if (this.address.getCompanyType() == null) {
+                this.address.setCompanyType("N/A");
+            }
+            if (this.address.getCompanyName() == null) {
+                this.address.setCompanyName("N/A");
+            }
+            if (this.address.getAddress() == null) {
+                this.address.setAddress("N/A");
+            }
+            if (this.address.getCity() == null) {
+                this.address.setCity("N/A");
+            }
+            if (this.address.getState() == null) {
+                this.address.setState("N/A");
+            }
+            if (this.address.getZipCode() == null) {
+                this.address.setZipCode("N/A");
+            }
+        }
+
+        if (this.outletAddress != null) {
+            if (this.outletAddress.getOutletName() == null) {
+                this.outletAddress.setOutletName("N/A");
+            }
+            if (this.outletAddress.getCompanyType() == null) {
+                this.outletAddress.setCompanyType("N/A");
+            }
+            if (this.outletAddress.getCompanyName() == null) {
+                this.outletAddress.setCompanyName("N/A");
+            }
+            if (this.outletAddress.getAddress() == null) {
+                this.outletAddress.setAddress("N/A");
+            }
+            if (this.outletAddress.getCity() == null) {
+                this.outletAddress.setCity("N/A");
+            }
+            if (this.outletAddress.getState() == null) {
+                this.outletAddress.setState("N/A");
+            }
+            if (this.outletAddress.getZipCode() == null) {
+                this.outletAddress.setZipCode("N/A");
+            }
+        }
+    }
 
 }

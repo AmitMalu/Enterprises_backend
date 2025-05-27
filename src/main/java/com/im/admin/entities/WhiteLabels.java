@@ -23,9 +23,6 @@ public class WhiteLabels {
     @Column(name = "whitelabel_id", nullable = false, length = 15)
     private String whiteLabelId;  // Format: ABC-WL-001
 
-    @Column(name = "IM_account_member_ID")
-    private String imAccountMemberID;
-
     @Column(name = "title", nullable = false)
     private String title;
 
@@ -44,75 +41,49 @@ public class WhiteLabels {
     @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
     private String abbreviation;
 
-    @Column(name = "address")
-    private String address;
-
     @NotBlank(message = "Parent account is required")
     @Column(name = "parent_account")
     private String parentAccount;
 
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "outletName", column = @Column(name = "main_outlet_name")),
+            @AttributeOverride(name = "companyType", column = @Column(name = "main_company_type")),
+            @AttributeOverride(name = "companyName", column = @Column(name = "main_company_name")),
+            @AttributeOverride(name = "address", column = @Column(name = "main_address")),
+            @AttributeOverride(name = "city", column = @Column(name = "main_city")),
+            @AttributeOverride(name = "state", column = @Column(name = "main_state")),
+            @AttributeOverride(name = "zipCode", column = @Column(name = "main_zip_code"))
+    })
+    private Address address;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "outletName", column = @Column(name = "outlet_name")),
+            @AttributeOverride(name = "companyType", column = @Column(name = "outlet_company_type")),
+            @AttributeOverride(name = "companyName", column = @Column(name = "outlet_company_name")),
+            @AttributeOverride(name = "address", column = @Column(name = "outlet_address")),
+            @AttributeOverride(name = "city", column = @Column(name = "outlet_city")),
+            @AttributeOverride(name = "state", column = @Column(name = "outlet_state")),
+            @AttributeOverride(name = "zipCode", column = @Column(name = "outlet_zip_code"))
+    })
+    private Address outletAddress;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "bankName", column = @Column(name = "bank_name")),
+            @AttributeOverride(name = "bankAccountNumber", column = @Column(name = "bank_account_number")),
+            @AttributeOverride(name = "ifscCode", column = @Column(name = "IFSC_code")),
+            @AttributeOverride(name = "branchName", column = @Column(name = "branch_name"))
+    })
+    private BankDetails bankDetails;
+
     @Column(name = "domain_url")
     private String domainURL;
 
-    @Column(name = "terms_and_condition_url")
-    private String termsAndConditionURL;
-
-    @Column(name = "privacy_policy_url")
-    private String privacyPolicyURL;
-
-    @Column(name = "refund_and_cancellation_url")
-    private String refundAndCancellationURL;
-
-    @Column(name = "is_service_allow", nullable = false)
-    private Boolean isServiceAllow = false;
-
-    @Column(name = "allow_prepaid_cards")
-    private Boolean allowPrepaidCards;
-
-    @Column(name = "prepaid_card_name")
-    private String prepaidCardName;
-
-    @Column(name = "allow_postpaid_cards")
-    private Boolean allowPostpaidCards;
-
-    @Column(name = "postpaid_card_name")
-    private String postpaidCardName;
-
-    @Column(name = "products", columnDefinition = "TEXT")
-    private String products; // Store as a comma-separated string
-
-    @Column(name = "is_redirect")
-    private Boolean isRedirect;
-
-    @Column(name = "appID")
-    private String appID;
-
-    @Column(name = "captcha_site_key")
-    private String captchaSiteKey;
-
-    @Column(name = "captcha_secret_key")
-    private String captchaSecretKey;
-
-    @Column(name = "remarks")
-    private String remarks;
-
     @ManyToOne
-    @JoinColumn(name = "theme_id", nullable = true)
+    @JoinColumn(name = "theme_id")
     private Theme theme;
-
-    @CreationTimestamp
-    @Column(name = "created_on", nullable = false, updatable = false)
-    private LocalDateTime createdOn;
-
-    @Column(name = "created_by", nullable = false)
-    private String createdBy;
-
-    @UpdateTimestamp
-    @Column(name = "edited_on")
-    private LocalDateTime editedOn;
-
-    @Column(name = "edited_by")
-    private String editedBy;
 
     @Column(name = "is_admin")
     private Boolean isAdmin;
@@ -129,13 +100,93 @@ public class WhiteLabels {
     @Column(name = "aadhaar_card_back_image")
     private String aadhaarCardBackImage;
 
+    @Column(name = "aadhaar_number")
+    private String aadhaarNumber;
+
     @Column(name = "pan_card_image")
     private String panCardImage;
+
+    @Column(name = "pan_number")
+    private String panNumber;
 
     @Column(name = "shop_image")
     private String shopImage;
 
+    @Column(name = "shop_number")
+    private String shopNumber;
+
     @Column(name = "business_proof_image")
     private String businessProofImage;
+
+    @Column(name = "business_number")
+    private String businessNumber;
+
+    @CreationTimestamp
+    @Column(name = "created_on", nullable = false, updatable = false)
+    private LocalDateTime createdOn;
+
+    @Column(name = "created_by", nullable = false)
+    private String createdBy;
+
+    @UpdateTimestamp
+    @Column(name = "edited_on")
+    private LocalDateTime editedOn;
+
+    @Column(name = "edited_by")
+    private String editedBy;
+
+    @Column(name = "created_by_ip_address", nullable = false, updatable = false)
+    private String createdByIPAddress;
+
+    @PrePersist
+    public void prePersistDefaults() {
+        if (this.address != null) {
+            if (this.address.getOutletName() == null) {
+                this.address.setOutletName("N/A");
+            }
+            if (this.address.getCompanyType() == null) {
+                this.address.setCompanyType("N/A");
+            }
+            if (this.address.getCompanyName() == null) {
+                this.address.setCompanyName("N/A");
+            }
+            if (this.address.getAddress() == null) {
+                this.address.setAddress("N/A");
+            }
+            if (this.address.getCity() == null) {
+                this.address.setCity("N/A");
+            }
+            if (this.address.getState() == null) {
+                this.address.setState("N/A");
+            }
+            if (this.address.getZipCode() == null) {
+                this.address.setZipCode("N/A");
+            }
+        }
+
+        if (this.outletAddress != null) {
+            if (this.outletAddress.getOutletName() == null) {
+                this.outletAddress.setOutletName("N/A");
+            }
+            if (this.outletAddress.getCompanyType() == null) {
+                this.outletAddress.setCompanyType("N/A");
+            }
+            if (this.outletAddress.getCompanyName() == null) {
+                this.outletAddress.setCompanyName("N/A");
+            }
+            if (this.outletAddress.getAddress() == null) {
+                this.outletAddress.setAddress("N/A");
+            }
+            if (this.outletAddress.getCity() == null) {
+                this.outletAddress.setCity("N/A");
+            }
+            if (this.outletAddress.getState() == null) {
+                this.outletAddress.setState("N/A");
+            }
+            if (this.outletAddress.getZipCode() == null) {
+                this.outletAddress.setZipCode("N/A");
+            }
+        }
+    }
 
 }

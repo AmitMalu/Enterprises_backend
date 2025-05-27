@@ -174,10 +174,9 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         if (enterprises.getEmailId() != null) existingEnterprises.setEmailId(enterprises.getEmailId());
         //if (enterprises.getDob() != null) existingEnterprises.setDob(enterprises.getDob());
         //if (enterprises.getOutletName() != null) existingEnterprises.setOutletName(enterprises.getOutletName());
-        if (enterprises.getCompanyType() != null) existingEnterprises.setCompanyType(enterprises.getCompanyType());
         //if (enterprises.getCompetitor() != null) existingEnterprises.setCompetitor(enterprises.getCompetitor());
         if (enterprises.getAddress() != null) existingEnterprises.setAddress(enterprises.getAddress());
-        //if (enterprises.getOutletAddress() != null) existingEnterprises.setOutletAddress(enterprises.getOutletAddress());
+        if (enterprises.getOutletAddress() != null) existingEnterprises.setOutletAddress(enterprises.getOutletAddress());
 
 
         // Optional image updates

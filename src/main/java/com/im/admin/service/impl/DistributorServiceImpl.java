@@ -181,9 +181,6 @@ public class DistributorServiceImpl implements DistributorService {
         if (distributor.getAbbreviation() != null) existingDistributor.setAbbreviation(distributor.getAbbreviation());
         if (distributor.getEmailId() != null) existingDistributor.setEmailId(distributor.getEmailId());
         if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
-        if (distributor.getOutletName() != null) existingDistributor.setOutletName(distributor.getOutletName());
-        if (distributor.getCompanyType() != null) existingDistributor.setCompanyType(distributor.getCompanyType());
-        if (distributor.getCompetitor() != null) existingDistributor.setCompetitor(distributor.getCompetitor());
         if (distributor.getAddress() != null) existingDistributor.setAddress(distributor.getAddress());
         if (distributor.getOutletAddress() != null) existingDistributor.setOutletAddress(distributor.getOutletAddress());
 

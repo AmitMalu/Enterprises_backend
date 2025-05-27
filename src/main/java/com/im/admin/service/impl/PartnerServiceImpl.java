@@ -176,9 +176,6 @@ public class PartnerServiceImpl implements PartnerService {
         if (partner.getAbbreviation() != null) existingPartner.setAbbreviation(partner.getAbbreviation());
         if (partner.getEmailId() != null) existingPartner.setEmailId(partner.getEmailId());
         if (partner.getDob() != null) existingPartner.setDob(partner.getDob());
-        if (partner.getOutletName() != null) existingPartner.setOutletName(partner.getOutletName());
-        if (partner.getCompanyType() != null) existingPartner.setCompanyType(partner.getCompanyType());
-        if (partner.getCompetitor() != null) existingPartner.setCompetitor(partner.getCompetitor());
         if (partner.getAddress() != null) existingPartner.setAddress(partner.getAddress());
         if (partner.getOutletAddress() != null) existingPartner.setOutletAddress(partner.getOutletAddress());
 
