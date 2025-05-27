@@ -1,13 +1,7 @@
 package com.im.admin.commons;
 
-import com.im.admin.entities.HierarchyLogs;
-import com.im.admin.entities.ImLogs;
-import com.im.admin.entities.LoginLogs;
-import com.im.admin.entities.VendorReqRes;
-import com.im.admin.repositories.HierarchyLogsRepository;
-import com.im.admin.repositories.ImLogsRepository;
-import com.im.admin.repositories.LoginLogsRepository;
-import com.im.admin.repositories.VendorReqResRepository;
+import com.im.admin.entities.*;
+import com.im.admin.repositories.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +17,8 @@ public class CommonFunctions {
     private HierarchyLogsRepository hierarchyLogsRepository;
     @Autowired
     private LoginLogsRepository loginLogsRepository;
+    @Autowired
+    private AuditLogsRepository auditLogsRepository;
 
 
     public ImLogs saveImLogs(String request, LocalDateTime imRequestDateTime, String ipAddress, String response,
@@ -73,5 +69,18 @@ public class CommonFunctions {
         loginlogs = loginLogsRepository.save(loginlogs);
         return loginlogs;
     }
+
+    public AuditLogs saveAuditLogs(String request, LocalDateTime imRequestDateTime, String ipAddress, String response,
+                             LocalDateTime imResponseDateTime) {
+        AuditLogs auditogs = new AuditLogs();
+        auditogs.setRequest(request);
+        auditogs.setRequestDateTime(imRequestDateTime);
+        auditogs.setIpAddress(null);
+        auditogs.setResponse(response);
+        auditogs.setResponseDateTime(imResponseDateTime);
+        auditogs = auditLogsRepository.save(auditogs);
+        return auditogs;
+    }
+
 
 }
