@@ -58,8 +58,8 @@ public class CommonFunctions {
         return hierarchyLogs;
     }
 
-    public LoginLogs saveLoginLogs(LocalDateTime LoginRequestDateTime, String request, String vendorId,
-                                           LocalDateTime LoginResponseDateTime, String response, String requestIp) {
+    public LoginLogs saveLoginLogs(String request,LocalDateTime LoginRequestDateTime,String response,
+                                           LocalDateTime LoginResponseDateTime, String requestIp) {
         LoginLogs loginlogs = new LoginLogs();
         loginlogs.setRequest(request);
         loginlogs.setRequestDateTime(LoginRequestDateTime);
