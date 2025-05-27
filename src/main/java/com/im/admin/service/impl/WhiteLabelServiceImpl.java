@@ -1,5 +1,7 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.WhiteLabelPostpaidAmount;
@@ -53,6 +55,12 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
     @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
 
+
+    @Autowired
+    private CommonFunctions commonFunctions;
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Transactional
     @Override
     public WhiteLabels saveWhiteLabel(WhiteLabels whiteLabels,
@@ -61,6 +69,8 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
                                          MultipartFile panCardImage,
                                          MultipartFile shopImage,
                                          MultipartFile businessProofImage) throws IOException {
+
+        LocalDateTime RequestDateTime = LocalDateTime.now();
 
         // Field Validation
         Set<ConstraintViolation<WhiteLabels>> violations = validator.validate(whiteLabels);
@@ -123,6 +133,19 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
         postpaid.setWhiteLabelId(savedWhiteLabel);
         postpaidRepository.save(postpaid);
         log.info("Postpaid amount record created for WhiteLabel: {}", savedWhiteLabel.getWhiteLabelId());
+
+        LocalDateTime ResponseDateTime = LocalDateTime.now();
+        String WhiteLabelRequest  = objectMapper.writeValueAsString(whiteLabels);
+        String WhiteLableResponse  = objectMapper.writeValueAsString(savedWhiteLabel);
+
+
+        commonFunctions.saveHierarchyLogs(
+                RequestDateTime,
+                WhiteLabelRequest,
+                null, // IP address as null
+                ResponseDateTime,
+                WhiteLableResponse
+        );
 
         return savedWhiteLabel;
     }
