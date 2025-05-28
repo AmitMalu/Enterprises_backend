@@ -12,6 +12,7 @@ import com.im.admin.repositories.AdminPrepaidAmountRepository;
 import com.im.admin.repositories.AdminRepository;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.service.AdminService;
+import com.im.admin.util.CommonMethods;
 import com.im.admin.util.IdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -50,6 +51,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private CommonMethods commonMethods;
 
 
     @Override
@@ -96,12 +100,15 @@ public class AdminServiceImpl implements AdminService {
 
     private void saveUserDetails(Admin admin) {
 
+        String hierarchyCode = commonMethods.extractHierarchyType(admin.getId());
+
         UserDetails userDetails = new UserDetails();
         userDetails.setMobileNumber(admin.getMobileNumber());
         userDetails.setLoginUserName(admin.getUserName());
         userDetails.setLoginPassword(admin.getPassword());
         userDetails.setHierarchyId(admin.getId());
         userDetails.setEmailId(admin.getEmailId());
+        userDetails.setHierarchyCode(hierarchyCode);
 
         userDetails.setCreatedBy("Admin");
         userDetails.setCreatedDate(LocalDate.now());

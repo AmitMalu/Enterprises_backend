@@ -59,7 +59,7 @@ public class CommonFunctions {
     }
 
     public LoginLogs saveLoginLogs(String request,LocalDateTime LoginRequestDateTime,String response,
-                                           LocalDateTime LoginResponseDateTime, String requestIp) {
+                                   LocalDateTime LoginResponseDateTime, String requestIp) {
         LoginLogs loginlogs = new LoginLogs();
         loginlogs.setRequest(request);
         loginlogs.setRequestDateTime(LoginRequestDateTime);
