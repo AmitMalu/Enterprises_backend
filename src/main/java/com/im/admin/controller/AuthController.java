@@ -271,13 +271,21 @@ public class AuthController {
                 responseMap.put("product_sub_product_codes", productToSubProductsMap);
             }
 
-            responseJson = objectMapper.writeValueAsString(new CommonResponse<>(200, "OTP verified successfully", responseMap));
+            try {
+                responseJson = objectMapper.writeValueAsString(
+                        new CommonResponse<>(200, "OTP verified successfully", responseMap)
+                );
 
-            commonFunctions.saveLoginLogs( requestJson, requestTime, responseJson,LocalDateTime.now(),null);
-            
+                commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+            } catch (JsonProcessingException e) {
+                e.printStackTrace(); // Optional: replace with logger
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(new CommonResponse<>(500, "Error logging OTP verification", null));
+            }
+
             return ResponseEntity.ok(new CommonResponse<>(200, "OTP verified successfully", responseMap));
+
         } else {
-            // Handle error response if status is not OK
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error generating token: " + responseEntity.getBody());
         }
@@ -285,6 +293,11 @@ public class AuthController {
 
     @PostMapping("/resend-otp")
     public ResponseEntity<?> resendOtp(@RequestParam String username) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = "username=" + username;
+        String responseJson = "";
+
         Optional<UserDetails> optionalUser;
 
         if (username.matches("\\d{10}")) {
@@ -320,14 +333,32 @@ public class AuthController {
         Map<String, String> otpData = new HashMap<>();
         otpData.put("otp", newOtp);  // remove in production if you don’t want to expose OTP
 
-        return ResponseEntity.ok(new CommonResponse<>(200, "OTP resent successfully", otpData));
+        CommonResponse<Map<String, String>> commonResponse =
+                new CommonResponse<>(200, "OTP resent successfully", otpData);
+
+        try {
+            responseJson = objectMapper.writeValueAsString(commonResponse);
+
+            commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+        } catch (JsonProcessingException e) {
+            // Optional: log the exception
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Internal error during logging", null));
+        }
+        return ResponseEntity.ok(commonResponse);
     }
+
 
     @PostMapping("/set-password")
     public ResponseEntity<?> setPassword(
             @RequestParam String username,
             @RequestParam String newPassword,
             @RequestParam String reEnteredPassword) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = "username=" + username + "&newPassword=" + newPassword + "&reEnteredPassword=" + reEnteredPassword;
+        String responseJson = "";
 
         if (!newPassword.equals(reEnteredPassword)) {
             return ResponseEntity.ok()
@@ -362,12 +393,24 @@ public class AuthController {
         user.setLoginPassword(hashedPassword);
         userDetailsRepository.save(user);
 
-        return ResponseEntity.ok(new CommonResponse<>(200, "Password updated successfully", null));
-    }
+        CommonResponse<?> response = new CommonResponse<>(200, "Password updated successfully", null);
+        try {
+            responseJson = objectMapper.writeValueAsString(response);
+        } catch (JsonProcessingException e) {
+            responseJson = "{\"statusCode\":200,\"message\":\"Password updated successfully\",\"data\":null}";
+        }
 
+        commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+
+        return ResponseEntity.ok(response);
+    }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestParam String username) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = "username=" + username;
+        String responseJson = "";
 
         Optional<UserDetails> optionalUser;
         if (username.matches("\\d{10}")) {
@@ -400,7 +443,15 @@ public class AuthController {
         Map<String, String> data = new HashMap<>();
         data.put("message", "OTP has been sent to your registered mobile number");
 
-        return ResponseEntity.ok(new CommonResponse<>(200, "OTP generated successfully", data));
+        CommonResponse<Map<String, String>> commonResponse = new CommonResponse<>(200, "OTP generated successfully", data);
+        try {
+            responseJson = objectMapper.writeValueAsString(commonResponse);
+        } catch (JsonProcessingException e) {
+            responseJson = "{\"statusCode\":200,\"message\":\"OTP generated successfully\",\"data\":{\"message\":\"OTP has been sent to your registered mobile number\"}}";
+        }
+
+        commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+        return ResponseEntity.ok(commonResponse);
     }
 
 
