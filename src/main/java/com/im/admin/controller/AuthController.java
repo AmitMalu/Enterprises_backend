@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.LoginRequestDto;
@@ -192,7 +193,12 @@ public class AuthController {
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<?> verifyOtp(@RequestParam String username, @RequestParam String otp) {
+    public ResponseEntity<?> verifyOtp(@RequestParam String username, @RequestParam String otp) throws JsonProcessingException {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = "username=" + username + "&otp=" + otp;
+        String responseJson = "";
+
 
         Optional<UserDetails> optionalUser;
 
@@ -264,6 +270,10 @@ public class AuthController {
 
                 responseMap.put("product_sub_product_codes", productToSubProductsMap);
             }
+
+            responseJson = objectMapper.writeValueAsString(new CommonResponse<>(200, "OTP verified successfully", responseMap));
+
+            commonFunctions.saveLoginLogs( requestJson, requestTime, responseJson,LocalDateTime.now(),null);
             
             return ResponseEntity.ok(new CommonResponse<>(200, "OTP verified successfully", responseMap));
         } else {
