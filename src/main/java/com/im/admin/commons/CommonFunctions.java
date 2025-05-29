@@ -33,9 +33,9 @@ public class CommonFunctions {
         return imLogs;
     }
 
-    public VendorReqRes saveVendorLogs(LocalDateTime vendorRequestDateTime, String request, String vendorId,
-                                       LocalDateTime vendorResponseDateTime, String response, String requestIp) {
-        VendorReqRes vendorReqRes = new VendorReqRes();
+    public VendorLogs saveVendorLogs(LocalDateTime vendorRequestDateTime, String request, String vendorId,
+                                     LocalDateTime vendorResponseDateTime, String response, String requestIp) {
+        VendorLogs vendorReqRes = new VendorLogs();
         vendorReqRes.setImVendorId(vendorId);
         vendorReqRes.setRequest(request);
         vendorReqRes.setRequestDateTime(vendorRequestDateTime);

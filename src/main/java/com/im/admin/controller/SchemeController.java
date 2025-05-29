@@ -38,10 +38,8 @@ public class SchemeController {
     @GetMapping("/operators/{productCode}/{subProductCode}")
     public ResponseEntity<OperatorProductResponseDTO> getOperatorListBySubProductCode(@PathVariable("subProductCode") String subProductCode,
                                                                @PathVariable("productCode") String productCode) {
-
         OperatorProductResponseDTO response = schemeService.getOperatorsAndProduct(productCode, subProductCode);
         return ResponseEntity.ok(response);
-
     }
 
     @PostMapping("/rate")
