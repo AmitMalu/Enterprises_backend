@@ -199,14 +199,11 @@ public class AuthController {
         String requestJson = "username=" + username + "&otp=" + otp;
         String responseJson = "";
 
-
         Optional<UserDetails> optionalUser;
 
         if (username.matches("\\d{10}")) {
-            // User entered mobile number
             optionalUser = userDetailsRepository.findByMobileNumber(username);
         } else {
-            // User entered email
             optionalUser = userDetailsRepository.findByEmailId(username);
         }
 
@@ -227,7 +224,6 @@ public class AuthController {
                     .body(new CommonResponse<>(400, "OTP expired", null));
         }
 
-
         if (!user.getOtp().equals(otp)) {
             return ResponseEntity.ok()
                     .body(new CommonResponse<>(400, "Invalid OTP", null));
@@ -238,12 +234,10 @@ public class AuthController {
             Map<String, Object> tokenData = (Map<String, Object>) responseEntity.getBody();
             String token = (String) tokenData.get("token");
 
-            // Update login status and clear OTP
             user.setUserLoginStatus(true);
             user.setOtp(null);
             user.setOtpExpiryTime(null);
             userDetailsRepository.save(user);
-            // Prepare final login response
             Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("token", token);
 
@@ -261,14 +255,22 @@ public class AuthController {
             if ("RT".equalsIgnoreCase(hierarchyCode)) {
                 List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
 
-                // Group by product_code and collect list of sub_product_codes
-                Map<String, List<String>> productToSubProductsMap = schemes.stream()
+                // Group by product_code and collect list of sub_product_code + scheme_code pairs
+                Map<String, List<Map<String, String>>> productToSubProductsWithSchemeMap = schemes.stream()
                         .collect(Collectors.groupingBy(
                                 SchemeAllocation::getProductCode,
-                                Collectors.mapping(SchemeAllocation::getSubProductCode, Collectors.toList())
+                                Collectors.mapping(
+                                        sa -> {
+                                            Map<String, String> subProductWithScheme = new HashMap<>();
+                                            subProductWithScheme.put("subProductCode", sa.getSubProductCode());
+                                            subProductWithScheme.put("schemeCode", sa.getSchemeCode());
+                                            return subProductWithScheme;
+                                        },
+                                        Collectors.toList()
+                                )
                         ));
 
-                responseMap.put("product_sub_product_codes", productToSubProductsMap);
+                responseMap.put("product_sub_product_scheme_codes", productToSubProductsWithSchemeMap);
             }
 
             try {

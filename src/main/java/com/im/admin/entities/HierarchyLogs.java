@@ -18,14 +18,21 @@ public class HierarchyLogs {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "sr_no")
     private Integer srNo;
-    @Column(name = "request")
+
+    @Lob
+    @Column(name = "request", columnDefinition = "TEXT")
     private String request;
-    @Column(name = "response")
+
+    @Lob
+    @Column(name = "response", columnDefinition = "TEXT")
     private String response;
+
     @Column(name = "ip_address")
     private String ipAddress;
+
     @Column(name = "request_date_time")
     private LocalDateTime requestDateTime;
+
     @Column(name = "response_date_time")
     private LocalDateTime responseDateTime;
 
