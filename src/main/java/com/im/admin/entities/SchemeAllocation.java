@@ -25,5 +25,11 @@ public class SchemeAllocation {
 
     @Column(name = "scheme_code", nullable = false)
     private String schemeCode;
+
+    @Column(name = "scheme_id", nullable = false)
+    private Long schemeId;
+
+    @Column(name = "operator_code", nullable = false)
+    private String operatorCode;
 }
 

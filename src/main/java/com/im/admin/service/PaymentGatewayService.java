@@ -1,11 +1,14 @@
 package com.im.admin.service;
 
 import com.im.admin.dto.FetchSubProductFromRetailerRequest;
+import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
+import com.im.admin.dto.RetailerCommissionResponseDTO;
 import com.im.admin.entities.CardTypeMaster;
 import com.im.admin.entities.SchemeAllocation;
+import com.im.admin.response.CommonResponse;
 
 public interface PaymentGatewayService {
 
-    CardTypeMaster fetchCardTypeMaster(String cardBinNo);
+    CommonResponse<RetailerCommissionResponseDTO> fetchRetailerCommission(PaymentGatewayCardBinRequestDTO paymentGatewayCardBinRequestDTO);
 
 }
