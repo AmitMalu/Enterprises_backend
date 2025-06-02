@@ -14,5 +14,7 @@ public interface SchemeRateRepository extends JpaRepository<SchemeRate, Long> {
 
     List<SchemeRate> findAllByOperatorNameAndOperatorCode(String operatorName, String operatorCode);
 
-}
+    SchemeRate findBySchemeCodeAndOperatorCode(String schemeCode, String operatorCode);
 
+
+}
