@@ -9,6 +9,7 @@ import java.util.List;
 
 import java.util.Optional;
 
+
 public interface RetailerService {
 
     Retailer createRetailer(Retailer retailer, MultipartFile aadhaarCardFrontImage, MultipartFile aadhaarCardBackImage, MultipartFile panCardImage, MultipartFile shopImage, MultipartFile businessProofImage) throws IOException;
