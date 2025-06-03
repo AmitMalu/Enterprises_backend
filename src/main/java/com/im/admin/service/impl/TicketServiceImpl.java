@@ -1,5 +1,12 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.AddTicketCommentDto;
+import com.im.admin.dto.RaiseTicketRequestDto;
+import com.im.admin.dto.UpdateTicketStatusDto;
+import com.im.admin.entities.Ticket;
+import com.im.admin.entities.TicketComment;
+import com.im.admin.repositories.TicketCommentRepository;
+import com.im.admin.repositories.TicketRepository;
 import com.im.admin.service.TicketService;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
@@ -9,12 +16,20 @@ import jakarta.persistence.Query;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @Service
 public class TicketServiceImpl implements TicketService {
+
     @Autowired
     private CommonMethods commonMethods;
+
+    @Autowired
+    private TicketRepository ticketRepository;
+
+    @Autowired
+    private TicketCommentRepository ticketCommentRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -35,5 +50,66 @@ public class TicketServiceImpl implements TicketService {
             throw new RuntimeException("No record found for transactionId: " + transactionId);
         }
     }
+
+    @Override
+    public void saveTicket(RaiseTicketRequestDto request) {
+
+        Ticket ticket = new Ticket();
+        ticket.setTransactionId(request.getTransactionId());
+        ticket.setIssueType(request.getIssueType());
+        ticket.setDescription(request.getDescription());
+        ticket.setEmail(request.getEmail());
+        ticket.setMobileNumber(request.getMobileNumber());
+        ticket.setSubProductName(request.getSubProductName());
+        ticket.setStatus("PENDING");
+
+        ticketRepository.save(ticket);
+
+    }
+
+    @Override
+    public void addComment(AddTicketCommentDto dto) {
+
+        Ticket ticket = ticketRepository.findById(dto.getTicketId())
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+        TicketComment comment = new TicketComment();
+        comment.setTicket(ticket);
+        comment.setCommentText(dto.getCommentText());
+        comment.setAddedBy(dto.getAddedBy());
+
+        ticketCommentRepository.save(comment);
+    }
+
+    @Override
+    public void updateStatus(UpdateTicketStatusDto dto) {
+
+        Ticket ticket = ticketRepository.findById(dto.getTicketId())
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+        ticket.setStatus(dto.getNewStatus());
+        ticket.setUpdatedAt(LocalDateTime.now());
+
+
+        // Add internal comment if resolved
+        if ("RESOLVED".equalsIgnoreCase(dto.getNewStatus())) {
+            TicketComment resolvedComment = new TicketComment();
+            resolvedComment.setTicket(ticket);
+            resolvedComment.setCommentText("Ticket marked as RESOLVED.");
+            resolvedComment.setAddedBy("SYSTEM"); // or "ADMIN"
+            resolvedComment.setCreatedAt(LocalDateTime.now());
+
+            ticket.getComments().add(resolvedComment);
+        }
+
+        ticketRepository.save(ticket);
+    }
+
+    @Override
+    public Ticket getTicketWithComments(Long ticketId) {
+        return ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+    }
+
 }
 
