@@ -2,6 +2,8 @@ package com.im.admin.controller;
 
 
 import com.im.admin.dto.FetchSubProductFromRetailerRequest;
+import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
+import com.im.admin.dto.RetailerCommissionResponseDTO;
 import com.im.admin.entities.CardTypeMaster;
 import com.im.admin.entities.SchemeAllocation;
 import com.im.admin.response.CommonResponse;
@@ -23,16 +25,13 @@ public class PaymentGatewayController {
     private PaymentGatewayService paymentGatewayService;
 
 
-    @PostMapping("/fetch/card-bin-no/{cardBinNo}")
-    public ResponseEntity<?> fetchCardBinNo(@PathVariable String cardBinNo) {
+    @PostMapping("/fetch/card-bin-no")
+    public ResponseEntity<CommonResponse<RetailerCommissionResponseDTO>> fetchCardBinNo(
+            @RequestBody PaymentGatewayCardBinRequestDTO paymentGatewayCardBinRequestDTO) {
 
-        CardTypeMaster cardDetails = paymentGatewayService.fetchCardTypeMaster(cardBinNo);
+        CommonResponse<RetailerCommissionResponseDTO> response =
+                paymentGatewayService.fetchRetailerCommission(paymentGatewayCardBinRequestDTO);
 
-        if (cardDetails != null) {
-            return ResponseEntity.ok(new CommonResponse<>(200, "Card details fetched", cardDetails));
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new CommonResponse<>(404, "Card details not found", null));
-        }
+        return ResponseEntity.ok(response);
     }
 }

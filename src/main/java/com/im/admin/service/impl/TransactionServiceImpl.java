@@ -437,7 +437,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     private String callVendor(TransactionSchemeDetailsRequestDto dto) {
         // Replace this with actual vendor API integration
-        return "PENDING"; // or PENDING, FAILURE, SUCCESS
+        return "SUCCESS"; // or PENDING, FAILURE, SUCCESS
     }
 
     private void processChargesAndCommission(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,

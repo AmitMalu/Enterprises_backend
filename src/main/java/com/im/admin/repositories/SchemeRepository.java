@@ -6,6 +6,8 @@ import com.im.admin.entities.Scheme;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface SchemeRepository extends JpaRepository<Scheme, Long> {
 
@@ -17,4 +19,7 @@ public interface SchemeRepository extends JpaRepository<Scheme, Long> {
     boolean existsBySchemeName(String schemeName);
 
     boolean existsBySchemeCode(String schemeCode);
+
+    Optional<Scheme> findBySchemeCode(String schemeCode);
+
 }

@@ -206,6 +206,8 @@ public class SchemeServiceImpl implements SchemeService {
             entity.setHierarchyId(request.getHierarchyId());
             entity.setSubProductCode(scheme.getSubProductCode());
             entity.setSchemeCode(scheme.getSchemeCode());
+            entity.setOperatorCode(scheme.getOperatorCode());
+            entity.setSchemeId(scheme.getSchemeId());
             return entity;
         }).collect(Collectors.toList());
 
