@@ -1,9 +1,8 @@
 package com.im.admin.service;
 
-import com.im.admin.dto.CardTypeRequestDto;
-import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
-import com.im.admin.dto.TransactionSchemeDetailsResponseDto;
-import com.im.admin.dto.UpdateTransactionStatusRequest;
+import com.im.admin.dto.*;
+
+import java.util.List;
 
 public interface TransactionService {
 
@@ -14,5 +13,9 @@ public interface TransactionService {
     String processTransaction(TransactionSchemeDetailsRequestDto request);
 
     String updateTransactionStatus(UpdateTransactionStatusRequest request);
+
+    List<TransactionSearchResponseDTO> getTransactions(
+            String hierarchyId, String transactionId, String status, String walletType);
+
 }
 

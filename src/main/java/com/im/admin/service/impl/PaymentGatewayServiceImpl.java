@@ -78,7 +78,6 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         RetailerCommissionResponseDTO dto = new RetailerCommissionResponseDTO(
                 cardType,
                 operator.getOperatorCode(),
-                scheme.getSchemeName(),
                 scheme.getSchemeCode(),
                 schemeRate.getRetailer(),
                 schemeRate.getRateType()

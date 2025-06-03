@@ -15,7 +15,6 @@ public class RetailerCommissionResponseDTO {
 
     private String cardType;
     private String operatorCode;
-    private String schemeName;
     private String schemeCode;
     private Double retailerCommission;
     private RateType rateType;
