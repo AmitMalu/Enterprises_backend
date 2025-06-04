@@ -101,4 +101,7 @@ public class UserDetails {
     @Column(name = "lock_time")
     private LocalDateTime lockTime;
 
+    @Column(name = "is_blocked")
+    private Boolean isBlocked;
+
 }
