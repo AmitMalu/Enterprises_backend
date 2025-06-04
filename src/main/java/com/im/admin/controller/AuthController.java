@@ -105,6 +105,17 @@ public class AuthController {
             return ResponseEntity.ok(response);
         }
 
+        if (Boolean.FALSE.equals(user.getIsBlocked())) {
+            CommonResponse<?> response = new CommonResponse<>(403, "User is blocked. Please contact support.", null);
+            try {
+                responseJson = objectMapper.writeValueAsString(response);
+                commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return ResponseEntity.ok(response);
+        }
+
         // Step 1: Try encrypted match
         if (!passwordEncoder.matches(loginRequestDto.getPassword(), user.getLoginPassword())) {
 
