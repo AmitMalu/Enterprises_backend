@@ -43,6 +43,9 @@ public class WhiteLabels {
     @NotBlank(message = "Name is mandatory")
     private String name;
 
+    @Column(name = "business_desc")
+    private String businessDesc;
+
     @NotBlank(message = "Abbreviation is required")
     @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
     @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
