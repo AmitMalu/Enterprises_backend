@@ -91,8 +91,8 @@ public class Enterprises {
     @JoinColumn(name = "theme_id")
     private Theme theme;
 
-    @Column(name = "website_url")
-    private String websiteURL;
+    @Column(name = "domain_url")
+    private String domainURL;
 
     @Column(name = "business_desc")
     private String businessDesc;

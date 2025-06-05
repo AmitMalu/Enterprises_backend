@@ -47,4 +47,7 @@ public class Admin extends BaseEntity {
     @Column(name = "remarks")
     private String remarks;
 
+    @Column(name = "created_by_ip_address", nullable = false, updatable = false)
+    private String createdByIPAddress;
+
 }
