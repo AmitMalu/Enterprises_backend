@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -10,6 +11,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 
@@ -34,6 +36,12 @@ public class WhiteLabels {
     @NotBlank(message = "Email is mandatory")
     @Email(message = "Invalid email format")
     private String emailId;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate dob;
+
+    @NotBlank(message = "Name is mandatory")
+    private String name;
 
     @NotBlank(message = "Abbreviation is required")
     @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
