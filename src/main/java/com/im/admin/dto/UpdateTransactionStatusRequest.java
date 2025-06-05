@@ -10,7 +10,7 @@ public class UpdateTransactionStatusRequest {
 
     private String tranxId;
     private String oldStatus;
-    private String newStatus; // "SUCCESS" or "FAILED"
+    private String newStatus; // "SUCCESS" to "FAILED" , FAILED to SUCCESS, PENDING to SUCCESS, SETTLEMENT PENDING to SUCCESS
     private String walletType;  //
     private String failureRemark;
 

@@ -21,6 +21,7 @@ public interface SubProductsRepository extends JpaRepository<SubProducts, String
     @Query("SELECT sp.isSettlement FROM SubProducts sp WHERE sp.subProductCode = :subProductCode")
     Boolean findIsSettlementByCode(@Param("subProductCode") String subProductCode);
 
+    Optional<SubProducts> findBySubProductTitle(String subProductTitle);
 
 }
 

@@ -3,10 +3,9 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
-import com.im.admin.entities.Admin;
-import com.im.admin.entities.AdminPostpaidAmount;
-import com.im.admin.entities.AdminPrepaidAmount;
-import com.im.admin.entities.UserDetails;
+import com.im.admin.dto.FieldErrorDetailsDTO;
+import com.im.admin.entities.*;
+import com.im.admin.exception.CustomValidationException;
 import com.im.admin.repositories.AdminPostpaidAmountRepository;
 import com.im.admin.repositories.AdminPrepaidAmountRepository;
 import com.im.admin.repositories.AdminRepository;
@@ -14,16 +13,21 @@ import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.service.AdminService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.IdGenerator;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class AdminServiceImpl implements AdminService {
@@ -55,17 +59,40 @@ public class AdminServiceImpl implements AdminService {
     @Autowired
     private CommonMethods commonMethods;
 
+    @Autowired
+    private Validator validator;
 
+
+    @Transactional
     @Override
     public Admin saveAdmin(Admin admin) {
-        phoneNumberValidationService.validatePhoneNumber(admin.getMobileNumber());
 
         LocalDateTime RequestDateTime = LocalDateTime.now();
+
+        // Field Validation
+        Set<ConstraintViolation<Admin>> violations = validator.validate(admin);
+        List<FieldErrorDetailsDTO> errors = violations.stream().map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage())).collect(Collectors.toList());
+
+        // Phone validation
+        try {
+            phoneNumberValidationService.validatePhoneNumber(admin.getMobileNumber());
+        } catch (IllegalArgumentException ex) {
+            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+        }
+
+        if (!errors.isEmpty()) {
+            throw new CustomValidationException(errors);
+        }
 
         admin.setId(idGenerator.generateId("Admin"));
         Admin saveAdmin = adminRepository.save(admin);
 
-        saveUserDetails(saveAdmin);
+        try {
+            saveUserDetails(saveAdmin);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Failed to save user details: " + e.getMessage());
+        }
 
         AdminPostpaidAmount adminPostpaidAccount = new AdminPostpaidAmount();
         adminPostpaidAccount.setAdminId(saveAdmin);
@@ -86,13 +113,8 @@ public class AdminServiceImpl implements AdminService {
             e.printStackTrace(); // Optional: Log it
         }
 
-        commonFunctions.saveImLogs(
-                DistributorRequest,
-                RequestDateTime,
-                null, // IP address as null
-                DistributorResponse,
-                ResponseDateTime
-        );
+        commonFunctions.saveImLogs(DistributorRequest, RequestDateTime, null, // IP address as null
+                DistributorResponse, ResponseDateTime);
 
         return saveAdmin;
     }
