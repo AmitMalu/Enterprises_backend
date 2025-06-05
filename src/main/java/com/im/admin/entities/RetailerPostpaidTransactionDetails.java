@@ -101,9 +101,8 @@ public class RetailerPostpaidTransactionDetails implements AbstractRetailerTrans
     @Column(name = "client_ip")
     private String clientIp;
 
-    //(mobile/portal)
-    @Column(name = "mode")
-    private String mode;
+    @Column(name = "medium")
+    private String medium;        //(mobile/portal)
 
     @Column(name = "scheme_hierarchy_name")
     private String schemeHierarchyName;

@@ -1,11 +1,16 @@
 package com.im.admin.controller;
 
 import com.im.admin.entities.Admin;
+import com.im.admin.entities.Enterprises;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AdminService;
+import com.im.admin.util.JsonUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -18,10 +23,19 @@ public class AdminController {
     /**
      * Save a new Admin.
      */
-    @PostMapping()
-    public ResponseEntity<Admin> createAdmin(@RequestBody Admin admin) {
+    @PostMapping("/save")
+    public ResponseEntity<CommonResponse<Admin>> createAdmin(@RequestPart("data") String adminJson) throws IOException {
+
+        Admin admin = JsonUtil.parseJson(adminJson, Admin.class);
+
         Admin savedAdmin = adminService.saveAdmin(admin);
-        return ResponseEntity.ok(savedAdmin);
+
+        CommonResponse<Admin> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.OK.value());
+        response.setMessage("Admin created successfully");
+        response.setData(savedAdmin);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**

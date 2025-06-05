@@ -50,7 +50,7 @@ public class EnterprisesController {
 
         CommonResponse<Enterprises> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
-        response.setMessage("Distributor created successfully");
+        response.setMessage("Enterprises created successfully");
         response.setData(savedEnterprises);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
