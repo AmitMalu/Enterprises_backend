@@ -27,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AESFilter extends OncePerRequestFilter {
 
 	private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/webjars/**", "cache",
-			"/api/aes/generate-token", "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password",
+			"/api/aes/generate-token", "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password","/auth/forgot-password",
 			"/api/aes/validate-token");
 
 	private final UrlPathHelper pathHelper = new UrlPathHelper();
