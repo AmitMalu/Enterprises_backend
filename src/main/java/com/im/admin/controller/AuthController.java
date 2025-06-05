@@ -345,7 +345,7 @@ public class AuthController {
 
         Map<String, String> otpData = new HashMap<>();
         otpData.put("otp", newOtp);  // remove in production if you don’t want to expose OTP
-
+        
         CommonResponse<Map<String, String>> commonResponse =
                 new CommonResponse<>(200, "OTP resent successfully", otpData);
 
@@ -455,6 +455,7 @@ public class AuthController {
 
         Map<String, String> data = new HashMap<>();
         data.put("message", "OTP has been sent to your registered mobile number");
+        data.put("OTP",otp);
 
         CommonResponse<Map<String, String>> commonResponse = new CommonResponse<>(200, "OTP generated successfully", data);
         try {
