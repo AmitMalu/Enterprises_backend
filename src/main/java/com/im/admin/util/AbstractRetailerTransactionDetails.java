@@ -12,5 +12,10 @@ public interface AbstractRetailerTransactionDetails {
     String getSubProductCode();
     String getTranStatus();
     String getTransactionId();
+
+    String getSubProductName();
+    String getSchemeName();
+
+    String getService();
 }
 

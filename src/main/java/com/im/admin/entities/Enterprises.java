@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -12,6 +13,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.validator.constraints.URL;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
@@ -46,6 +48,12 @@ public class Enterprises {
     @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
     private String abbreviation;
 
+    @Column(name = "title", nullable = false)
+    private String title;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate dob;
+
     @Embedded
     @AttributeOverrides({
             @AttributeOverride(name = "outletName", column = @Column(name = "main_outlet_name")),
@@ -78,6 +86,16 @@ public class Enterprises {
             @AttributeOverride(name = "branchName", column = @Column(name = "branch_name"))
     })
     private BankDetails bankDetails;
+
+    @ManyToOne
+    @JoinColumn(name = "theme_id")
+    private Theme theme;
+
+    @Column(name = "website_url")
+    private String websiteURL;
+
+    @Column(name = "business_desc")
+    private String businessDesc;
 
     @Column(name = "status")
     private String status = "PENDING";
