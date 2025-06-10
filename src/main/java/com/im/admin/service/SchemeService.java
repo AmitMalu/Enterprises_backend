@@ -2,8 +2,10 @@ package com.im.admin.service;
 
 
 import com.im.admin.dto.*;
+import com.im.admin.entities.SchemeAllocation;
 import com.im.admin.entities.SchemeRate;
 import com.im.admin.entities.VendorRouting;
+import com.im.admin.response.CommonResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -22,7 +24,7 @@ public interface SchemeService {
 
     List<SchemeRate> getSchemeRatesByOperatorCode(String operatorCode);
 
-    void allocateSchemes(SchemeAllocationRequestDto request);
+    CommonResponse<List<SchemeAllocation>> allocateSchemes(SchemeAllocationRequestDto request);
 
     VendorRouting saveVendorRouting(VendorRoutingDto request);
 

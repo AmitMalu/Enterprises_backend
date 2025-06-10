@@ -6,6 +6,7 @@ import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.exception.DuplicateEntryException;
 import com.im.admin.repositories.*;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.SchemeService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -200,18 +201,46 @@ public class SchemeServiceImpl implements SchemeService {
     }
 
     @Override
-    public void allocateSchemes(SchemeAllocationRequestDto request) {
-        List<SchemeAllocation> schemeEntities = request.getCodes().stream().map(scheme -> {
+    public CommonResponse<List<SchemeAllocation>> allocateSchemes(SchemeAllocationRequestDto request) {
+        List<SchemeAllocation> schemeEntities = new ArrayList<>();
+
+        for (SchemeAllocationDto scheme : request.getCodes()) {
+            boolean exists = repository.existsByHierarchyIdAndProductCodeAndSubProductCodeAndOperatorCode(
+                    request.getHierarchyId(),
+                    scheme.getProductCode(),
+                    scheme.getSubProductCode(),
+                    scheme.getOperatorCode()
+            );
+
+            if (exists) {
+                return new CommonResponse<>(
+                        400,
+                        "Scheme already allocated for hierarchy: " + request.getHierarchyId() +
+                                ", product: " + scheme.getProductCode() +
+                                ", subProduct: " + scheme.getSubProductCode() +
+                                ", operator: " + scheme.getOperatorCode(),
+                        null
+                );
+            }
+
             SchemeAllocation entity = new SchemeAllocation();
             entity.setHierarchyId(request.getHierarchyId());
+            entity.setProductCode(scheme.getProductCode());
             entity.setSubProductCode(scheme.getSubProductCode());
             entity.setSchemeCode(scheme.getSchemeCode());
             entity.setOperatorCode(scheme.getOperatorCode());
             entity.setSchemeId(scheme.getSchemeId());
-            return entity;
-        }).collect(Collectors.toList());
+
+            schemeEntities.add(entity);
+        }
 
         repository.saveAll(schemeEntities);
+
+        return new CommonResponse<>(
+                200,
+                "Schemes allocated successfully for " + request.getHierarchyId(),
+                schemeEntities
+        );
     }
 
     @Transactional

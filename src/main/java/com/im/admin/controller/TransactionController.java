@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 
 import com.im.admin.dto.*;
+import com.im.admin.request.UpdateSettlementStatusRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.TransactionService;
 import com.im.admin.util.CommonMethods;
@@ -9,10 +10,14 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/transaction")
@@ -52,39 +57,44 @@ public class TransactionController {
         return ResponseEntity.ok("Transaction status updated successfully");
     }
 
-    @GetMapping
-    public ResponseEntity<CommonResponse<List<TransactionSearchResponseDTO>>> getTransactions(
-            @RequestParam String hierarchyId,
-            @RequestParam(required = false) String walletType,
-            @RequestParam(required = false) String transactionId,
-            @RequestParam(required = false) String status) {
+    @GetMapping("/isSettlement/filter-by")
+    public ResponseEntity<CommonResponse<List<Map<String, Object>>>> getIsSettlementTransactions(
+            @RequestParam LocalDate fromDate,
+            @RequestParam LocalDate toDate,
+            @RequestParam String subProductName,
+            @RequestParam String settlementType,
+            @RequestParam(required = false) String walletType) {
 
-        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
-
-        List<TransactionSearchResponseDTO> finalResults = new ArrayList<>();
-
-        // Decide which wallets to query
-        List<String> walletTypesToSearch = new ArrayList<>();
-        if (walletType == null || walletType.isEmpty()) {
-            walletTypesToSearch.add("PREPAID");
-            walletTypesToSearch.add("POSTPAID");
-        } else {
-            walletTypesToSearch.add(walletType.toUpperCase());
-        }
+        List<Map<String, Object>> finalResults = new ArrayList<>();
+        List<String> walletTypesToSearch = (walletType == null || walletType.isEmpty())
+                ? Arrays.asList("PREPAID", "POSTPAID")
+                : List.of(walletType.toUpperCase());
 
         for (String wt : walletTypesToSearch) {
-            finalResults.addAll(transactionService.getTransactions(
-                    hierarchyId, transactionId, status, wt
-            ));
+            finalResults.addAll(transactionService.getSettlementTransactionsByFilter(
+                    fromDate, toDate, subProductName, settlementType, wt));
         }
 
-        CommonResponse<List<TransactionSearchResponseDTO>> response = new CommonResponse<>(
-                200,
-                "Transactions fetched successfully",
-                finalResults
+        String message = finalResults.isEmpty()
+                ? "No transactions found for the given filter"
+                : "Transactions fetched successfully";
+
+        CommonResponse<List<Map<String, Object>>> response = new CommonResponse<>(
+                200, message, finalResults
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/isSettlement/bulk")
+    @Transactional
+    public ResponseEntity<CommonResponse<String>> bulkUpdateSettlementStatus(
+            @RequestBody UpdateSettlementStatusRequest request) {
+
+        transactionService.bulkUpdateSettlementStatus(
+                request.getTransactionIds(), request.getWalletType(), request.getNewStatus());
+
+        return ResponseEntity.ok(new CommonResponse<>(200, "Success", "Bulk update completed"));
     }
 
 }
