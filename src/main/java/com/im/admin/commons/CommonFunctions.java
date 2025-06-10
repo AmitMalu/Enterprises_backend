@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -35,23 +34,6 @@ public class CommonFunctions {
 
     @Autowired
     private AuditLogsRepository auditLogsRepository;
-
-    RestTemplate restTemplate = new RestTemplate();
-
-    @Value("runpaisa.token.username")
-    private String runpaisaUsername;
-
-    @Value("runpaisa.token.password")
-    private String runpaisaPassword;
-
-    @Value("runpaisa.base.url.uat")
-    private String baseUrlUAT;
-
-    @Value("runpaisa.base.url.prod")
-    private String baseUrlPROD;
-
-    @Value("runpaisa.client.id")
-    private String clientId;
 
 
     public ImLogs saveImLogs(String request, LocalDateTime imRequestDateTime, String ipAddress, String response,
@@ -113,27 +95,6 @@ public class CommonFunctions {
         auditogs.setResponseDateTime(imResponseDateTime);
         auditogs = auditLogsRepository.save(auditogs);
         return auditogs;
-    }
-
-
-    public TokenResponseDTO generateToken() {
-        Map<String, String> requestPayload = new HashMap<>();
-
-        requestPayload.put("username", this.runpaisaUsername);
-        requestPayload.put("password", this.runpaisaPassword);
-        requestPayload.put("client_id ", this.clientId);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<Map<String, String>> requestEntity = new HttpEntity(requestPayload, headers);
-        ResponseEntity<TokenResponseDTO> response = this.restTemplate.postForEntity(this.baseUrlUAT + "/token",
-                requestEntity, TokenResponseDTO.class);
-
-        TokenResponseDTO bearerTokenDto = response.getBody();
-        log.info("Bearer token: {}", bearerTokenDto);
-
-        return bearerTokenDto;
     }
 
 }

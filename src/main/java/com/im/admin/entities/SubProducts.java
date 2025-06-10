@@ -39,14 +39,15 @@ public class SubProducts {
     @NotBlank(message = "Sub Product Code cannot be blank")
     private String subProductCode;
 
-    @Column(name = "product", nullable = false)
-    @NotNull(message = "Product Code cannot be null")
-    @NotBlank(message = "Product Code cannot be blank")
-    private String productCode;
-
     @Column(name = "product_id")
     @NotNull(message = "Product Id cannot be null")
     private Short productId;
+
+    @Column(name = "product", nullable = false)
+    private String productCode;
+
+    @Column(name = "product_name")
+    private String productName;
 
     @Column(name = "wallet_type")
     private String walletType;

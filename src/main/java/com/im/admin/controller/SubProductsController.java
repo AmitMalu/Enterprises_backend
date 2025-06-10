@@ -2,10 +2,12 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.entities.SubProducts;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.SubProductsService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,15 +25,17 @@ public class SubProductsController {
     private SubProductsService subProductsService;
 
     @PostMapping
-    public ResponseEntity<?> saveSubProduct(@RequestBody @Valid SubProducts subProduct) {
+    public ResponseEntity<CommonResponse<SubProducts>> saveSubProduct(@RequestBody @Valid SubProducts subProduct) {
         try {
             SubProducts savedProduct = subProductsService.saveSubProduct(subProduct);
-            return new ResponseEntity<>(savedProduct, HttpStatus.CREATED);
+            CommonResponse<SubProducts> response = new CommonResponse<>(201, "SubProduct created successfully", savedProduct);
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ex.getMessage());
+            CommonResponse<SubProducts> response = new CommonResponse<>(400, ex.getMessage(), null);
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
     }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteSubProduct(@PathVariable String id) {
@@ -40,16 +44,39 @@ public class SubProductsController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<SubProducts> updateSubProduct(@PathVariable String id, @RequestBody SubProducts subProduct) {
+    public ResponseEntity<CommonResponse<SubProducts>> updateSubProduct(
+            @PathVariable String id,
+            @RequestBody @Valid SubProducts subProduct) {
+
         log.info("Received request to update sub-product with ID: {}", id);
-        return ResponseEntity.ok(subProductsService.updateSubProduct(id, subProduct));
+
+        try {
+            SubProducts updated = subProductsService.updateSubProduct(id, subProduct);
+            CommonResponse<SubProducts> response = new CommonResponse<>(200, "SubProduct updated successfully", updated);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            log.error("Error updating sub-product: {}", ex.getMessage());
+            return ResponseEntity.badRequest().body(new CommonResponse<>(400, ex.getMessage(), null));
+        }
     }
 
     @GetMapping
-    public ResponseEntity<Page<SubProducts>> getAllSubProducts(Pageable pageable) {
-        log.info("Fetching all sub-products");
-        return ResponseEntity.ok(subProductsService.getAllSubProducts(pageable));
+    public ResponseEntity<CommonResponse<Page<SubProducts>>> getAllSubProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<SubProducts> subProductsPage = subProductsService.getAllSubProducts(pageable);
+
+        CommonResponse<Page<SubProducts>> response = new CommonResponse<>(
+                200,
+                "SubProducts fetched successfully",
+                subProductsPage
+        );
+
+        return ResponseEntity.ok(response);
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<SubProducts> getSubProductById(@PathVariable String id) {
