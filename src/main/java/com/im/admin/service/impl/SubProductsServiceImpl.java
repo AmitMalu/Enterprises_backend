@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.service.SubProductsService;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -35,11 +37,13 @@ public class SubProductsServiceImpl implements SubProductsService {
     @Override
     public SubProducts saveSubProduct(SubProducts subProduct) {
 
-        // Check if the provided productId exists
-        boolean productExists = productsRepository.existsById(subProduct.getProductId());
-        if (!productExists) {
-            throw new IllegalArgumentException("Invalid Product ID: " + subProduct.getProductId() + ". Product does not exist.");
-        }
+        // Fetch the product by ID
+        Products product = productsRepository.findById(subProduct.getProductId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid productId: " + subProduct.getProductId()));
+
+        // Set name and code from product
+        subProduct.setProductName(product.getName());
+        subProduct.setProductCode(product.getProductCode());
 
         Optional<SubProducts> existingSubProduct = subProductsRepository
                 .findBySubProductCodeOrSubProductTitle(subProduct.getSubProductCode(), subProduct.getSubProductTitle());
@@ -73,10 +77,17 @@ public class SubProductsServiceImpl implements SubProductsService {
     @Transactional
     public SubProducts updateSubProduct(String id, SubProducts subProduct) {
         SubProducts existingSubProduct = subProductsRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("SubProduct with ID " + id + " not found."));
+                .orElseThrow(() -> new IllegalArgumentException("SubProduct with ID " + id + " not found."));
+
+        // Check if productId is changed and fetch product
+        if (!Objects.equals(existingSubProduct.getProductId(), subProduct.getProductId())) {
+            Products product = productsRepository.findById(subProduct.getProductId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid productId: " + subProduct.getProductId()));
+            existingSubProduct.setProductName(product.getName());
+            existingSubProduct.setProductCode(product.getProductCode());
+        }
 
         existingSubProduct.setSubProductTitle(subProduct.getSubProductTitle());
-        existingSubProduct.setProductCode(subProduct.getProductCode());
         existingSubProduct.setSubProductCode(subProduct.getSubProductCode());
         existingSubProduct.setProductId(subProduct.getProductId());
         existingSubProduct.setIsSettlement(subProduct.getIsSettlement());
