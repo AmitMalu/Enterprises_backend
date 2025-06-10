@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.ProductDropdownResponseDto;
 import com.im.admin.entities.product.Products;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.ProductsService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -25,17 +26,29 @@ public class ProductsController {
     private ProductsService productsService;
 
     @PostMapping
-    public ResponseEntity<Products> saveProduct(@Valid @RequestBody Products product) {
+    public ResponseEntity<CommonResponse<Products>> saveProduct(@Valid @RequestBody Products product) {
         log.info("Received request to save product: {}", product);
         Products savedProduct = productsService.saveProduct(product);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedProduct);
+
+        CommonResponse<Products> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.CREATED.value());
+        response.setMessage("Product saved successfully");
+        response.setData(savedProduct);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Products> updateProduct(@PathVariable Short id, @Valid @RequestBody Products product) {
+    public ResponseEntity<CommonResponse<Products>> updateProduct(@PathVariable Short id, @Valid @RequestBody Products product) {
         log.info("Received request to update product with ID: {}", id);
         Products updatedProduct = productsService.updateProduct(id, product);
-        return ResponseEntity.ok(updatedProduct);
+
+        CommonResponse<Products> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.OK.value());
+        response.setMessage("Product updated successfully");
+        response.setData(updatedProduct);
+
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")

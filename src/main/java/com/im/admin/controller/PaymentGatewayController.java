@@ -6,6 +6,7 @@ import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
 import com.im.admin.dto.RetailerCommissionResponseDTO;
 import com.im.admin.entities.CardTypeMaster;
 import com.im.admin.entities.SchemeAllocation;
+import com.im.admin.request.BulkUpdateTransactionStatusRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.PaymentGatewayService;
 import lombok.RequiredArgsConstructor;
@@ -34,4 +35,5 @@ public class PaymentGatewayController {
 
         return ResponseEntity.ok(response);
     }
+
 }
