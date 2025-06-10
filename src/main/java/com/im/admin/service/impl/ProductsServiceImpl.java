@@ -30,19 +30,21 @@ public class ProductsServiceImpl implements ProductsService {
             throw new IllegalArgumentException("Product ID limit reached (10-99). No more IDs available.");
         }
 
-
-        // Get the max ID and ensure it's within the allowed range (10 to 99)
-//        Short maxId = productsRepository.findMaxProductId();
-//        if (maxId >= 99) {
-//            throw new IllegalArgumentException("Product ID limit reached. Cannot exceed 99.");
+        // Convert SGST and TDS to percentage form (e.g., 18 → 0.18)
+//        if (product.getSgst() != null && product.getSgst() > 1) {
+//            product.setSgst(product.getSgst() / 100);
+//        }
+//
+//        if (product.getTds() != null && product.getTds() > 1) {
+//            product.setTds(product.getTds() / 100);
 //        }
 
-        //product.setId((short) (maxId + 1));  // Assign the next valid ID
         Products savedProduct = productsRepository.save(product);
 
         log.info("Product saved successfully with ID: {}", savedProduct.getId());
         return savedProduct;
     }
+
 
     @Override
     public Products updateProduct(Short id, Products product) {

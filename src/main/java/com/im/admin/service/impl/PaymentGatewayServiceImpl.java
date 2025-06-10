@@ -3,12 +3,21 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
 import com.im.admin.dto.RetailerCommissionResponseDTO;
+import com.im.admin.dto.UpdateTransactionStatusRequest;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
+import com.im.admin.request.BulkUpdateTransactionStatusRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.PaymentGatewayService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class PaymentGatewayServiceImpl implements PaymentGatewayService {
