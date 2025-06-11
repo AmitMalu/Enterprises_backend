@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.dto.VendorDropdownResponseDto;
 import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.VendorService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -25,29 +26,37 @@ public class VendorController {
     private VendorService vendorsService;
 
     @PostMapping
-    public ResponseEntity<Vendors> createVendor(@RequestBody @Valid Vendors vendor) {
+    public ResponseEntity<CommonResponse<Vendors>> createVendor(@RequestBody @Valid Vendors vendor) {
         Vendors savedVendor = vendorsService.saveVendor(vendor);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedVendor);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new CommonResponse<>(201, "Vendor created successfully", savedVendor));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Vendors> getVendorById(@PathVariable String id) {
+    public ResponseEntity<CommonResponse<Vendors>> getVendorById(@PathVariable String id) {
         Vendors vendor = vendorsService.getVendorById(id);
-        return ResponseEntity.ok(vendor);
+        return ResponseEntity.ok(
+                new CommonResponse<>(200, "Vendor fetched successfully", vendor));
     }
 
     @GetMapping
-    public ResponseEntity<Page<Vendors>> getAllVendors(
+    public ResponseEntity<CommonResponse<Page<Vendors>>> getAllVendors(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
+
         Page<Vendors> vendors = vendorsService.getAllVendors(page, size);
-        return ResponseEntity.ok(vendors);
+        return ResponseEntity.ok(
+                new CommonResponse<>(200, "Vendors fetched successfully", vendors));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Vendors> updateVendor(@PathVariable String id, @RequestBody @Valid Vendors vendor) {
+    public ResponseEntity<CommonResponse<Vendors>> updateVendor(
+            @PathVariable String id,
+            @RequestBody @Valid Vendors vendor) {
+
         Vendors updatedVendor = vendorsService.updateVendor(id, vendor);
-        return ResponseEntity.ok(updatedVendor);
+        return ResponseEntity.ok(
+                new CommonResponse<>(200, "Vendor updated successfully", updatedVendor));
     }
 
     @DeleteMapping("/{id}")
