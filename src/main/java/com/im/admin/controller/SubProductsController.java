@@ -62,7 +62,7 @@ public class SubProductsController {
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<SubProducts>>> getAllSubProducts(
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
 
         Pageable pageable = PageRequest.of(page, size);
@@ -84,9 +84,19 @@ public class SubProductsController {
     }
 
     @GetMapping("/dropdown/{productId}")
-    public ResponseEntity<List<SubProductDropdownResponseDto>> getActiveSubProducts(@PathVariable("productId") Short productId) {
+    public ResponseEntity<CommonResponse<List<SubProductDropdownResponseDto>>> getActiveSubProducts(
+            @PathVariable("productId") Short productId) {
+
         List<SubProductDropdownResponseDto> subProducts = subProductsService.getActiveSubProductsByProductId(productId);
-        return ResponseEntity.ok(subProducts);
+
+        CommonResponse<List<SubProductDropdownResponseDto>> response = new CommonResponse<>(
+                200,
+                "Active sub-products fetched successfully",
+                subProducts
+        );
+
+        return ResponseEntity.ok(response);
     }
+
 }
 

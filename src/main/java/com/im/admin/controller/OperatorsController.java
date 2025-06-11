@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.im.admin.entities.Operators;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.OperatorsService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +13,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -25,18 +25,31 @@ public class OperatorsController {
     private OperatorsService operatorsService;
 
     @PostMapping
-    public ResponseEntity<Operators> createOperator(@Valid @RequestBody Operators operator) {
+    public ResponseEntity<CommonResponse<Operators>> createOperator(@Valid @RequestBody Operators operator) {
         log.info("Received request to create operator: {}", operator);
         Operators savedOperator = operatorsService.saveOperator(operator);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedOperator);
+        CommonResponse<Operators> response = new CommonResponse<>(
+                HttpStatus.CREATED.value(),
+                "Operator created successfully",
+                savedOperator
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Operators> updateOperator(@PathVariable String id, @Valid @RequestBody Operators operator) {
+    public ResponseEntity<CommonResponse<Operators>> updateOperator(
+            @PathVariable String id,
+            @Valid @RequestBody Operators operator) {
         log.info("Received request to update operator with ID: {}", id);
         Operators updatedOperator = operatorsService.updateOperator(id, operator);
-        return ResponseEntity.ok(updatedOperator);
+        CommonResponse<Operators> response = new CommonResponse<>(
+                HttpStatus.OK.value(),
+                "Operator updated successfully",
+                updatedOperator
+        );
+        return ResponseEntity.ok(response);
     }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteOperator(@PathVariable String id) {
@@ -46,22 +59,26 @@ public class OperatorsController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Operators> getOperatorById(@PathVariable String id) {
+    public ResponseEntity<CommonResponse<Operators>> getOperatorById(@PathVariable String id) {
         log.info("Received request to fetch operator with ID: {}", id);
         Operators operator = operatorsService.getOperatorById(id);
-        return ResponseEntity.ok(operator);
+        return ResponseEntity.ok(
+                new CommonResponse<>(HttpStatus.OK.value(), "Operator fetched successfully", operator)
+        );
     }
 
     @GetMapping
-    public ResponseEntity<Page<Operators>> getAllOperators(
+    public ResponseEntity<CommonResponse<Page<Operators>>> getAllOperators(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
         log.info("Received request to fetch all operators - Page: {}, Size: {}", page, size);
         Page<Operators> operators = operatorsService.getAllOperators(page, size);
-        return ResponseEntity.ok(operators);
-    }
 
+        return ResponseEntity.ok(
+                new CommonResponse<>(HttpStatus.OK.value(), "Operators fetched successfully", operators)
+        );
+    }
 
     @GetMapping("/active/{subProductId}")
     public ResponseEntity<?> getActiveOperators(@PathVariable String subProductId) {
@@ -73,10 +90,6 @@ public class OperatorsController {
         }
         return operatorsService.getActiveOperatorsBySubProductId(subProductId);
     }
-
-
-
-
 
 }
 

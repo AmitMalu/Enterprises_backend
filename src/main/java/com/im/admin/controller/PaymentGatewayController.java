@@ -44,6 +44,8 @@ public class PaymentGatewayController {
         return paymentGatewayService.createOrder(request);
     }
 
+//    @PostMapping("/order-status")
+
     @PostMapping("/fetch/card-bin-no")
     public ResponseEntity<CommonResponse<RetailerCommissionResponseDTO>> fetchCardBinNo(
             @RequestBody PaymentGatewayCardBinRequestDTO paymentGatewayCardBinRequestDTO) {
