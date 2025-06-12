@@ -97,16 +97,16 @@ public class DistributorServiceImpl implements DistributorService {
             }
         }
 
-        if (distributorRepository.existsByAbbreviation(distributor.getAbbreviation())) {
-            errors.add(new FieldErrorDetailsDTO("abbreviation",
-                    "Abbreviation '" + distributor.getAbbreviation() + "' already exists."));
-        }
+//        if (distributorRepository.existsByAbbreviation(distributor.getAbbreviation())) {
+//            errors.add(new FieldErrorDetailsDTO("abbreviation",
+//                    "Abbreviation '" + distributor.getAbbreviation() + "' already exists."));
+//        }
 
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
 
-        distributor.setDistributorId(idGenerator.generateHierarchyEntityId("Distributor", distributor.getAbbreviation()));
+        //distributor.setDistributorId(idGenerator.generateHierarchyEntityId("Distributor", distributor.getAbbreviation()));
         String folder = "Distributor";
 
         // Upload Images
@@ -178,7 +178,7 @@ public class DistributorServiceImpl implements DistributorService {
         if (distributor.getTitle() != null) existingDistributor.setTitle(distributor.getTitle());
         if (distributor.getName() != null) existingDistributor.setName(distributor.getName());
         if (distributor.getMobileNumber() != null) existingDistributor.setMobileNumber(distributor.getMobileNumber());
-        if (distributor.getAbbreviation() != null) existingDistributor.setAbbreviation(distributor.getAbbreviation());
+        //if (distributor.getAbbreviation() != null) existingDistributor.setAbbreviation(distributor.getAbbreviation());
         if (distributor.getEmailId() != null) existingDistributor.setEmailId(distributor.getEmailId());
         if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
         if (distributor.getAddress() != null) existingDistributor.setAddress(distributor.getAddress());

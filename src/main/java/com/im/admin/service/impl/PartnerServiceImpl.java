@@ -95,16 +95,16 @@ public class PartnerServiceImpl implements PartnerService {
             }
         }
 
-        if (partnerRepository.existsByAbbreviation(partner.getAbbreviation())) {
-            errors.add(new FieldErrorDetailsDTO("abbreviation",
-                    "Abbreviation '" + partner.getAbbreviation() + "' already exists."));
-        }
+//        if (partnerRepository.existsByAbbreviation(partner.getAbbreviation())) {
+//            errors.add(new FieldErrorDetailsDTO("abbreviation",
+//                    "Abbreviation '" + partner.getAbbreviation() + "' already exists."));
+//        }
 
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
 
-        partner.setPartnerId(idGenerator.generateHierarchyEntityId("Partner", partner.getAbbreviation()));
+        //partner.setPartnerId(idGenerator.generateHierarchyEntityId("Partner", partner.getAbbreviation()));
         String folder = "Partner";
 
         // Upload Images
@@ -173,7 +173,7 @@ public class PartnerServiceImpl implements PartnerService {
         if (partner.getTitle() != null) existingPartner.setTitle(partner.getTitle());
         if (partner.getName() != null) existingPartner.setName(partner.getName());
         if (partner.getMobileNumber() != null) existingPartner.setMobileNumber(partner.getMobileNumber());
-        if (partner.getAbbreviation() != null) existingPartner.setAbbreviation(partner.getAbbreviation());
+        //if (partner.getAbbreviation() != null) existingPartner.setAbbreviation(partner.getAbbreviation());
         if (partner.getEmailId() != null) existingPartner.setEmailId(partner.getEmailId());
         if (partner.getDob() != null) existingPartner.setDob(partner.getDob());
         if (partner.getAddress() != null) existingPartner.setAddress(partner.getAddress());
