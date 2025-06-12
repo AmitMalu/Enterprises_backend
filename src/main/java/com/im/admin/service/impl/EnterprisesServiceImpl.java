@@ -95,17 +95,30 @@ public class EnterprisesServiceImpl implements EnterprisesService {
             }
         }
 
-        if (enterpriseRepository.existsByAbbreviation(enterprises.getAbbreviation())) {
-            errors.add(new FieldErrorDetailsDTO("abbreviation",
-                    "Abbreviation '" + enterprises.getAbbreviation() + "' already exists."));
-        }
-
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
 
-        enterprises.setEnterpriseId(idGenerator.generateHierarchyEntityId("Enterprises", enterprises.getAbbreviation()));
+        String abbreviation = enterprises.getAbbreviation();
+        if (abbreviation == null || abbreviation.isBlank()) {
+            String parentAccount = enterprises.getParentAccount();
+            if (parentAccount == null || !parentAccount.contains("-")) {
+                throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+            }
+
+            // Extract prefix from parentAccount
+            abbreviation = parentAccount.split("-")[0];
+
+            // Optionally validate abbreviation format
+            if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+                throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+            }
+
+            enterprises.setAbbreviation(abbreviation);
+        }
+
         String folder = "Enterprises";
+        enterprises.setEnterpriseId(idGenerator.generateHierarchyEntityId(folder, enterprises.getAbbreviation()));
 
         // Upload Images
         imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, enterprises::setAadhaarCardFrontImage);

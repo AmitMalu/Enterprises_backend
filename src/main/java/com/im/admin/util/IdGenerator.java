@@ -51,7 +51,6 @@ public class IdGenerator {
         return String.format("%s%03d", prefix, nextId);
     }
 
-    @Transactional
     public String generateHierarchyEntityId(String entityType, String abbreviation) {
         if (abbreviation == null || abbreviation.isEmpty()) {
             throw new IllegalArgumentException("Abbreviation cannot be null or empty.");
@@ -67,35 +66,38 @@ public class IdGenerator {
             default -> throw new IllegalArgumentException("Invalid entity type: " + entityType);
         };
 
-        // Fetch last_id from id_tracker
+        int nextId = 1;
+
+        // Try fetching the last_id for this abbreviation + entity type
         List<Integer> lastIdList = entityManager.createNativeQuery(
-                        "SELECT last_id FROM id_tracker WHERE entity_type = :entityType FOR UPDATE")
+                        "SELECT last_id FROM id_tracker WHERE entity_type = :entityType AND abbreviation = :abbr FOR UPDATE")
                 .setParameter("entityType", entityType)
+                .setParameter("abbr", abbreviation)
                 .getResultList();
 
-        int nextId = 1; // Default to 1 if no record exists
-
         if (!lastIdList.isEmpty()) {
-            nextId = lastIdList.get(0) + 1; // Increment last_id
-        } else {
-            // Insert new entry if it does not exist
+            nextId = lastIdList.get(0) + 1;
+
+            // Update the existing last_id
             entityManager.createNativeQuery(
-                            "INSERT INTO id_tracker (entity_type, last_id) VALUES (:entityType, :nextId)")
+                            "UPDATE id_tracker SET last_id = :nextId WHERE entity_type = :entityType AND abbreviation = :abbr")
+                    .setParameter("nextId", nextId)
                     .setParameter("entityType", entityType)
+                    .setParameter("abbr", abbreviation)
+                    .executeUpdate();
+        } else {
+            // Insert new abbreviation + entity type entry
+            entityManager.createNativeQuery(
+                            "INSERT INTO id_tracker (entity_type, abbreviation, last_id) VALUES (:entityType, :abbr, :nextId)")
+                    .setParameter("entityType", entityType)
+                    .setParameter("abbr", abbreviation)
                     .setParameter("nextId", nextId)
                     .executeUpdate();
         }
 
-        // Update last_id in id_tracker
-        entityManager.createNativeQuery(
-                        "UPDATE id_tracker SET last_id = :nextId WHERE entity_type = :entityType")
-                .setParameter("nextId", nextId)
-                .setParameter("entityType", entityType)
-                .executeUpdate();
-
-        // Corrected return statement
         return String.format("%s%03d", prefix, nextId);
     }
+
 
 
 }

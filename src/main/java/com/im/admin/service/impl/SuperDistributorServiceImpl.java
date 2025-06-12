@@ -96,16 +96,16 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
             }
         }
 
-        if (superDistributorRepository.existsByAbbreviation(superDistributor.getAbbreviation())) {
-            errors.add(new FieldErrorDetailsDTO("abbreviation",
-                    "Abbreviation '" + superDistributor.getAbbreviation() + "' already exists."));
-        }
+//        if (superDistributorRepository.existsByAbbreviation(superDistributor.getAbbreviation())) {
+//            errors.add(new FieldErrorDetailsDTO("abbreviation",
+//                    "Abbreviation '" + superDistributor.getAbbreviation() + "' already exists."));
+//        }
 
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
 
-        superDistributor.setSuperDistributorId(idGenerator.generateHierarchyEntityId("Super Distributor", superDistributor.getAbbreviation()));
+        //superDistributor.setSuperDistributorId(idGenerator.generateHierarchyEntityId("Super Distributor", superDistributor.getAbbreviation()));
         String folder = "Super Distributor";
 
         // Upload Images
@@ -180,7 +180,7 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
         if (superDistributor.getTitle() != null) existingSuperDistributor.setTitle(superDistributor.getTitle());
         if (superDistributor.getName() != null) existingSuperDistributor.setName(superDistributor.getName());
         if (superDistributor.getMobileNumber() != null) existingSuperDistributor.setMobileNumber(superDistributor.getMobileNumber());
-        if (superDistributor.getAbbreviation() != null) existingSuperDistributor.setAbbreviation(superDistributor.getAbbreviation());
+        //if (superDistributor.getAbbreviation() != null) existingSuperDistributor.setAbbreviation(superDistributor.getAbbreviation());
         if (superDistributor.getEmailId() != null) existingSuperDistributor.setEmailId(superDistributor.getEmailId());
         if (superDistributor.getDob() != null) existingSuperDistributor.setDob(superDistributor.getDob());
         if (superDistributor.getAddress() != null) existingSuperDistributor.setAddress(superDistributor.getAddress());

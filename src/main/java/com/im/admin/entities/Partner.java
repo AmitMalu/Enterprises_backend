@@ -29,11 +29,11 @@ public class Partner {
     @Column(name = "parent_account", nullable = false)
     private String parentAccount;
 
-    @NotBlank(message = "Abbreviation is required")
-    @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
-    @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
-    @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
-    private String abbreviation;
+//    @NotBlank(message = "Abbreviation is required")
+//    @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
+//    @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
+//    @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
+//    private String abbreviation;
 
     @NotBlank(message = "Title is mandatory")
     private String title;

@@ -21,7 +21,7 @@ public class EnterprisesPostpaidAmount extends AbstractWalletAmountTable {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "enterprises_id", nullable = false, unique = true)
+    @JoinColumn(name = "enterprise_id", nullable = false, unique = true)
     private Enterprises enterprise;
 
     @Column(name = "total_cash", precision = 10, scale = 2)

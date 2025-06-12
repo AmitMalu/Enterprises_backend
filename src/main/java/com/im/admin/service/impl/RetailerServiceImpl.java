@@ -100,16 +100,16 @@ public class RetailerServiceImpl implements RetailerService {
             }
         }
 
-        if (retailerRepository.existsByAbbreviation(retailer.getAbbreviation())) {
-            errors.add(new FieldErrorDetailsDTO("abbreviation",
-                    "Abbreviation '" + retailer.getAbbreviation() + "' already exists."));
-        }
+//        if (retailerRepository.existsByAbbreviation(retailer.getAbbreviation())) {
+//            errors.add(new FieldErrorDetailsDTO("abbreviation",
+//                    "Abbreviation '" + retailer.getAbbreviation() + "' already exists."));
+//        }
 
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
 
-        retailer.setRetailerId(idGenerator.generateHierarchyEntityId("Retailer", retailer.getAbbreviation()));
+       // retailer.setRetailerId(idGenerator.generateHierarchyEntityId("Retailer", retailer.getAbbreviation()));
         String folder = "Retailer";
 
         // Upload Images
@@ -180,7 +180,7 @@ public class RetailerServiceImpl implements RetailerService {
         if (retailer.getTitle() != null) existingRetailer.setTitle(retailer.getTitle());
         if (retailer.getName() != null) existingRetailer.setName(retailer.getName());
         if (retailer.getMobileNumber() != null) existingRetailer.setMobileNumber(retailer.getMobileNumber());
-        if (retailer.getAbbreviation() != null) existingRetailer.setAbbreviation(retailer.getAbbreviation());
+        //if (retailer.getAbbreviation() != null) existingRetailer.setAbbreviation(retailer.getAbbreviation());
         if (retailer.getEmailId() != null) existingRetailer.setEmailId(retailer.getEmailId());
         if (retailer.getDob() != null) existingRetailer.setDob(retailer.getDob());
         if (retailer.getAddress() != null) existingRetailer.setAddress(retailer.getAddress());
