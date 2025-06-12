@@ -1,7 +1,11 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.entities.Operators;
+import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.OperatorsRepository;
+import com.im.admin.repositories.ProductsRepository;
+import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.service.OperatorsService;
 import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +31,12 @@ public class OperatorsServiceImpl implements OperatorsService {
     private OperatorsRepository operatorsRepository;
 
     @Autowired
+    private ProductsRepository productsRepository;
+
+    @Autowired
+    private SubProductsRepository subProductsRepository;
+
+    @Autowired
     private CommonMethods commonMethods;
 
     @Override
@@ -37,12 +47,23 @@ public class OperatorsServiceImpl implements OperatorsService {
             throw new RuntimeException("Operator Code already exists!");
         }
 
+        // Fetch and set Product
+        Products product = productsRepository.findById(operator.getProductId())
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + operator.getProductId()));
+        operator.setProductCode(product.getProductCode());
+
+        // Fetch and set SubProduct
+        SubProducts subProduct = subProductsRepository.findById(String.valueOf(operator.getSubProductId()))
+                .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + operator.getSubProductId()));
+        operator.setSubProductCode(subProduct.getSubProductCode());
+
         operator.setId(commonMethods.generateNextIdForTables("operators", "id"));
 
         Operators savedOperator = operatorsRepository.save(operator);
         log.info("Operator saved successfully with ID: {}", savedOperator.getId());
         return savedOperator;
     }
+
 
     @Override
     public Operators updateOperator(String id, Operators operator) {
@@ -51,14 +72,21 @@ public class OperatorsServiceImpl implements OperatorsService {
         Operators existingOperator = operatorsRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Operator not found with ID: " + id));
 
+        Products product = productsRepository.findById(operator.getProductId())
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + operator.getProductId()));
+
+        SubProducts subProduct = subProductsRepository.findById(String.valueOf(operator.getSubProductId()))
+                .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + operator.getSubProductId()));
+
+        // Update fields
         existingOperator.setOperatorCategory(operator.getOperatorCategory());
         existingOperator.setOperatorCode(operator.getOperatorCode());
         existingOperator.setOperatorName(operator.getOperatorName());
         existingOperator.setOperatorAlias(operator.getOperatorAlias());
         existingOperator.setAlias(operator.getAlias());
-        existingOperator.setProductId(operator.getProductId());
+        existingOperator.setProductCode(product.getProductCode());
         existingOperator.setProductCode(operator.getProductCode());
-        existingOperator.setSubProductId(operator.getSubProductId());
+        existingOperator.setSubProductCode(subProduct.getSubProductCode());
         existingOperator.setSubProductCode(operator.getSubProductCode());
         existingOperator.setIsActive(operator.getIsActive());
         existingOperator.setEditedBy(operator.getEditedBy());
