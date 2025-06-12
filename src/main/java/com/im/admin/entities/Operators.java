@@ -41,21 +41,19 @@ public class Operators {
     @Column(name = "alias")
     private String alias;
 
-    @NotBlank(message = "Product Code is required")
+    @NotBlank(message = "Product Id is required")
+    @Column(name = "product_id", insertable = false, updatable = false)
+    private Short productId;
+
     @Column(name = "product_code")
     private String productCode;
 
-    @NotBlank(message = "Product Id is required")
-    @Column(name = "product_id")
-    private String productId;
+    @NotBlank(message = "Sub Product Id is required")
+    @Column(name = "sub_product_id", insertable = false, updatable = false)
+    private Short subProductId;
 
-    @NotBlank(message = "Sub Product Code is required")
     @Column(name = "sub_product_code")
     private String subProductCode;
-
-    @NotBlank(message = "Sub Product Id is required")
-    @Column(name = "sub_productId")
-    private String subProductId;
 
     @Column(name = "card_bin_no")
     private String cardBinNo;
