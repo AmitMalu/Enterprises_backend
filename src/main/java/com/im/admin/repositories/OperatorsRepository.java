@@ -14,7 +14,7 @@ public interface OperatorsRepository extends JpaRepository<Operators, String> {
 
     boolean existsByOperatorCode(String operatorCode);
 
-    List<Operators> findBySubProductIdAndIsActiveTrue(String subProductId);
+    List<Operators> findBySubProductIdAndIsActiveTrue(Short subProductId);
 
     List<Operators> findBySubProductCode(String subProductCode);
 

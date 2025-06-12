@@ -3,21 +3,20 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
 import com.im.admin.dto.RetailerCommissionResponseDTO;
-import com.im.admin.dto.TokenResponseDTO;
 import com.im.admin.request.CreateOrderRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.PaymentGatewayService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/pg")
@@ -39,12 +38,22 @@ public class PaymentGatewayController {
         return new ResponseEntity<>(token, HttpStatus.OK);
     }
 
-    @PostMapping("/payment/callback")
+    @PostMapping("/create-order")
     public ResponseEntity<?> createOrder(@RequestBody CreateOrderRequest request) {
         return paymentGatewayService.createOrder(request);
     }
 
-//    @PostMapping("/order-status")
+    @PostMapping("/order-status")
+    public ResponseEntity<?> orderStatus(@RequestParam("orderId") String orderId) {
+        return paymentGatewayService.orderStatus(orderId);
+    }
+
+    @PostMapping("/payment/callback")
+    public ResponseEntity<String> handleCallback(@RequestBody Map<String, String> payload,
+                                                 HttpServletRequest request) {
+        String result = paymentGatewayService.handleCallback(payload, request);
+        return ResponseEntity.ok(result);
+    }
 
     @PostMapping("/fetch/card-bin-no")
     public ResponseEntity<CommonResponse<RetailerCommissionResponseDTO>> fetchCardBinNo(
