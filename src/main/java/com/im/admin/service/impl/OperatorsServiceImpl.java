@@ -126,7 +126,7 @@ public class OperatorsServiceImpl implements OperatorsService {
 
     @Override
     public ResponseEntity<?> getActiveOperatorsBySubProductId(String subProductId) {
-        List<Operators> operators = operatorsRepository.findBySubProductIdAndIsActiveTrue(subProductId);
+        List<Operators> operators = operatorsRepository.findBySubProductIdAndIsActiveTrue(Short.valueOf(subProductId));
 
         if (operators.isEmpty()) {
             Map<String, String> response = new HashMap<>();
