@@ -1,20 +1,12 @@
 package com.im.admin.commons;
 
-import com.im.admin.dto.TokenResponseDTO;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 
 @Component
 @Slf4j
@@ -34,6 +26,9 @@ public class CommonFunctions {
 
     @Autowired
     private AuditLogsRepository auditLogsRepository;
+
+    @Autowired
+    private CallbackEventLogRepository callbackEventLogRepository;
 
 
     public ImLogs saveImLogs(String request, LocalDateTime imRequestDateTime, String ipAddress, String response,
@@ -61,8 +56,8 @@ public class CommonFunctions {
         return vendorReqRes;
     }
 
-    public HierarchyLogs saveHierarchyLogs(LocalDateTime HierarchyRequestDateTime, String request,String ipAddress,
-                                        LocalDateTime HierarchyResponseDateTime, String response) {
+    public HierarchyLogs saveHierarchyLogs(LocalDateTime HierarchyRequestDateTime, String request, String ipAddress,
+                                           LocalDateTime HierarchyResponseDateTime, String response) {
         HierarchyLogs hierarchyLogs = new HierarchyLogs();
         hierarchyLogs.setRequest(request);
         hierarchyLogs.setRequestDateTime(HierarchyRequestDateTime);
@@ -73,7 +68,7 @@ public class CommonFunctions {
         return hierarchyLogs;
     }
 
-    public LoginLogs saveLoginLogs(String request,LocalDateTime LoginRequestDateTime,String response,
+    public LoginLogs saveLoginLogs(String request, LocalDateTime LoginRequestDateTime, String response,
                                    LocalDateTime LoginResponseDateTime, String requestIp) {
         LoginLogs loginlogs = new LoginLogs();
         loginlogs.setRequest(request);
@@ -86,7 +81,7 @@ public class CommonFunctions {
     }
 
     public AuditLogs saveAuditLogs(String request, LocalDateTime imRequestDateTime, String ipAddress, String response,
-                             LocalDateTime imResponseDateTime) {
+                                   LocalDateTime imResponseDateTime) {
         AuditLogs auditogs = new AuditLogs();
         auditogs.setRequest(request);
         auditogs.setRequestDateTime(imRequestDateTime);
@@ -96,5 +91,20 @@ public class CommonFunctions {
         auditogs = auditLogsRepository.save(auditogs);
         return auditogs;
     }
+
+
+    public CallbackEventLog saveCallbackEventLog(String request, LocalDateTime requestDateTime, String ipAddress,
+                                                 String response, LocalDateTime responseDateTime) {
+
+        CallbackEventLog callbackEventLog = new CallbackEventLog();
+        callbackEventLog.setRequest(request);
+        callbackEventLog.setRequestDateTime(requestDateTime);
+        callbackEventLog.setIpAddress(ipAddress); // previously hardcoded to null — FIXED
+        callbackEventLog.setResponse(response);
+        callbackEventLog.setResponseDateTime(responseDateTime);
+
+        return callbackEventLogRepository.save(callbackEventLog);
+    }
+
 
 }
