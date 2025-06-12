@@ -236,19 +236,22 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         }
     }
 
-
     @Override
     public String handleCallback(Map<String, String> payload, HttpServletRequest request) {
         LocalDateTime requestTime = LocalDateTime.now();
         String clientIp = request.getRemoteAddr();
         String rawCallbackData = payload.get("CALLBACKURL");
 
+        log.info("Processing callback request at: {}, from IP: {}", requestTime, clientIp);
+
         if (rawCallbackData == null) {
+            log.error("Missing CALLBACKURL parameter in payload");
             commonFunctions.saveCallbackEventLog("Missing CALLBACKURL", requestTime, clientIp, "Bad Request", LocalDateTime.now());
             throw new RuntimeException("Missing CALLBACKURL parameter");
         }
 
         try {
+            log.debug("Parsing callback data: {}", rawCallbackData);
             ObjectMapper objectMapper = new ObjectMapper();
             List<RunPaisaCallback> callbackList = objectMapper.readValue(rawCallbackData, new TypeReference<>() {});
 
@@ -257,10 +260,11 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             }
 
             commonFunctions.saveCallbackEventLog(rawCallbackData, requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+            log.info("Callback processed successfully for request at: {}, from IP: {}", requestTime, clientIp);
             return "Callback processed successfully";
 
         } catch (Exception e) {
-            log.error("Error processing callback", e);
+            log.error("Error processing callback: {}", e.getMessage(), e);
             commonFunctions.saveCallbackEventLog(rawCallbackData, requestTime, clientIp, e.getMessage(), LocalDateTime.now());
             throw new RuntimeException("Callback processing failed");
         }

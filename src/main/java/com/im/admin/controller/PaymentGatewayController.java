@@ -51,9 +51,14 @@ public class PaymentGatewayController {
     @PostMapping("/payment/callback")
     public ResponseEntity<String> handleCallback(@RequestBody Map<String, String> payload,
                                                  HttpServletRequest request) {
+        log.info("Received callback request from IP: {}", request.getRemoteAddr());
+
         String result = paymentGatewayService.handleCallback(payload, request);
+
+        log.info("Callback response sent: {}", result);
         return ResponseEntity.ok(result);
     }
+
 
     @PostMapping("/fetch/card-bin-no")
     public ResponseEntity<CommonResponse<RetailerCommissionResponseDTO>> fetchCardBinNo(
