@@ -25,6 +25,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -214,11 +215,13 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             headers.set("token", token);
 
             // Step 3: Build request body
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-            body.add("order_id", orderId);
+            Map<String, String> body = new HashMap<>();
+            body.put("order_id", orderId);
 
-            HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(body, headers);
+            HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
 
+            log.info("Request body: {}", body);
+            log.info("Headers: {}", headers);
             // Step 4: Send request using RestTemplate
             ResponseEntity<String> response = restTemplate.postForEntity(orderStatusUrl, requestEntity, String.class);
 
