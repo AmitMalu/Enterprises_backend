@@ -9,8 +9,10 @@ import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.request.CreateOrderRequest;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.RunPaisaCallback;
 import com.im.admin.service.PaymentGatewayService;
 import com.im.admin.util.CommonMethods;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +21,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -42,6 +50,9 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     @Autowired
     private CommonMethods commonMethods;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+
     RestTemplate restTemplate = new RestTemplate();
 
     @Value("${runpaisa.token.username}")
@@ -57,7 +68,11 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     private String clientId;
 
     @Value("${runpaisa.create.order.url.prod}")
-    private String orderUrl;
+    private String createOrderUrl;
+
+    @Value("${runpaisa.order.status.url.prod}")
+    private String orderStatusUrl;
+
 
     @Override
     public String generateToken() {
@@ -173,7 +188,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
             log.info("CreateOrder Request: headers={}, body={}", headers, body);
-            ResponseEntity<String> response = restTemplate.postForEntity(orderUrl, requestEntity, String.class);
+            ResponseEntity<String> response = restTemplate.postForEntity(createOrderUrl, requestEntity, String.class);
 
             log.info("Run paisa create order response: {}", response.getBody());
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
@@ -183,4 +198,82 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Order creation failed");
         }
     }
+
+    @Override
+    public ResponseEntity<?> orderStatus(String orderId) {
+        log.info("Initiating order status check for orderId: {}", orderId);
+
+        try {
+            // Step 1: Generate Token
+            String token = generateToken();
+
+            // Step 2: Build Multipart Request
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("client_id", clientId);
+            headers.set("token", token);
+
+            // Step 3: Build request body
+            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+            body.add("order_id", orderId);
+
+            HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(body, headers);
+
+            // Step 4: Send request using RestTemplate
+            ResponseEntity<String> response = restTemplate.postForEntity(orderStatusUrl, requestEntity, String.class);
+
+            log.info("Order status response: {}", response.getBody());
+            return ResponseEntity.ok(response.getBody());
+
+        } catch (Exception e) {
+            log.error("Error while fetching order status: ", e);
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Order status failed: " + e.getMessage());
+        }
+    }
+
+
+    @Override
+    public String handleCallback(Map<String, String> payload, HttpServletRequest request) {
+        LocalDateTime requestTime = LocalDateTime.now();
+        String clientIp = request.getRemoteAddr();
+        String rawCallbackData = payload.get("CALLBACKURL");
+
+        if (rawCallbackData == null) {
+            commonFunctions.saveCallbackEventLog("Missing CALLBACKURL", requestTime, clientIp, "Bad Request", LocalDateTime.now());
+            throw new RuntimeException("Missing CALLBACKURL parameter");
+        }
+
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            List<RunPaisaCallback> callbackList = objectMapper.readValue(rawCallbackData, new TypeReference<>() {});
+
+            for (RunPaisaCallback callback : callbackList) {
+                processCallback(callback);
+            }
+
+            commonFunctions.saveCallbackEventLog(rawCallbackData, requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+            return "Callback processed successfully";
+
+        } catch (Exception e) {
+            log.error("Error processing callback", e);
+            commonFunctions.saveCallbackEventLog(rawCallbackData, requestTime, clientIp, e.getMessage(), LocalDateTime.now());
+            throw new RuntimeException("Callback processing failed");
+        }
+    }
+
+    @Override
+    public void processCallback(RunPaisaCallback callback) {
+        log.info("Processing callback for Order ID: {}", callback.getOrder_id());
+
+        if ("SUCCESS".equalsIgnoreCase(callback.getPayment_status())) {
+            log.info("Payment success for Order ID: {}, Amount: {}", callback.getOrder_id(), callback.getPayment_amount());
+            // updateTransactionStatus(callback.getOrder_id(), "SUCCESS");
+        } else {
+            log.warn("Payment failed or pending for Order ID: {}", callback.getOrder_id());
+            // updateTransactionStatus(callback.getOrder_id(), "FAILED");
+        }
+    }
+
 }
