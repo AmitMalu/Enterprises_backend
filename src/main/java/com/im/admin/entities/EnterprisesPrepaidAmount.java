@@ -24,25 +24,25 @@ public class EnterprisesPrepaidAmount extends AbstractWalletAmountTable {
     @JoinColumn(name = "enterprise_id", nullable = false)
     private Enterprises enterprise;
 
-//    @Column(name = "total_cash", precision = 10, scale = 2)
-//    private BigDecimal totalCash = BigDecimal.ZERO;
-//
-//    @Column(name = "used_cash", precision = 10, scale = 2)
-//    private BigDecimal usedCash = BigDecimal.ZERO;
+    @Column(name = "total_cash", precision = 10, scale = 2)
+    private BigDecimal totalCash = BigDecimal.ZERO;
+
+    @Column(name = "used_cash", precision = 10, scale = 2)
+    private BigDecimal usedCash = BigDecimal.ZERO;
 
     @Column(name = "cut_of_amount", precision = 10, scale = 2)
     private BigDecimal cutOfAmount = BigDecimal.ZERO;
 
-//    @Column(name = "available_balance", precision = 10, scale = 2)
-//    private BigDecimal availableBalance = BigDecimal.ZERO;
+    @Column(name = "available_balance", precision = 10, scale = 2)
+    private BigDecimal availableBalance = BigDecimal.ZERO;
 
-//    @Column(name = "last_updated_date")
-//    private LocalDate lastUpdatedDate;
-//
-//    @Column(name = "last_updated_time")
-//    private LocalTime lastUpdatedTime;
-//
-//    @Column(name = "last_updated_amount", precision = 10, scale = 2)
-//    private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;
+    @Column(name = "last_updated_date")
+    private LocalDate lastUpdatedDate;
+
+    @Column(name = "last_updated_time")
+    private LocalTime lastUpdatedTime;
+
+    @Column(name = "last_updated_amount", precision = 10, scale = 2)
+    private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;
 }
 
