@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.OperatorDropdownResponseDTO;
 import com.im.admin.entities.Operators;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.product.Products;
@@ -125,26 +126,13 @@ public class OperatorsServiceImpl implements OperatorsService {
     }
 
     @Override
-    public ResponseEntity<?> getActiveOperatorsBySubProductId(String subProductId) {
-        List<Operators> operators = operatorsRepository.findBySubProductIdAndIsActiveTrue(Short.valueOf(subProductId));
+    public List<OperatorDropdownResponseDTO> getActiveOperatorsBySubProductId(String subProductId) {
+        List<Operators> list = operatorsRepository.findBySubProductIdAndIsActiveTrue(Short.valueOf(subProductId));
 
-        if (operators.isEmpty()) {
-            Map<String, String> response = new HashMap<>();
-            response.put("message", "No active operators found for the given SubProduct ID: " + subProductId);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
-
-        List<Map<String, Object>> result = operators.stream()
-                .map(op -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("id", op.getId());
-                    map.put("operatorName", op.getOperatorName());
-                    map.put("operatorCode", op.getOperatorCode());
-                    return map;
-                })
+        return list.stream()
+                .map(op -> new OperatorDropdownResponseDTO(op.getId(), op.getOperatorName(), op.getOperatorCode()))
                 .collect(Collectors.toList());
-
-        return ResponseEntity.ok(result);
     }
+
 }
 

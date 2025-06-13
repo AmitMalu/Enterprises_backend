@@ -66,18 +66,22 @@ public class VendorController {
     }
 
     @GetMapping("/dropdown/{subProductId}")
-    public ResponseEntity<?> getActiveVendors(@PathVariable("subProductId") String subProductId) {
+    public ResponseEntity<CommonResponse<List<VendorDropdownResponseDto>>> getActiveVendors(
+            @PathVariable("subProductId") String subProductId) {
+
         log.info("Fetching active vendors for subProductId: {}", subProductId);
 
         List<VendorDropdownResponseDto> vendorList = vendorsService.getActiveVendorBySubProductId(subProductId);
 
         if (vendorList.isEmpty()) {
             log.warn("No active vendors found for subProductId: {}", subProductId);
-            return ResponseEntity.status(404).body("No active vendors found for the given subProductId.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new CommonResponse<>(404, "No active vendors found for the given subProductId.", null));
         }
 
         log.info("Successfully retrieved {} vendors for subProductId: {}", vendorList.size(), subProductId);
-        return ResponseEntity.ok(vendorList);
+        return ResponseEntity.ok(new CommonResponse<>(200, "Active vendors fetched successfully", vendorList));
     }
+
 }
 

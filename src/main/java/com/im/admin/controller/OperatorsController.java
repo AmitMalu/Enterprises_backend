@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.OperatorDropdownResponseDTO;
 import com.im.admin.entities.Operators;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.OperatorsService;
@@ -13,6 +14,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -81,15 +83,28 @@ public class OperatorsController {
     }
 
     @GetMapping("/active/{subProductId}")
-    public ResponseEntity<?> getActiveOperators(@PathVariable String subProductId) {
+    public ResponseEntity<CommonResponse<List<OperatorDropdownResponseDTO>>> getActiveOperators(
+            @PathVariable String subProductId) {
 
         if (subProductId == null || subProductId.isBlank()) {
-            return ResponseEntity.badRequest().body(Collections.singletonList(
-                    Map.of("error", "subProductId is required")
-            ));
+            return ResponseEntity.badRequest().body(
+                    new CommonResponse<>(400, "subProductId is required", null)
+            );
         }
-        return operatorsService.getActiveOperatorsBySubProductId(subProductId);
+
+        List<OperatorDropdownResponseDTO> operators = operatorsService.getActiveOperatorsBySubProductId(subProductId);
+
+        if (operators.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    new CommonResponse<>(404, "No active operators found for subProductId: " + subProductId, null)
+            );
+        }
+
+        return ResponseEntity.ok(
+                new CommonResponse<>(200, "Active operators fetched successfully", operators)
+        );
     }
+
 
 }
 
