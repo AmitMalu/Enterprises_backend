@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -48,16 +49,54 @@ public class ProductsServiceImpl implements ProductsService {
 
 
     @Override
+    @Transactional
     public Products updateProduct(Short id, Products product) {
         log.info("Updating product with ID: {}", id);
 
-        return productsRepository.findById(id).map(existingProduct -> {
-            product.setId(id); // Preserve the existing ID
-            Products updatedProduct = productsRepository.save(product);
-            log.info("Product updated successfully: {}", updatedProduct);
-            return updatedProduct;
-        }).orElseThrow(() -> new EntityNotFoundException("Product not found with ID: " + id));
+        Products existingProduct = productsRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Product not found with ID: " + id));
+
+        // Field-by-field update
+        existingProduct.setName(product.getName());
+        existingProduct.setProductCode(product.getProductCode());
+        existingProduct.setProductCodeForScheme(product.getProductCodeForScheme());
+        existingProduct.setIsVisible(product.getIsVisible());
+        existingProduct.setTransactionType(product.getTransactionType());
+        existingProduct.setIsCommissions(product.getIsCommissions());
+        existingProduct.setSelectIsCommission(product.getSelectIsCommission());
+        existingProduct.setActive(product.getActive());
+        existingProduct.setDashboardUrl(product.getDashboardUrl());
+        existingProduct.setDashboardUrlForApk(product.getDashboardUrlForApk());
+        existingProduct.setDashboardImage(product.getDashboardImage());
+        existingProduct.setPriority(product.getPriority());
+        existingProduct.setProductGroup(product.getProductGroup());
+        existingProduct.setReverseTx(product.getReverseTx());
+        existingProduct.setClusterMode(product.getClusterMode());
+        existingProduct.setIsSettlement(product.getIsSettlement());
+        existingProduct.setHasCharges(product.getHasCharges());
+        existingProduct.setBlocked(product.getBlocked());
+
+        // Embedded objects
+        existingProduct.setInventory(product.getInventory());
+        existingProduct.setCluster(product.getCluster());
+
+        // Financials
+        existingProduct.setMinimumPostpaidBalance(product.getMinimumPostpaidBalance());
+        existingProduct.setMinimumPrepaidBalance(product.getMinimumPrepaidBalance());
+        existingProduct.setMinimumGullakBalance(product.getMinimumGullakBalance());
+        existingProduct.setMinimumSingleTransactionAmount(product.getMinimumSingleTransactionAmount());
+        existingProduct.setMaximumSingleTransactionAmount(product.getMaximumSingleTransactionAmount());
+        existingProduct.setSgst(product.getSgst());
+        existingProduct.setTds(product.getTds());
+
+        // Only editedBy is updated — preserve createdBy
+        existingProduct.setEditedBy(product.getEditedBy());
+
+        Products updatedProduct = productsRepository.save(existingProduct);
+        log.info("Product updated successfully: {}", updatedProduct);
+        return updatedProduct;
     }
+
 
     @Override
     public void deleteProduct(Short id) {
