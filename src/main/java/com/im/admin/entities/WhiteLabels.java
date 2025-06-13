@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 public class WhiteLabels {
 
     @Id
-    @Column(name = "whitelabel_id", nullable = false, length = 15)
+    @Column(name = "white_label_id", nullable = false, length = 15)
     private String whiteLabelId;  // Format: ABC-WL-001
 
     @Column(name = "title", nullable = false)
@@ -46,7 +46,7 @@ public class WhiteLabels {
     @Column(name = "business_desc")
     private String businessDesc;
 
-    @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
+    @Column(name = "abbreviation", length = 3)
     @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
     @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
     private String abbreviation;
