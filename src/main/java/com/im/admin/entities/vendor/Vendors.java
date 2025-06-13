@@ -24,11 +24,10 @@ public class Vendors {
     @Column(name = "id", columnDefinition = "CHAR(2)")
     private String id;
 
-    @NotBlank(message = "Sub Product Code is required")
     @Column(name = "sub_product_code")
     private String subProductCode;
 
-    @NotBlank(message = "Sub Product Id is required")
+    @NotBlank(message = "Sub Product is required")
     @Column(name = "sub_product_Id")
     private String subProductId;
 

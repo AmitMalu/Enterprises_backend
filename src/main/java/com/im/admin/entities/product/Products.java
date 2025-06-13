@@ -135,7 +135,3 @@ public class Products {
     @Column(name = "edited_by")
     private String editedBy;
 }
-
-
-
-
