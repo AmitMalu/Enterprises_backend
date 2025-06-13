@@ -28,7 +28,7 @@ public class AESFilter extends OncePerRequestFilter {
 
 	private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/webjars/**", "cache",
 			"/api/aes/generate-token", "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password","/auth/forgot-password",
-			"/api/aes/validate-token", "/api/pg/generate-token", "/enterprises/api/pg/payment/callback");
+			"/api/aes/validate-token", "/api/pg/generate-token", "/api/pg/payment/callback");
 
 	private final UrlPathHelper pathHelper = new UrlPathHelper();
 
@@ -95,7 +95,7 @@ public class AESFilter extends OncePerRequestFilter {
 
 	private boolean isPathViewableWithoutAuthentication(HttpServletRequest request) {
 		String requestURI = this.pathHelper.getPathWithinApplication(request);
-		log.info("Path" + requestURI);
+		log.info("<-------- Path ------> " + requestURI);
 		return PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.stream()
 				.anyMatch(allowedPath -> requestURI.equals(allowedPath) || requestURI.startsWith(allowedPath));
 	}
