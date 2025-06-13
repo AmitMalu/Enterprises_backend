@@ -2,6 +2,7 @@ package com.im.admin.service;
 
 import com.im.admin.dto.ProductDropdownResponseDto;
 import com.im.admin.entities.product.Products;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
@@ -14,7 +15,7 @@ public interface ProductsService {
 
     void deleteProduct(Short id);
 
-    List<Products> getAllProducts(Pageable pageable);
+    Page<Products> getAllProducts(Pageable pageable);
 
     Products getProductById(Short id);
 

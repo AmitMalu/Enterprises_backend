@@ -7,6 +7,7 @@ import com.im.admin.service.ProductsService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -59,26 +60,45 @@ public class ProductsController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Products>> getAllProducts(
+    public ResponseEntity<CommonResponse<Page<Products>>> getAllProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
+
         log.info("Received request to fetch all products with pagination - Page: {}, Size: {}", page, size);
+
         Pageable pageable = PageRequest.of(page, size);
-        List<Products> products = productsService.getAllProducts(pageable);
-        return ResponseEntity.ok(products);
+        Page<Products> productsPage = productsService.getAllProducts(pageable);
+
+        CommonResponse<Page<Products>> response = new CommonResponse<>(
+                200, "Products fetched successfully", productsPage
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Products> getProductById(@PathVariable Short id) {
+    public ResponseEntity<CommonResponse<Products>> getProductById(@PathVariable Short id) {
         log.info("Received request to fetch product with ID: {}", id);
+
         Products product = productsService.getProductById(id);
-        return ResponseEntity.ok(product);
+
+        CommonResponse<Products> response = new CommonResponse<>(
+                200, "Product fetched successfully", product
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/dropdown/active")
-    public ResponseEntity<List<ProductDropdownResponseDto>> getAllActiveProducts() {
+    public ResponseEntity<CommonResponse<List<ProductDropdownResponseDto>>> getAllActiveProducts() {
         List<ProductDropdownResponseDto> products = productsService.getAllActiveProducts();
-        return ResponseEntity.ok(products);
+
+        CommonResponse<List<ProductDropdownResponseDto>> response = new CommonResponse<>(
+                200, "Active products fetched successfully", products
+        );
+
+        return ResponseEntity.ok(response);
     }
+
 }
 
