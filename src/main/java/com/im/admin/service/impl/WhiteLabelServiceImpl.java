@@ -100,17 +100,32 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             }
         }
 
-        if (whiteLabelRepository.existsByAbbreviation(whiteLabels.getAbbreviation())) {
-            errors.add(new FieldErrorDetailsDTO("abbreviation",
-                    "Abbreviation '" + whiteLabels.getAbbreviation() + "' already exists."));
-        }
-
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
 
-        whiteLabels.setWhiteLabelId(idGenerator.generateHierarchyEntityId("White Label", whiteLabels.getAbbreviation()));
+        String abbreviation = whiteLabels.getAbbreviation();
+        if (abbreviation == null || abbreviation.isBlank()) {
+            String parentAccount = whiteLabels.getParentAccount();
+            if (parentAccount == null || !parentAccount.contains("-")) {
+                throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+            }
+
+            // Extract prefix from parentAccount
+            abbreviation = parentAccount.split("-")[0];
+
+            // Optionally validate abbreviation format
+            if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+                throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+            }
+
+            whiteLabels.setAbbreviation(abbreviation);
+
+        }
+
         String folder = "White Label";
+        whiteLabels.setWhiteLabelId(idGenerator.generateHierarchyEntityId(folder, whiteLabels.getAbbreviation()));
+
 
         // Upload Images
         imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, whiteLabels::setAadhaarCardFrontImage);

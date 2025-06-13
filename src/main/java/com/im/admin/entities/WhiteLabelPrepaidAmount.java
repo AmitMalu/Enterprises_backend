@@ -21,7 +21,7 @@ public class WhiteLabelPrepaidAmount extends AbstractWalletAmountTable {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "white_label_id", nullable = false, unique = true)
+    @JoinColumn(name = "white_label_id", nullable = false)
     private WhiteLabels whiteLabelId;
 
     @Column(name = "total_cash", precision = 10, scale = 2)

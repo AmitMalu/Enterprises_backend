@@ -21,7 +21,7 @@ public class EnterprisesPostpaidTransactionDetails {
     @Column(name = "id")
     private Integer id;
 
-    @Column(name = "enterprises_id")
+    @Column(name = "enterprise_id")
     private String enterprisesId;
 
     @Column(name = "date_of_transaction")
