@@ -7,6 +7,7 @@ import com.im.admin.service.ProductsService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -71,9 +72,9 @@ public class ProductsServiceImpl implements ProductsService {
     }
 
     @Override
-    public List<Products> getAllProducts(Pageable pageable) {
+    public Page<Products> getAllProducts(Pageable pageable) {
         log.info("Fetching all products with pagination.");
-        return productsRepository.findAll(pageable).getContent();
+        return productsRepository.findAll(pageable);
     }
 
     @Override

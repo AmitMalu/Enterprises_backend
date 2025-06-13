@@ -9,8 +9,9 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class OperatorResponseDTO {
+public class OperatorDropdownResponseDTO {
 
+    private String operatorId;
     private String operatorName;
     private String operatorCode;
 

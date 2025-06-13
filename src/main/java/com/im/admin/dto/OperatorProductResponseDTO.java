@@ -15,7 +15,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class OperatorProductResponseDTO {
 
-    private List<OperatorResponseDTO> operators;
+    private List<OperatorDropdownResponseDTO> operators;
     private Products product;
 
 }

@@ -126,8 +126,8 @@ public class SchemeServiceImpl implements SchemeService {
             throw new RuntimeException("No operators found for subProductCode: " + subProductCode);
         }
 
-        List<OperatorResponseDTO> operatorDTOs = operators.stream()
-                .map(op -> new OperatorResponseDTO(op.getOperatorName(), op.getOperatorCode()))
+        List<OperatorDropdownResponseDTO> operatorDTOs = operators.stream()
+                .map(op -> new OperatorDropdownResponseDTO(op.getId(), op.getOperatorName(), op.getOperatorCode()))
                 .collect(Collectors.toList());
 
         Products product = productsRepository.findByProductCode(productCode)

@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.im.admin.dto.OperatorDropdownResponseDTO;
 import com.im.admin.entities.Operators;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +20,7 @@ public interface OperatorsService {
 
     Operators getOperatorById(String id);
 
-    ResponseEntity<?> getActiveOperatorsBySubProductId(String subProductId);
+    List<OperatorDropdownResponseDTO> getActiveOperatorsBySubProductId(String subProductId);
 
 }
 
