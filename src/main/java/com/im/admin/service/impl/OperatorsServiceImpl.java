@@ -49,12 +49,12 @@ public class OperatorsServiceImpl implements OperatorsService {
         }
 
         // Fetch and set Product
-        Products product = productsRepository.findById(operator.getProductId())
+        Products product = productsRepository.findById(Short.valueOf(operator.getProductId()))
                 .orElseThrow(() -> new RuntimeException("Product not found with ID: " + operator.getProductId()));
         operator.setProductCode(product.getProductCode());
 
         // Fetch and set SubProduct
-        SubProducts subProduct = subProductsRepository.findById(String.valueOf(operator.getSubProductId()))
+        SubProducts subProduct = subProductsRepository.findById(operator.getSubProductId())
                 .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + operator.getSubProductId()));
         operator.setSubProductCode(subProduct.getSubProductCode());
 
@@ -73,7 +73,7 @@ public class OperatorsServiceImpl implements OperatorsService {
         Operators existingOperator = operatorsRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Operator not found with ID: " + id));
 
-        Products product = productsRepository.findById(operator.getProductId())
+        Products product = productsRepository.findById(Short.valueOf(operator.getProductId()))
                 .orElseThrow(() -> new RuntimeException("Product not found with ID: " + operator.getProductId()));
 
         SubProducts subProduct = subProductsRepository.findById(String.valueOf(operator.getSubProductId()))
@@ -127,7 +127,7 @@ public class OperatorsServiceImpl implements OperatorsService {
 
     @Override
     public List<OperatorDropdownResponseDTO> getActiveOperatorsBySubProductId(String subProductId) {
-        List<Operators> list = operatorsRepository.findBySubProductIdAndIsActiveTrue(Short.valueOf(subProductId));
+        List<Operators> list = operatorsRepository.findBySubProductIdAndIsActiveTrue(subProductId);
 
         return list.stream()
                 .map(op -> new OperatorDropdownResponseDTO(op.getId(), op.getOperatorName(), op.getOperatorCode()))

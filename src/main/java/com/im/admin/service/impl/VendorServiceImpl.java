@@ -1,7 +1,9 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.VendorDropdownResponseDto;
+import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.VendorRepository;
 import com.im.admin.service.VendorService;
 import com.im.admin.util.CommonMethods;
@@ -26,6 +28,8 @@ public class VendorServiceImpl implements VendorService {
     private VendorRepository vendorsRepository;
 
     @Autowired
+    private SubProductsRepository subProductsRepository;
+    @Autowired
     private CommonMethods commonMethods;
 
     @Override
@@ -33,6 +37,14 @@ public class VendorServiceImpl implements VendorService {
         if (vendorsRepository.existsByVendorCode(vendor.getVendorCode())) {
             throw new IllegalArgumentException("Vendor with this code already exists");
         }
+
+        // Fetch SubProduct by ID
+        SubProducts subProduct = subProductsRepository.findById(vendor.getSubProductId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid SubProduct ID: " + vendor.getSubProductId()));
+
+        // Set SubProductCode from the fetched entity
+        vendor.setSubProductCode(subProduct.getSubProductCode());
+
         vendor.setId(commonMethods.generateNextIdForTables("vendors", "id"));
         Vendors savedVendor = vendorsRepository.save(vendor);
         log.info("Vendor {} saved successfully.", savedVendor.getId());
