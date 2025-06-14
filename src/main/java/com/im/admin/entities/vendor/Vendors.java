@@ -27,6 +27,10 @@ public class Vendors {
     @Column(name = "sub_product_code")
     private String subProductCode;
 
+    @NotNull(message = "Product is required")
+    @Column(name = "product_id")
+    private String productId;
+
     @NotBlank(message = "Sub Product is required")
     @Column(name = "sub_product_Id")
     private String subProductId;
