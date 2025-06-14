@@ -94,6 +94,7 @@ public class SubProductsServiceImpl implements SubProductsService {
         existingSubProduct.setWalletType(subProduct.getWalletType());
         existingSubProduct.setEnabled(subProduct.getEnabled());
         existingSubProduct.setEditedBy(subProduct.getEditedBy());
+        existingSubProduct.setIsActive(subProduct.getIsActive());
 
         SubProducts updatedSubProduct = subProductsRepository.save(existingSubProduct);
         log.info("Updated SubProduct with ID: {}", id);
