@@ -99,7 +99,7 @@ public class CommonFunctions {
         CallbackEventLog callbackEventLog = new CallbackEventLog();
         callbackEventLog.setRequest(request);
         callbackEventLog.setRequestDateTime(requestDateTime);
-        callbackEventLog.setIpAddress(ipAddress); // previously hardcoded to null — FIXED
+        callbackEventLog.setIpAddress(ipAddress);
         callbackEventLog.setResponse(response);
         callbackEventLog.setResponseDateTime(responseDateTime);
 
