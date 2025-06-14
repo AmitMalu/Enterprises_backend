@@ -120,7 +120,6 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             }
 
             whiteLabels.setAbbreviation(abbreviation);
-
         }
 
         String folder = "White Label";

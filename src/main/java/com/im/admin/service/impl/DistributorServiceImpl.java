@@ -90,24 +90,34 @@ public class DistributorServiceImpl implements DistributorService {
         imageMap.put("shopImage", shopImage);
         imageMap.put("businessProofImage", businessProofImage);
 
-
         for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
             if (entry.getValue() == null || entry.getValue().isEmpty()) {
                 errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
             }
         }
 
-//        if (distributorRepository.existsByAbbreviation(distributor.getAbbreviation())) {
-//            errors.add(new FieldErrorDetailsDTO("abbreviation",
-//                    "Abbreviation '" + distributor.getAbbreviation() + "' already exists."));
-//        }
-
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
 
-        //distributor.setDistributorId(idGenerator.generateHierarchyEntityId("Distributor", distributor.getAbbreviation()));
+        String parentAccount = distributor.getParentAccount();
+
+        if (parentAccount == null || !parentAccount.contains("-")) {
+            throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+        }
+
+        // Extract prefix from parentAccount
+        String abbreviation = parentAccount.split("-")[0];
+
+        // Optionally validate abbreviation format
+        if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+            throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+        }
+
+        distributor.setAbbreviation(abbreviation);
+
         String folder = "Distributor";
+        distributor.setDistributorId(idGenerator.generateHierarchyEntityId(folder, distributor.getAbbreviation()));
 
         // Upload Images
         imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, distributor::setAadhaarCardFrontImage);
@@ -129,8 +139,8 @@ public class DistributorServiceImpl implements DistributorService {
 
 
         LocalDateTime ResponseDateTime = LocalDateTime.now();
-        String DistributorRequest  = objectMapper.writeValueAsString(distributor);
-        String DistributorResponse  = objectMapper.writeValueAsString(savedDistributor);
+        String DistributorRequest = objectMapper.writeValueAsString(distributor);
+        String DistributorResponse = objectMapper.writeValueAsString(savedDistributor);
 
         commonFunctions.saveHierarchyLogs(
                 RequestDateTime,
@@ -139,8 +149,6 @@ public class DistributorServiceImpl implements DistributorService {
                 ResponseDateTime,
                 DistributorResponse
         );
-
-
 
 
         return savedDistributor;
@@ -182,7 +190,8 @@ public class DistributorServiceImpl implements DistributorService {
         if (distributor.getEmailId() != null) existingDistributor.setEmailId(distributor.getEmailId());
         if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
         if (distributor.getAddress() != null) existingDistributor.setAddress(distributor.getAddress());
-        if (distributor.getOutletAddress() != null) existingDistributor.setOutletAddress(distributor.getOutletAddress());
+        if (distributor.getOutletAddress() != null)
+            existingDistributor.setOutletAddress(distributor.getOutletAddress());
 
 
         // Optional image updates
