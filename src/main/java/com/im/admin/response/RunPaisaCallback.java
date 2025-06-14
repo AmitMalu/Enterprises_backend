@@ -4,35 +4,29 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-import java.util.Map;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class RunPaisaCallback {
 
-    private Long cf_payment_id;
-    private String entity;
-    private Boolean is_captured;
-    private String order_id;
-    private Integer order_amount;
-    private Integer payment_amount;
-    private String payment_completion_time;
-    private String payment_currency;
-    private String payment_group;
-    private String payment_message;
-    private String payment_status;
-    private String payment_time;
-
-    // Optional fields
-    private String auth_id;
-    private String authorization;
-    private String bank_reference;
-    private String error_details;
-    private Map<String, Object> payment_gateway_details;
-    private Map<String, Object> payment_method;
-    private List<Object> payment_offers;
-
+    private String status;              // STATUS
+    private String statusCode;         // STATUS_CODE
+    private String orderId;            // ORDER_ID
+    private String txnMode;            // TXN_MODE
+    private String txnAmount;          // TXN_AMOUNT
+    private String cardCategory;       // CARD_CATEGORY
+    private String txnDate;            // TXN_DATE (Consider converting to LocalDateTime if needed)
+    private String txnInfo;            // TXN_INFO
+    private String customerName;       // CUSTOMER_NAME
+    private String customerEmail;      // CUSTOMER_EMAIL
+    private String customerPhone;      // CUSTOMER_PHONE
+    private String bankTxnId;          // BANK_TXNID
+    private String bankCode;           // BANK_CODE
+    private String errorId;            // ERROR_ID
+    private String errorDesc;          // ERROR_DESC
+    private String cardNumber;         // CARD_NUMBER (use masked or last 4 digits only)
+    private String cardType;           // CARD_TYPE
+    private String unmappedStatus;     // UNMAPPED_STATUS
+    private String pgPartner;          // PG_PARTNER
+    private String mercUnqRef;         // MERC_UNQ_REF
 }
-

@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
 import com.im.admin.dto.RetailerCommissionResponseDTO;
 import com.im.admin.request.CreateOrderRequest;
@@ -50,7 +51,7 @@ public class PaymentGatewayController {
 
     @PostMapping("/payment/callback")
     public ResponseEntity<String> handleCallback(@RequestBody Map<String, String> payload,
-                                                 HttpServletRequest request) {
+                                                 HttpServletRequest request) throws JsonProcessingException {
         log.info("Received callback request from IP: {}", request.getRemoteAddr());
 
         String result = paymentGatewayService.handleCallback(payload, request);
