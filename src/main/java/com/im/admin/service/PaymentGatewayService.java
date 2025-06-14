@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.*;
 import com.im.admin.entities.CardTypeMaster;
 import com.im.admin.entities.SchemeAllocation;
@@ -26,7 +27,7 @@ public interface PaymentGatewayService {
 
     ResponseEntity<?> orderStatus(String orderId);
 
-    String handleCallback(Map<String, String> payload, HttpServletRequest request);
+    String handleCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException;
 
     void processCallback(RunPaisaCallback callback);
 

@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
 import com.im.admin.dto.RetailerCommissionResponseDTO;
@@ -53,6 +54,12 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
     @Autowired
     private CommonFunctions commonFunctions;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private TransactionServiceImpl transactionServiceImpl;
 
     RestTemplate restTemplate = new RestTemplate();
 
@@ -237,50 +244,96 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     }
 
     @Override
-    public String handleCallback(Map<String, String> payload, HttpServletRequest request) {
+    public String handleCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException {
         LocalDateTime requestTime = LocalDateTime.now();
         String clientIp = request.getRemoteAddr();
-        String rawCallbackData = payload.get("CALLBACKURL");
 
+        log.info("<-------------- PAYLOAD FROM VENDOR ----------------> " + payload);
         log.info("Processing callback request at: {}, from IP: {}", requestTime, clientIp);
 
-        if (rawCallbackData == null) {
-            log.error("Missing CALLBACKURL parameter in payload");
-            commonFunctions.saveCallbackEventLog("Missing CALLBACKURL", requestTime, clientIp, "Bad Request", LocalDateTime.now());
-            throw new RuntimeException("Missing CALLBACKURL parameter");
-        }
+        String rawCallbackData = extractCallbackData(payload);
 
-        try {
-            log.debug("Parsing callback data: {}", rawCallbackData);
-            ObjectMapper objectMapper = new ObjectMapper();
+        if (rawCallbackData != null) {
             List<RunPaisaCallback> callbackList = objectMapper.readValue(rawCallbackData, new TypeReference<>() {});
-
             for (RunPaisaCallback callback : callbackList) {
                 processCallback(callback);
             }
+        } else {
+            RunPaisaCallback callback = convertToCallback(payload);
+            processCallback(callback);
+        }
 
-            commonFunctions.saveCallbackEventLog(rawCallbackData, requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+
+        try {
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
             log.info("Callback processed successfully for request at: {}, from IP: {}", requestTime, clientIp);
             return "Callback processed successfully";
 
         } catch (Exception e) {
             log.error("Error processing callback: {}", e.getMessage(), e);
-            commonFunctions.saveCallbackEventLog(rawCallbackData, requestTime, clientIp, e.getMessage(), LocalDateTime.now());
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, e.getMessage(), LocalDateTime.now());
             throw new RuntimeException("Callback processing failed");
         }
     }
 
+
     @Override
     public void processCallback(RunPaisaCallback callback) {
-        log.info("Processing callback for Order ID: {}", callback.getOrder_id());
+        log.info("Processing callback for Order ID: {}", callback.getOrderId());
 
-        if ("SUCCESS".equalsIgnoreCase(callback.getPayment_status())) {
-            log.info("Payment success for Order ID: {}, Amount: {}", callback.getOrder_id(), callback.getPayment_amount());
+        if ("SUCCESS".equalsIgnoreCase(callback.getStatus())) {
+            log.info("Payment success for Order ID: {}, Amount: {}", callback.getStatus(), callback.getTxnAmount());
+            transactionServiceImpl.processTransaction(null);
             // updateTransactionStatus(callback.getOrder_id(), "SUCCESS");
         } else {
-            log.warn("Payment failed or pending for Order ID: {}", callback.getOrder_id());
+            log.warn("Payment failed or pending for Order ID: {}", callback.getOrderId());
             // updateTransactionStatus(callback.getOrder_id(), "FAILED");
         }
     }
+
+    private String extractCallbackData(Map<String, String> payload) {
+        log.info("Extracting callback data from payload: " + payload);
+
+        if (payload.containsKey("CALLBACKRESPONSE")) {
+            String callbackResponse = payload.get("CALLBACKRESPONSE");
+            log.info("Razorpay --> CALLBACKRESPONSE found: " + callbackResponse);
+            return callbackResponse;
+        } else if (payload.containsKey("CALLBACK")) {
+            String callback = payload.get("CALLBACK");
+            log.info("Cashfree --> CALLBACK found: " + callback);
+            return callback;
+        }
+
+        log.warn("No callback data found in payload.");
+        return null;
+    }
+
+    private RunPaisaCallback convertToCallback(Map<String, String> payload) {
+        RunPaisaCallback callback = new RunPaisaCallback();
+
+        callback.setStatus(payload.get("STATUS"));
+        callback.setStatusCode(payload.get("STATUS_CODE"));
+        callback.setOrderId(payload.get("ORDER_ID"));
+        callback.setTxnMode(payload.get("TXN_MODE"));
+        callback.setTxnAmount(payload.get("TXN_AMOUNT"));
+        callback.setCardCategory(payload.get("CARD_CATEGORY"));
+        callback.setTxnDate(payload.get("TXN_DATE"));
+        callback.setTxnInfo(payload.get("TXN_INFO"));
+        callback.setCustomerName(payload.get("CUSTOMER_NAME"));
+        callback.setCustomerEmail(payload.get("CUSTOMER_EMAIL"));
+        callback.setCustomerPhone(payload.get("CUSTOMER_PHONE"));
+        callback.setBankTxnId(payload.get("BANK_TXNID"));
+        callback.setBankCode(payload.get("BANK_CODE"));
+        callback.setErrorId(payload.get("ERROR_ID"));
+        callback.setErrorDesc(payload.get("ERROR_DESC"));
+        callback.setCardNumber(payload.get("CARD_NUMBER"));
+        callback.setCardType(payload.get("CARD_TYPE"));
+        callback.setUnmappedStatus(payload.get("UNMAPPED_STATUS"));
+        callback.setPgPartner(payload.get("PG_PARTNER"));
+        callback.setMercUnqRef(payload.get("MERC_UNQ_REF"));
+
+        return callback;
+    }
+
 
 }

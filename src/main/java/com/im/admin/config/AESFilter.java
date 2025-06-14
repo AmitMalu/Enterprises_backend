@@ -88,17 +88,32 @@ public class AESFilter extends OncePerRequestFilter {
 				}
 
 			} else {
+				log.warn("Request is not in whitelist and no token provided.");
 				this.throwException(response);
 			}
 		}
 	}
 
 	private boolean isPathViewableWithoutAuthentication(HttpServletRequest request) {
-		String requestURI = this.pathHelper.getPathWithinApplication(request);
-		log.info("<-------- Path ------> " + requestURI);
+		String contextPath = request.getContextPath();  // e.g., /enterprises
+		log.info("<-------- context Path ------> {}", contextPath);
+
+		String requestURI = request.getRequestURI();
+		log.info("<-------- request URI ------> {}", requestURI);  // e.g., /enterprises/api/pg/payment/callback
+
+		String path = requestURI.substring(contextPath.length());  // → /api/pg/payment/callback
+		log.info("<-------- Path ------> {}", path);
+
 		return PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.stream()
-				.anyMatch(allowedPath -> requestURI.equals(allowedPath) || requestURI.startsWith(allowedPath));
+				.anyMatch(allowedPath -> path.equals(allowedPath) || path.startsWith(allowedPath));
 	}
+
+//	private boolean isPathViewableWithoutAuthentication(HttpServletRequest request) {
+//		String requestURI = this.pathHelper.getPathWithinApplication(request);
+//		log.info("<-------- Path ------> " + requestURI);
+//		return PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.stream()
+//				.anyMatch(allowedPath -> requestURI.equals(allowedPath) || requestURI.startsWith(allowedPath));
+//	}
 
 	private String decryptToken(String token) throws Exception {
 		if (token == null || token.isBlank()) {
