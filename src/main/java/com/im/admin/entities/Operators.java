@@ -41,15 +41,15 @@ public class Operators {
     @Column(name = "alias")
     private String alias;
 
-    @NotNull(message = "Product Id is required")
-    @Column(name = "product_id", insertable = false, updatable = false)
+    @NotNull(message = "Product is required")
+    @Column(name = "product_id")
     private String productId;
 
     @Column(name = "product_code")
     private String productCode;
 
-    @NotNull(message = "Sub Product Id is required")
-    @Column(name = "sub_product_id", insertable = false, updatable = false)
+    @NotNull(message = "Sub Product is required")
+    @Column(name = "sub_product_id")
     private String subProductId;
 
     @Column(name = "sub_product_code")

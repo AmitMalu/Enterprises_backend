@@ -2,7 +2,9 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.VendorDropdownResponseDto;
 import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.VendorRepository;
 import com.im.admin.service.VendorService;
@@ -32,11 +34,18 @@ public class VendorServiceImpl implements VendorService {
     @Autowired
     private CommonMethods commonMethods;
 
+    @Autowired
+    private ProductsRepository productsRepository;
+
     @Override
     public Vendors saveVendor(Vendors vendor) {
         if (vendorsRepository.existsByVendorCode(vendor.getVendorCode())) {
             throw new IllegalArgumentException("Vendor with this code already exists");
         }
+
+        // Fetch and set Product
+        Products product = productsRepository.findById(Short.valueOf(vendor.getProductId()))
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + vendor.getProductId()));
 
         // Fetch SubProduct by ID
         SubProducts subProduct = subProductsRepository.findById(vendor.getSubProductId())
@@ -65,6 +74,9 @@ public class VendorServiceImpl implements VendorService {
         Vendors existingVendor = vendorsRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Vendor with ID " + id + " not found."));
 
+        SubProducts subProduct = subProductsRepository.findById(String.valueOf(updatedVendor.getSubProductId()))
+                .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + updatedVendor.getSubProductId()));
+
         existingVendor.setActive(updatedVendor.getActive());
         existingVendor.setVendorName(updatedVendor.getVendorName());
         existingVendor.setVendorCode(updatedVendor.getVendorCode());
@@ -76,6 +88,10 @@ public class VendorServiceImpl implements VendorService {
         existingVendor.setLogo(updatedVendor.getLogo());
         existingVendor.setParameter(updatedVendor.getParameter());
         existingVendor.setVendorAccount(updatedVendor.getVendorAccount());
+       existingVendor.setSubProductId(updatedVendor.getSubProductId());
+        existingVendor.setSubProductCode(subProduct.getSubProductCode());
+        existingVendor.setEditedBy(updatedVendor.getEditedBy());
+
 
         Vendors savedVendor = vendorsRepository.save(existingVendor);
         log.info("Vendor {} updated successfully.", savedVendor.getId());

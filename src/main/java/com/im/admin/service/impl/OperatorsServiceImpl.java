@@ -86,9 +86,9 @@ public class OperatorsServiceImpl implements OperatorsService {
         existingOperator.setOperatorAlias(operator.getOperatorAlias());
         existingOperator.setAlias(operator.getAlias());
         existingOperator.setProductCode(product.getProductCode());
-        existingOperator.setProductCode(operator.getProductCode());
+//        existingOperator.setProductCode(operator.getProductCode());
         existingOperator.setSubProductCode(subProduct.getSubProductCode());
-        existingOperator.setSubProductCode(operator.getSubProductCode());
+//        existingOperator.setSubProductCode(operator.getSubProductCode());
         existingOperator.setIsActive(operator.getIsActive());
         existingOperator.setEditedBy(operator.getEditedBy());
 
