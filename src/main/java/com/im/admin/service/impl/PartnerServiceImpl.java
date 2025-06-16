@@ -95,17 +95,28 @@ public class PartnerServiceImpl implements PartnerService {
             }
         }
 
-//        if (partnerRepository.existsByAbbreviation(partner.getAbbreviation())) {
-//            errors.add(new FieldErrorDetailsDTO("abbreviation",
-//                    "Abbreviation '" + partner.getAbbreviation() + "' already exists."));
-//        }
-
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
 
-        //partner.setPartnerId(idGenerator.generateHierarchyEntityId("Partner", partner.getAbbreviation()));
+        String parentAccount = partner.getParentAccount();
+
+        if (parentAccount == null || !parentAccount.contains("-")) {
+            throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+        }
+
+        // Extract prefix from parentAccount
+        String abbreviation = parentAccount.split("-")[0];
+
+        // Optionally validate abbreviation format
+        if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+            throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+        }
+
+        partner.setAbbreviation(abbreviation);
+
         String folder = "Partner";
+        partner.setPartnerId(idGenerator.generateHierarchyEntityId(folder, partner.getAbbreviation()));
 
         // Upload Images
         imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, partner::setAadhaarCardFrontImage);
