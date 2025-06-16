@@ -100,17 +100,28 @@ public class RetailerServiceImpl implements RetailerService {
             }
         }
 
-//        if (retailerRepository.existsByAbbreviation(retailer.getAbbreviation())) {
-//            errors.add(new FieldErrorDetailsDTO("abbreviation",
-//                    "Abbreviation '" + retailer.getAbbreviation() + "' already exists."));
-//        }
-
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
 
-       // retailer.setRetailerId(idGenerator.generateHierarchyEntityId("Retailer", retailer.getAbbreviation()));
+        String parentAccount = retailer.getParentAccount();
+
+        if (parentAccount == null || !parentAccount.contains("-")) {
+            throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+        }
+
+        // Extract prefix from parentAccount
+        String abbreviation = parentAccount.split("-")[0];
+
+        // Optionally validate abbreviation format
+        if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+            throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+        }
+
+        retailer.setAbbreviation(abbreviation);
+
         String folder = "Retailer";
+        retailer.setRetailerId(idGenerator.generateHierarchyEntityId(folder, retailer.getAbbreviation()));
 
         // Upload Images
         imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, retailer::setAadhaarCardFrontImage);

@@ -96,17 +96,28 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
             }
         }
 
-//        if (superDistributorRepository.existsByAbbreviation(superDistributor.getAbbreviation())) {
-//            errors.add(new FieldErrorDetailsDTO("abbreviation",
-//                    "Abbreviation '" + superDistributor.getAbbreviation() + "' already exists."));
-//        }
-
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
 
-        //superDistributor.setSuperDistributorId(idGenerator.generateHierarchyEntityId("Super Distributor", superDistributor.getAbbreviation()));
+        String parentAccount = superDistributor.getParentAccount();
+
+        if (parentAccount == null || !parentAccount.contains("-")) {
+            throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+        }
+
+        // Extract prefix from parentAccount
+        String abbreviation = parentAccount.split("-")[0];
+
+        // Optionally validate abbreviation format
+        if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+            throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+        }
+
+        superDistributor.setAbbreviation(abbreviation);
+
         String folder = "Super Distributor";
+        superDistributor.setSuperDistributorId(idGenerator.generateHierarchyEntityId(folder, superDistributor.getAbbreviation()));
 
         // Upload Images
         imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, superDistributor::setAadhaarCardFrontImage);
