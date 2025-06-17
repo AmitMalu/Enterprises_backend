@@ -15,7 +15,11 @@ public interface ProductsService {
 
     void deleteProduct(Short id);
 
-    Page<Products> getAllProducts(Pageable pageable);
+    Page<Products> getAllProducts(Pageable pageable,List<Short>  id,String name, String productCode, String productCodeForScheme,
+                                  String productGroup, Boolean isShow, Boolean hasCharges,
+                                  Boolean isCommissions, Boolean isInventory, Boolean isSettlement,
+                                  Boolean isVirtual, Boolean isVisible, Boolean reverseTx,
+                                  Boolean clusterMode, Boolean blocked, Boolean active);
 
     Products getProductById(Short id);
 

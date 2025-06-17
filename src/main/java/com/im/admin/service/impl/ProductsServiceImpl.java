@@ -4,16 +4,19 @@ import com.im.admin.dto.ProductDropdownResponseDto;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.service.ProductsService;
+import com.im.admin.spec.ProductsSpecification;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
 
 @Service
 @Slf4j
@@ -111,10 +114,23 @@ public class ProductsServiceImpl implements ProductsService {
     }
 
     @Override
-    public Page<Products> getAllProducts(Pageable pageable) {
-        log.info("Fetching all products with pagination.");
-        return productsRepository.findAll(pageable);
+    public Page<Products> getAllProducts(Pageable pageable,List<Short> id, String name, String productCode, String productCodeForScheme,
+                                         String productGroup, Boolean isShow, Boolean hasCharges,
+                                         Boolean isCommissions, Boolean isInventory, Boolean isSettlement,
+                                         Boolean isVirtual, Boolean isVisible, Boolean reverseTx,
+                                         Boolean clusterMode, Boolean blocked, Boolean active) {
+
+        Specification<Products> spec = ProductsSpecification.getFilter(
+                id,name, productCode, productCodeForScheme, productGroup,
+                isShow, hasCharges, isCommissions, isInventory,
+                isSettlement, isVirtual, isVisible, reverseTx,
+                clusterMode, blocked, active
+        );
+
+        return productsRepository.findAll(spec, pageable);
     }
+
+
 
     @Override
     public Products getProductById(Short id) {
@@ -137,6 +153,7 @@ public class ProductsServiceImpl implements ProductsService {
     }
 
 }
+
 
 
 
