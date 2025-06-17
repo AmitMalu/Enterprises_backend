@@ -62,12 +62,33 @@ public class ProductsController {
     @GetMapping
     public ResponseEntity<CommonResponse<Page<Products>>> getAllProducts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            // Basic Filters
+            @RequestParam(required = false) List<Short> id,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String productCode,
+            @RequestParam(required = false) String productCodeForScheme,
+            @RequestParam(required = false) String productGroup,
+            @RequestParam(required = false) Boolean isShow,
+            @RequestParam(required = false) Boolean hasCharges,
+            @RequestParam(required = false) Boolean isCommissions,
+            @RequestParam(required = false) Boolean isInventory,
+            @RequestParam(required = false) Boolean isSettlement,
+            @RequestParam(required = false) Boolean isVirtual,
+            @RequestParam(required = false) Boolean isVisible,
+            @RequestParam(required = false) Boolean reverseTx,
+            @RequestParam(required = false) Boolean clusterMode,
+            @RequestParam(required = false) Boolean blocked,
+            @RequestParam(required = false) Boolean active
+    ) {
 
         log.info("Received request to fetch all products with pagination - Page: {}, Size: {}", page, size);
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<Products> productsPage = productsService.getAllProducts(pageable);
+        Page<Products> productsPage = productsService.getAllProducts(pageable,id,name, productCode, productCodeForScheme,
+                productGroup, isShow, hasCharges, isCommissions, isInventory,
+                isSettlement, isVirtual, isVisible, reverseTx, clusterMode,
+                blocked, active);
 
         CommonResponse<Page<Products>> response = new CommonResponse<>(
                 200, "Products fetched successfully", productsPage
