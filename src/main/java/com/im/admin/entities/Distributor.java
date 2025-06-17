@@ -38,11 +38,11 @@ public class Distributor {
     @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
     private String mobileNumber;
 
-//    @NotBlank(message = "Abbreviation is required")
-//    @Column(name = "abbreviation", nullable = false, unique = true, length = 3)
-//    @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
-//    @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
-//    private String abbreviation;
+
+    @Column(name = "abbreviation", length = 3)
+    @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
+    @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
+    private String abbreviation;
 
     @NotBlank(message = "Email is mandatory")
     @Email(message = "Invalid email format")
