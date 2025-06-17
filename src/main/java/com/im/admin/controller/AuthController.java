@@ -204,18 +204,18 @@ public class AuthController {
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<?> verifyOtp(@RequestParam String username, @RequestParam String otp) throws JsonProcessingException {
+    public ResponseEntity<?> verifyOtp(@RequestBody LoginRequestDto loginRequestDto) {
 
         LocalDateTime requestTime = LocalDateTime.now();
-        String requestJson = "username=" + username + "&otp=" + otp;
+        String requestJson = "username=" + loginRequestDto.getUserName() + "&otp=" + loginRequestDto.getOtp();
         String responseJson = "";
 
         Optional<UserDetails> optionalUser;
 
-        if (username.matches("\\d{10}")) {
-            optionalUser = userDetailsRepository.findByMobileNumber(username);
+        if (loginRequestDto.getUserName().matches("\\d{10}")) {
+            optionalUser = userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName());
         } else {
-            optionalUser = userDetailsRepository.findByEmailId(username);
+            optionalUser = userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
         }
 
         if (optionalUser.isEmpty()) {
@@ -235,12 +235,12 @@ public class AuthController {
                     .body(new CommonResponse<>(400, "OTP expired", null));
         }
 
-        if (!user.getOtp().equals(otp)) {
+        if (!user.getOtp().equals(loginRequestDto.getOtp())) {
             return ResponseEntity.ok()
                     .body(new CommonResponse<>(400, "Invalid OTP", null));
         }
 
-        ResponseEntity<?> responseEntity = aesController.generateToken(username);
+        ResponseEntity<?> responseEntity = aesController.generateToken(loginRequestDto.getUserName());
         if (responseEntity.getStatusCode() == HttpStatus.OK) {
             Map<String, Object> tokenData = (Map<String, Object>) responseEntity.getBody();
             String token = (String) tokenData.get("token");
@@ -305,18 +305,18 @@ public class AuthController {
     }
 
     @PostMapping("/resend-otp")
-    public ResponseEntity<?> resendOtp(@RequestParam String username) {
+    public ResponseEntity<?> resendOtp(@RequestBody LoginRequestDto  loginRequestDto) {
 
         LocalDateTime requestTime = LocalDateTime.now();
-        String requestJson = "username=" + username;
+        String requestJson = "username=" + loginRequestDto.getUserName();
         String responseJson = "";
 
         Optional<UserDetails> optionalUser;
 
-        if (username.matches("\\d{10}")) {
-            optionalUser = userDetailsRepository.findByMobileNumber(username);
+        if (loginRequestDto.getUserName().matches("\\d{10}")) {
+            optionalUser = userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName());
         } else {
-            optionalUser = userDetailsRepository.findByEmailId(username);
+            optionalUser = userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
         }
 
         if (optionalUser.isEmpty()) {
@@ -337,7 +337,7 @@ public class AuthController {
         userDetailsRepository.save(user);
 
         // Hook: Send OTP via SMS or Email
-        if (username.matches("\\d{10}")) {
+        if (loginRequestDto.getUserName().matches("\\d{10}")) {
             // smsService.sendOtp(user.getMobileNumber(), newOtp);
         } else {
             // emailService.sendOtp(user.getEmail(), newOtp);
@@ -364,30 +364,27 @@ public class AuthController {
 
 
     @PostMapping("/set-password")
-    public ResponseEntity<?> setPassword(
-            @RequestParam String username,
-            @RequestParam String newPassword,
-            @RequestParam String reEnteredPassword) {
+    public ResponseEntity<?> setPassword(@RequestBody LoginRequestDto loginRequestDto) {
 
         LocalDateTime requestTime = LocalDateTime.now();
-        String requestJson = "username=" + username + "&newPassword=" + newPassword + "&reEnteredPassword=" + reEnteredPassword;
+        String requestJson = "username=" + loginRequestDto.getUserName() + "&newPassword=" + loginRequestDto.getNewPassword() + "&reEnteredPassword=" + loginRequestDto.getReEnteredPassword();
         String responseJson = "";
 
-        if (!newPassword.equals(reEnteredPassword)) {
+        if (!loginRequestDto.getNewPassword().equals(loginRequestDto.getReEnteredPassword())) {
             return ResponseEntity.ok()
                     .body(new CommonResponse<>(400, "New password and confirm password do not match", null));
         }
 
-        if (newPassword.length() < 8) {
+        if (loginRequestDto.getNewPassword().length() < 8) {
             return ResponseEntity.ok()
                     .body(new CommonResponse<>(400, "Password must be at least 8 characters long", null));
         }
 
         Optional<UserDetails> optionalUser;
-        if (username.matches("\\d{10}")) {
-            optionalUser = userDetailsRepository.findByMobileNumber(username);
+        if (loginRequestDto.getUserName().matches("\\d{10}")) {
+            optionalUser = userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName());
         } else {
-            optionalUser = userDetailsRepository.findByEmailId(username);
+            optionalUser = userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
         }
 
         if (optionalUser.isEmpty()) {
@@ -402,7 +399,7 @@ public class AuthController {
                     .body(new CommonResponse<>(403, "User account is not active", null));
         }
 
-        String hashedPassword = passwordEncoder.encode(newPassword);
+        String hashedPassword = passwordEncoder.encode(loginRequestDto.getNewPassword());
         user.setLoginPassword(hashedPassword);
         userDetailsRepository.save(user);
 
@@ -419,17 +416,17 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestParam String username) {
+    public ResponseEntity<?> forgotPassword(@RequestBody LoginRequestDto loginRequestDto) {
 
         LocalDateTime requestTime = LocalDateTime.now();
-        String requestJson = "username=" + username;
+        String requestJson = "username=" + loginRequestDto.getUserName();
         String responseJson = "";
 
         Optional<UserDetails> optionalUser;
-        if (username.matches("\\d{10}")) {
-            optionalUser = userDetailsRepository.findByMobileNumber(username);
+        if (loginRequestDto.getUserName().matches("\\d{10}")) {
+            optionalUser = userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName());
         } else {
-            optionalUser = userDetailsRepository.findByEmailId(username);
+            optionalUser = userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
         }
 
         if (optionalUser.isEmpty()) {

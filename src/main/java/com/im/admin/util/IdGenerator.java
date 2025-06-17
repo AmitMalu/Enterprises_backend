@@ -99,6 +99,72 @@ public class IdGenerator {
     }
 
 
+    @Transactional
+    public String generateEntityId(String entityType, String abbreviation) {
+        String prefix;
+
+        // Determine prefix based on entityType and whether abbreviation is used
+        switch (entityType) {
+            case "SuperAdmin" -> {
+                prefix = "IM-SA-";
+                abbreviation = "IM"; // Force abbreviation to null
+            }
+            case "Admin" -> {
+                prefix = "IM-AD-";
+                abbreviation = "IM";
+            }
+            case "Enterprises" -> prefix = abbreviation + "-ET-";
+            case "White Label" -> prefix = abbreviation + "-WL-";
+            case "Super Distributor" -> prefix = abbreviation + "-SD-";
+            case "Partner" -> prefix = abbreviation + "-PT-";
+            case "Distributor" -> prefix = abbreviation + "-DT-";
+            case "Retailer" -> prefix = abbreviation + "-RT-";
+            default -> throw new IllegalArgumentException("Invalid entity type: " + entityType);
+        }
+
+        // Validation for abbreviation when required
+        if (abbreviation == null && !entityType.equals("SuperAdmin") && !entityType.equals("Admin")) {
+            throw new IllegalArgumentException("Abbreviation is required for entity type: " + entityType);
+        }
+
+        // Fetch last_id
+        List<Integer> lastIdList = entityManager.createNativeQuery("""
+        SELECT last_id FROM id_tracker 
+        WHERE entity_type = :entityType AND (:abbr IS NULL OR abbreviation = :abbr) FOR UPDATE
+        """)
+                .setParameter("entityType", entityType)
+                .setParameter("abbr", abbreviation)
+                .getResultList();
+
+        int nextId = lastIdList.isEmpty() ? 1 : lastIdList.get(0) + 1;
+
+        if (lastIdList.isEmpty()) {
+            // Insert new record
+            entityManager.createNativeQuery("""
+            INSERT INTO id_tracker (entity_type, abbreviation, last_id)
+            VALUES (:entityType, :abbr, :nextId)
+            """)
+                    .setParameter("entityType", entityType)
+                    .setParameter("abbr", abbreviation)
+                    .setParameter("nextId", nextId)
+                    .executeUpdate();
+        } else {
+            // Update existing record
+            entityManager.createNativeQuery("""
+            UPDATE id_tracker SET last_id = :nextId 
+            WHERE entity_type = :entityType AND (:abbr IS NULL OR abbreviation = :abbr)
+            """)
+                    .setParameter("nextId", nextId)
+                    .setParameter("entityType", entityType)
+                    .setParameter("abbr", abbreviation)
+                    .executeUpdate();
+        }
+
+        return String.format("%s%03d", prefix, nextId);
+    }
+
+
+
 
 }
 
