@@ -9,9 +9,9 @@ import java.util.Optional;
 
 public interface SubOperatorService {
 
-    SubOperator saveSubOperator(SubOperator subOperator, String createdBy);
+    SubOperator saveSubOperator(SubOperator subOperator);
 
-    SubOperator updateSubOperator(String id, SubOperator subOperator, String editedBy);
+    SubOperator updateSubOperator(String id, SubOperator subOperator);
 
     void deleteSubOperator(String id);
 
