@@ -11,6 +11,7 @@ import com.im.admin.repositories.ImSubRoleRepository;
 import com.im.admin.repositories.SchemeAllocationRepository;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.service.AuthService;
 import com.im.admin.util.JwtUtil;
 import com.im.admin.util.OtpUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,9 @@ public class AuthController {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private AuthService authService;
 
 
     @PostMapping("/login")
@@ -303,6 +307,19 @@ public class AuthController {
                     .body("Error generating token: " + responseEntity.getBody());
         }
     }
+
+
+    @PostMapping("/forget-verify-otp")
+    public ResponseEntity<?> verifyOTP(@RequestBody LoginRequestDto loginRequestDto) {
+        boolean isVerified = authService.verifyOTP(loginRequestDto);
+        if (isVerified) {
+            return ResponseEntity.ok(new CommonResponse(200, "OTP verified successfully", null));
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new CommonResponse(401, "OTP verification failed", null));
+        }
+    }
+
 
     @PostMapping("/resend-otp")
     public ResponseEntity<?> resendOtp(@RequestBody LoginRequestDto  loginRequestDto) {
