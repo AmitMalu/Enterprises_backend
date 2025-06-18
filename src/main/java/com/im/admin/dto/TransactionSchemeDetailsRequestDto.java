@@ -30,5 +30,6 @@ public class TransactionSchemeDetailsRequestDto {
     private Boolean isCommission;
     private String transactionType;        //credit, debit
     private String baseTranxId;              //25041815234800204
+    private String callbackUrl;
 
 }
