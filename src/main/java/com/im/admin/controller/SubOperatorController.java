@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,8 +56,15 @@ public class SubOperatorController {
 
 
     @GetMapping
-    public ResponseEntity<List<SubOperator>> getAllSubOperators() {
-        return ResponseEntity.ok(subOperatorService.getAllSubOperators());
+    public ResponseEntity<CommonResponse> getAllSubOperators() {
+
+        List<SubOperator> allSubOperators = subOperatorService.getAllSubOperators();
+
+//        return ResponseEntity.ok(subOperatorService.getAllSubOperators());
+
+        return ResponseEntity.ok(
+                new CommonResponse<>(HttpStatus.OK.value(), "SubOperators fetched successfully", allSubOperators)
+        );
     }
 
     @GetMapping("/{id}")
