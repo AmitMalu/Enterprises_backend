@@ -13,5 +13,6 @@ public interface SubOperatorRepository extends JpaRepository<SubOperator, String
     boolean existsById(String id);
 
     Optional<SubOperator> findBySubOperatorName(String name);
+
 }
 
