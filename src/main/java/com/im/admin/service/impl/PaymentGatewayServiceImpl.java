@@ -6,6 +6,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
 import com.im.admin.dto.RetailerCommissionResponseDTO;
 import com.im.admin.dto.TokenResponseDTO;
+import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.request.CreateOrderRequest;
@@ -60,6 +61,9 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
     @Autowired
     private TransactionServiceImpl transactionServiceImpl;
+
+    @Autowired
+    private TransactionSchemeRequestEntityRepository transactionSchemeRequestEntityRepository;
 
     RestTemplate restTemplate = new RestTemplate();
 
@@ -194,6 +198,16 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 body.add("merc_unq_ref", req.getMerchantRef());
             }
 
+            String dtoJson = objectMapper.writeValueAsString(req.getTransactionScheme());
+
+            TransactionSchemeRequestEntity entity = TransactionSchemeRequestEntity.builder()
+                    .orderId("ORD" + baseTransactionId)
+                    .fullRequestDtoJson(objectMapper.writeValueAsString(dtoJson)) // save full DTO as JSON
+                    .createdOn(LocalDateTime.now())
+                    .build();
+
+            transactionSchemeRequestEntityRepository.save(entity);
+
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
             log.info("CreateOrder Request: headers={}, body={}", headers, body);
             ResponseEntity<String> response = restTemplate.postForEntity(createOrderUrl, requestEntity, String.class);
@@ -248,69 +262,86 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         LocalDateTime requestTime = LocalDateTime.now();
         String clientIp = request.getRemoteAddr();
 
-        log.info("<-------------- PAYLOAD FROM VENDOR ----------------> " + payload);
-        log.info("Processing callback request at: {}, from IP: {}", requestTime, clientIp);
+        log.info("---- [Callback] Received callback at: {} from IP: {}", requestTime, clientIp);
+        log.info("---- [Callback] Raw Payload: {}", payload);
 
         String rawCallbackData = extractCallbackData(payload);
 
         if (rawCallbackData != null) {
+            log.info("---- [Callback] Parsed CALLBACK Data: {}", rawCallbackData);
+
             List<RunPaisaCallback> callbackList = objectMapper.readValue(rawCallbackData, new TypeReference<>() {});
+            log.info("---- [Callback] Found {} callbacks in list", callbackList.size());
+
             for (RunPaisaCallback callback : callbackList) {
                 processCallback(callback);
             }
         } else {
+            log.info("---- [Callback] Single callback format detected. Converting to RunPaisaCallback object.");
             RunPaisaCallback callback = convertToCallback(payload);
             processCallback(callback);
         }
 
-
         try {
             commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
-            log.info("Callback processed successfully for request at: {}, from IP: {}", requestTime, clientIp);
+            log.info("---- [Callback] Successfully logged callback event");
             return "Callback processed successfully";
 
         } catch (Exception e) {
-            log.error("Error processing callback: {}", e.getMessage(), e);
+            log.error("---- [Callback] Error while saving callback log: {}", e.getMessage(), e);
             commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, e.getMessage(), LocalDateTime.now());
             throw new RuntimeException("Callback processing failed");
         }
     }
 
-
     @Override
-    public void processCallback(RunPaisaCallback callback) {
-        log.info("Processing callback for Order ID: {}", callback.getOrderId());
+    public void processCallback(RunPaisaCallback callback) throws JsonProcessingException {
+        log.info("---- [Callback] Processing for Order ID: {}, Status: {}", callback.getOrderId(), callback.getStatus());
+
+        TransactionSchemeDetailsRequestDto dto = null;
 
         if ("SUCCESS".equalsIgnoreCase(callback.getStatus())) {
-            log.info("Payment success for Order ID: {}, Amount: {}", callback.getStatus(), callback.getTxnAmount());
-            transactionServiceImpl.processTransaction(null);
-            // updateTransactionStatus(callback.getOrder_id(), "SUCCESS");
+            log.info("---- [Callback] Status is SUCCESS. Fetching saved transaction data...");
+
+            TransactionSchemeRequestEntity entity = transactionSchemeRequestEntityRepository
+                    .findById(callback.getOrderId())
+                    .orElseThrow(() -> {
+                        log.error("---- [Callback] No transaction found for Order ID: {}", callback.getOrderId());
+                        return new RuntimeException("No transaction found for Order ID");
+                    });
+
+            dto = objectMapper.readValue(entity.getFullRequestDtoJson(), TransactionSchemeDetailsRequestDto.class);
+
+            log.info("---- [Callback] Deserialized Transaction DTO: {}", dto);
+            transactionServiceImpl.processTransaction(dto);
+
         } else {
-            log.warn("Payment failed or pending for Order ID: {}", callback.getOrderId());
-            // updateTransactionStatus(callback.getOrder_id(), "FAILED");
+            log.warn("---- [Callback] Payment FAILED or PENDING for Order ID: {}", callback.getOrderId());
+            transactionServiceImpl.processTransaction(dto); // optional or may be skipped
         }
     }
 
     private String extractCallbackData(Map<String, String> payload) {
-        log.info("Extracting callback data from payload: " + payload);
+        log.info("---- [Callback] Extracting callback data from payload...");
 
         if (payload.containsKey("CALLBACKRESPONSE")) {
             String callbackResponse = payload.get("CALLBACKRESPONSE");
-            log.info("Razorpay --> CALLBACKRESPONSE found: " + callbackResponse);
+            log.info("---- [Callback] CALLBACKRESPONSE found (Razorpay): {}", callbackResponse);
             return callbackResponse;
         } else if (payload.containsKey("CALLBACK")) {
             String callback = payload.get("CALLBACK");
-            log.info("Cashfree --> CALLBACK found: " + callback);
+            log.info("---- [Callback] CALLBACK found (Cashfree): {}", callback);
             return callback;
         }
 
-        log.warn("No callback data found in payload.");
+        log.warn("---- [Callback] No recognized callback data found in payload.");
         return null;
     }
 
     private RunPaisaCallback convertToCallback(Map<String, String> payload) {
-        RunPaisaCallback callback = new RunPaisaCallback();
+        log.info("---- [Callback] Converting raw payload to RunPaisaCallback object...");
 
+        RunPaisaCallback callback = new RunPaisaCallback();
         callback.setStatus(payload.get("STATUS"));
         callback.setStatusCode(payload.get("STATUS_CODE"));
         callback.setOrderId(payload.get("ORDER_ID"));
@@ -332,8 +363,8 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         callback.setPgPartner(payload.get("PG_PARTNER"));
         callback.setMercUnqRef(payload.get("MERC_UNQ_REF"));
 
+        log.info("---- [Callback] Callback object created: {}", callback);
         return callback;
     }
-
 
 }
