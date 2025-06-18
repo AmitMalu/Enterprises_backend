@@ -6,6 +6,7 @@ import com.im.admin.entities.SubOperator;
 import com.im.admin.repositories.OperatorsRepository;
 import com.im.admin.repositories.SubOperatorRepository;
 import com.im.admin.service.SubOperatorService;
+import com.im.admin.spec.SubOperatorSpecification;
 import com.im.admin.util.CommonMethods;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +15,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.data.jpa.domain.Specification;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,11 +45,12 @@ public class SubOperatorServiceImpl implements SubOperatorService {
 
         subOperator.setId(commonMethods.generateNextIdForTables("operators", "id"));
         // 2. Find related Operator
-        Operators operator = operatorsRepository.findByOperatorName(subOperator.getOperatorName())
-                .orElseThrow(() -> new IllegalArgumentException("Operator not found with name: " + subOperator.getOperatorName()));
+        Operators operator = operatorsRepository.findByOperatorCode(subOperator.getOperatorCode())
+                .orElseThrow(() -> new IllegalArgumentException("Operator not found with code: " + subOperator.getOperatorCode()));
 
         // 3. Set alias from operator
         subOperator.setOperatorCode(operator.getOperatorCode());
+        subOperator.setOperatorName(operator.getOperatorName());
         subOperator.setOperatorAlias(operator.getOperatorAlias());
 
         // 4. Generate ID and save
@@ -101,11 +104,27 @@ public class SubOperatorServiceImpl implements SubOperatorService {
     }
 
     @Override
-    public List<SubOperator> getAllSubOperators() {
-        return subOperatorRepository.findAll();
+    public Page<SubOperator> getAllSubOperators(Pageable pageable,
+                                                List<String> id,
+                                                String subOperatorName,
+                                                String operatorCode,
+                                                String operatorAlias,
+                                                String operatorName,
+                                                Boolean isBlocked,
+                                                String createdBy,
+                                                String editedBy,
+                                                LocalDate createdOn,
+                                                LocalDate editedOn) {
+
+        Specification<SubOperator> spec = SubOperatorSpecification.getFilter(
+                id, subOperatorName, operatorCode, operatorAlias,
+                operatorName, isBlocked, createdBy, editedBy,
+                createdOn, editedOn
+        );
+        return subOperatorRepository.findAll(spec, pageable);
     }
 
-    @Override
+@Override
     public Page<SubOperator> getAllSubOperatorsPaginated(Pageable pageable) {
         return subOperatorRepository.findAll(pageable);
     }
