@@ -19,17 +19,12 @@ public interface PaymentGatewayService {
 
     CommonResponse<RetailerCommissionResponseDTO> fetchRetailerCommission(PaymentGatewayCardBinRequestDTO paymentGatewayCardBinRequestDTO);
 
-    //String bulkUpdateTransactionStatus(BulkUpdateTransactionStatusRequest bulkRequest);
-
-    //String updateTransactionStatus(UpdateTransactionStatusRequest request);
-
     ResponseEntity<?> createOrder(CreateOrderRequest request);
 
     ResponseEntity<?> orderStatus(String orderId);
 
     String handleCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException;
 
-    void processCallback(RunPaisaCallback callback);
-
+    void processCallback(RunPaisaCallback callback) throws JsonProcessingException;
 
 }

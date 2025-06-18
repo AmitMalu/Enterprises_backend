@@ -134,5 +134,19 @@ public class OperatorsServiceImpl implements OperatorsService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<OperatorDropdownResponseDTO> getActiveOperators() {
+        List<Operators> activeOperators = operatorsRepository.findByIsActiveTrue();
+
+        return activeOperators.stream()
+                .map(op -> {
+                    OperatorDropdownResponseDTO dto = new OperatorDropdownResponseDTO();
+                    dto.setOperatorId(op.getId());
+                    dto.setOperatorCode(op.getOperatorCode());
+                    dto.setOperatorName(op.getOperatorName());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
 }
 
