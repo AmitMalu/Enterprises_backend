@@ -28,5 +28,7 @@ public interface OperatorsRepository extends JpaRepository<Operators, String> {
 
     List<Operators> findByIsActiveTrue();
 
+    Optional<Operators> findByOperatorCode(String operatorCode);
+
 }
 
