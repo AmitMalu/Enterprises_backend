@@ -84,7 +84,7 @@ public class AdminServiceImpl implements AdminService {
             throw new CustomValidationException(errors);
         }
 
-        admin.setId(idGenerator.generateId("Admin"));
+        admin.setId(idGenerator.generateEntityId("Admin", null));
         Admin saveAdmin = adminRepository.save(admin);
 
         try {
