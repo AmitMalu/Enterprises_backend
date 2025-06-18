@@ -7,9 +7,12 @@ import com.im.admin.entities.product.Products;
 import com.im.admin.exception.DuplicateEntryException;
 import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.GetAllSchemeResponse;
 import com.im.admin.service.SchemeService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -29,6 +32,9 @@ public class SchemeServiceImpl implements SchemeService {
 
     @Autowired
     private ProductsRepository productsRepository;
+
+    @Autowired
+    private SubProductsRepository subProductsRepository;
 
     @Autowired
     private OperatorsRepository operatorsRepository;
@@ -256,5 +262,36 @@ public class SchemeServiceImpl implements SchemeService {
         vendorRouting.setEditedBy(request.getEditedBy());
 
         return vendorRoutingRepository.save(vendorRouting);
+    }
+
+    @Override
+    public Page<GetAllSchemeResponse> getAllSchemes(Pageable pageable) {
+        Page<Scheme> schemes = schemeRepository.findAll(pageable);
+
+        return schemes.map(scheme -> {
+            String[] parts = scheme.getSchemeCombinationHashCode().split("-");
+
+            String productId = parts.length > 0 ? parts[0] : null;
+            String subProductId = parts.length > 1 ? parts[1] : null;
+
+            String productName = productsRepository.findById(Short.valueOf(productId))
+                    .map(Products::getName).orElse("N/A");
+
+            String subProductName = subProductsRepository.findById(subProductId)
+                    .map(SubProducts::getSubProductTitle).orElse("N/A");
+
+            return new GetAllSchemeResponse(
+                    scheme.getId(),
+                    scheme.getSchemeName(),
+                    scheme.getSchemeCode(),
+                    scheme.getSchemeCombinationHashCode(),
+                    productName,
+                    subProductName,
+                    scheme.getCreatedOn(),
+                    scheme.getCreatedBy(),
+                    scheme.getEditedOn(),
+                    scheme.getEditedBy()
+            );
+        });
     }
 }
