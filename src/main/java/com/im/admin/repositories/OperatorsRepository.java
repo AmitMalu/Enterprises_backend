@@ -26,5 +26,7 @@ public interface OperatorsRepository extends JpaRepository<Operators, String> {
             String productCode, String subProductCode, String operatorCode
     );
 
+    List<Operators> findByIsActiveTrue();
+
 }
 

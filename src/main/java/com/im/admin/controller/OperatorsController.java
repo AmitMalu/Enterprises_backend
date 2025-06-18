@@ -105,6 +105,17 @@ public class OperatorsController {
         );
     }
 
+    @GetMapping("/active")
+    public ResponseEntity<CommonResponse<List<OperatorDropdownResponseDTO>>> getActiveOperators() {
+        List<OperatorDropdownResponseDTO> operators = operatorsService.getActiveOperators();
+        CommonResponse<List<OperatorDropdownResponseDTO>> response = new CommonResponse<>(
+                200,
+                "Active operators fetched successfully",
+                operators
+        );
+        return ResponseEntity.ok(response);
+    }
+
 
 }
 
