@@ -9,11 +9,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -63,10 +65,32 @@ public class SubProductsController {
     @GetMapping
     public ResponseEntity<CommonResponse<Page<SubProducts>>> getAllSubProducts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+
+            @RequestParam(required = false) List<String> id,
+            @RequestParam(required = false) String subProductTitle,
+            @RequestParam(required = false) String subProductCode,
+            @RequestParam(required = false) String productCode,
+            @RequestParam(required = false) Short productId,
+            @RequestParam(required = false) String productName,
+            @RequestParam(required = false) String walletType,
+            @RequestParam(required = false) Boolean isSettlement,
+            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String editedBy,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createdOn,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate editedOn
+
+    ) {
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<SubProducts> subProductsPage = subProductsService.getAllSubProducts(pageable);
+        Page<SubProducts> subProductsPage = subProductsService.getAllSubProducts(
+                pageable, id, subProductTitle, subProductCode, productCode,
+                productId, productName, walletType, isSettlement, isActive, enabled,
+                createdBy, editedBy, createdOn, editedOn
+        );
+
 
         CommonResponse<Page<SubProducts>> response = new CommonResponse<>(
                 200,
@@ -76,6 +100,7 @@ public class SubProductsController {
 
         return ResponseEntity.ok(response);
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse<SubProducts>> getSubProductById(@PathVariable String id) {

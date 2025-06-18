@@ -6,15 +6,18 @@ import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.service.SubProductsService;
+import com.im.admin.spec.SubProductSpecification;
 import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -102,10 +105,22 @@ public class SubProductsServiceImpl implements SubProductsService {
     }
 
     @Override
-    public Page<SubProducts> getAllSubProducts(Pageable pageable) {
-        log.info("Fetching all SubProducts with pagination");
-        return subProductsRepository.findAll(pageable);
+    public Page<SubProducts> getAllSubProducts(Pageable pageable, List<String> id,
+                                               String subProductTitle, String subProductCode, String productCode,
+                                               Short productId, String productName, String walletType,
+                                               Boolean isSettlement, Boolean isActive, Boolean enabled,
+                                               String createdBy, String editedBy,
+                                               LocalDate createdOn, LocalDate editedOn) {
+
+        Specification<SubProducts> spec = SubProductSpecification.getFilter(
+                id, subProductTitle, subProductCode, productCode, productId,
+                productName, walletType, isSettlement, isActive, enabled,
+                createdBy, editedBy, createdOn, editedOn
+        );
+
+        return subProductsRepository.findAll(spec, pageable);
     }
+
 
     @Override
     public SubProducts getSubProductById(String id) {
