@@ -21,7 +21,13 @@ public class SubOperator {
     @Column(name = "id", columnDefinition = "CHAR(2)")
     private String id;
 
+    @Column(name = "operator_code")
+    private String operatorCode;
+
     @Column(name = "operator_alias", nullable = false)
+    private String operatorAlias;
+
+    @Column(name = "operator_alias")
     private String operatorAlias;
 
     @NotNull(message = "Operator Name is required")
@@ -31,6 +37,12 @@ public class SubOperator {
     @NotNull(message = "Sub Operator Name is required")
     @Column(name = "sub_operator_name", nullable = false)
     private String subOperatorName;
+
+    @Column(name = "category")
+    private String category;
+
+    @Column(name = "is_blocked")
+    private Boolean isBlocked;
 
     @Column(name = "category")
     private String category;

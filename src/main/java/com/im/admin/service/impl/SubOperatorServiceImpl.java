@@ -41,6 +41,15 @@ public class SubOperatorServiceImpl implements SubOperatorService {
             throw new IllegalArgumentException("SubOperator already exists with name: " + subOperator.getSubOperatorName());
         }
 
+        subOperator.setId(commonMethods.generateNextIdForTables("operators", "id"));
+        // 2. Find related Operator
+        Operators operator = operatorsRepository.findByOperatorName(subOperator.getOperatorName())
+                .orElseThrow(() -> new IllegalArgumentException("Operator not found with name: " + subOperator.getOperatorName()));
+
+        // 3. Set alias from operator
+        subOperator.setOperatorCode(operator.getOperatorCode());
+        subOperator.setOperatorAlias(operator.getOperatorAlias());
+
         // 2. Find related Operator
         Operators operator = operatorsRepository.findByOperatorName(subOperator.getOperatorName())
                 .orElseThrow(() -> new IllegalArgumentException("Operator not found with name: " + subOperator.getOperatorName()));
@@ -73,6 +82,11 @@ public class SubOperatorServiceImpl implements SubOperatorService {
 
         // Update fields
         existingSubOperator.setOperatorName(subOperator.getOperatorName());
+        existingSubOperator.setOperatorCode(operator.getOperatorCode());
+        existingSubOperator.setOperatorAlias(operator.getOperatorAlias()); // Update alias
+        existingSubOperator.setSubOperatorName(subOperator.getSubOperatorName());
+        existingSubOperator.setVendor(subOperator.getVendor());
+        existingSubOperator.setEditedBy(subOperator.getEditedBy());
         existingSubOperator.setOperatorAlias(operator.getOperatorAlias()); // Update alias
         existingSubOperator.setSubOperatorName(subOperator.getSubOperatorName());
         existingSubOperator.setCategory(subOperator.getCategory());
