@@ -24,6 +24,9 @@ public class SubOperator {
     @Column(name = "operator_code")
     private String operatorCode;
 
+    @Column(name = "operator_alias", nullable = false)
+    private String operatorAlias;
+
     @Column(name = "operator_alias")
     private String operatorAlias;
 
@@ -35,8 +38,11 @@ public class SubOperator {
     @Column(name = "sub_operator_name", nullable = false)
     private String subOperatorName;
 
-    @Column(name = "vendor")
-    private String vendor;
+    @Column(name = "category")
+    private String category;
+
+    @Column(name = "is_blocked")
+    private Boolean isBlocked;
 
     @Column(name = "category")
     private String category;
