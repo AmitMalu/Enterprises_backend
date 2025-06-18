@@ -22,5 +22,7 @@ public interface OperatorsService {
 
     List<OperatorDropdownResponseDTO> getActiveOperatorsBySubProductId(String subProductId);
 
+    List<OperatorDropdownResponseDTO> getActiveOperators();
+
 }
 
