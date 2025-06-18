@@ -4,6 +4,7 @@ import com.im.admin.entities.SubOperator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,7 +16,17 @@ public interface SubOperatorService {
 
     void deleteSubOperator(String id);
 
-    List<SubOperator> getAllSubOperators();
+    Page<SubOperator> getAllSubOperators(Pageable pageable,
+                                         List<String> id,
+                                         String subOperatorName,
+                                         String operatorCode,
+                                         String operatorAlias,
+                                         String operatorName,
+                                         Boolean isBlocked,
+                                         String createdBy,
+                                         String editedBy,
+                                         LocalDate createdOn,
+                                         LocalDate editedOn);
 
     Page<SubOperator> getAllSubOperatorsPaginated(Pageable pageable);
 
