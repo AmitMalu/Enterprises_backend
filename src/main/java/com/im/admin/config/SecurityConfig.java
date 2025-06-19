@@ -23,7 +23,7 @@ public class SecurityConfig {
     private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/webjars/**", "cache",
             "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password", "/auth/forgot-password",
             "/auth/register", "/api/aes/generate-token", "/api/aes/validate-token", "/api/pg/generate-token",
-            "/api/pg/payment/callback");
+            "/api/pg/payment/callback","/auth/forget-verify-otp");
 
     @Autowired
     private AESFilter aesFilter;

@@ -8,6 +8,6 @@ import lombok.Data;
 public class ImSubMasterResponseDto {
     private Integer imSubMasterId;
     private String imSubMasterName;
-    private String imMasterId;
+    private Integer imMasterId;
 
 }

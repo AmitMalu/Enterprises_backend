@@ -256,6 +256,7 @@ public class AuthController {
             Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("token", token);
 
+
             String hierarchyCode = user.getHierarchyCode();
 
             if ("AD".equalsIgnoreCase(hierarchyCode) || "WL-AD".equalsIgnoreCase(hierarchyCode)) {
@@ -264,6 +265,7 @@ public class AuthController {
                 ImSubRole subRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
                 if (subRole != null) {
                     responseMap.put("sub_role_id", subRole.getSubRoleId());
+                    responseMap.put("role", hierarchyCode);
                 }
             }
 
@@ -286,8 +288,9 @@ public class AuthController {
                         ));
 
                 responseMap.put("product_sub_product_scheme_codes", productToSubProductsWithSchemeMap);
+                responseMap.put("role", hierarchyCode);
             }
-
+            responseMap.put("role", hierarchyCode);
             try {
                 responseJson = objectMapper.writeValueAsString(
                         new CommonResponse<>(200, "OTP verified successfully", responseMap)
