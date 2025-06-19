@@ -5,7 +5,6 @@ import lombok.Data;
 
 @Entity
 @Data
-@IdClass(ImSubMasterId.class)
 @Table(name = "im_sub_master")
 public class ImSubMaster {
 
@@ -14,9 +13,9 @@ public class ImSubMaster {
     @Column(name = "im_sub_master_id")
     private Integer imSubMasterId;
 
-    @Id
+
     @Column(name = "im_master_id")
-    private String imMasterId;
+    private Integer  imMasterId;
 
     @Column(name = "im_sub_master_name")
     private String imSubMasterName;
