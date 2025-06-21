@@ -9,5 +9,6 @@ public class ImSubMasterResponseDto {
     private Integer imSubMasterId;
     private String imSubMasterName;
     private Integer imMasterId;
+    private String imMasterName;
 
 }

@@ -17,4 +17,6 @@ public class BankRequestDto {
     private String verification;
     private String logo; // Base64 or URL or file handling later
     private String createdBy;
+    private Boolean isBlocked;
+    private String editedBy;
 }
