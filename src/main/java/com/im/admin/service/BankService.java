@@ -11,4 +11,7 @@ public interface BankService {
     BankMaster addBank(BankRequestDto bankRequestDto);
 
     List<BankMaster> getAllBanks();
+     BankMaster updateBank(Long id,BankRequestDto bankRequestDto);
+
+
 }
