@@ -5,7 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
 import com.im.admin.dto.RetailerCommissionResponseDTO;
-import com.im.admin.dto.TokenResponseDTO;
+import com.im.admin.dto.PgTokenResponseDTO;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
@@ -101,13 +101,13 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         String url = baseUrlPROD + "/token";
         log.info("Sending token request to URL: {}", url);
 
-        ResponseEntity<TokenResponseDTO> response = restTemplate.postForEntity(
+        ResponseEntity<PgTokenResponseDTO> response = restTemplate.postForEntity(
                 url,
                 requestEntity,
-                TokenResponseDTO.class
+                PgTokenResponseDTO.class
         );
 
-        TokenResponseDTO tokenResponse = response.getBody();
+        PgTokenResponseDTO tokenResponse = response.getBody();
         log.info("Bearer token response: {}", tokenResponse);
 
         if (tokenResponse != null && tokenResponse.getData() != null) {
