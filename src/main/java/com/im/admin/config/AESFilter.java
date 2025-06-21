@@ -105,7 +105,8 @@ public class AESFilter extends OncePerRequestFilter {
 		log.info("<-------- Path ------> {}", path);
 
 		return PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.stream()
-				.anyMatch(allowedPath -> path.equals(allowedPath) || path.startsWith(allowedPath));
+				.anyMatch(path::startsWith);
+
 	}
 
 //	private boolean isPathViewableWithoutAuthentication(HttpServletRequest request) {
