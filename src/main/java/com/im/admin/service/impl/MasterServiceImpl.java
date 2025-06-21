@@ -34,26 +34,19 @@ public class MasterServiceImpl implements MasterService {
 
     @Override
     public List<ImSubMasterResponseDto> getSubMasterDetails(Integer masterId) {
+
+        Optional<ImMaster> masterOpt = masterRepository.findById(masterId);
+        if(masterOpt.isEmpty()){
+            throw new RuntimeException("masterId not found");
+        }
+        ImMaster imMaster = masterOpt.get();
+
         List<ImSubMaster> subMasters = imSubMasterRepository.findByImMasterId(masterId);
 
         // Map to response DTO
         return subMasters.stream().map(subMaster -> new ImSubMasterResponseDto(subMaster.getImSubMasterId(),
-                subMaster.getImSubMasterName(), subMaster.getImMasterId())).collect(Collectors.toList());
+                subMaster.getImSubMasterName(), subMaster.getImMasterId(),imMaster.getImMasterName())).collect(Collectors.toList());
     }
-
-//    @Override
-//    public String addDropdown(DropdownRequestDto dto) {
-//        Optional<ImMaster> ImMasterName = masterRepository.findByImMasterName(dto.getImMasterName());
-//        if(ImMasterName.isEmpty()){
-//            ImMaster imMaster = new ImMaster();
-//            imMaster.setImMasterName(dto.getImMasterName());
-//            ImMaster save = masterRepository.save(imMaster);
-//        }else{
-//            ImMaster imMaster = ImMasterName.get();
-//        }
-//
-//        return "";
-//    }
 
 
     @Override

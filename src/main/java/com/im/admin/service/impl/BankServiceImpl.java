@@ -4,13 +4,17 @@ import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.BankMaster;
 import com.im.admin.repositories.BankMasterRepository;
 import com.im.admin.service.BankService;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authorization.method.AuthorizeReturnObject;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
+@Slf4j
 @Service
 public class BankServiceImpl implements BankService {
 
@@ -26,7 +30,7 @@ public class BankServiceImpl implements BankService {
         bank.setImps(bankRequestDto.getImps());
         bank.setNeft(bankRequestDto.getNeft());
         bank.setRtgs(bankRequestDto.getRtgs());
-        bank.setActiveStatus(bankRequestDto.getActiveStatus());
+//        bank.setActiveStatus(bankRequestDto.getActiveStatus());
         bank.setCreatedBy(bankRequestDto.getCreatedBy());
 //        bank.setIsBlocked(false); // default
         // Set others if available like logo, maxAccountNoLength, verification
@@ -36,5 +40,26 @@ public class BankServiceImpl implements BankService {
     @Override
     public List<BankMaster> getAllBanks() {
         return bankMasterRepository.findAll();
+    }
+
+    @Override
+    public BankMaster updateBank(Long id,BankRequestDto bankRequestDto){
+        log.info("Updating BankMaster with ID: {}", id);
+        BankMaster existingBnakMaster = bankMasterRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found with ID: " + id));
+
+        existingBnakMaster.setBankCode(bankRequestDto.getBankName());
+        existingBnakMaster.setBankCode(bankRequestDto.getBankCode());
+        existingBnakMaster.setIFSCCode(bankRequestDto.getIfscCode());
+        existingBnakMaster.setActiveStatus(bankRequestDto.getActiveStatus());
+        existingBnakMaster.setImps(bankRequestDto.getImps());
+        existingBnakMaster.setRtgs(bankRequestDto.getRtgs());
+        existingBnakMaster.setIsBlocked(bankRequestDto.getIsBlocked());
+        existingBnakMaster.setEditedBy(bankRequestDto.getEditedBy());
+        existingBnakMaster.setEditedOn(new Date());
+
+        BankMaster updateBankMaster = bankMasterRepository.save(existingBnakMaster);
+        log.info("BankMaster updated successfully: {}", updateBankMaster);
+        return updateBankMaster;
+
     }
 }
