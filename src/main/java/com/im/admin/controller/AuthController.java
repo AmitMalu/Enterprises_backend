@@ -314,14 +314,41 @@ public class AuthController {
 
     @PostMapping("/forget-verify-otp")
     public ResponseEntity<?> verifyOTP(@RequestBody LoginRequestDto loginRequestDto) {
-        boolean isVerified = authService.verifyOTP(loginRequestDto);
-        if (isVerified) {
-            return ResponseEntity.ok(new CommonResponse(200, "OTP verified successfully", null));
-        } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new CommonResponse(401, "OTP verification failed", null));
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = "username=" + loginRequestDto.getUserName() + "&otp=" + loginRequestDto.getOtp();
+        String responseJson = "";
+
+        try {
+            boolean isVerified = authService.verifyOTP(loginRequestDto);
+            CommonResponse<?> commonResponse;
+
+            if (isVerified) {
+                commonResponse = new CommonResponse<>(200, "OTP verified successfully", null);
+            } else {
+                commonResponse = new CommonResponse<>(401, "OTP verification failed", null);
+            }
+
+            // Convert response object to JSON
+            responseJson = objectMapper.writeValueAsString(commonResponse);
+            // Save login log
+            commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+
+            return ResponseEntity.status(commonResponse.getStatusCode()).body(commonResponse);
+
+        } catch (RuntimeException | JsonProcessingException ex) {
+            ex.printStackTrace(); // Optionally log it properly
+            CommonResponse<?> errorResponse = new CommonResponse<>(500, ex.getMessage(), null);
+            try {
+                responseJson = objectMapper.writeValueAsString(errorResponse);
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+            commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), ex.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
 
 
     @PostMapping("/resend-otp")
