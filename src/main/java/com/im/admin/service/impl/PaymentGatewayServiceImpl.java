@@ -200,13 +200,17 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
             String dtoJson = objectMapper.writeValueAsString(req.getTransactionScheme());
 
+            log.debug("DTO JSON: {}", dtoJson);
+
             TransactionSchemeRequestEntity entity = TransactionSchemeRequestEntity.builder()
                     .orderId("ORD" + baseTransactionId)
-                    .fullRequestDtoJson(objectMapper.writeValueAsString(dtoJson)) // save full DTO as JSON
+                    .fullRequestDtoJson(objectMapper.writeValueAsString(dtoJson))
                     .createdOn(LocalDateTime.now())
                     .build();
 
+            log.info("Saving TransactionSchemeRequestEntity with orderId: {}", entity.getOrderId());
             transactionSchemeRequestEntityRepository.save(entity);
+            log.info("Entity saved successfully");
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
             log.info("CreateOrder Request: headers={}, body={}", headers, body);
