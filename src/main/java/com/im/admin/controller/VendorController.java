@@ -9,11 +9,15 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -42,12 +46,36 @@ public class VendorController {
     @GetMapping
     public ResponseEntity<CommonResponse<Page<Vendors>>> getAllVendors(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) List<String> id,
+            @RequestParam(required = false) String vendorName,
+            @RequestParam(required = false) String vendorCode,
+            @RequestParam(required = false) String productId,
+            @RequestParam(required = false) String productCode,
+            @RequestParam(required = false) String subProductId,
+            @RequestParam(required = false) String subProductCode,
+            @RequestParam(required = false) String modesSupported,
+            @RequestParam(required = false) Integer priority,
+            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) String bankType,
+            @RequestParam(required = false) String website,
+            @RequestParam(required = false) String logo,
+            @RequestParam(required = false) String parameter,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String editedBy,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createdOn,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate editedOn
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Vendors> result = vendorsService.getAllVendors(pageable, id, vendorName, vendorCode, productId, productCode,
+                subProductId, subProductCode, modesSupported, priority, isActive, bankType, website, logo, parameter,
+                createdBy, editedBy, createdOn, editedOn);
 
-        Page<Vendors> vendors = vendorsService.getAllVendors(page, size);
         return ResponseEntity.ok(
-                new CommonResponse<>(200, "Vendors fetched successfully", vendors));
+                new CommonResponse<>(200, "Vendors fetched successfully", result)
+        );
     }
+
 
     @PutMapping("/{id}")
     public ResponseEntity<CommonResponse<Vendors>> updateVendor(

@@ -8,11 +8,15 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -72,15 +76,41 @@ public class OperatorsController {
     @GetMapping
     public ResponseEntity<CommonResponse<Page<Operators>>> getAllOperators(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
 
-        log.info("Received request to fetch all operators - Page: {}, Size: {}", page, size);
-        Page<Operators> operators = operatorsService.getAllOperators(page, size);
+            @RequestParam(required = false) List<String> id,
+            @RequestParam(required = false) String operatorCategory,
+            @RequestParam(required = false) String operatorCode,
+            @RequestParam(required = false) String operatorName,
+            @RequestParam(required = false) String operatorAlias,
+            @RequestParam(required = false) String alias,
+            @RequestParam(required = false) String productCode,
+            @RequestParam(required = false) String productId,
+            @RequestParam(required = false) String subProductCode,
+            @RequestParam(required = false) String subProductId,
+            @RequestParam(required = false) String cardBinNo,
+            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String editedBy,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createdOn,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate editedOn
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
 
-        return ResponseEntity.ok(
-                new CommonResponse<>(HttpStatus.OK.value(), "Operators fetched successfully", operators)
+        Page<Operators> operatorsPage = operatorsService.getAllOperators(
+                pageable, id, operatorCategory, operatorCode, operatorName,
+                operatorAlias, alias, productCode, productId, subProductCode,
+                subProductId, cardBinNo, isActive, createdBy, editedBy, createdOn, editedOn
         );
+
+        CommonResponse<Page<Operators>> response = new CommonResponse<>(
+                200, "Operators fetched successfully", operatorsPage
+        );
+
+        return ResponseEntity.ok(response);
     }
+
+
 
     @GetMapping("/active/{subProductId}")
     public ResponseEntity<CommonResponse<List<OperatorDropdownResponseDTO>>> getActiveOperators(

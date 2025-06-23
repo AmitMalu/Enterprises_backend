@@ -16,8 +16,7 @@ public class BankMaster {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long Id;
+    private Long id;
 
     @Column(name = "bank_code")
     private String bankCode;
@@ -25,21 +24,20 @@ public class BankMaster {
     @Column(name = "bank_name")
     private String bankName;
 
-    @Column(name = "IFSC_code")
-    private String IFSCCode;
+    @Column(name = "ifsc_code")
+    private String ifscCode;
 
     @Column(name = "imps")
-    private String imps; // "Yes" / "No
+    private String imps;
 
     @Column(name = "neft")
     private String neft;
 
     @Column(name = "rtgs")
-    private String rtgs; // "Yes" / "No
+    private String rtgs;
 
     @Column(name = "active_status")
-    private String  activeStatus;
-
+    private String activeStatus;
 
     @Column(name = "created_on")
     private LocalDateTime createdOn = LocalDateTime.now();
@@ -48,7 +46,7 @@ public class BankMaster {
     private String createdBy;
 
     @Column(name = "edited_on")
-    private Date editedOn;
+    private LocalDateTime editedOn;  // changed from Date to LocalDateTime
 
     @Column(name = "edited_by")
     private String editedBy;

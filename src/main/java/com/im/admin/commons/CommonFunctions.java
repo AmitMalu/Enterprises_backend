@@ -106,5 +106,4 @@ public class CommonFunctions {
         return callbackEventLogRepository.save(callbackEventLog);
     }
 
-
 }
