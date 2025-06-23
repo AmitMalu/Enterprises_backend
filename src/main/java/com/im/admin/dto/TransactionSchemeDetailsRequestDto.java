@@ -1,6 +1,7 @@
 package com.im.admin.dto;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.im.admin.entities.SchemeRate;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,6 +12,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TransactionSchemeDetailsRequestDto {
 
     private String productCode;
