@@ -157,7 +157,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional
-    public String processTransaction(TransactionSchemeDetailsRequestDto dto) {
+    public String processTransaction(TransactionSchemeDetailsRequestDto dto, String vendorCallbackStatus) {
         String baseTransactionId = commonMethods.generateBaseTransactionId(); // Single base ID for full flow
 
         String retailerId = dto.getHierarchyId();
@@ -176,9 +176,9 @@ public class TransactionServiceImpl implements TransactionService {
 
         if (tranxType.equals("credit")) {
             // Vendor call BEFORE wallet impact
-            String vendorResponse = callVendor(dto);
+            //String vendorResponse = callVendor(dto);
 
-            if ("PENDING".equalsIgnoreCase(vendorResponse)) {
+            if ("PENDING".equalsIgnoreCase(vendorCallbackStatus)) {
                 // Just insert transaction with pending, no wallet impact
                 insertTransaction(wallet, "PENDING", tranxAmount,
                         wallet.getAvailableBalance(), wallet.getAvailableBalance(),
@@ -186,7 +186,7 @@ public class TransactionServiceImpl implements TransactionService {
                 return "Transaction pending - no wallet update";
             }
 
-            if ("FAILURE".equalsIgnoreCase(vendorResponse)) {
+            if ("FAILURE".equalsIgnoreCase(vendorCallbackStatus)) {
                 insertTransaction(wallet, "FAILURE", tranxAmount,
                         wallet.getAvailableBalance(), wallet.getAvailableBalance(),
                         "Vendor Failure - No Credit", buildTransactionId("FLD", baseTransactionId), "CREDIT", dto);
@@ -202,8 +202,8 @@ public class TransactionServiceImpl implements TransactionService {
             }
 
             // On Success: update wallet, mirror, then process charges/commission
-            updateWallet(dto, wallet, tranxAmount, tranxType, baseTransactionId, vendorResponse, "CREDIT");
-            processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, vendorResponse);
+            updateWallet(dto, wallet, tranxAmount, tranxType, baseTransactionId, vendorCallbackStatus, "CREDIT");
+            processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, vendorCallbackStatus);
         } else if (tranxType.equals("debit")) {
             // Step 1: Check balance before assuming pending
             if (!hasSufficientBalance(retailerId, tranxAmount, grossAmount, walletType)) {

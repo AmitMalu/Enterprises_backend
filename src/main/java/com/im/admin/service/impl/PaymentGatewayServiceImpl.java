@@ -204,7 +204,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
             TransactionSchemeRequestEntity entity = TransactionSchemeRequestEntity.builder()
                     .orderId("ORD" + baseTransactionId)
-                    .fullRequestDtoJson(objectMapper.writeValueAsString(dtoJson))
+                    .fullRequestDtoJson(dtoJson)
                     .createdOn(LocalDateTime.now())
                     .build();
 
@@ -314,14 +314,20 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                         return new RuntimeException("No transaction found for Order ID");
                     });
 
-            dto = objectMapper.readValue(entity.getFullRequestDtoJson(), TransactionSchemeDetailsRequestDto.class);
+            try {
+                dto = objectMapper.readValue(entity.getFullRequestDtoJson(), TransactionSchemeDetailsRequestDto.class);
+                log.info("---- [Callback] Deserialized DTO: {}", dto);
+            } catch (Exception e) {
+                log.error("---- [Callback] Failed to deserialize JSON. Raw JSON: {}", entity.getFullRequestDtoJson(), e);
+                throw e;
+            }
 
             log.info("---- [Callback] Deserialized Transaction DTO: {}", dto);
-            transactionServiceImpl.processTransaction(dto);
+            transactionServiceImpl.processTransaction(dto, callback.getStatus());
 
         } else {
             log.warn("---- [Callback] Payment FAILED or PENDING for Order ID: {}", callback.getOrderId());
-            transactionServiceImpl.processTransaction(dto); // optional or may be skipped
+            transactionServiceImpl.processTransaction(dto, callback.getStatus()); // optional or may be skipped
         }
     }
 
