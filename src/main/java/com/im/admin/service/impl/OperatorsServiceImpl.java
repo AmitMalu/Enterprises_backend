@@ -8,6 +8,7 @@ import com.im.admin.repositories.OperatorsRepository;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.service.OperatorsService;
+import com.im.admin.spec.OperatorSpecification;
 import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,10 +16,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,12 +113,22 @@ public class OperatorsServiceImpl implements OperatorsService {
     }
 
     @Override
-    public Page<Operators> getAllOperators(int page, int size) {
-        log.info("Fetching all operators - Page: {}, Size: {}", page, size);
+    public Page<Operators>getAllOperators(Pageable pageable, List<String> id, String operatorCategory, String operatorCode,
+                                          String operatorName, String operatorAlias, String alias, String productCode,
+                                          String productId, String subProductCode, String subProductId, String cardBinNo, Boolean isActive,
+                                          String createdBy, String editedBy,
+                                          LocalDate createdOn,
+                                          LocalDate editedOn) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
-        return operatorsRepository.findAll(pageable);
+        Specification<Operators> spec = OperatorSpecification.getFilter(
+                id, operatorCategory, operatorCode, operatorName, operatorAlias,
+                alias, productCode, productId, subProductCode, subProductId,
+                cardBinNo, isActive, createdBy, editedBy, createdOn, editedOn
+        );
+
+        return operatorsRepository.findAll(spec, pageable);
     }
+
 
     @Override
     public Operators getOperatorById(String id) {

@@ -8,6 +8,7 @@ import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.VendorRepository;
 import com.im.admin.service.VendorService;
+import com.im.admin.spec.VendorSpecification;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -15,8 +16,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -65,10 +68,27 @@ public class VendorServiceImpl implements VendorService {
                 .orElseThrow(() -> new EntityNotFoundException("Vendor with ID " + id + " not found."));
     }
 
-    public Page<Vendors> getAllVendors(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return vendorsRepository.findAll(pageable);
+    public Page<Vendors> getAllVendors(Pageable pageable, List<String> id, String vendorName,
+                                       String vendorCode, String productId,
+                                       String productCode, String subProductId,
+                                       String subProductCode, String modesSupported,
+                                       Integer priority, Boolean isActive,
+                                       String bankType, String website,
+                                       String logo, String parameter,
+                                       String createdBy, String editedBy,
+                                       LocalDate createdOn,
+                                       LocalDate editedOn) {
+
+        Specification<Vendors> spec = VendorSpecification.getFilter(
+                id, vendorName, vendorCode, productId, productCode,
+                subProductId, subProductCode, modesSupported, priority, isActive,
+                bankType, website, logo, parameter, createdBy, editedBy,
+                createdOn, editedOn
+        );
+
+        return vendorsRepository.findAll(spec, pageable);
     }
+
 
     public Vendors updateVendor(String id, Vendors updatedVendor) {
         Vendors existingVendor = vendorsRepository.findById(id)

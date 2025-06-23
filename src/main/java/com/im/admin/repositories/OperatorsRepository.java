@@ -1,14 +1,17 @@
 package com.im.admin.repositories;
 
 import com.im.admin.entities.Operators;
+import com.im.admin.entities.product.Products;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface OperatorsRepository extends JpaRepository<Operators, String> {
+public interface OperatorsRepository extends JpaRepository<Operators, String>, JpaSpecificationExecutor<Operators> {
+
 
     boolean existsById(String id);
 
