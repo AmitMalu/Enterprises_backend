@@ -45,9 +45,9 @@ public class TransactionController {
     }
 
     @PostMapping("/process-transaction")
-    public ResponseEntity<String> processTransaction(@RequestBody TransactionSchemeDetailsRequestDto request) {
+    public ResponseEntity<String> processTransaction(@RequestBody TransactionSchemeDetailsRequestDto request, @RequestParam String vendorCallbackStatus) {
         log.info("Received request to process transaction: {}", request);
-        String response = transactionService.processTransaction(request);
+        String response = transactionService.processTransaction(request, vendorCallbackStatus);
         return ResponseEntity.ok(response);
     }
 

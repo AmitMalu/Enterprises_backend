@@ -23,6 +23,7 @@ import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -198,6 +199,10 @@ public class FundRequestServiceImpl implements FundRequestService {
                 .executeUpdate();
     }
 
+    @Override
+    public List<FundRequest> fetchAllRecords() {
+        return fundRequestRepository.findAll();
+    }
 
 
 }

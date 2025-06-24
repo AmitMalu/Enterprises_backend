@@ -1,12 +1,14 @@
 package com.im.admin.response;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class RunPaisaCallback {
 
     private String status;              // STATUS

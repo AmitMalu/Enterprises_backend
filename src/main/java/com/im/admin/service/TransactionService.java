@@ -14,7 +14,7 @@ public interface TransactionService {
 
     TransactionSchemeDetailsResponseDto getTransactionSchemeDetails(TransactionSchemeDetailsRequestDto request);
 
-    String processTransaction(TransactionSchemeDetailsRequestDto request);
+    String processTransaction(TransactionSchemeDetailsRequestDto request, String vendorCallbackStatus);
 
     String updateTransactionStatus(UpdateTransactionStatusRequest request);
 

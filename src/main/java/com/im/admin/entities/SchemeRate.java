@@ -1,6 +1,7 @@
 package com.im.admin.entities;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.enums.SlabType;
 import jakarta.persistence.*;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Entity
 @Table(name = "scheme_rate")
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SchemeRate {
 
     @Id
