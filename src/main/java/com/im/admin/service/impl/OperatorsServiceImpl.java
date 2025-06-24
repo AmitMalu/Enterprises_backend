@@ -79,6 +79,7 @@ public class OperatorsServiceImpl implements OperatorsService {
         Products product = productsRepository.findById(Short.valueOf(operator.getProductId()))
                 .orElseThrow(() -> new RuntimeException("Product not found with ID: " + operator.getProductId()));
 
+
         SubProducts subProduct = subProductsRepository.findById(String.valueOf(operator.getSubProductId()))
                 .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + operator.getSubProductId()));
 
@@ -94,6 +95,12 @@ public class OperatorsServiceImpl implements OperatorsService {
 //        existingOperator.setSubProductCode(operator.getSubProductCode());
         existingOperator.setIsActive(operator.getIsActive());
         existingOperator.setEditedBy(operator.getEditedBy());
+        existingOperator.setProductId(String.valueOf(product.getId()));
+        existingOperator.setSubProductId(String.valueOf(subProduct.getId()));
+
+
+
+
 
         Operators updatedOperator = operatorsRepository.save(existingOperator);
         log.info("Operator updated successfully: {}", updatedOperator);

@@ -73,11 +73,12 @@ public class SubOperatorServiceImpl implements SubOperatorService {
         }
 
         // Validate and fetch Operator
-        Operators operator = operatorsRepository.findByOperatorName(subOperator.getOperatorName())
-                .orElseThrow(() -> new IllegalArgumentException("Operator not found with name: " + subOperator.getOperatorName()));
+        Operators operator = operatorsRepository.findByOperatorCode(subOperator.getOperatorCode())
+                .orElseThrow(() -> new IllegalArgumentException("Operator not found with code: " + subOperator.getOperatorCode()));
+
 
         // Update fields
-        existingSubOperator.setOperatorName(subOperator.getOperatorName());
+        existingSubOperator.setOperatorName(operator.getOperatorName());
         existingSubOperator.setOperatorCode(operator.getOperatorCode());
         existingSubOperator.setOperatorAlias(operator.getOperatorAlias()); // Update alias
         existingSubOperator.setSubOperatorName(subOperator.getSubOperatorName());
