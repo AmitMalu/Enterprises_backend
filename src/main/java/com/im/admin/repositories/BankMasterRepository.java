@@ -1,9 +1,11 @@
 package com.im.admin.repositories;
 
 import com.im.admin.entities.BankMaster;
+import com.im.admin.entities.SubProducts;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface BankMasterRepository extends JpaRepository<BankMaster,Long> {
+public interface BankMasterRepository extends JpaRepository<BankMaster,Long>, JpaSpecificationExecutor<BankMaster>  {
 }
