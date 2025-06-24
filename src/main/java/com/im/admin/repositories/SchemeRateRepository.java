@@ -2,6 +2,8 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.SchemeRate;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,5 +18,7 @@ public interface SchemeRateRepository extends JpaRepository<SchemeRate, Long> {
 
     SchemeRate findBySchemeCodeAndOperatorCode(String schemeCode, String operatorCode);
 
+    @Query("SELECT s FROM SchemeRate s WHERE s.operatorCode = :operatorCode")
+    Optional<SchemeRate> findSchemeByOperatorCode(@Param("operatorCode") String operatorCode);
 
 }

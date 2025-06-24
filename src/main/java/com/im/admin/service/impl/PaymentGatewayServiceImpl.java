@@ -13,6 +13,7 @@ import com.im.admin.request.CreateOrderRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.RunPaisaCallback;
 import com.im.admin.service.PaymentGatewayService;
+import com.im.admin.service.VendorCallbackParser;
 import com.im.admin.util.CommonMethods;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -84,6 +86,9 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
     @Value("${runpaisa.order.status.url.prod}")
     private String orderStatusUrl;
+
+    @Autowired
+    private CallbackParserFactory callbackParserFactory;
 
 
     @Override
@@ -272,14 +277,20 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         String rawCallbackData = extractCallbackData(payload);
 
         if (rawCallbackData != null) {
-            log.info("---- [Callback] Parsed CALLBACK Data: {}", rawCallbackData);
+//            log.info("---- [Callback] Parsed CALLBACK Data: {}", rawCallbackData);
+//
+//            List<RunPaisaCallback> callbackList = objectMapper.readValue(rawCallbackData, new TypeReference<>() {});
+//            log.info("---- [Callback] Found {} callbacks in list", callbackList.size());
+//
+//            for (RunPaisaCallback callback : callbackList) {
+//                processCallback(callback);
+//            }
+            VendorCallbackParser parser = callbackParserFactory.getParser(payload);
+            RunPaisaCallback callback = parser.parse(payload);
+            processCallback(callback);
 
-            List<RunPaisaCallback> callbackList = objectMapper.readValue(rawCallbackData, new TypeReference<>() {});
-            log.info("---- [Callback] Found {} callbacks in list", callbackList.size());
-
-            for (RunPaisaCallback callback : callbackList) {
-                processCallback(callback);
-            }
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+            return "Callback processed successfully";
         } else {
             log.info("---- [Callback] Single callback format detected. Converting to RunPaisaCallback object.");
             RunPaisaCallback callback = convertToCallback(payload);
@@ -322,8 +333,29 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 throw e;
             }
 
+            // Extract operatorCode from callback's trax_mode field
+            String callbackOperatorCode = callback.getTxnMode(); // e.g., "DTH-TATASKY"
+
+            // Dynamically fetch the correct scheme based on operator code
+            Optional<SchemeRate> matchingScheme = schemeRateRepository
+                    .findSchemeByOperatorCode(callbackOperatorCode); // You need to implement this method
+
+            if (matchingScheme.isPresent()) {
+                SchemeRate scheme = matchingScheme.get();
+                log.info("---- [Callback] Matching scheme found for operator code {}: ", callbackOperatorCode);
+
+
+            } else {
+                log.warn("---- [Callback] No matching scheme found for operator code: {}", callbackOperatorCode);
+                // You can decide to throw an error or proceed with saved scheme
+            }
+
+            // Proceed with transaction using updated DTO and callback status
             log.info("---- [Callback] Deserialized Transaction DTO: {}", dto);
             transactionServiceImpl.processTransaction(dto, callback.getStatus());
+
+//            log.info("---- [Callback] Deserialized Transaction DTO: {}", dto);
+//            transactionServiceImpl.processTransaction(dto, callback.getStatus());
 
         } else {
             log.warn("---- [Callback] Payment FAILED or PENDING for Order ID: {}", callback.getOrderId());
