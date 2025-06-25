@@ -33,5 +33,6 @@ public interface OperatorsRepository extends JpaRepository<Operators, String>, J
 
     Optional<Operators> findByOperatorCode(String operatorCode);
 
+
 }
 

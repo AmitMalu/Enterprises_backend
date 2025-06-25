@@ -83,10 +83,10 @@ public class SubOperatorController {
 
 
     @GetMapping("/{id}")
-    public ResponseEntity<Optional<SubOperator>> getSubOperatorById(@PathVariable String id) {
-        return ResponseEntity.ok(subOperatorService.getSubOperatorById(id));
+    public ResponseEntity<CommonResponse<Optional<SubOperator>>>getSubOperatorById(@PathVariable String id) {
+        Optional<SubOperator> subOperatorById = subOperatorService.getSubOperatorById(id);
+        return ResponseEntity.ok(new CommonResponse<>(200, "success", subOperatorById));
     }
-
 
 }
 
