@@ -10,7 +10,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class WalletLoadRequestDto {
+public class PrefundRequestDto {
 
     private String hierarchyId;
     private String mobileNumber;
