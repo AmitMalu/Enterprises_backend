@@ -1,14 +1,17 @@
 package com.im.admin.entities;
 
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.Date;
 
-//@JsonInclude(JsonInclude.Include.NON_NULL)
+
 @Entity
 @Data
 @Table(name = "bank_master")
@@ -37,14 +40,18 @@ public class BankMaster {
     private Boolean rtgs;          //boolean
 
     @Column(name = "active_status")
-    private Boolean activeStatus;     //boolean
+    private Boolean isActive;     //boolean
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy HH:mm:ss")
+    @CreationTimestamp
     @Column(name = "created_on")
     private LocalDateTime createdOn = LocalDateTime.now();
 
     @Column(name = "created_by")
     private String createdBy;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy HH:mm:ss")
+    @UpdateTimestamp
     @Column(name = "edited_on")
     private LocalDateTime editedOn;  // changed from Date to LocalDateTime
 

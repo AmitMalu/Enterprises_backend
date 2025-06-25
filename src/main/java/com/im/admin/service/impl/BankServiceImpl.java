@@ -36,7 +36,7 @@ public class BankServiceImpl implements BankService {
         bank.setImps(bankRequestDto.getImps());
         bank.setNeft(bankRequestDto.getNeft());
         bank.setRtgs(bankRequestDto.getRtgs());
-        bank.setActiveStatus(bankRequestDto.getActiveStatus());
+        bank.setIsActive(bankRequestDto.getIsActive());
         bank.setCreatedBy(bankRequestDto.getCreatedBy());
         bank.setIsBlocked(bankRequestDto.getIsBlocked()); // default
         // Set others if available like logo, maxAccountNoLength, verification
@@ -63,15 +63,16 @@ public class BankServiceImpl implements BankService {
         log.info("Updating BankMaster with ID: {}", id);
         BankMaster existingBnakMaster = bankMasterRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found with ID: " + id));
 
-        existingBnakMaster.setBankCode(bankRequestDto.getBankName());
         existingBnakMaster.setBankCode(bankRequestDto.getBankCode());
+        existingBnakMaster.setBankName(bankRequestDto.getBankName());
         existingBnakMaster.setIfscCode(bankRequestDto.getIfscCode());
-        existingBnakMaster.setActiveStatus(bankRequestDto.getActiveStatus());
+        existingBnakMaster.setIsActive(bankRequestDto.getIsActive());
         existingBnakMaster.setImps(bankRequestDto.getImps());
         existingBnakMaster.setRtgs(bankRequestDto.getRtgs());
         existingBnakMaster.setIsBlocked(bankRequestDto.getIsBlocked());
         existingBnakMaster.setEditedBy(bankRequestDto.getEditedBy());
         existingBnakMaster.setEditedOn(LocalDateTime.now());
+        existingBnakMaster.setNeft(bankRequestDto.getNeft());
 
         BankMaster updateBankMaster = bankMasterRepository.save(existingBnakMaster);
         log.info("BankMaster updated successfully: {}", updateBankMaster);

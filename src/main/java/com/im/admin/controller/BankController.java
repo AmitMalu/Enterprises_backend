@@ -91,6 +91,7 @@ public class BankController {
         CommonResponse<BankMaster> response = new CommonResponse<>(
                 200, "Bank fetched successfully", bank
         );
+
         return ResponseEntity.ok(response);
     }
 

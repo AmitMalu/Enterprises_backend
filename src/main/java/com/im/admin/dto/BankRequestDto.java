@@ -12,7 +12,7 @@ public class BankRequestDto {
     private Boolean imps;
     private Boolean neft;
     private Boolean rtgs;
-    private Boolean activeStatus;
+    private Boolean isActive;
     private Integer maxAccountNoLength;
     private String verification;
     private String logo; // Base64 or URL or file handling later
