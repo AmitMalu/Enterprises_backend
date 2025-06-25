@@ -1,6 +1,10 @@
 package com.im.admin.entities;
 
+import com.im.admin.commons.Status;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -27,50 +31,64 @@ public class WalletLoadRequest {
     @Column(name = "mobile_number", nullable = false)
     private String mobileNumber;
 
-    @Column(name = "parent_hierarchy_id")
-    private String parentHierarchyId;
-
     @Column(name = "deposit_amount", nullable = false)
     private Double depositAmount;
 
     @Column(name = "deposit_image")
     private String depositImage;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Status status = Status.PENDING;
+
+    @CreationTimestamp
+    @Column(name = "created_datetime", nullable = false, updatable = false)
+    private LocalDateTime createDateTime;
+
+    @Column(name = "bank_holder_name")
+    @NotBlank(message = "Bank holder name is required")
+    @Size(min = 2, max = 100, message = "Bank holder name must be between 2 and 100 characters")
+    private String bankHolderName;
+
+    @Column(name = "bank_account_name")
+    @NotBlank(message = "Bank account name is required")
+    @Size(min = 2, max = 100, message = "Bank account name must be between 2 and 100 characters")
+    private String bankAccountName;
+
+    @Column(name = "bank_account_number")
+    @NotBlank(message = "Bank account number is required")
+    @Pattern(regexp = "\\d{9,18}", message = "Bank account number must be between 9 to 18 digits")
+    private String bankAccountNumber;
+
+    @Column(name = "bank_tran_id")
+    @NotBlank(message = "Bank transaction ID is required")
+    @Size(min = 5, max = 50, message = "Bank transaction ID must be between 5 and 50 characters")
+    private String bankTranId;
+
     @Column(name = "deposit_date")
-    private LocalDate depositDate;
+    private LocalDate depositDate = LocalDate.now();
 
     @Column(name = "deposit_time")
-    private LocalTime depositTime;
+    private LocalTime depositTime = LocalTime.now();
+
+    @Column(name = "narration", length = 500)
+    private String narration;
+
+    @Column(name = "payment_mode")
+    private String paymentMode;
+
+    @Column(name = "ip_address")
+    @NotBlank(message = "IP address is required")
+//    @Pattern(
+//            regexp = "^((25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$",
+//            message = "Invalid IP address format"
+//    )
+    private String ipAddress;
 
     @Column(name = "approve_or_reject_date")
     private LocalDate approveOrRejectDate;
 
     @Column(name = "approve_or_reject_time")
     private LocalTime approveOrRejectTime;
-
-    @Column(nullable = false)
-    private String status = "Pending";
-
-    @CreationTimestamp
-    @Column(name = "created_datetime", nullable = false, updatable = false)
-    private LocalDateTime createDateTime;
-
-    @Column(name = "bank_account_number")
-    private String bankAccountNumber;
-
-    @Column(name = "bank_name")
-    private String bankName;
-
-    @Column(name = "ip_address")
-    private String ipAddress;
-
-    @Column(name = "remarks", length = 500)
-    private String remarks;
-
-    @Column(name = "bank_tran_id")
-    private String bankTranId;
-
-    @Column(name = "payment_mode")
-    private String paymentMode;
 }
 
