@@ -17,7 +17,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -76,6 +78,10 @@ public class WalletLoadRequestServiceImpl implements WalletLoadRequestService {
         entity.setPaymentMode(dto.getPaymentMode());
         entity.setNarration(dto.getNarration());
         entity.setIpAddress(dto.getIpAddress());
+        if(dto.getDepositDate() != null && !dto.getDepositDate().isEmpty()){
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            entity.setDepositDate(LocalDate.parse(dto.getDepositDate()));
+        }
 
         WalletLoadRequest saved = repository.save(entity);
 

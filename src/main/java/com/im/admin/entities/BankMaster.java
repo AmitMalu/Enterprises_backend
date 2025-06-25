@@ -8,7 +8,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.Date;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
+//@JsonInclude(JsonInclude.Include.NON_NULL)
 @Entity
 @Data
 @Table(name = "bank_master")
@@ -28,16 +28,16 @@ public class BankMaster {
     private String ifscCode;
 
     @Column(name = "imps")
-    private String imps;
+    private Boolean imps;     //b
 
     @Column(name = "neft")
-    private String neft;
+    private Boolean neft;     //b
 
     @Column(name = "rtgs")
-    private String rtgs;
+    private Boolean rtgs;          //boolean
 
     @Column(name = "active_status")
-    private String activeStatus;
+    private Boolean activeStatus;     //boolean
 
     @Column(name = "created_on")
     private LocalDateTime createdOn = LocalDateTime.now();

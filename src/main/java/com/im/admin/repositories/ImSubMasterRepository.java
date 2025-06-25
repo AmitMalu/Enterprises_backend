@@ -17,11 +17,11 @@ public interface ImSubMasterRepository extends JpaRepository<ImSubMaster, Intege
 
     @Query(
             value = "SELECT m.im_master_id, m.im_master_name, s.im_sub_master_id, s.im_sub_master_name " +
-                    "FROM im_master m JOIN im_sub_master s ON m.im_master_id = s.im_master_id",
+                    "FROM im_master m JOIN im_sub_master s ON m.im_master_id = s.im_master_id " +
+                    "ORDER BY m.im_master_id, s.im_sub_master_id",
             countQuery = "SELECT COUNT(*) FROM im_master m JOIN im_sub_master s ON m.im_master_id = s.im_master_id",
             nativeQuery = true
     )
     Page<Object[]> getAllDropdowns(Pageable pageable);
-
 
 }

@@ -26,7 +26,7 @@ public class BankController {
     @Autowired
     private BankService bankService;
 
-    @PostMapping("/add")
+    @PostMapping
     public ResponseEntity<CommonResponse<BankMaster>> addBank(@RequestBody BankRequestDto bankRequestDto) {
 
         try {
@@ -39,7 +39,7 @@ public class BankController {
         }
     }
 
-    @GetMapping("/all")
+    @GetMapping
     public ResponseEntity<CommonResponse<Page<BankMaster>>> getAllBanks(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -74,7 +74,7 @@ public class BankController {
     }
 
 
-    @PutMapping("/update/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<CommonResponse> updateBank(@PathVariable Long id,@RequestBody BankRequestDto bankRequestDto){
         log.info("Received request to update BankMaster with ID: {}", id);
         BankMaster UpdateBankMaster = bankService.updateBank(id, bankRequestDto);
