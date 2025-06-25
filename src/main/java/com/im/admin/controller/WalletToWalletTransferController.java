@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.WalletToWalletTransferDto;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.WalletToWalletTransferService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,13 +23,18 @@ public class WalletToWalletTransferController {
     private WalletToWalletTransferService walletTransferService;
 
     @PostMapping("/transfer")
-    public ResponseEntity<String> transferAmount(@RequestBody WalletToWalletTransferDto request) {
+    public ResponseEntity<CommonResponse<String>> transferAmount(@RequestBody WalletToWalletTransferDto request) {
         try {
             walletTransferService.transferAmountWalletToWallet(request);
-            return ResponseEntity.ok("Transfer successful");
+            return ResponseEntity.ok(new CommonResponse<>(200, "Transfer successful", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new CommonResponse<>(400, "Transfer failed: " + e.getMessage(), null));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Transfer failed: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Transfer failed: " + e.getMessage(), null));
         }
     }
+
 
 }

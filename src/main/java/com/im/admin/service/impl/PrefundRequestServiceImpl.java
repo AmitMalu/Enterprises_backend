@@ -1,11 +1,11 @@
 package com.im.admin.service.impl;
 
 
-import com.im.admin.dto.WalletLoadRequestDto;
-import com.im.admin.entities.WalletLoadRequest;
-import com.im.admin.repositories.WalletLoadRequestRepository;
+import com.im.admin.dto.PrefundRequestDto;
+import com.im.admin.entities.PrefundRequest;
+import com.im.admin.repositories.PrefundRequestRepository;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.service.WalletLoadRequestService;
+import com.im.admin.service.PrefundRequestService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,15 +27,15 @@ import java.util.UUID;
 @Service
 @Validated
 @Slf4j
-public class WalletLoadRequestServiceImpl implements WalletLoadRequestService {
+public class PrefundRequestServiceImpl implements PrefundRequestService {
 
     @Autowired
-    private WalletLoadRequestRepository repository;
+    private PrefundRequestRepository repository;
 
     private final Path imageStoragePath = Paths.get("uploads/wallet-load-images");
 
     @Override
-    public CommonResponse<WalletLoadRequest> saveWalletLoadRequest(WalletLoadRequestDto dto, MultipartFile imageFile) throws IOException {
+    public CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile) throws IOException {
 
         double depositAmount = Double.parseDouble(dto.getDepositAmount());
         double confirmAmount = Double.parseDouble(dto.getConfirmAmount());
@@ -44,13 +44,13 @@ public class WalletLoadRequestServiceImpl implements WalletLoadRequestService {
             throw new IllegalArgumentException("Deposit amount and confirmation amount do not match.");
         }
 
-        Optional<WalletLoadRequest> approved = repository.findApprovedByBankTranId(dto.getBankTranId());
+        Optional<PrefundRequest> approved = repository.findApprovedByBankTranId(dto.getBankTranId());
         if (approved.isPresent()) {
             throw new IllegalArgumentException("This transaction has already been approved and cannot be re-submitted.");
         }
 
         LocalDateTime fiveMinutesAgo = LocalDateTime.now().minusMinutes(5);
-        List<WalletLoadRequest> duplicates = repository.findDuplicatesWithinTime(dto.getBankTranId(), depositAmount, fiveMinutesAgo);
+        List<PrefundRequest> duplicates = repository.findDuplicatesWithinTime(dto.getBankTranId(), depositAmount, fiveMinutesAgo);
         if (!duplicates.isEmpty()) {
             throw new IllegalArgumentException("Duplicate request detected within last 5 minutes.");
         }
@@ -66,7 +66,7 @@ public class WalletLoadRequestServiceImpl implements WalletLoadRequestService {
         }
 
         // Save new record
-        WalletLoadRequest entity = new WalletLoadRequest();
+        PrefundRequest entity = new PrefundRequest();
         entity.setHierarchyId(dto.getHierarchyId());
         entity.setMobileNumber(dto.getMobileNumber());
         entity.setDepositAmount(depositAmount);
@@ -83,7 +83,7 @@ public class WalletLoadRequestServiceImpl implements WalletLoadRequestService {
             entity.setDepositDate(LocalDate.parse(dto.getDepositDate()));
         }
 
-        WalletLoadRequest saved = repository.save(entity);
+        PrefundRequest saved = repository.save(entity);
 
         return new CommonResponse<>(200, "Wallet load request submitted successfully", saved);
     }

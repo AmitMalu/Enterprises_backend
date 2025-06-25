@@ -5,6 +5,7 @@ import com.im.admin.dto.WalletToWalletTransferDto;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.AdminRepository;
 import com.im.admin.repositories.WhiteLabelRepository;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.WalletToWalletTransferService;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
@@ -18,6 +19,7 @@ import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -39,21 +41,25 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
     @Transactional
     @Override
-    public void transferAmountWalletToWallet(WalletToWalletTransferDto request) {
+    public CommonResponse<String> transferAmountWalletToWallet(WalletToWalletTransferDto request) {
 
         String hierarchyId = request.getHierarchyId();
         WalletType fromWallet = request.getWalletTypeFrom();
         WalletType toWallet = request.getWalletTypeTo();
         BigDecimal amount = request.getTransferAmount();
+        BigDecimal confirmAmount = request.getConfirmAmount();
 
-        if (fromWallet == toWallet) {
-            throw new IllegalArgumentException("Cannot transfer between the same wallet types");
+        if (!Objects.equals(amount, confirmAmount)) {
+            throw new IllegalArgumentException("Amount and confirmation amount do not match.");
         }
 
-        // 1. Check balance
+        if (fromWallet == toWallet) {
+            throw new IllegalArgumentException("Cannot transfer between the same wallet types.");
+        }
+
         BigDecimal availableBalance = commonMethods.getCurrentBalance(hierarchyId, String.valueOf(fromWallet));
         if (availableBalance.compareTo(amount) < 0) {
-            throw new IllegalArgumentException("Insufficient balance in retailer" + fromWallet + " wallet");
+            throw new IllegalArgumentException("Insufficient balance in retailer " + fromWallet + " wallet.");
         }
 
         String baseTransactionId = commonMethods.generateBaseTransactionId();
@@ -74,27 +80,22 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
             if ("WL".equals(parentType)) {
                 whiteLabelRepository.findById(parentId).ifPresent(wl -> {
-
                     AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), wl.getWhiteLabelId());
                     updateWallet(from, hierarchyId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "DEBIT");
 
                     AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), wl.getWhiteLabelId());
                     updateWallet(to, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
-
                 });
                 break;
-
             }
 
             if ("IM".equals(parentType) || "AD".equals(parentType)) {
                 adminRepository.findById(parentId).ifPresent(ad -> {
-
                     AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), ad.getId());
                     updateWallet(from, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
 
                     AbstractWalletAmountTable to = commonMethods.getWalletByType(fromWallet.name(), ad.getId());
                     updateWallet(to, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
-
                 });
                 break;
             }
@@ -102,10 +103,12 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             currentId = parentId;
         }
 
-        AbstractWalletAmountTable tomWalletTable = commonMethods.getWalletByType(toWallet.name(), hierarchyId);
-        updateWallet(tomWalletTable, hierarchyId, toWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
+        AbstractWalletAmountTable toWalletTable = commonMethods.getWalletByType(toWallet.name(), hierarchyId);
+        updateWallet(toWalletTable, hierarchyId, toWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
 
+        return new CommonResponse<>(200, "Transfer successful", baseTransactionId);
     }
+
 
     private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
                                                                     String tranxType, String baseTransactionId, String tranStatus, String service) {
