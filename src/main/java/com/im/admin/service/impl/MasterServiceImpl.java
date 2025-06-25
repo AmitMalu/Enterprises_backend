@@ -8,11 +8,16 @@ import com.im.admin.entities.ImSubMaster;
 import com.im.admin.repositories.ImSubMasterRepository;
 import com.im.admin.repositories.MasterRepository;
 import com.im.admin.service.MasterService;
+import com.im.admin.spec.DropdownSpecification;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -36,7 +41,7 @@ public class MasterServiceImpl implements MasterService {
     public List<ImSubMasterResponseDto> getSubMasterDetails(Integer masterId) {
 
         Optional<ImMaster> masterOpt = masterRepository.findById(masterId);
-        if(masterOpt.isEmpty()){
+        if (masterOpt.isEmpty()) {
             throw new RuntimeException("masterId not found");
         }
         ImMaster imMaster = masterOpt.get();
@@ -45,7 +50,7 @@ public class MasterServiceImpl implements MasterService {
 
         // Map to response DTO
         return subMasters.stream().map(subMaster -> new ImSubMasterResponseDto(subMaster.getImSubMasterId(),
-                subMaster.getImSubMasterName(), subMaster.getImMasterId(),imMaster.getImMasterName())).collect(Collectors.toList());
+                subMaster.getImSubMasterName(), subMaster.getImMasterId(), imMaster.getImMasterName())).collect(Collectors.toList());
     }
 
 
@@ -79,6 +84,7 @@ public class MasterServiceImpl implements MasterService {
             return "Sub master already exists.";
         }
     }
+
 
     @Override
     public Page<DropdownResponseDto> getAllDropdowns(int page, int size) {
