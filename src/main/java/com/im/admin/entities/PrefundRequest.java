@@ -13,12 +13,12 @@ import java.time.LocalTime;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "wallet_load_request")
+@Table(name = "prefund_request")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class WalletLoadRequest {
+public class PrefundRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
