@@ -16,6 +16,7 @@ public class WalletToWalletTransferDto {
 
     private String hierarchyId;
     private BigDecimal transferAmount;
+    private BigDecimal confirmAmount;
     private WalletType walletTypeFrom;
     private WalletType walletTypeTo;
 }
