@@ -66,10 +66,7 @@ public class WalletLoadRequest {
     private String bankTranId;
 
     @Column(name = "deposit_date")
-    private LocalDate depositDate = LocalDate.now();
-
-    @Column(name = "deposit_time")
-    private LocalTime depositTime = LocalTime.now();
+    private LocalDate depositDate;
 
     @Column(name = "narration", length = 500)
     private String narration;

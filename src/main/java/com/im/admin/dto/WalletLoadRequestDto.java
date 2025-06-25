@@ -24,6 +24,7 @@ public class WalletLoadRequestDto {
     private String narration;
     private String paymentMode;
     private String ipAddress;
+    private String depositDate;
 
 
 }

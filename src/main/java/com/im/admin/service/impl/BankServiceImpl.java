@@ -36,9 +36,9 @@ public class BankServiceImpl implements BankService {
         bank.setImps(bankRequestDto.getImps());
         bank.setNeft(bankRequestDto.getNeft());
         bank.setRtgs(bankRequestDto.getRtgs());
-//        bank.setActiveStatus(bankRequestDto.getActiveStatus());
+        bank.setActiveStatus(bankRequestDto.getActiveStatus());
         bank.setCreatedBy(bankRequestDto.getCreatedBy());
-//        bank.setIsBlocked(false); // default
+        bank.setIsBlocked(bankRequestDto.getIsBlocked()); // default
         // Set others if available like logo, maxAccountNoLength, verification
         return bankMasterRepository.save(bank);
     }
