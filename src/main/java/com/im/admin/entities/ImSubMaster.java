@@ -23,4 +23,6 @@ public class ImSubMaster {
     @Column(name = "im_sub_master_desc")
     private String imSubMasterDesc;
 
+
+
 }

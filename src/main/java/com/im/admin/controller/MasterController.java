@@ -29,6 +29,7 @@ public class MasterController {
     }
 
     //getALLDropdown
+
     @GetMapping
     public ResponseEntity<CommonResponse<Page<DropdownResponseDto>>> getAllDropdowns(
             @RequestParam(defaultValue = "0") int page,
@@ -39,6 +40,8 @@ public class MasterController {
         return ResponseEntity.ok(
                 new CommonResponse<>(200, "Success", result));
     }
+
+
 
     @GetMapping("/im-sub-master-details")
     public List<ImSubMasterResponseDto> getSubMasterDetails(@RequestParam Integer  masterId) {

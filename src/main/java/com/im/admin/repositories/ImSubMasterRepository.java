@@ -2,14 +2,16 @@ package com.im.admin.repositories;
 
 import com.im.admin.dto.DropdownResponseDto;
 import com.im.admin.entities.ImSubMaster;
+import com.im.admin.entities.product.Products;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
-public interface ImSubMasterRepository extends JpaRepository<ImSubMaster, Integer> {
+public interface ImSubMasterRepository extends JpaRepository<ImSubMaster, Integer>, JpaSpecificationExecutor<ImSubMaster>  {
 
     List<ImSubMaster> findByImMasterId(Integer masterId);
 
