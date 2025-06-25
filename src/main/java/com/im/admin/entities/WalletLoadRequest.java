@@ -1,6 +1,6 @@
 package com.im.admin.entities;
 
-import com.im.admin.commons.Status;
+import com.im.admin.entities.enums.ConstantStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -39,7 +39,7 @@ public class WalletLoadRequest {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status = Status.PENDING;
+    private ConstantStatus status = ConstantStatus.PENDING;
 
     @CreationTimestamp
     @Column(name = "created_datetime", nullable = false, updatable = false)
