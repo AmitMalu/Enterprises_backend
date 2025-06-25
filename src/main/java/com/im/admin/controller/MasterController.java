@@ -28,7 +28,8 @@ public class MasterController {
         return null;
     }
 
-    @GetMapping("/get-all-dropdown")
+    //getALLDropdown
+    @GetMapping
     public ResponseEntity<CommonResponse<Page<DropdownResponseDto>>> getAllDropdowns(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -39,17 +40,14 @@ public class MasterController {
                 new CommonResponse<>(200, "Success", result));
     }
 
-
-
-
     @GetMapping("/im-sub-master-details")
     public List<ImSubMasterResponseDto> getSubMasterDetails(@RequestParam Integer  masterId) {
         List<ImSubMasterResponseDto> subMasterDetails = masterService.getSubMasterDetails(masterId);
         return subMasterDetails;
     }
 
-
-    @PostMapping("/add-dropdown")
+  //Add dropdown
+    @PostMapping
     public ResponseEntity<CommonResponse> addDropdown(@RequestBody DropdownRequestDto dto) {
         String result = masterService.addDropdown(dto);
 
@@ -59,7 +57,7 @@ public class MasterController {
                     .body(new CommonResponse(409, result, null));
         }
         return ResponseEntity
-                .ok(new CommonResponse(200, result, null));
+                .ok(new CommonResponse(201, result, null));
 
     }
 

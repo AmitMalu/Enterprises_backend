@@ -9,10 +9,10 @@ public class BankRequestDto {
     private String bankCodeBi;
     private String bankName;
     private String ifscCode;
-    private String imps;
-    private String neft;
-    private String rtgs;
-    private String activeStatus;
+    private Boolean imps;
+    private Boolean neft;
+    private Boolean rtgs;
+    private Boolean activeStatus;
     private Integer maxAccountNoLength;
     private String verification;
     private String logo; // Base64 or URL or file handling later
