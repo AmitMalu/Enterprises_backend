@@ -4,5 +4,9 @@ public enum ConstantStatus {
 
     PENDING,
     APPROVED,
-    REJECTED
+    REJECTED,
+    SUCCESS,
+    FAILURE,
+    ACTIVE,
+    INACTIVE
 }

@@ -1,8 +1,13 @@
 package com.im.admin.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.dto.WalletLoadRequestDto;
+import com.im.admin.entities.WalletLoadRequest;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.WalletLoadRequestService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -21,21 +26,28 @@ import java.nio.file.Paths;
 @RestController
 @RequestMapping("/api/wallet-load")
 @RequiredArgsConstructor
+@Slf4j
 public class WalletLoadRequestController {
 
     @Autowired
     private WalletLoadRequestService walletLoadRequestService;
 
     @PostMapping(value = "/request", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> submitWalletLoadRequest(
-            @RequestPart("data") WalletLoadRequestDto dto,
-            @RequestPart("imageFile") MultipartFile imageFile){
+    public ResponseEntity<CommonResponse<WalletLoadRequest>> submitWalletLoadRequest(
+            @RequestPart("data") @Valid String rawData,
+            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile) {
         try {
-            String message = walletLoadRequestService.saveWalletLoadRequest(dto, imageFile);
-            return ResponseEntity.ok(message);
+            log.info("Entering Wallet Load Request method");
+
+            ObjectMapper mapper = new ObjectMapper();
+            WalletLoadRequestDto dto = mapper.readValue(rawData, WalletLoadRequestDto.class);
+            CommonResponse<WalletLoadRequest> response = walletLoadRequestService.saveWalletLoadRequest(dto, imageFile);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new CommonResponse<>(400, e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to submit request: " + e.getMessage());
+                    .body(new CommonResponse<>(500, "Failed to submit request: " + e.getMessage(), null));
         }
     }
 
