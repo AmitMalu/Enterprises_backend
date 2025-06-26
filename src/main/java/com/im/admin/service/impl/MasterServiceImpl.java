@@ -12,6 +12,7 @@ import com.im.admin.spec.DropdownSpecification;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -87,17 +88,37 @@ public class MasterServiceImpl implements MasterService {
 
 
     @Override
-    public Page<DropdownResponseDto> getAllDropdowns(int page, int size) {
-
+    public Page<DropdownResponseDto> getAllDropdowns(
+            int page, int size,
+            Integer imMasterId, String imMasterName,
+            Integer imSubMasterId, String imSubMasterName
+    ) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Object[]> rawPage = imSubMasterRepository.getAllDropdowns(pageable);
+        Page<Object[]> rawPage = imSubMasterRepository.getAllDropdowns(Pageable.unpaged()); // Fetch all
 
-        return rawPage.map(row -> new DropdownResponseDto(
-                (Integer) row[0],
-                (String) row[1],
-                (Integer) row[2],
-                (String) row[3]
-        ));
+        List<DropdownResponseDto> filteredList = rawPage.getContent().stream()
+                .map(row -> new DropdownResponseDto(
+                        (Integer) row[0],
+                        (String) row[1],
+                        (Integer) row[2],
+                        (String) row[3]
+                ))
+                .filter(dto -> imMasterId == null || dto.getImMasterId().equals(imMasterId))
+                .filter(dto -> imMasterName == null || (dto.getImMasterName() != null
+                        && dto.getImMasterName().toLowerCase().contains(imMasterName.toLowerCase())))
+                .filter(dto -> imSubMasterId == null || dto.getImSubMasterId().equals(imSubMasterId))
+                .filter(dto -> imSubMasterName == null || (dto.getImSubMasterName() != null
+                        && dto.getImSubMasterName().toLowerCase().contains(imSubMasterName.toLowerCase())))
+                .collect(Collectors.toList());
+
+        // Manual pagination
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), filteredList.size());
+        Page<DropdownResponseDto> pageResult = new PageImpl<>(filteredList.subList(start, end), pageable, filteredList.size());
+
+        return pageResult;
     }
 
+
 }
+

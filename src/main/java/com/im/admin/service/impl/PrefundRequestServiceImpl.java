@@ -10,6 +10,7 @@ import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.PrefundRequestRepository;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.PrefundRequestService;
+import com.im.admin.spec.PrefundRequestSpecification;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageUtil;
 import jakarta.persistence.EntityManager;
@@ -17,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -76,7 +79,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         // Save new record
         PrefundRequest entity = new PrefundRequest();
-        entity.setHierarchyId(dto.getHierarchyId());
+        entity.setRequestedBy(dto.getRequestedBy());
         entity.setMobileNumber(dto.getMobileNumber());
         entity.setDepositAmount(depositAmount);
         entity.setDepositImage(fileName);
@@ -98,9 +101,21 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     }
 
     @Override
-    public Page<PrefundRequest> getAllPrefundRequests(int page, int size) {
-        return repository.findAll(PageRequest.of(page, size));
+    public Page<PrefundRequest> getAllPrefundRequests(int page, int size, Long id, String hierarchyId, String mobileNumber, Double depositAmount, String status, LocalDate depositDate, LocalDate createDateTime,
+                                                      String bankHolderName, String bankAccountName, String bankAccountNumber,
+                                                      String bankTranId, String paymentMode, String narration, String ipAddress,
+                                                      LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks) {
+        Pageable pageable = PageRequest.of(page, size);
+        Specification<PrefundRequest> spec = PrefundRequestSpecification.getFilter(
+                id, hierarchyId, mobileNumber, depositAmount, status, depositDate,
+                createDateTime, bankHolderName, bankAccountName, bankAccountNumber,
+                bankTranId, paymentMode, narration, ipAddress,
+                approveOrRejectDate, approveOrRejectTime, remarks
+        );
+
+        return repository.findAll(spec, pageable);
     }
+
 
     @Transactional
     @Override
@@ -119,7 +134,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         fundRequest.setApproveOrRejectTime(LocalTime.now());
 
         if (newStatus == ConstantStatus.APPROVED) {
-            String requesterId = fundRequest.getHierarchyId();
+            String requesterId = fundRequest.getRequestedBy();
             String approverId = actionDto.getApproveOrRejectHierarchyId();
             WalletType walletType = WalletType.PREPAID;
             BigDecimal amount = BigDecimal.valueOf(fundRequest.getDepositAmount());

@@ -164,8 +164,13 @@ public class DistributorServiceImpl implements DistributorService {
                                          MultipartFile shopImage,
                                          MultipartFile businessProofImage) throws IOException {
 
+        LocalDateTime requestDateTime = LocalDateTime.now();
+
         Distributor existingDistributor = distributorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Distributor not found"));
+
+        // Capture request payload (incoming distributor)
+        String distributorRequest = objectMapper.writeValueAsString(distributor);
 
         if (existingDistributor.equals(distributor)) {
             return existingDistributor;
@@ -183,16 +188,14 @@ public class DistributorServiceImpl implements DistributorService {
             throw new CustomValidationException(errors);
         }
 
+        // Update non-null fields
         if (distributor.getTitle() != null) existingDistributor.setTitle(distributor.getTitle());
         if (distributor.getName() != null) existingDistributor.setName(distributor.getName());
         if (distributor.getMobileNumber() != null) existingDistributor.setMobileNumber(distributor.getMobileNumber());
-        //if (distributor.getAbbreviation() != null) existingDistributor.setAbbreviation(distributor.getAbbreviation());
         if (distributor.getEmailId() != null) existingDistributor.setEmailId(distributor.getEmailId());
         if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
         if (distributor.getAddress() != null) existingDistributor.setAddress(distributor.getAddress());
-        if (distributor.getOutletAddress() != null)
-            existingDistributor.setOutletAddress(distributor.getOutletAddress());
-
+        if (distributor.getOutletAddress() != null) existingDistributor.setOutletAddress(distributor.getOutletAddress());
 
         // Optional image updates
         String folder = "Distributor";
@@ -212,7 +215,21 @@ public class DistributorServiceImpl implements DistributorService {
             imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingDistributor::setBusinessProofImage);
         }
 
-        return distributorRepository.save(existingDistributor);
+        Distributor updatedDistributor = distributorRepository.save(existingDistributor);
+
+        LocalDateTime responseDateTime = LocalDateTime.now();
+        String distributorResponse = objectMapper.writeValueAsString(updatedDistributor);
+
+        // Save hierarchy logs
+        commonFunctions.saveHierarchyLogs(
+                requestDateTime,
+                distributorRequest,
+                null, // IP Address
+                responseDateTime,
+                distributorResponse
+        );
+
+        return updatedDistributor;
     }
 
 

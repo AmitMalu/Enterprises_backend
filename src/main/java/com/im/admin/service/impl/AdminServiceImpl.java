@@ -147,18 +147,55 @@ public class AdminServiceImpl implements AdminService {
      */
     @Override
     public Admin updateAdmin(String id, Admin updatedAdmin) {
+
+        LocalDateTime requestDateTime = LocalDateTime.now();
+
         Optional<Admin> existing = adminRepository.findById(id);
         if (existing.isPresent()) {
             Admin admin = existing.get();
+
+            // Serialize incoming request
+            String adminRequest = null;
+            try {
+                adminRequest = objectMapper.writeValueAsString(updatedAdmin);
+            } catch (JsonProcessingException e) {
+                e.printStackTrace(); // Log if needed
+            }
+
+            // Update fields
             admin.setName(updatedAdmin.getName());
             admin.setMobileNumber(updatedAdmin.getMobileNumber());
             admin.setEmailId(updatedAdmin.getEmailId());
             admin.setUserName(updatedAdmin.getUserName());
             admin.setPassword(updatedAdmin.getPassword());
-            return adminRepository.save(admin);
+
+            Admin savedAdmin = adminRepository.save(admin);
+
+            LocalDateTime responseDateTime = LocalDateTime.now();
+
+            // Serialize updated response
+            String adminResponse = null;
+            try {
+                adminResponse = objectMapper.writeValueAsString(savedAdmin);
+            } catch (JsonProcessingException e) {
+                e.printStackTrace(); // Log if needed
+            }
+
+            // Save logs
+            commonFunctions.saveImLogs(
+                    adminRequest,
+                    requestDateTime,
+                    null, // IP Address
+                    adminResponse,
+                    responseDateTime
+            );
+
+            return savedAdmin;
         }
+
         throw new RuntimeException("Admin not found with ID: " + id);
     }
+
 
     /**
      * Deletes an Admin record.

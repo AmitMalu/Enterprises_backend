@@ -1,0 +1,92 @@
+package com.im.admin.spec;
+
+import com.im.admin.entities.PrefundRequest;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
+public class PrefundRequestSpecification {
+
+    public static Specification<PrefundRequest> getFilter(
+            Long id,
+            String hierarchyId,
+            String mobileNumber,
+            Double depositAmount,
+            String status,
+            LocalDate depositDate,
+            LocalDate createDateTime,
+            String bankHolderName,
+            String bankAccountName,
+            String bankAccountNumber,
+            String bankTranId,
+            String paymentMode,
+            String narration,
+            String ipAddress,
+            LocalDate approveOrRejectDate,
+            String approveOrRejectTime,
+            String remarks
+    ) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (id != null) predicates.add(cb.equal(root.get("id"), id));
+
+            if (hierarchyId != null)
+                predicates.add(cb.like(cb.lower(root.get("hierarchyId")), "%" + hierarchyId.toLowerCase() + "%"));
+
+            if (mobileNumber != null)
+                predicates.add(cb.like(cb.lower(root.get("mobileNumber")), "%" + mobileNumber.toLowerCase() + "%"));
+
+            if (depositAmount != null)
+                predicates.add(cb.equal(root.get("depositAmount"), depositAmount));
+
+            if (status != null)
+                predicates.add(cb.like(cb.lower(root.get("status")), "%" + status.toLowerCase() + "%"));
+
+            if (depositDate != null)
+                predicates.add(cb.equal(root.get("depositDate"), depositDate));
+
+            if (createDateTime != null)
+                predicates.add(cb.between(
+                        root.get("createDateTime"),
+                        createDateTime.atStartOfDay(),
+                        createDateTime.atTime(23, 59, 59)
+                ));
+
+            if (bankHolderName != null)
+                predicates.add(cb.like(cb.lower(root.get("bankHolderName")), "%" + bankHolderName.toLowerCase() + "%"));
+
+            if (bankAccountName != null)
+                predicates.add(cb.like(cb.lower(root.get("bankAccountName")), "%" + bankAccountName.toLowerCase() + "%"));
+
+            if (bankAccountNumber != null)
+                predicates.add(cb.like(cb.lower(root.get("bankAccountNumber")), "%" + bankAccountNumber.toLowerCase() + "%"));
+
+            if (bankTranId != null)
+                predicates.add(cb.like(cb.lower(root.get("bankTranId")), "%" + bankTranId.toLowerCase() + "%"));
+
+            if (paymentMode != null)
+                predicates.add(cb.like(cb.lower(root.get("paymentMode")), "%" + paymentMode.toLowerCase() + "%"));
+
+            if (narration != null)
+                predicates.add(cb.like(cb.lower(root.get("narration")), "%" + narration.toLowerCase() + "%"));
+
+            if (ipAddress != null)
+                predicates.add(cb.like(cb.lower(root.get("ipAddress")), "%" + ipAddress.toLowerCase() + "%"));
+
+            if (approveOrRejectDate != null)
+                predicates.add(cb.equal(root.get("approveOrRejectDate"), approveOrRejectDate));
+
+            if (approveOrRejectTime != null)
+                predicates.add(cb.like(cb.lower(root.get("approveOrRejectTime")), "%" + approveOrRejectTime.toLowerCase() + "%"));
+
+            if (remarks != null)
+                predicates.add(cb.like(cb.lower(root.get("remarks")), "%" + remarks.toLowerCase() + "%"));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+}

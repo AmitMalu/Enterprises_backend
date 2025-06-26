@@ -25,8 +25,8 @@ public class PrefundRequest {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "hierarchy_id", nullable = false)
-    private String hierarchyId;
+    @Column(name = "requested_by", nullable = false)
+    private String requestedBy;
 
     @Column(name = "mobile_number", nullable = false)
     private String mobileNumber;
