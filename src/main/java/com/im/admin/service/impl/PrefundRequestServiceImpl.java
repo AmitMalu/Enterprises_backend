@@ -1,28 +1,37 @@
 package com.im.admin.service.impl;
 
 
+import com.im.admin.dto.AbstractWalletAmountTable;
+import com.im.admin.dto.FundRequestActionDto;
 import com.im.admin.dto.PrefundRequestDto;
 import com.im.admin.entities.PrefundRequest;
+import com.im.admin.entities.enums.ConstantStatus;
+import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.PrefundRequestRepository;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.PrefundRequestService;
+import com.im.admin.util.CommonMethods;
+import com.im.admin.util.ImageUtil;
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.math.BigDecimal;
+import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @Validated
@@ -32,7 +41,15 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     @Autowired
     private PrefundRequestRepository repository;
 
-    private final Path imageStoragePath = Paths.get("uploads/wallet-load-images");
+    @Autowired
+    private CommonMethods commonMethods;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Autowired
+    private ImageUtil imageUtil;
+
 
     @Override
     public CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile) throws IOException {
@@ -55,15 +72,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
             throw new IllegalArgumentException("Duplicate request detected within last 5 minutes.");
         }
 
-        String fileName = null;
-        if (imageFile != null && !imageFile.isEmpty()) {
-            if (!Files.exists(imageStoragePath)) {
-                Files.createDirectories(imageStoragePath);
-            }
-            fileName = UUID.randomUUID() + "_" + imageFile.getOriginalFilename();
-            Path filePath = imageStoragePath.resolve(fileName);
-            Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-        }
+        String  fileName = imageUtil.saveImage(imageFile, "Prefund");
 
         // Save new record
         PrefundRequest entity = new PrefundRequest();
@@ -86,6 +95,121 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         PrefundRequest saved = repository.save(entity);
 
         return new CommonResponse<>(200, "Wallet load request submitted successfully", saved);
+    }
+
+    @Override
+    public Page<PrefundRequest> getAllPrefundRequests(int page, int size) {
+        return repository.findAll(PageRequest.of(page, size));
+    }
+
+    @Transactional
+    @Override
+    public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto) {
+        PrefundRequest fundRequest = repository.findById(actionDto.getFundRequestId())
+                .orElseThrow(() -> new RuntimeException("Fund Request not found"));
+
+        if (fundRequest.getStatus() != ConstantStatus.PENDING) {
+            return new CommonResponse<>(400, "Fund Request already processed", null);
+        }
+
+        ConstantStatus newStatus = actionDto.getStatus();
+        fundRequest.setStatus(newStatus);
+        fundRequest.setRemarks(actionDto.getRemarks());
+        fundRequest.setApproveOrRejectDate(LocalDate.now());
+        fundRequest.setApproveOrRejectTime(LocalTime.now());
+
+        if (newStatus == ConstantStatus.APPROVED) {
+            String requesterId = fundRequest.getHierarchyId();
+            String approverId = actionDto.getApproveOrRejectHierarchyId();
+            WalletType walletType = WalletType.PREPAID;
+            BigDecimal amount = BigDecimal.valueOf(fundRequest.getDepositAmount());
+
+            String baseTransactionId = commonMethods.generateBaseTransactionId();
+
+            AbstractWalletAmountTable approverWallet = commonMethods.getWalletByType(walletType.name(), approverId);
+            BigDecimal approverBalance = approverWallet.getAvailableBalance();
+
+            if (approverBalance.compareTo(amount) < 0) {
+                return new CommonResponse<>(400, "Insufficient balance in approver's wallet: " + approverId, null);
+            }
+
+            updateWallet(approverWallet, approverId, walletType, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+
+            AbstractWalletAmountTable requesterWallet = commonMethods.getWalletByType(walletType.name(), requesterId);
+            updateWallet(requesterWallet, requesterId, walletType, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
+        }
+
+        repository.save(fundRequest);
+        return new CommonResponse<>(200, "Fund request action processed successfully", null);
+    }
+
+    private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
+                                                                    String tranxType, String baseTransactionId, String tranStatus, String service) {
+
+        String actionOnBalance;
+
+        // *** Credit or Debit Operation ***
+        BigDecimal balanceBefore = wallet.getAvailableBalance();
+
+        if (tranxType.equalsIgnoreCase("credit")) {
+            wallet.setTotalCash(wallet.getTotalCash().add(amount));
+            wallet.setAvailableBalance(wallet.getAvailableBalance().add(amount));
+            actionOnBalance = "Add Funds - " + walletType.name();
+        } else {
+            wallet.setTotalCash(wallet.getTotalCash().subtract(amount));
+            wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(amount));
+            actionOnBalance = "Deduct Funds - " +  walletType.name();
+        }
+
+        wallet.setLastUpdatedAmount(amount);
+        wallet.setLastUpdatedDate(LocalDate.now());
+        wallet.setLastUpdatedTime(LocalTime.now());
+
+        // Insert transaction
+        insertTransaction(walletType.name(), hierarchyId, tranStatus, amount, balanceBefore,
+                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service);
+
+    }
+
+    private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount, BigDecimal beforeBalance,
+                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service) {
+
+        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
+        String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
+        String columnName = commonMethods.getHierarchyColumnName(hierarchyType);
+
+        log.info("Inserting into {} | Type: {} | Amount: {} | Hierarchy ID: {} | Before Balance: {} | After Balance: {}",
+                transactionTableName, service, amount, hierarchyId, beforeBalance, afterBalance);
+
+        String sql = "INSERT INTO " + transactionTableName +
+                " (" + columnName + "  ,service, amount, date_of_transaction, time_of_transaction, " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status) " +
+                "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus)";
+
+        entityManager.createNativeQuery(sql)
+                .setParameter("hierarchyId", hierarchyId)
+                .setParameter("service", service)
+                .setParameter("amount", amount)
+                .setParameter("dateOfTransaction", new Date())
+                .setParameter("timeOfTransaction", new Time(System.currentTimeMillis()))
+                .setParameter("beforeTransactionBalance", beforeBalance)
+                .setParameter("afterTransactionBalance", afterBalance)
+                .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
+                .setParameter("finalBalance", afterBalance)
+                .setParameter("tranxId", tranxId)
+                .setParameter("tranStatus", tranStatus)
+                .executeUpdate();
+    }
+
+    @Override
+    public CommonResponse<PrefundRequest> getById(Long id) {
+        Optional<PrefundRequest> optional = repository.findById(id);
+        if (optional.isPresent()) {
+            return new CommonResponse<>(200, "Prefund request fetched successfully", optional.get());
+        } else {
+            return new CommonResponse<>(404, "Prefund request not found with ID: " + id, null);
+        }
     }
 
 

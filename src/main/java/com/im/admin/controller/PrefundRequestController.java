@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.dto.FundRequestActionDto;
 import com.im.admin.dto.PrefundRequestDto;
 import com.im.admin.entities.PrefundRequest;
 import com.im.admin.response.CommonResponse;
@@ -11,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/prefund")
@@ -34,7 +37,7 @@ public class PrefundRequestController {
     @PostMapping(value = "/request", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommonResponse<PrefundRequest>> submitWalletLoadRequest(
             @RequestPart("data") @Valid String rawData,
-            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile) {
+            @RequestPart("imageFile") MultipartFile imageFile) {
         try {
             log.info("Entering Wallet Load Request method");
 
@@ -50,6 +53,24 @@ public class PrefundRequestController {
         }
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<CommonResponse<List<PrefundRequest>>> getAllRequests(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Page<PrefundRequest> pagedResult = prefundRequestService.getAllPrefundRequests(page, size);
+        CommonResponse<List<PrefundRequest>> response = new CommonResponse<>(
+                200, "Fetched paginated prefund requests", pagedResult.getContent()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/action")
+    public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto) {
+        CommonResponse<String> response = prefundRequestService.takeActionOnFundRequest(actionDto);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/image/{filename}")
     public ResponseEntity<Resource> getImage(@PathVariable String filename) throws IOException {
         Path filePath = Paths.get("uploads/wallet-images").resolve(filename);
@@ -61,6 +82,12 @@ public class PrefundRequestController {
         } else {
             throw new FileNotFoundException("Image not found: " + filename);
         }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<CommonResponse<PrefundRequest>> getPrefundRequestById(@PathVariable Long id) {
+        CommonResponse<PrefundRequest> response = prefundRequestService.getById(id);
+        return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
 

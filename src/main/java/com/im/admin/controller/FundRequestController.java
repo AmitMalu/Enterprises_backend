@@ -30,11 +30,11 @@ public class FundRequestController {
         return ResponseEntity.ok(new CommonResponse<>(200, "Fund request raised successfully", null));
     }
 
-    @PostMapping("/action")
-    public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto) {
-        fundRequestService.takeActionOnFundRequest(actionDto);
-        return ResponseEntity.ok(new CommonResponse<>(200, "Fund request action processed successfully", null));
-    }
+//    @PostMapping("/action")
+//    public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto) {
+//        fundRequestService.takeActionOnFundRequest(actionDto);
+//        return ResponseEntity.ok(new CommonResponse<>(200, "Fund request action processed successfully", null));
+//    }
 
     @GetMapping("/get-all")
     public ResponseEntity<CommonResponse<List<FundRequest>>> getAllRecords() {
