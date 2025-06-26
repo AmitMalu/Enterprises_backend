@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.dto.FundRequestActionDto;
 import com.im.admin.dto.PrefundRequestDto;
 import com.im.admin.entities.PrefundRequest;
+import com.im.admin.entities.product.Products;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.PrefundRequestService;
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +25,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -54,16 +57,42 @@ public class PrefundRequestController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<CommonResponse<List<PrefundRequest>>> getAllRequests(
+    public ResponseEntity<CommonResponse<Page<PrefundRequest>>> getAllRequests(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
 
-        Page<PrefundRequest> pagedResult = prefundRequestService.getAllPrefundRequests(page, size);
-        CommonResponse<List<PrefundRequest>> response = new CommonResponse<>(
-                200, "Fetched paginated prefund requests", pagedResult.getContent()
+            @RequestParam(required = false) Long id,
+            @RequestParam(required = false) String hierarchyId,
+            @RequestParam(required = false) String mobileNumber,
+            @RequestParam(required = false) Double depositAmount,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate depositDate,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createDateTime,
+            @RequestParam(required = false) String bankHolderName,
+            @RequestParam(required = false) String bankAccountName,
+            @RequestParam(required = false) String bankAccountNumber,
+            @RequestParam(required = false) String bankTranId,
+            @RequestParam(required = false) String paymentMode,
+            @RequestParam(required = false) String narration,
+            @RequestParam(required = false) String ipAddress,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate approveOrRejectDate,
+            @RequestParam(required = false) String approveOrRejectTime,
+            @RequestParam(required = false) String remarks
+    ) {
+        Page<PrefundRequest> pagedResult = prefundRequestService.getAllPrefundRequests(
+                page, size, id, hierarchyId, mobileNumber, depositAmount, status,
+                depositDate, createDateTime, bankHolderName, bankAccountName,
+                bankAccountNumber, bankTranId, paymentMode, narration, ipAddress,
+                approveOrRejectDate, approveOrRejectTime, remarks
         );
+
+        CommonResponse<Page<PrefundRequest>> response = new CommonResponse<>(
+                200, " prefund requests fetched successfully", pagedResult
+        );
+
         return ResponseEntity.ok(response);
     }
+
 
     @PostMapping("/action")
     public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto) {

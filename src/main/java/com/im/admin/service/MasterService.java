@@ -15,6 +15,7 @@ public interface MasterService {
 
     String addDropdown(DropdownRequestDto dto);
 
-    Page<DropdownResponseDto> getAllDropdowns(int page, int size);
+
+    Page<DropdownResponseDto> getAllDropdowns(int page, int size, Integer imMasterId, String imMasterName, Integer imSubMasterId, String imSubMasterName);
 
 }

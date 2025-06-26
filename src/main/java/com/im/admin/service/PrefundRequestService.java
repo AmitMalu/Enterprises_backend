@@ -8,12 +8,19 @@ import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
 
 public interface PrefundRequestService {
 
     CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile) throws IOException;
 
-    Page<PrefundRequest> getAllPrefundRequests(int page, int size);
+    Page<PrefundRequest> getAllPrefundRequests(int page, int size,
+                                               Long id, String hierarchyId, String mobileNumber, Double depositAmount,
+                                               String status, LocalDate depositDate, LocalDate createDateTime,
+                                               String bankHolderName, String bankAccountName, String bankAccountNumber,
+                                               String bankTranId, String paymentMode, String narration, String ipAddress,
+                                               LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks);
+
 
     CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto);
 

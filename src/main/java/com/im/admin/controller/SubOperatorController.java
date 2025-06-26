@@ -83,10 +83,17 @@ public class SubOperatorController {
 
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommonResponse<Optional<SubOperator>>>getSubOperatorById(@PathVariable String id) {
+    public ResponseEntity<CommonResponse<SubOperator>> getSubOperatorById(@PathVariable String id) {
         Optional<SubOperator> subOperatorById = subOperatorService.getSubOperatorById(id);
-        return ResponseEntity.ok(new CommonResponse<>(200, "success", subOperatorById));
+
+        if (subOperatorById.isPresent()) {
+            return ResponseEntity.ok(new CommonResponse<>(200, "Success", subOperatorById.get()));
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new CommonResponse<>(404, "SubOperator not found with id: " + id, null));
+        }
     }
+
 
 }
 

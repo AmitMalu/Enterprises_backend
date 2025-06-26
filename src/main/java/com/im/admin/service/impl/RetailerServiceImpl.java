@@ -162,21 +162,21 @@ public class RetailerServiceImpl implements RetailerService {
     @Transactional
     @Override
     public Retailer updateRetailer(String retailerId,
-                                         Retailer retailer,
-                                         MultipartFile aadhaarCardFrontImage,
-                                         MultipartFile aadhaarCardBackImage,
-                                         MultipartFile panCardImage,
-                                         MultipartFile shopImage,
-                                         MultipartFile businessProofImage) throws IOException {
+                                   Retailer retailer,
+                                   MultipartFile aadhaarCardFrontImage,
+                                   MultipartFile aadhaarCardBackImage,
+                                   MultipartFile panCardImage,
+                                   MultipartFile shopImage,
+                                   MultipartFile businessProofImage) throws IOException {
+
+        LocalDateTime requestDateTime = LocalDateTime.now();
 
         Retailer existingRetailer = retailerRepository.findById(retailerId)
                 .orElseThrow(() -> new EntityNotFoundException("Retailer not found"));
 
-        if (existingRetailer.equals(retailer)) {
-            return existingRetailer;
-        }
 
-        // Validate mobile
+        String retailerRequest = objectMapper.writeValueAsString(retailer);
+
         List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
             phoneNumberValidationService.validatePhoneNumber(retailer.getMobileNumber());
@@ -188,15 +188,14 @@ public class RetailerServiceImpl implements RetailerService {
             throw new CustomValidationException(errors);
         }
 
+        // Update non-null fields
         if (retailer.getTitle() != null) existingRetailer.setTitle(retailer.getTitle());
         if (retailer.getName() != null) existingRetailer.setName(retailer.getName());
         if (retailer.getMobileNumber() != null) existingRetailer.setMobileNumber(retailer.getMobileNumber());
-        //if (retailer.getAbbreviation() != null) existingRetailer.setAbbreviation(retailer.getAbbreviation());
         if (retailer.getEmailId() != null) existingRetailer.setEmailId(retailer.getEmailId());
         if (retailer.getDob() != null) existingRetailer.setDob(retailer.getDob());
         if (retailer.getAddress() != null) existingRetailer.setAddress(retailer.getAddress());
         if (retailer.getOutletAddress() != null) existingRetailer.setOutletAddress(retailer.getOutletAddress());
-
 
         // Optional image updates
         String folder = "Retailer";
@@ -216,8 +215,23 @@ public class RetailerServiceImpl implements RetailerService {
             imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingRetailer::setBusinessProofImage);
         }
 
-        return retailerRepository.save(existingRetailer);
+        Retailer updatedRetailer = retailerRepository.save(existingRetailer);
+
+        LocalDateTime responseDateTime = LocalDateTime.now();
+        String retailerResponse = objectMapper.writeValueAsString(updatedRetailer);
+
+        // Save hierarchy logs
+        commonFunctions.saveHierarchyLogs(
+                requestDateTime,
+                retailerRequest,
+                null, // IP Address
+                responseDateTime,
+                retailerResponse
+        );
+
+        return updatedRetailer;
     }
+
 
     @Transactional
     @Override
