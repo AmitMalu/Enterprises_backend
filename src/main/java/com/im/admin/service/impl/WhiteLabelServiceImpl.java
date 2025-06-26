@@ -167,15 +167,20 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
     @Transactional
     @Override
     public WhiteLabels updateWhiteLabel(String id,
-                                         WhiteLabels whiteLabels,
-                                         MultipartFile aadhaarCardFrontImage,
-                                         MultipartFile aadhaarCardBackImage,
-                                         MultipartFile panCardImage,
-                                         MultipartFile shopImage,
-                                         MultipartFile businessProofImage) throws IOException {
+                                        WhiteLabels whiteLabels,
+                                        MultipartFile aadhaarCardFrontImage,
+                                        MultipartFile aadhaarCardBackImage,
+                                        MultipartFile panCardImage,
+                                        MultipartFile shopImage,
+                                        MultipartFile businessProofImage) throws IOException {
+
+        LocalDateTime requestDateTime = LocalDateTime.now();
 
         WhiteLabels existingWhiteLabels = whiteLabelRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Distributor not found"));
+                .orElseThrow(() -> new EntityNotFoundException("WhiteLabel not found"));
+
+        // Capture request object (incoming update data)
+        String whiteLabelRequest = objectMapper.writeValueAsString(whiteLabels);
 
         if (existingWhiteLabels.equals(whiteLabels)) {
             return existingWhiteLabels;
@@ -193,6 +198,7 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             throw new CustomValidationException(errors);
         }
 
+        // Update non-null fields
         if (whiteLabels.getTitle() != null) existingWhiteLabels.setTitle(whiteLabels.getTitle());
         if (whiteLabels.getMobileNumber() != null) existingWhiteLabels.setMobileNumber(whiteLabels.getMobileNumber());
         if (whiteLabels.getAbbreviation() != null) existingWhiteLabels.setAbbreviation(whiteLabels.getAbbreviation());
@@ -218,8 +224,23 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingWhiteLabels::setBusinessProofImage);
         }
 
-        return whiteLabelRepository.save(existingWhiteLabels);
+        WhiteLabels updatedWhiteLabel = whiteLabelRepository.save(existingWhiteLabels);
+
+        LocalDateTime responseDateTime = LocalDateTime.now();
+
+        String whiteLabelResponse = objectMapper.writeValueAsString(updatedWhiteLabel);
+
+        // Save logs
+        commonFunctions.saveHierarchyLogs(
+                requestDateTime,
+                whiteLabelRequest,
+                null, // IP address as null
+                responseDateTime,
+                whiteLabelResponse
+        );
+        return updatedWhiteLabel;
     }
+
 
     @Override
     public List<WhiteLabels> getAllWhiteLabels() {

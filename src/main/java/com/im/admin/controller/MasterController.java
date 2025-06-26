@@ -33,13 +33,18 @@ public class MasterController {
     @GetMapping
     public ResponseEntity<CommonResponse<Page<DropdownResponseDto>>> getAllDropdowns(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer imMasterId,
+            @RequestParam(required = false) String imMasterName,
+            @RequestParam(required = false) Integer imSubMasterId,
+            @RequestParam(required = false) String imSubMasterName
+    ) {
+        Page<DropdownResponseDto> result = masterService.getAllDropdowns(
+                page, size, imMasterId, imMasterName, imSubMasterId, imSubMasterName);
 
-        Page<DropdownResponseDto> result = masterService.getAllDropdowns(page, size);
-
-        return ResponseEntity.ok(
-                new CommonResponse<>(200, "Success", result));
+        return ResponseEntity.ok(new CommonResponse<>(200, "Success", result));
     }
+
 
 
 

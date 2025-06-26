@@ -12,7 +12,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class PrefundRequestDto {
 
-    private String hierarchyId;
+    private String requestedBy;
     private String mobileNumber;
     private String depositAmount;
     private String confirmAmount;
@@ -25,6 +25,5 @@ public class PrefundRequestDto {
     private String paymentMode;
     private String ipAddress;
     private String depositDate;
-
 
 }
