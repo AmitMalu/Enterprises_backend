@@ -10,6 +10,7 @@ import lombok.*;
 @AllArgsConstructor
 public class FundRequestActionDto {
 
+    private String approveOrRejectHierarchyId;
     private Long fundRequestId;
     private ConstantStatus status; // APPROVED or REJECTED
     private String remarks;
