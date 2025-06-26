@@ -118,7 +118,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonResponse<Object>> handleGeneralException(Exception ex) {
         CommonResponse<Object> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.setMessage("Something went wrong" + ex.getMessage());
+        response.setMessage("Something Went Wrong - " + ex.getMessage());
         response.setData(null);
         return ResponseEntity.ok(response);
     }

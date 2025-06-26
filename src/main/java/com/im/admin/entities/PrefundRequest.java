@@ -87,5 +87,8 @@ public class PrefundRequest {
 
     @Column(name = "approve_or_reject_time")
     private LocalTime approveOrRejectTime;
+
+    @Column(name = "remarks")
+    private String remarks = "-";
 }
 
