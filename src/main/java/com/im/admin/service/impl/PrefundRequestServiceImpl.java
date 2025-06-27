@@ -64,6 +64,11 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
             throw new IllegalArgumentException("Deposit amount and confirmation amount do not match.");
         }
 
+        String fileExtension = imageFile.getOriginalFilename();
+        if (fileExtension == null || !fileExtension.matches("(?i).*\\.(jpg|jpeg|png)$")) {
+            throw new IllegalArgumentException("Invalid image format. Only JPG, JPEG, or PNG are allowed.");
+        }
+
         Optional<PrefundRequest> approved = repository.findApprovedByBankTranId(dto.getBankTranId());
         if (approved.isPresent()) {
             throw new IllegalArgumentException("This transaction has already been approved and cannot be re-submitted.");
@@ -97,7 +102,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         PrefundRequest saved = repository.save(entity);
 
-        return new CommonResponse<>(200, "Wallet load request submitted successfully", saved);
+        return new CommonResponse<>(200, "Prefund request submitted successfully : " + dto.getConfirmAmount(), saved);
     }
 
     @Override
@@ -148,10 +153,10 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                 return new CommonResponse<>(400, "Insufficient balance in approver's wallet: " + approverId, null);
             }
 
-            updateWallet(approverWallet, approverId, walletType, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+            updateWallet(approverWallet, approverId, walletType, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", "Fund Transfer Successfully to" + requesterId + "/ @" + LocalDate.now() + " " + LocalTime.now());
 
             AbstractWalletAmountTable requesterWallet = commonMethods.getWalletByType(walletType.name(), requesterId);
-            updateWallet(requesterWallet, requesterId, walletType, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
+            updateWallet(requesterWallet, requesterId, walletType, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", "-");
         }
 
         repository.save(fundRequest);
@@ -159,7 +164,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     }
 
     private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-                                                                    String tranxType, String baseTransactionId, String tranStatus, String service) {
+                                                                    String tranxType, String baseTransactionId, String tranStatus, String service, String remarks) {
 
         String actionOnBalance;
 
@@ -182,12 +187,12 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         // Insert transaction
         insertTransaction(walletType.name(), hierarchyId, tranStatus, amount, balanceBefore,
-                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service);
+                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service, remarks);
 
     }
 
     private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount, BigDecimal beforeBalance,
-                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service) {
+                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service, String remarks) {
 
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
@@ -198,9 +203,9 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         String sql = "INSERT INTO " + transactionTableName +
                 " (" + columnName + "  ,service, amount, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, remarks) " +
                 "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :remarks)";
 
         entityManager.createNativeQuery(sql)
                 .setParameter("hierarchyId", hierarchyId)
@@ -214,6 +219,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                 .setParameter("finalBalance", afterBalance)
                 .setParameter("tranxId", tranxId)
                 .setParameter("tranStatus", tranStatus)
+                .setParameter("remarks", remarks)
                 .executeUpdate();
     }
 
