@@ -2,9 +2,7 @@ package com.im.admin.entities;
 
 import com.im.admin.entities.enums.ConstantStatus;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -29,9 +27,13 @@ public class PrefundRequest {
     private String requestedBy;
 
     @Column(name = "mobile_number", nullable = false)
+    @NotBlank(message = "Mobile number is required")
+    @Pattern(regexp = "^[6-9]\\d{9}$", message = "Invalid mobile number format")
     private String mobileNumber;
 
     @Column(name = "deposit_amount", nullable = false)
+    @NotNull(message = "Deposit amount is required")
+    @DecimalMin(value = "0.1", inclusive = true, message = "Deposit amount must be greater than zero")
     private Double depositAmount;
 
     @Column(name = "deposit_image")
