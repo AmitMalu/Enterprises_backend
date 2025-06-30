@@ -1,6 +1,6 @@
 package com.im.admin.entities.enums;
 
-public enum ConstantStatus {
+public enum Status {
 
     PENDING,
     APPROVED,

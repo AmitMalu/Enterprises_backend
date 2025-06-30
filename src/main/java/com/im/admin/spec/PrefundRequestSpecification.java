@@ -27,7 +27,8 @@ public class PrefundRequestSpecification {
             String ipAddress,
             LocalDate approveOrRejectDate,
             String approveOrRejectTime,
-            String remarks
+            String remarks,
+            String depositType
     ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -85,6 +86,9 @@ public class PrefundRequestSpecification {
 
             if (remarks != null)
                 predicates.add(cb.like(cb.lower(root.get("remarks")), "%" + remarks.toLowerCase() + "%"));
+
+            if(depositType != null)
+                predicates.add(cb.like(cb.lower(root.get("depositType")), "%" + depositType.toLowerCase() + "%" ));
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };

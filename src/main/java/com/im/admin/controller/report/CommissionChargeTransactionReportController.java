@@ -4,7 +4,7 @@ package com.im.admin.controller.report;
 import com.im.admin.request.CommissionTransactionReportRequest;
 import com.im.admin.response.CommissionTransactionReportResponse;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.service.CommissionTransactionReportService;
+import com.im.admin.service.CommissionChargeTransactionReportService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
@@ -21,16 +21,16 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/commission-charge")
 @Slf4j
-public class CommissionTransactionReportController {
+public class CommissionChargeTransactionReportController {
 
     @Autowired
-    private CommissionTransactionReportService commissionTransactionReportService;
+    private CommissionChargeTransactionReportService commissionChargeTransactionReportService;
 
     @PostMapping("/show-records")
     public ResponseEntity<CommonResponse<Page<CommissionTransactionReportResponse>>> getReport(
             @RequestBody CommissionTransactionReportRequest request) {
 
-        CommonResponse<Page<CommissionTransactionReportResponse>> response = commissionTransactionReportService.getReport(request);
+        CommonResponse<Page<CommissionTransactionReportResponse>> response = commissionChargeTransactionReportService.getReport(request);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
@@ -48,11 +48,11 @@ public class CommissionTransactionReportController {
         String successMessage = "Report generated successfully";
 
         if ("excel".equalsIgnoreCase(format)) {
-            fileStream = commissionTransactionReportService.downloadExcel(request);
+            fileStream = commissionChargeTransactionReportService.downloadExcel(request);
             filename = "commission_report.xlsx";
             mediaType = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         } else if ("csv".equalsIgnoreCase(format)) {
-            fileStream = commissionTransactionReportService.downloadCsv(request);
+            fileStream = commissionChargeTransactionReportService.downloadCsv(request);
             filename = "commission_report.csv";
             mediaType = MediaType.parseMediaType("text/csv");
         } else {
