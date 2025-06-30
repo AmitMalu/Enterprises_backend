@@ -8,5 +8,7 @@ public enum Status {
     SUCCESS,
     FAILURE,
     ACTIVE,
-    INACTIVE
+    INACTIVE,
+    ALL,
+    SETTLEMENT_PENDING
 }
