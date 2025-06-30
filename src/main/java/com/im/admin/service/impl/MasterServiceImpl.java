@@ -97,6 +97,15 @@ public class MasterServiceImpl implements MasterService {
     }
 
     @Override
+    public List<MasterResponseDto> getAllMasterDropdown() {
+        return masterRepository.findAll().stream()
+                .map(master -> new MasterResponseDto(master.getImMasterId(), master.getImMasterName()))
+                .collect(Collectors.toList());
+    }
+
+
+
+    @Override
     public String addSubMaster(SubMasterRequestDto dto) {
         // Check if Master exists
         ImMaster master = masterRepository.findById(dto.getImMasterId())

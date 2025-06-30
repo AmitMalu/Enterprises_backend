@@ -59,6 +59,12 @@ public class MasterController {
         return ResponseEntity.ok(new CommonResponse<>(200, "Success", dto));
     }
 
+    @GetMapping("/dropdown")
+    public ResponseEntity<CommonResponse> getAllMasterDropdown(){
+        List<MasterResponseDto> allMasterDropdown = masterService.getAllMasterDropdown();
+        return ResponseEntity.ok(new CommonResponse<>(200, "Success", allMasterDropdown));
+    }
+
     @PostMapping("/add-sub-master")
     public ResponseEntity<CommonResponse> addSubMaster(@RequestBody SubMasterRequestDto dto) {
         String result = masterService.addSubMaster(dto);
