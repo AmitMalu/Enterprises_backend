@@ -1,6 +1,6 @@
 package com.im.admin.dto;
 
-import com.im.admin.entities.enums.ConstantStatus;
+import com.im.admin.entities.enums.Status;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,7 +14,7 @@ import lombok.Setter;
 public class FundReversalActionDto {
 
     private Long fundReversalRequestId;
-    private ConstantStatus status; // APPROVED or REJECTED
+    private Status status; // APPROVED or REJECTED
     private String remarks;
 }
 

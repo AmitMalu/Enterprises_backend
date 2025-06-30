@@ -19,7 +19,7 @@ public interface PrefundRequestService {
                                                String status, LocalDate depositDate, LocalDate createDateTime,
                                                String bankHolderName, String bankAccountName, String bankAccountNumber,
                                                String bankTranId, String paymentMode, String narration, String ipAddress,
-                                               LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks);
+                                               LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks, String depositType);
 
 
     CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto);

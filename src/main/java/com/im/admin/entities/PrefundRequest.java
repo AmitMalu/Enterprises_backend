@@ -1,6 +1,6 @@
 package com.im.admin.entities;
 
-import com.im.admin.entities.enums.ConstantStatus;
+import com.im.admin.entities.enums.Status;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -41,7 +41,7 @@ public class PrefundRequest {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ConstantStatus status = ConstantStatus.PENDING;
+    private Status status = Status.PENDING;
 
     @CreationTimestamp
     @Column(name = "created_datetime", nullable = false, updatable = false)
@@ -92,5 +92,8 @@ public class PrefundRequest {
 
     @Column(name = "remarks")
     private String remarks = "-";
+
+    @Column(name = "deposit_type")
+    private String depositType;
 }
 
