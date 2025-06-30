@@ -23,4 +23,6 @@ public interface MasterService {
     MasterResponseDto getMasterById(Integer id);
 
     String addSubMaster(SubMasterRequestDto dto);
+
+    List<MasterResponseDto> getAllMasterDropdown();
 }
