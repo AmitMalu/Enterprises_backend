@@ -4,7 +4,7 @@ import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.CheckBalanceRequestDto;
 import com.im.admin.dto.FundReversalRequestDto;
 import com.im.admin.entities.FundReversal;
-import com.im.admin.entities.enums.ConstantStatus;
+import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.FundReversalRepository;
 import com.im.admin.service.FundReversalService;
@@ -58,7 +58,7 @@ public class FundReversalServiceImpl implements FundReversalService {
             // Step 2: Validate OTP
             Optional<FundReversal> optTxn = fundReversalRepository
                     .findTopByParentHierarchyIdAndChildHierarchyIdAndStatusOrderByIdDesc(
-                            request.getParentHierarchyId(), request.getChildHierarchyId(), ConstantStatus.PENDING);
+                            request.getParentHierarchyId(), request.getChildHierarchyId(), Status.PENDING);
 
             if (optTxn.isEmpty()) return "No pending transaction found.";
             FundReversal fundReversal = optTxn.get();
@@ -79,7 +79,7 @@ public class FundReversalServiceImpl implements FundReversalService {
             AbstractWalletAmountTable toWalletTable = commonMethods.getWalletByType(request.getWalletType().name(), request.getParentHierarchyId());
             commonMethods.updateWallet(toWalletTable, request.getParentHierarchyId(), request.getWalletType(), request.getReversalAmount(), "Credit", "TXN"+baseTransactionId, "SUCCESS","CREDIT");
 
-            fundReversal.setStatus(ConstantStatus.APPROVED);
+            fundReversal.setStatus(Status.APPROVED);
             fundReversal.setOtpVerified(true);
             fundReversal.setActionDate(LocalDate.now());
             fundReversal.setActionTime(LocalTime.now());

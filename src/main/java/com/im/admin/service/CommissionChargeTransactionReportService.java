@@ -6,11 +6,9 @@ import com.im.admin.response.CommonResponse;
 import org.springframework.data.domain.Page;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.List;
 
-public interface CommissionTransactionReportService {
+public interface CommissionChargeTransactionReportService {
 
     CommonResponse<Page<CommissionTransactionReportResponse>> getReport(CommissionTransactionReportRequest request);
 

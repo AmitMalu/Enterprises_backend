@@ -1,7 +1,7 @@
 package com.im.admin.repositories;
 
 import com.im.admin.entities.FundReversal;
-import com.im.admin.entities.enums.ConstantStatus;
+import com.im.admin.entities.enums.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +13,6 @@ public interface FundReversalRepository extends JpaRepository<FundReversal, Long
     Optional<FundReversal> findTopByParentHierarchyIdAndChildHierarchyIdAndStatusOrderByIdDesc(
             String parentHierarchyId,
             String childHierarchyId,
-            ConstantStatus status);
+            Status status);
 
 }

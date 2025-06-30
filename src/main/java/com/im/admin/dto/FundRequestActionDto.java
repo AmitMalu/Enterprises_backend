@@ -1,6 +1,6 @@
 package com.im.admin.dto;
 
-import com.im.admin.entities.enums.ConstantStatus;
+import com.im.admin.entities.enums.Status;
 import lombok.*;
 
 
@@ -12,7 +12,7 @@ public class FundRequestActionDto {
 
     private String approveOrRejectHierarchyId;
     private Long fundRequestId;
-    private ConstantStatus status; // APPROVED or REJECTED
+    private Status status; // APPROVED or REJECTED
     private String remarks;
 
 }

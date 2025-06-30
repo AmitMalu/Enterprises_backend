@@ -77,13 +77,14 @@ public class PrefundRequestController {
             @RequestParam(required = false) String ipAddress,
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate approveOrRejectDate,
             @RequestParam(required = false) String approveOrRejectTime,
-            @RequestParam(required = false) String remarks
+            @RequestParam(required = false) String remarks,
+            @RequestParam(required = false) String depositType
     ) {
         Page<PrefundRequest> pagedResult = prefundRequestService.getAllPrefundRequests(
                 page, size, id, hierarchyId, mobileNumber, depositAmount, status,
                 depositDate, createDateTime, bankHolderName, bankAccountName,
                 bankAccountNumber, bankTranId, paymentMode, narration, ipAddress,
-                approveOrRejectDate, approveOrRejectTime, remarks
+                approveOrRejectDate, approveOrRejectTime, remarks, depositType
         );
 
         CommonResponse<Page<PrefundRequest>> response = new CommonResponse<>(

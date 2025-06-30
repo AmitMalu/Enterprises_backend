@@ -1,6 +1,6 @@
 package com.im.admin.entities;
 
-import com.im.admin.entities.enums.ConstantStatus;
+import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -38,7 +38,7 @@ public class FundReversal {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private ConstantStatus status = ConstantStatus.PENDING;
+    private Status status = Status.PENDING;
 
     @CreationTimestamp
     @Column(name = "request_date", updatable = false)

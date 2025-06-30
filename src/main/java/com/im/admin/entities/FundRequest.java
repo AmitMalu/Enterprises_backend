@@ -1,6 +1,6 @@
 package com.im.admin.entities;
 
-import com.im.admin.entities.enums.ConstantStatus;
+import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -36,7 +36,7 @@ public class FundRequest {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private ConstantStatus status = ConstantStatus.PENDING;
+    private Status status = Status.PENDING;
 
     @Column(name = "approve_or_reject_hierarchyId")
     private String approveOrRejectHierarchyId;

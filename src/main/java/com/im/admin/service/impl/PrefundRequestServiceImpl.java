@@ -5,7 +5,7 @@ import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.FundRequestActionDto;
 import com.im.admin.dto.PrefundRequestDto;
 import com.im.admin.entities.PrefundRequest;
-import com.im.admin.entities.enums.ConstantStatus;
+import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.PrefundRequestRepository;
 import com.im.admin.response.CommonResponse;
@@ -99,6 +99,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             entity.setDepositDate(LocalDate.parse(dto.getDepositDate()));
         }
+        entity.setDepositType(dto.getDepositType());
 
         PrefundRequest saved = repository.save(entity);
 
@@ -109,13 +110,13 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     public Page<PrefundRequest> getAllPrefundRequests(int page, int size, Long id, String hierarchyId, String mobileNumber, Double depositAmount, String status, LocalDate depositDate, LocalDate createDateTime,
                                                       String bankHolderName, String bankAccountName, String bankAccountNumber,
                                                       String bankTranId, String paymentMode, String narration, String ipAddress,
-                                                      LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks) {
+                                                      LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks, String depositType) {
         Pageable pageable = PageRequest.of(page, size);
         Specification<PrefundRequest> spec = PrefundRequestSpecification.getFilter(
                 id, hierarchyId, mobileNumber, depositAmount, status, depositDate,
                 createDateTime, bankHolderName, bankAccountName, bankAccountNumber,
                 bankTranId, paymentMode, narration, ipAddress,
-                approveOrRejectDate, approveOrRejectTime, remarks
+                approveOrRejectDate, approveOrRejectTime, remarks, depositType
         );
 
         return repository.findAll(spec, pageable);
@@ -128,17 +129,17 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         PrefundRequest fundRequest = repository.findById(actionDto.getFundRequestId())
                 .orElseThrow(() -> new RuntimeException("Fund Request not found"));
 
-        if (fundRequest.getStatus() != ConstantStatus.PENDING) {
+        if (fundRequest.getStatus() != Status.PENDING) {
             return new CommonResponse<>(400, "Fund Request already processed", null);
         }
 
-        ConstantStatus newStatus = actionDto.getStatus();
+        Status newStatus = actionDto.getStatus();
         fundRequest.setStatus(newStatus);
         fundRequest.setRemarks(actionDto.getRemarks());
         fundRequest.setApproveOrRejectDate(LocalDate.now());
         fundRequest.setApproveOrRejectTime(LocalTime.now());
 
-        if (newStatus == ConstantStatus.APPROVED) {
+        if (newStatus == Status.APPROVED) {
             String requesterId = fundRequest.getRequestedBy();
             String approverId = actionDto.getApproveOrRejectHierarchyId();
             WalletType walletType = WalletType.PREPAID;

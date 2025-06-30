@@ -16,7 +16,9 @@ public class GetAllSchemeResponse {
     private String schemeName;
     private String schemeCode;
     private String schemeCombinationHashCode;
+    private String productId;
     private String productName;
+    private String subProductId;
     private String subProductName;
     private LocalDateTime createdOn;
     private String createdBy;
