@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.VendorActiveResponseDto;
 import com.im.admin.dto.VendorDropdownResponseDto;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.product.Products;
@@ -149,4 +150,14 @@ public class VendorServiceImpl implements VendorService {
             throw new RuntimeException("Error fetching vendors", e);
         }
     }
+
+    @Override
+    public List<VendorActiveResponseDto> getAllActiveVendors() {
+        List<Vendors> activeVendors = vendorsRepository.findByActiveTrue();
+
+        return activeVendors.stream()
+                .map(v -> new VendorActiveResponseDto(v.getId(), v.getVendorName()))
+                .collect(Collectors.toList());
+    }
+
 }

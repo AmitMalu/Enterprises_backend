@@ -29,9 +29,11 @@ public class SchemeController {
     private SchemeService schemeService;
 
     @GetMapping("/hierarchy-list")
-    public ResponseEntity<List<Map<String, Object>>> getAllSchemeHierarchySelections() {
-        return ResponseEntity.ok(schemeService.getAllSchemeHierarchySelections());
+    public ResponseEntity<CommonResponse> getAllSchemeHierarchySelections() {
+        List<Map<String, Object>> allSchemeHierarchySelections = schemeService.getAllSchemeHierarchySelections();
+        return ResponseEntity.ok(new CommonResponse(200, "Success", allSchemeHierarchySelections));
     }
+//     return ResponseEntity.ok(new CommonResponse(201, result, null));
 
     @GetMapping("/search")
     public ResponseEntity<List<Map<String, Object>>> searchSchemeHierarchy(@RequestParam String keyword) {

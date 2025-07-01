@@ -154,15 +154,19 @@ public class EnterprisesServiceImpl implements EnterprisesService {
     @Transactional
     @Override
     public Enterprises updateEnterprise(String id,
-                                         Enterprises enterprises,
-                                         MultipartFile aadhaarCardFrontImage,
-                                         MultipartFile aadhaarCardBackImage,
-                                         MultipartFile panCardImage,
-                                         MultipartFile shopImage,
-                                         MultipartFile businessProofImage) throws IOException {
+                                        Enterprises enterprises,
+                                        MultipartFile aadhaarCardFrontImage,
+                                        MultipartFile aadhaarCardBackImage,
+                                        MultipartFile panCardImage,
+                                        MultipartFile shopImage,
+                                        MultipartFile businessProofImage) throws IOException {
+
+        LocalDateTime requestDateTime = LocalDateTime.now();
 
         Enterprises existingEnterprises = enterpriseRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Distributor not found"));
+
+        String enterpriseRequest = objectMapper.writeValueAsString(enterprises);
 
         if (existingEnterprises.equals(enterprises)) {
             return existingEnterprises;
@@ -191,7 +195,6 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         if (enterprises.getAddress() != null) existingEnterprises.setAddress(enterprises.getAddress());
         if (enterprises.getOutletAddress() != null) existingEnterprises.setOutletAddress(enterprises.getOutletAddress());
 
-
         // Optional image updates
         String folder = "Enterprises";
         if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
@@ -210,8 +213,22 @@ public class EnterprisesServiceImpl implements EnterprisesService {
             imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingEnterprises::setBusinessProofImage);
         }
 
-        return enterpriseRepository.save(existingEnterprises);
+        Enterprises updatedEnterprise = enterpriseRepository.save(existingEnterprises);
+
+        LocalDateTime responseDateTime = LocalDateTime.now();
+        String enterpriseResponse = objectMapper.writeValueAsString(updatedEnterprise);
+
+        commonFunctions.saveHierarchyLogs(
+                requestDateTime,
+                enterpriseRequest,
+                null, // IP address as null
+                responseDateTime,
+                enterpriseResponse
+        );
+
+        return updatedEnterprise;
     }
+
 
     @Override
     public List<Enterprises> getAllEnterprises() {
