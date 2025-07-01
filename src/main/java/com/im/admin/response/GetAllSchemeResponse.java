@@ -20,6 +20,10 @@ public class GetAllSchemeResponse {
     private String productName;
     private String subProductId;
     private String subProductName;
+    private String operatorId;
+    private String operatorName;
+    private String vendorId;
+    private String vendorName;
     private LocalDateTime createdOn;
     private String createdBy;
     private LocalDateTime editedOn;

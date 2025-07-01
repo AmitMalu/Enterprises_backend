@@ -4,6 +4,7 @@ import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.product.Products;
+import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.exception.DuplicateEntryException;
 import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
@@ -45,6 +46,9 @@ public class SchemeServiceImpl implements SchemeService {
 
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
+
+    @Autowired
+    private VendorRepository vendorRepository;
 
     @Autowired
     private SchemeAllocationRepository repository;
@@ -274,12 +278,20 @@ public class SchemeServiceImpl implements SchemeService {
 
             String productId = parts.length > 0 ? parts[0] : null;
             String subProductId = parts.length > 1 ? parts[1] : null;
+            String operatorId = parts.length > 2 ? parts[2] : null;
+            String vendorId = parts.length > 3 ? parts[3] : null;
 
             String productName = productsRepository.findById(Short.valueOf(productId))
                     .map(Products::getName).orElse("N/A");
 
             String subProductName = subProductsRepository.findById(subProductId)
                     .map(SubProducts::getSubProductTitle).orElse("N/A");
+
+            String operatorName = operatorsRepository.findById(operatorId)
+                    .map(Operators::getOperatorName).orElse("N/A");
+
+            String vendorName = vendorRepository.findById(vendorId)
+                    .map(Vendors::getVendorName).orElse("N/A");
 
             return new GetAllSchemeResponse(
                     scheme.getId(),
@@ -290,6 +302,10 @@ public class SchemeServiceImpl implements SchemeService {
                     productName,
                     subProductId,
                     subProductName,
+                    operatorId,
+                    operatorName,
+                    vendorId,
+                    vendorName,
                     scheme.getCreatedOn(),
                     scheme.getCreatedBy(),
                     scheme.getEditedOn(),
@@ -307,6 +323,8 @@ public class SchemeServiceImpl implements SchemeService {
 
         String productId = parts.length > 0 ? parts[0] : null;
         String subProductId = parts.length > 1 ? parts[1] : null;
+        String operatorId = parts.length > 2 ? parts[2] : null;
+        String vendorId = parts.length > 3 ? parts[3] : null;
 
         String productName = null;
         if (productId != null) {
@@ -322,6 +340,20 @@ public class SchemeServiceImpl implements SchemeService {
                     .orElse("N/A");
         }
 
+        String operatorName = null;
+        if(operatorId != null){
+            operatorName = operatorsRepository.findById(operatorId)
+                    .map(Operators::getOperatorName)
+                    .orElse("N/A");
+        }
+
+        String vendorName = null;
+        if(vendorId != null) {
+            vendorName = vendorRepository.findById(vendorId)
+                    .map(Vendors::getVendorName)
+                    .orElse("N/A");
+        }
+
         return new GetAllSchemeResponse(
                 scheme.getId(),
                 scheme.getSchemeName(),
@@ -331,6 +363,10 @@ public class SchemeServiceImpl implements SchemeService {
                 productName,
                 subProductId,
                 subProductName,
+                operatorId,
+                operatorName,
+                vendorId,
+                vendorName,
                 scheme.getCreatedOn(),
                 scheme.getCreatedBy(),
                 scheme.getEditedOn(),
