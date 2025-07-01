@@ -33,5 +33,6 @@ public interface SchemeService {
 
     Page<GetAllSchemeResponse> getAllSchemes(Pageable pageable);
 
+    GetAllSchemeResponse getSchemeDtoById(Long id);
 
 }
