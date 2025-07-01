@@ -1,0 +1,42 @@
+package com.im.admin.entities;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+@Entity
+@Data
+@Table(name = "user_configuration")
+public class UserConfiguration {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @Column(name = "user_id")
+    private String userId;
+
+    @Column(name = "full_name")
+    private String fullName;
+
+    @Column(name = "email")
+    private String email;
+
+    @Column(name = "mobile")
+    private String mobile;
+
+    @Column(name = "state")
+    private String state;
+
+    @Column(name = "user_role")
+    private String userRole;
+
+    @Column(name = "parent_account", nullable = false)
+    private String parentAccount;
+
+
+    @Column(name = "menu_id")
+    private Integer menuId;
+
+    @Column(name = "sub_menu_id")
+    private Integer subMenuId;
+}

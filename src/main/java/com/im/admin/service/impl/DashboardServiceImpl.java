@@ -2,8 +2,10 @@ package com.im.admin.service.impl;
 
 
 import com.im.admin.dto.DashboardResponseDto;
+import com.im.admin.dto.WalletBalanceResponseDto;
 import com.im.admin.repositories.DashboardQueryRepository;
 import com.im.admin.service.DashboardService;
+import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,9 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Autowired
     private DashboardQueryRepository dashboardQueryRepository;
+
+    @Autowired
+    private CommonMethods commonMethods;
 
     @Override
     public DashboardResponseDto getAdminDashboard() {
@@ -89,4 +94,13 @@ public class DashboardServiceImpl implements DashboardService {
         }
         return sum;
     }
+
+    @Override
+    public WalletBalanceResponseDto getWalletBalances(String hierarchyId) {
+        BigDecimal prepaid = commonMethods.getCurrentBalance(hierarchyId, "PREPAID");
+        BigDecimal postpaid =commonMethods.getCurrentBalance(hierarchyId, "POSTPAID");
+
+        return new WalletBalanceResponseDto(prepaid, postpaid);
+    }
+
 }

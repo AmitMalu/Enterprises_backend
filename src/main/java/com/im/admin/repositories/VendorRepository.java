@@ -17,4 +17,5 @@ public interface VendorRepository extends JpaRepository<Vendors, String>, JpaSpe
   boolean existsByVendorCode(String vendorCode);
 
 
+  List<Vendors> findByActiveTrue();
 }
