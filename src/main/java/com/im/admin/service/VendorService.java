@@ -1,6 +1,7 @@
 package com.im.admin.service;
 
 
+import com.im.admin.dto.VendorActiveResponseDto;
 import com.im.admin.dto.VendorDropdownResponseDto;
 import com.im.admin.entities.vendor.Vendors;
 import org.springframework.data.domain.Page;
@@ -32,5 +33,7 @@ public interface VendorService {
     void deleteVendor(String id);
 
     List<VendorDropdownResponseDto> getActiveVendorBySubProductId(String subProductId);
+
+    List<VendorActiveResponseDto> getAllActiveVendors();
 }
 

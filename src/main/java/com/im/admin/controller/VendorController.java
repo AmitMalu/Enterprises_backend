@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.SubProductDropdownResponseDto;
+import com.im.admin.dto.VendorActiveResponseDto;
 import com.im.admin.dto.VendorDropdownResponseDto;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.response.CommonResponse;
@@ -109,6 +110,18 @@ public class VendorController {
 
         log.info("Successfully retrieved {} vendors for subProductId: {}", vendorList.size(), subProductId);
         return ResponseEntity.ok(new CommonResponse<>(200, "Active vendors fetched successfully", vendorList));
+    }
+
+    @GetMapping("/active")
+    public ResponseEntity<CommonResponse<List<VendorActiveResponseDto>>> getActiveVendorsOnly() {
+        List<VendorActiveResponseDto> result = vendorsService.getAllActiveVendors();
+
+        if (result.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new CommonResponse<>(404, "No active vendors found", null));
+        }
+
+        return ResponseEntity.ok(new CommonResponse<>(200, "Active vendors fetched successfully", result));
     }
 
 }

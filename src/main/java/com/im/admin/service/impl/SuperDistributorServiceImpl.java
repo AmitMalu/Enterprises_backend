@@ -162,15 +162,20 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
     @Transactional
     @Override
     public SuperDistributor updateSuperDistributor(String id,
-                                         SuperDistributor superDistributor,
-                                         MultipartFile aadhaarCardFrontImage,
-                                         MultipartFile aadhaarCardBackImage,
-                                         MultipartFile panCardImage,
-                                         MultipartFile shopImage,
-                                         MultipartFile businessProofImage) throws IOException {
+                                                   SuperDistributor superDistributor,
+                                                   MultipartFile aadhaarCardFrontImage,
+                                                   MultipartFile aadhaarCardBackImage,
+                                                   MultipartFile panCardImage,
+                                                   MultipartFile shopImage,
+                                                   MultipartFile businessProofImage) throws IOException {
+
+        LocalDateTime requestDateTime = LocalDateTime.now();
 
         SuperDistributor existingSuperDistributor = superDistributorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Super Distributor not found"));
+
+        // Serialize request
+        String superDistributorRequest = objectMapper.writeValueAsString(superDistributor);
 
         if (existingSuperDistributor.equals(superDistributor)) {
             return existingSuperDistributor;
@@ -188,16 +193,23 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
             throw new CustomValidationException(errors);
         }
 
-        if (superDistributor.getTitle() != null) existingSuperDistributor.setTitle(superDistributor.getTitle());
-        if (superDistributor.getName() != null) existingSuperDistributor.setName(superDistributor.getName());
-        if (superDistributor.getMobileNumber() != null) existingSuperDistributor.setMobileNumber(superDistributor.getMobileNumber());
-        //if (superDistributor.getAbbreviation() != null) existingSuperDistributor.setAbbreviation(superDistributor.getAbbreviation());
-        if (superDistributor.getEmailId() != null) existingSuperDistributor.setEmailId(superDistributor.getEmailId());
-        if (superDistributor.getDob() != null) existingSuperDistributor.setDob(superDistributor.getDob());
-        if (superDistributor.getAddress() != null) existingSuperDistributor.setAddress(superDistributor.getAddress());
-        if (superDistributor.getOutletAddress() != null) existingSuperDistributor.setOutletAddress(superDistributor.getOutletAddress());
+        // Update fields
+        if (superDistributor.getTitle() != null)
+            existingSuperDistributor.setTitle(superDistributor.getTitle());
+        if (superDistributor.getName() != null)
+            existingSuperDistributor.setName(superDistributor.getName());
+        if (superDistributor.getMobileNumber() != null)
+            existingSuperDistributor.setMobileNumber(superDistributor.getMobileNumber());
+        if (superDistributor.getEmailId() != null)
+            existingSuperDistributor.setEmailId(superDistributor.getEmailId());
+        if (superDistributor.getDob() != null)
+            existingSuperDistributor.setDob(superDistributor.getDob());
+        if (superDistributor.getAddress() != null)
+            existingSuperDistributor.setAddress(superDistributor.getAddress());
+        if (superDistributor.getOutletAddress() != null)
+            existingSuperDistributor.setOutletAddress(superDistributor.getOutletAddress());
 
-        // Optional image updates
+        // Image updates
         String folder = "Super Distributor";
         if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
             imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingSuperDistributor::setAadhaarCardFrontImage);
@@ -215,8 +227,24 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
             imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingSuperDistributor::setBusinessProofImage);
         }
 
-        return superDistributorRepository.save(existingSuperDistributor);
+        SuperDistributor updatedDistributor = superDistributorRepository.save(existingSuperDistributor);
+
+        LocalDateTime responseDateTime = LocalDateTime.now();
+
+        String superDistributorResponse = objectMapper.writeValueAsString(updatedDistributor);
+
+        // Save logs
+        commonFunctions.saveHierarchyLogs(
+                requestDateTime,
+                superDistributorRequest,
+                null,
+                responseDateTime,
+                superDistributorResponse
+        );
+
+        return updatedDistributor;
     }
+
 
 
     @Override
