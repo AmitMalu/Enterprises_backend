@@ -39,8 +39,15 @@ public class SchemeController {
     }
 
     @PostMapping("/save")
-    public ResponseEntity<Map<String, Object>> saveScheme(@RequestBody SchemeDTO schemeDTO) {
-        return ResponseEntity.ok(schemeService.saveScheme(schemeDTO));
+    public ResponseEntity<CommonResponse<Map<String, Object>>> saveScheme(@RequestBody SchemeDTO schemeDTO) {
+        Map<String, Object> data = schemeService.saveScheme(schemeDTO);
+        return ResponseEntity.ok(CommonResponse.created(data,"Scheme saved successfully."));
+    }
+
+    @PutMapping("/update/{schemeId}")
+    public ResponseEntity<CommonResponse<Map<String, Object>>> updateScheme(@PathVariable String schemeId, @RequestBody SchemeDTO schemeDTO) {
+        Map<String, Object> data = schemeService.updateScheme(schemeId, schemeDTO);
+        return ResponseEntity.ok(CommonResponse.success(data,"Scheme updated successfully."));
     }
 
     @GetMapping("/operators/{productCode}/{subProductCode}")
