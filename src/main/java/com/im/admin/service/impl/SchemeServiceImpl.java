@@ -9,6 +9,7 @@ import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.GetAllSchemeResponse;
 import com.im.admin.service.SchemeService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -296,4 +297,45 @@ public class SchemeServiceImpl implements SchemeService {
             );
         });
     }
+
+    @Override
+    public GetAllSchemeResponse getSchemeDtoById(Long id) {
+        Scheme scheme = schemeRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Scheme not found with ID: " + id));
+
+        String[] parts = scheme.getSchemeCombinationHashCode().split("-");
+
+        String productId = parts.length > 0 ? parts[0] : null;
+        String subProductId = parts.length > 1 ? parts[1] : null;
+
+        String productName = null;
+        if (productId != null) {
+            productName = productsRepository.findById(Short.valueOf(productId))
+                    .map(Products::getName)
+                    .orElse("N/A");
+        }
+
+        String subProductName = null;
+        if (subProductId != null) {
+            subProductName = subProductsRepository.findById(subProductId)
+                    .map(SubProducts::getSubProductTitle)
+                    .orElse("N/A");
+        }
+
+        return new GetAllSchemeResponse(
+                scheme.getId(),
+                scheme.getSchemeName(),
+                scheme.getSchemeCode(),
+                scheme.getSchemeCombinationHashCode(),
+                productId,
+                productName,
+                subProductId,
+                subProductName,
+                scheme.getCreatedOn(),
+                scheme.getCreatedBy(),
+                scheme.getEditedOn(),
+                scheme.getEditedBy()
+        );
+    }
+
 }

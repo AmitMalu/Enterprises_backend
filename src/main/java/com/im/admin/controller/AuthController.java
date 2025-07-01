@@ -255,7 +255,8 @@ public class AuthController {
             userDetailsRepository.save(user);
             Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("token", token);
-
+            responseMap.put("hierarchyId", user.getHierarchyId());
+            responseMap.put("mobileNumber", user.getMobileNumber());
 
             String hierarchyCode = user.getHierarchyCode();
 

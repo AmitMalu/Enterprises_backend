@@ -2,12 +2,14 @@ package com.im.admin.controller;
 
 
 import com.im.admin.dto.*;
+import com.im.admin.entities.Scheme;
 import com.im.admin.entities.SchemeAllocation;
 import com.im.admin.entities.SchemeRate;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.GetAllSchemeResponse;
 import com.im.admin.service.SchemeService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -79,6 +81,17 @@ public class SchemeController {
         Pageable pageable = PageRequest.of(page, size);
         Page<GetAllSchemeResponse> schemes = schemeService.getAllSchemes(pageable);
         return ResponseEntity.ok(new CommonResponse<>(200, "Schemes fetched successfully", schemes));
+    }
+
+    @GetMapping("/get-by-id/{id}")
+    public ResponseEntity<CommonResponse<GetAllSchemeResponse>> getSchemeById(@PathVariable Long id) {
+        try {
+            GetAllSchemeResponse responseDto = schemeService.getSchemeDtoById(id);
+            return ResponseEntity.ok(CommonResponse.success(responseDto, "Scheme fetched successfully"));
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(CommonResponse.failure(e.getMessage()));
+        }
     }
 
 
