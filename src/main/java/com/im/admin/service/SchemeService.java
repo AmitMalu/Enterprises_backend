@@ -21,6 +21,8 @@ public interface SchemeService {
 
     Map<String, Object> saveScheme(SchemeDTO schemeDTO);
 
+    Map<String, Object> updateScheme(String schemeId, SchemeDTO schemeDTO);
+
     OperatorProductResponseDTO getOperatorsAndProduct(String productCode, String subProductCode);
 
     List<SchemeRate> createSchemeRates(SchemeRateRequestDTO requestDTO);

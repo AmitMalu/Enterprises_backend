@@ -24,4 +24,9 @@ public class CommonResponse<T> {
     public static <T> CommonResponse<T> failure(String message) {
         return new CommonResponse<>(HttpStatus.NOT_FOUND.value(), message, null);
     }
+
+    public static <T> CommonResponse<T> created(T data, String message) {
+        return new CommonResponse<>(HttpStatus.CREATED.value(), message, data);
+    }
+
 }
