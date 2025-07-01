@@ -6,6 +6,7 @@ import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.exception.DuplicateEntryException;
+import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.GetAllSchemeResponse;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
@@ -129,6 +131,53 @@ public class SchemeServiceImpl implements SchemeService {
         log.info("Scheme saved successfully: {}", response);
         return response;
     }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateScheme(String schemeId, SchemeDTO schemeDTO) {
+        log.info("Updating scheme ID {}: {}", schemeId, schemeDTO);
+
+        Scheme scheme = schemeRepository.findById(Long.valueOf(schemeId))
+                .orElseThrow(() -> new ResourceNotFoundException("Scheme not found with ID: " + schemeId));
+
+        // Check for duplicate scheme name if it's being changed
+        if (!scheme.getSchemeName().equals(schemeDTO.getSchemeName()) &&
+                schemeRepository.existsBySchemeName(schemeDTO.getSchemeName())) {
+            throw new DuplicateEntryException("Scheme Name already exists!");
+        }
+
+        // Check for duplicate scheme code if it's being changed
+        if (!scheme.getSchemeCode().equals(schemeDTO.getSchemeCode()) &&
+                schemeRepository.existsBySchemeCode(schemeDTO.getSchemeCode())) {
+            throw new DuplicateEntryException("Scheme Code already exists!");
+        }
+
+        // Recalculate combination hash (if components changed)
+        String schemeCombinationHash = schemeDTO.getProductId() + "-" +
+                schemeDTO.getSubProductId() + "-" +
+                schemeDTO.getOperatorId() + "-" +
+                schemeDTO.getVendorId() + "-" +
+                schemeDTO.getSchemeHierarchySelectionId();
+
+        String newCombinationHashCode = schemeCombinationHash + "-" + schemeId;
+
+        scheme.setSchemeName(schemeDTO.getSchemeName());
+        scheme.setSchemeCode(schemeDTO.getSchemeCode());
+        scheme.setSchemeCombinationHashCode(newCombinationHashCode);
+        scheme.setEditedBy("Admin");
+        scheme.setEditedOn(LocalDateTime.now());
+
+        schemeRepository.save(scheme);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Scheme updated successfully.");
+        response.put("schemeId", schemeId);
+        response.put("schemeCombinationHashCode", newCombinationHashCode);
+
+        log.info("Scheme updated successfully: {}", response);
+        return response;
+    }
+
 
     public OperatorProductResponseDTO getOperatorsAndProduct(String productCode, String subProductCode) {
         List<Operators> operators = operatorsRepository.findBySubProductCode(subProductCode);
@@ -280,6 +329,7 @@ public class SchemeServiceImpl implements SchemeService {
             String subProductId = parts.length > 1 ? parts[1] : null;
             String operatorId = parts.length > 2 ? parts[2] : null;
             String vendorId = parts.length > 3 ? parts[3] : null;
+            String schemeHierarchyId = parts.length > 4 ? parts[4] : null;
 
             String productName = productsRepository.findById(Short.valueOf(productId))
                     .map(Products::getName).orElse("N/A");
@@ -292,6 +342,9 @@ public class SchemeServiceImpl implements SchemeService {
 
             String vendorName = vendorRepository.findById(vendorId)
                     .map(Vendors::getVendorName).orElse("N/A");
+
+            String schemeHierarchyName = schemeHierarchySelectionRepository.findByCustomId(schemeHierarchyId)
+                    .map(SchemeHierarchySelection::getCombinationHash).orElse("N/A");
 
             return new GetAllSchemeResponse(
                     scheme.getId(),
@@ -306,6 +359,7 @@ public class SchemeServiceImpl implements SchemeService {
                     operatorName,
                     vendorId,
                     vendorName,
+                    schemeHierarchyName,
                     scheme.getCreatedOn(),
                     scheme.getCreatedBy(),
                     scheme.getEditedOn(),
@@ -325,6 +379,7 @@ public class SchemeServiceImpl implements SchemeService {
         String subProductId = parts.length > 1 ? parts[1] : null;
         String operatorId = parts.length > 2 ? parts[2] : null;
         String vendorId = parts.length > 3 ? parts[3] : null;
+        String schemeHierarchyId = parts.length > 4 ? parts[4] : null;
 
         String productName = null;
         if (productId != null) {
@@ -354,6 +409,12 @@ public class SchemeServiceImpl implements SchemeService {
                     .orElse("N/A");
         }
 
+        String schemeHierarchyName = null;
+        if(schemeHierarchyId != null) {
+            schemeHierarchyName = schemeHierarchySelectionRepository.findByCustomId(schemeHierarchyId)
+                    .map(SchemeHierarchySelection::getCombinationHash).orElse("N/A");
+        }
+
         return new GetAllSchemeResponse(
                 scheme.getId(),
                 scheme.getSchemeName(),
@@ -367,6 +428,7 @@ public class SchemeServiceImpl implements SchemeService {
                 operatorName,
                 vendorId,
                 vendorName,
+                schemeHierarchyName,
                 scheme.getCreatedOn(),
                 scheme.getCreatedBy(),
                 scheme.getEditedOn(),

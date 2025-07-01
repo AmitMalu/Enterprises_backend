@@ -24,6 +24,7 @@ public class GetAllSchemeResponse {
     private String operatorName;
     private String vendorId;
     private String vendorName;
+    private String schemeHierarchyName;
     private LocalDateTime createdOn;
     private String createdBy;
     private LocalDateTime editedOn;
