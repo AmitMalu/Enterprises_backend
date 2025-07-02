@@ -140,26 +140,32 @@ public class SchemeServiceImpl implements SchemeService {
         Scheme scheme = schemeRepository.findById(Long.valueOf(schemeId))
                 .orElseThrow(() -> new ResourceNotFoundException("Scheme not found with ID: " + schemeId));
 
-        // Check for duplicate scheme name if it's being changed
+        // Check for duplicate scheme name if changed
         if (!scheme.getSchemeName().equals(schemeDTO.getSchemeName()) &&
                 schemeRepository.existsBySchemeName(schemeDTO.getSchemeName())) {
             throw new DuplicateEntryException("Scheme Name already exists!");
         }
 
-        // Check for duplicate scheme code if it's being changed
+        // Check for duplicate scheme code if changed
         if (!scheme.getSchemeCode().equals(schemeDTO.getSchemeCode()) &&
                 schemeRepository.existsBySchemeCode(schemeDTO.getSchemeCode())) {
             throw new DuplicateEntryException("Scheme Code already exists!");
         }
 
-        // Recalculate combination hash (if components changed)
+        // Extract last 4-digit scheme ID part from existing hash (e.g., "0009")
+        String oldHashCode = scheme.getSchemeCombinationHashCode();
+        String last4Digits = oldHashCode != null && oldHashCode.contains("-")
+                ? oldHashCode.substring(oldHashCode.lastIndexOf("-") + 1)
+                : String.format("%04d", scheme.getId()); // fallback if not set
+
+        // Rebuild the hash using the new values, but keep the original suffix
         String schemeCombinationHash = schemeDTO.getProductId() + "-" +
                 schemeDTO.getSubProductId() + "-" +
                 schemeDTO.getOperatorId() + "-" +
                 schemeDTO.getVendorId() + "-" +
                 schemeDTO.getSchemeHierarchySelectionId();
 
-        String newCombinationHashCode = schemeCombinationHash + "-" + schemeId;
+        String newCombinationHashCode = schemeCombinationHash + "-" + last4Digits;
 
         scheme.setSchemeName(schemeDTO.getSchemeName());
         scheme.setSchemeCode(schemeDTO.getSchemeCode());
@@ -171,12 +177,13 @@ public class SchemeServiceImpl implements SchemeService {
 
         Map<String, Object> response = new HashMap<>();
         response.put("message", "Scheme updated successfully.");
-        response.put("schemeId", schemeId);
+        response.put("schemeId", last4Digits);
         response.put("schemeCombinationHashCode", newCombinationHashCode);
 
         log.info("Scheme updated successfully: {}", response);
         return response;
     }
+
 
 
     public OperatorProductResponseDTO getOperatorsAndProduct(String productCode, String subProductCode) {
