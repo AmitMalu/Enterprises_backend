@@ -10,7 +10,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface HierarchySelectionRepository extends JpaRepository<SchemeHierarchySelection, String> {
 
-    boolean existsByCombinationHash(String combinationHash);
+    boolean existsBySchemeHierarchyCombination(String schemeHierarchyCombination);
+
+    boolean existsBySchemeSelectionHierarchyName(String schemeSelectionHierarchyName);
 
     @Query("SELECT MAX(s.id) FROM SchemeHierarchySelection s")
     String findMaxId();

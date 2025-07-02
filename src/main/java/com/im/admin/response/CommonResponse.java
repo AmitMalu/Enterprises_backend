@@ -29,4 +29,7 @@ public class CommonResponse<T> {
         return new CommonResponse<>(HttpStatus.CREATED.value(), message, data);
     }
 
+    public static <T> CommonResponse<T> error(int code, String message) {
+        return new CommonResponse<>(code, message, null);
+    }
 }

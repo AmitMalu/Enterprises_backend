@@ -6,15 +6,19 @@ import com.im.admin.entities.SchemeHierarchySelectionMapping;
 import com.im.admin.exception.DuplicateEntryException;
 import com.im.admin.repositories.HierarchyMasterRepository;
 import com.im.admin.repositories.HierarchySelectionRepository;
+import com.im.admin.request.SchemeHierarchySelectionRequest;
+import com.im.admin.response.SchemeHierarchySelectionResponseDTO;
 import com.im.admin.service.HierarchySelectionService;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,31 +35,50 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
     @Autowired
     private CommonMethods commonMethods;
 
-    @Transactional
     @Override
-    public Map<String, Object> saveHierarchySelection(List<String> hierarchyNames) {
-        log.info("Saving hierarchy selection: {}", hierarchyNames);
+    @Transactional
+    public Map<String, Object> saveHierarchySelection(SchemeHierarchySelectionRequest requestDTO) {
+        log.info("Saving hierarchy selection: {}", requestDTO.getHierarchyNames());
 
-        Set<HierarchyMaster> hierarchies = hierarchyMasterRepository.findByNameIn(hierarchyNames);
+        // Step 1: Get hierarchies by name
+        Set<HierarchyMaster> hierarchiesSet = hierarchyMasterRepository.findByNameIn(requestDTO.getHierarchyNames());
 
-        String combinationHash = generateHash(hierarchyNames);
-        if (hierarchySelectionRepository.existsByCombinationHash(combinationHash)) {
-            throw new DuplicateEntryException("This hierarchy selection already exists!");
+        // Step 2: Sort the result in the same order as input
+        List<HierarchyMaster> sortedHierarchies = requestDTO.getHierarchyNames().stream().map(name -> hierarchiesSet.stream().filter(h -> h.getName().equalsIgnoreCase(name)).findFirst().orElseThrow(() -> new RuntimeException("Hierarchy not found: " + name))).toList();
+
+        // Step 3: Generate name-based combination: e.g., "Distributor-Partner-Retailer-SuperDistributor"
+        String nameCombination = sortedHierarchies.stream().map(HierarchyMaster::getName).collect(Collectors.joining("-"));
+
+        // Step 5: Check for duplicate by nameCombination
+        if (hierarchySelectionRepository.existsBySchemeHierarchyCombination(nameCombination)) {
+            throw new DuplicateEntryException("This hierarchy combination already exists!");
         }
 
+        // Step 4: Generate code-based combination: e.g., "DT-PT-RT-SD"
+        String codeCombination = sortedHierarchies.stream().map(HierarchyMaster::getCode).collect(Collectors.joining("-"));
+
+        // Step 6: Check for duplicate by selection name
+        if (hierarchySelectionRepository.existsBySchemeSelectionHierarchyName(requestDTO.getSchemeHierarchySelectionName())) {
+            throw new DuplicateEntryException("This hierarchy selection name already exists!");
+        }
+
+        // Step 6: Generate ID
         String nextId = commonMethods.generateNextSequentialId(hierarchySelectionRepository.findMaxId());
         if (nextId == null) {
             throw new IllegalStateException("ID limit exceeded! Cannot store more than 9999 records.");
         }
 
+        // Step 7: Save entity
         SchemeHierarchySelection selection = new SchemeHierarchySelection();
         selection.setId(nextId);
-        selection.setCombinationHash(combinationHash);
-        selection.setCreatedBy("system");
-        selection.setEditedBy("Admin");
+        selection.setSchemeSelectionHierarchyName(requestDTO.getSchemeHierarchySelectionName());
+        selection.setSchemeHierarchyCombination(nameCombination);
+        selection.setCombinationHashCode(codeCombination);
+        selection.setCreatedBy(requestDTO.getCreatedBy());
+        selection.setCreatedOn(LocalDateTime.now());
 
         Set<SchemeHierarchySelectionMapping> mappings = new HashSet<>();
-        for (HierarchyMaster hierarchy : hierarchies) {
+        for (HierarchyMaster hierarchy : sortedHierarchies) {
             SchemeHierarchySelectionMapping mapping = new SchemeHierarchySelectionMapping();
             mapping.setSelection(selection);
             mapping.setHierarchy(hierarchy);
@@ -66,69 +89,87 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
         selection.setSelectedHierarchies(mappings);
         hierarchySelectionRepository.save(selection);
 
-        // Prepare response data
+        // Step 8: Prepare response
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "Hierarchy selection saved successfully.");
         response.put("selectionId", selection.getId());
-        response.put("combinationHash", selection.getCombinationHash());
-        response.put("selectedHierarchies", mappings.stream()
-                .map(m -> Map.of("name", m.getHierarchy().getName(), "code", m.getHierarchy().getCode()))
-                .collect(Collectors.toList()));
+        response.put("schemeHierarchyCombination", nameCombination);
+        response.put("combinationHashCode", codeCombination);
+        response.put("hierarchySelectionName", selection.getSchemeSelectionHierarchyName());
+        response.put("selectedHierarchies", mappings.stream().map(m -> Map.of("name", m.getHierarchy().getName(), "code", m.getHierarchy().getCode())).collect(Collectors.toList()));
 
         log.info("Hierarchy selection saved successfully.");
         return response;
     }
 
-    @Transactional
+
     @Override
-    public void updateHierarchySelection(String id, List<String> hierarchyNames) {
+    @Transactional
+    public Map<String, Object> updateHierarchySelection(String id, SchemeHierarchySelectionRequest requestDTO) {
         log.info("Updating hierarchy selection with ID: {}", id);
 
-        SchemeHierarchySelection existingSelection = hierarchySelectionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Hierarchy selection not found!"));
+        SchemeHierarchySelection existingSelection = hierarchySelectionRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Hierarchy selection not found!"));
 
-        Set<HierarchyMaster> hierarchies = hierarchyMasterRepository.findByNameIn(hierarchyNames);
-        if (hierarchies.size() != hierarchyNames.size()) {
-            throw new IllegalArgumentException("Invalid hierarchy names provided.");
+        Set<HierarchyMaster> hierarchiesSet = hierarchyMasterRepository.findByNameIn(requestDTO.getHierarchyNames());
+
+        List<HierarchyMaster> sortedHierarchies = requestDTO.getHierarchyNames().stream().map(name -> hierarchiesSet.stream().filter(h -> h.getName().equalsIgnoreCase(name)).findFirst().orElseThrow(() -> new RuntimeException("Hierarchy not found: " + name))).toList();
+
+        String nameCombination = sortedHierarchies.stream().map(HierarchyMaster::getName).collect(Collectors.joining("-"));
+
+        String codeCombination = sortedHierarchies.stream().map(HierarchyMaster::getCode).collect(Collectors.joining("-"));
+
+        if (!existingSelection.getSchemeHierarchyCombination().equals(nameCombination) && hierarchySelectionRepository.existsBySchemeHierarchyCombination(nameCombination)) {
+            throw new DuplicateEntryException("This hierarchy combination already exists!");
         }
 
-        String newCombinationHash = generateHash(hierarchyNames);
-        if (!existingSelection.getCombinationHash().equals(newCombinationHash) &&
-                hierarchySelectionRepository.existsByCombinationHash(newCombinationHash)) {
-            throw new DuplicateEntryException("This hierarchy selection already exists!");
+        if (!existingSelection.getSchemeSelectionHierarchyName().equals(requestDTO.getSchemeHierarchySelectionName()) && hierarchySelectionRepository.existsBySchemeSelectionHierarchyName(requestDTO.getSchemeHierarchySelectionName())) {
+            throw new DuplicateEntryException("This hierarchy selection name already exists!");
         }
 
-        // Clear existing mappings before adding new ones
-        existingSelection.getSelectedHierarchies().clear();
+        existingSelection.setSchemeHierarchyCombination(nameCombination);
+        existingSelection.setCombinationHashCode(codeCombination);
+        existingSelection.setSchemeSelectionHierarchyName(requestDTO.getSchemeHierarchySelectionName());
+        existingSelection.setEditedBy(requestDTO.getCreatedBy());
+        existingSelection.setEditedOn(LocalDateTime.now());
 
-        Set<SchemeHierarchySelectionMapping> newMappings = new HashSet<>();
-        for (HierarchyMaster hierarchy : hierarchies) {
+        // SAFELY clear and update existing mappings
+        Set<SchemeHierarchySelectionMapping> currentMappings = existingSelection.getSelectedHierarchies();
+        currentMappings.clear(); // Remove orphans
+
+        for (HierarchyMaster hierarchy : sortedHierarchies) {
             SchemeHierarchySelectionMapping mapping = new SchemeHierarchySelectionMapping();
             mapping.setSelection(existingSelection);
             mapping.setHierarchy(hierarchy);
-            mapping.setHierarchyCode(hierarchy.getCode()); // Store hierarchy code
-
-            newMappings.add(mapping);
+            mapping.setHierarchyCode(hierarchy.getCode());
+            currentMappings.add(mapping); // Add to existing set
         }
 
-        existingSelection.setCombinationHash(newCombinationHash);
-        existingSelection.setSelectedHierarchies(newMappings);
-
+        // No need to call setSelectedHierarchies(newMappings)
         hierarchySelectionRepository.save(existingSelection);
+
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("selectionId", existingSelection.getId());
+        response.put("schemeHierarchyCombination", nameCombination);
+        response.put("combinationHashCode", codeCombination);
+        response.put("hierarchySelectionName", existingSelection.getSchemeSelectionHierarchyName());
+
         log.info("Hierarchy selection updated successfully.");
+        return response;
     }
 
     @Override
-    public List<SchemeHierarchySelection> getAllSelections(Pageable pageable) {
-        return hierarchySelectionRepository.findAll(pageable).getContent();
+    public Page<SchemeHierarchySelectionResponseDTO> getAllSelections(Pageable pageable) {
+        return hierarchySelectionRepository.findAll(pageable).map(SchemeHierarchySelectionResponseDTO::new);
     }
 
     @Override
-    public SchemeHierarchySelection getSelectionById(String id) {
+    public SchemeHierarchySelectionResponseDTO getSelectionById(String id) {
         log.info("Fetching hierarchy selection by ID: {}", id);
-        return hierarchySelectionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Hierarchy selection not found!"));
+        SchemeHierarchySelection selection = hierarchySelectionRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Hierarchy selection not found!"));
+
+        return new SchemeHierarchySelectionResponseDTO(selection);
     }
+
 
     private String generateHash(List<String> hierarchyNames) {
         Collections.sort(hierarchyNames);
