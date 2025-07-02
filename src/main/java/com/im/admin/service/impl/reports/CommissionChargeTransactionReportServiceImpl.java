@@ -1,10 +1,10 @@
-package com.im.admin.service.impl;
+package com.im.admin.service.impl.reports;
 
 
 import com.im.admin.request.CommissionTransactionReportRequest;
 import com.im.admin.response.CommissionTransactionReportResponse;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.service.CommissionChargeTransactionReportService;
+import com.im.admin.service.reports.CommissionChargeTransactionReportService;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ParameterMode;

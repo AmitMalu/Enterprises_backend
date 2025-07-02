@@ -1,13 +1,11 @@
-package com.im.admin.service.impl;
+package com.im.admin.service.impl.reports;
 
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
-import com.im.admin.request.CommissionTransactionReportRequest;
 import com.im.admin.request.MyTransactionReportRequest;
-import com.im.admin.response.CommissionTransactionReportResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.MyTransactionReportResponse;
-import com.im.admin.service.MyTransactionReportService;
+import com.im.admin.service.reports.MyTransactionReportService;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ParameterMode;
