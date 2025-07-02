@@ -27,8 +27,14 @@ public class SchemeHierarchySelection {
     @Column(name = "id", length = 4, nullable = false, unique = true)
     private String id;
 
-    @Column(name = "combination_hash", nullable = false, unique = true)
-    private String combinationHash;
+    @Column(name = "scheme_hierarchy_selection_name", nullable = false, unique = true)
+    private String schemeSelectionHierarchyName;
+
+    @Column(name = "scheme_hierarchy_combination", unique = true)
+    private String schemeHierarchyCombination;
+
+    @Column(name = "combination_hash_code", nullable = false, unique = true)
+    private String combinationHashCode;
 
     @OneToMany(mappedBy = "selection", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
     private Set<SchemeHierarchySelectionMapping> selectedHierarchies = new HashSet<>();

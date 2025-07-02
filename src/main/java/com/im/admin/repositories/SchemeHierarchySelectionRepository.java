@@ -12,7 +12,7 @@ import java.util.Optional;
 @Repository
 public interface SchemeHierarchySelectionRepository extends JpaRepository<SchemeHierarchySelection, Long> {
 
-    List<SchemeHierarchySelection> findByCombinationHashContainingIgnoreCase(String keyword);
+    List<SchemeHierarchySelection> findBySchemeHierarchyCombinationContainingIgnoreCase(String keyword);
 
     @Query("SELECT s FROM SchemeHierarchySelection s WHERE s.id = :id")
     Optional<SchemeHierarchySelection> findByCustomId(@Param("id") String id);

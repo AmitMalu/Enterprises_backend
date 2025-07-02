@@ -1,6 +1,9 @@
 package com.im.admin.service;
 
 import com.im.admin.entities.SchemeHierarchySelection;
+import com.im.admin.request.SchemeHierarchySelectionRequest;
+import com.im.admin.response.SchemeHierarchySelectionResponseDTO;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
@@ -8,13 +11,13 @@ import java.util.Map;
 
 public interface HierarchySelectionService {
 
-    Map<String, Object> saveHierarchySelection(List<String> hierarchyNames);
+    Map<String, Object> saveHierarchySelection(SchemeHierarchySelectionRequest request);
 
-    void updateHierarchySelection(String id, List<String> hierarchyNames);
+    Map<String, Object> updateHierarchySelection(String id, SchemeHierarchySelectionRequest requestDTO);
 
-    List<SchemeHierarchySelection> getAllSelections(Pageable pageable);
+    Page<SchemeHierarchySelectionResponseDTO> getAllSelections(Pageable pageable);
 
-    SchemeHierarchySelection getSelectionById(String id);
+    SchemeHierarchySelectionResponseDTO getSelectionById(String id);
 
 }
 
