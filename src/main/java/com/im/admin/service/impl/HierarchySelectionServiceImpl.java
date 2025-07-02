@@ -38,13 +38,13 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
     @Override
     @Transactional
     public Map<String, Object> saveHierarchySelection(SchemeHierarchySelectionRequest requestDTO) {
-        log.info("Saving hierarchy selection: {}", requestDTO.getHierarchyNames());
+        log.info("Saving hierarchy selection: {}", requestDTO.getSchemeHierarchyCombination());
 
         // Step 1: Get hierarchies by name
-        Set<HierarchyMaster> hierarchiesSet = hierarchyMasterRepository.findByNameIn(requestDTO.getHierarchyNames());
+        Set<HierarchyMaster> hierarchiesSet = hierarchyMasterRepository.findByNameIn(requestDTO.getSchemeHierarchyCombination());
 
         // Step 2: Sort the result in the same order as input
-        List<HierarchyMaster> sortedHierarchies = requestDTO.getHierarchyNames().stream().map(name -> hierarchiesSet.stream().filter(h -> h.getName().equalsIgnoreCase(name)).findFirst().orElseThrow(() -> new RuntimeException("Hierarchy not found: " + name))).toList();
+        List<HierarchyMaster> sortedHierarchies = requestDTO.getSchemeHierarchyCombination().stream().map(name -> hierarchiesSet.stream().filter(h -> h.getName().equalsIgnoreCase(name)).findFirst().orElseThrow(() -> new RuntimeException("Hierarchy not found: " + name))).toList();
 
         // Step 3: Generate name-based combination: e.g., "Distributor-Partner-Retailer-SuperDistributor"
         String nameCombination = sortedHierarchies.stream().map(HierarchyMaster::getName).collect(Collectors.joining("-"));
@@ -109,9 +109,9 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
 
         SchemeHierarchySelection existingSelection = hierarchySelectionRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Hierarchy selection not found!"));
 
-        Set<HierarchyMaster> hierarchiesSet = hierarchyMasterRepository.findByNameIn(requestDTO.getHierarchyNames());
+        Set<HierarchyMaster> hierarchiesSet = hierarchyMasterRepository.findByNameIn(requestDTO.getSchemeHierarchyCombination());
 
-        List<HierarchyMaster> sortedHierarchies = requestDTO.getHierarchyNames().stream().map(name -> hierarchiesSet.stream().filter(h -> h.getName().equalsIgnoreCase(name)).findFirst().orElseThrow(() -> new RuntimeException("Hierarchy not found: " + name))).toList();
+        List<HierarchyMaster> sortedHierarchies = requestDTO.getSchemeHierarchyCombination().stream().map(name -> hierarchiesSet.stream().filter(h -> h.getName().equalsIgnoreCase(name)).findFirst().orElseThrow(() -> new RuntimeException("Hierarchy not found: " + name))).toList();
 
         String nameCombination = sortedHierarchies.stream().map(HierarchyMaster::getName).collect(Collectors.joining("-"));
 
@@ -128,7 +128,7 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
         existingSelection.setSchemeHierarchyCombination(nameCombination);
         existingSelection.setCombinationHashCode(codeCombination);
         existingSelection.setSchemeSelectionHierarchyName(requestDTO.getSchemeHierarchySelectionName());
-        existingSelection.setEditedBy(requestDTO.getCreatedBy());
+        existingSelection.setEditedBy(requestDTO.getEditedBy());
         existingSelection.setEditedOn(LocalDateTime.now());
 
         // SAFELY clear and update existing mappings
@@ -170,10 +170,5 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
         return new SchemeHierarchySelectionResponseDTO(selection);
     }
 
-
-    private String generateHash(List<String> hierarchyNames) {
-        Collections.sort(hierarchyNames);
-        return String.join("-", hierarchyNames);
-    }
 }
 
