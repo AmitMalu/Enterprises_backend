@@ -61,18 +61,18 @@ public class SchemeServiceImpl implements SchemeService {
         return selections.stream().map(selection -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", selection.getId());
-            map.put("combinationHash", selection.getCombinationHash());
+            map.put("combinationHash", selection.getCombinationHashCode());
             return map;
         }).collect(Collectors.toList());
     }
 
     public List<Map<String, Object>> searchSchemeHierarchy(String keyword) {
-        List<SchemeHierarchySelection> selections = schemeHierarchySelectionRepository.findByCombinationHashContainingIgnoreCase(keyword);
+        List<SchemeHierarchySelection> selections = schemeHierarchySelectionRepository.findBySchemeHierarchyCombinationContainingIgnoreCase(keyword);
 
         return selections.stream().map(selection -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", selection.getId());
-            map.put("combinationHash", selection.getCombinationHash());
+            map.put("combinationHash", selection.getSchemeHierarchyCombination());
             return map;
         }).collect(Collectors.toList());
     }
@@ -351,7 +351,7 @@ public class SchemeServiceImpl implements SchemeService {
                     .map(Vendors::getVendorName).orElse("N/A");
 
             String schemeHierarchyName = schemeHierarchySelectionRepository.findByCustomId(schemeHierarchyId)
-                    .map(SchemeHierarchySelection::getCombinationHash).orElse("N/A");
+                    .map(SchemeHierarchySelection::getSchemeHierarchyCombination).orElse("N/A");
 
             return new GetAllSchemeResponse(
                     scheme.getId(),
@@ -420,7 +420,7 @@ public class SchemeServiceImpl implements SchemeService {
         String schemeHierarchyName = null;
         if(schemeHierarchyId != null) {
             schemeHierarchyName = schemeHierarchySelectionRepository.findByCustomId(schemeHierarchyId)
-                    .map(SchemeHierarchySelection::getCombinationHash).orElse("N/A");
+                    .map(SchemeHierarchySelection::getSchemeHierarchyCombination).orElse("N/A");
         }
 
         return new GetAllSchemeResponse(
