@@ -14,6 +14,7 @@ import java.util.List;
 public class SchemeHierarchySelectionRequest {
 
     private String schemeHierarchySelectionName;
-    private List<String> hierarchyNames;
+    private List<String> schemeHierarchyCombination;
     private String createdBy;
+    private String editedBy;
 }
