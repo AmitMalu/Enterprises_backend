@@ -9,10 +9,6 @@ import java.math.BigDecimal;
 @Data
 @AllArgsConstructor
 public class WalletBalanceResponseDto {
-
-    @JsonProperty("prepaid Balance")
     private BigDecimal prepaidBalance;
-
-    @JsonProperty("postpaid Balance")
     private BigDecimal postpaidBalance;
 }
