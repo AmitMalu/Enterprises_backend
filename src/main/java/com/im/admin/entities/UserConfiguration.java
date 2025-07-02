@@ -1,6 +1,8 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Entity
@@ -32,7 +34,6 @@ public class UserConfiguration {
 
     @Column(name = "parent_account", nullable = false)
     private String parentAccount;
-
 
     @Column(name = "menu_id")
     private Integer menuId;

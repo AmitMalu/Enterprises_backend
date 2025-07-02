@@ -114,7 +114,7 @@ public class MenuController {
         return ResponseEntity.ok(new CommonResponse(200, result, null));
     }
 
-    @GetMapping("/with-submenus")
+    @GetMapping("/menus-dropdown")
     public ResponseEntity<CommonResponse<List<MenuWithSubMenuResponseDto>>> getMenusWithSubMenus() {
         List<MenuWithSubMenuResponseDto> response = menuService.getMenusWithSubMenus();
         return ResponseEntity.ok(new CommonResponse<>(200, "Success", response));

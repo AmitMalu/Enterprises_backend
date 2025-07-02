@@ -3,6 +3,7 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.DashboardResponseDto;
 import com.im.admin.dto.WalletBalanceResponseDto;
+import com.im.admin.entities.UserDetails;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DashboardService;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,14 @@ public class DashboardController {
         WalletBalanceResponseDto response = dashboardService.getWalletBalances(hierarchyId);
         return ResponseEntity.ok(new CommonResponse(201, "Wallet Balnce", response));
     }
+
+    @GetMapping("/profile/{hierarchyId}")
+    public ResponseEntity<CommonResponse> getUserProfile(@PathVariable String hierarchyId) {
+        log.info("Fetching profile for hierarchyId: {}", hierarchyId);
+        UserDetails userDetails = dashboardService.getUserProfile(hierarchyId);
+        return ResponseEntity.ok(new CommonResponse(200, "Profile fetched successfully", userDetails));
+    }
+
 
 
 
