@@ -1,4 +1,4 @@
-package com.im.admin.service;
+package com.im.admin.service.reports;
 
 import com.im.admin.request.CommissionTransactionReportRequest;
 import com.im.admin.response.CommissionTransactionReportResponse;
