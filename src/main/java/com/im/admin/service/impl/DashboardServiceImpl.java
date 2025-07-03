@@ -3,7 +3,9 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.DashboardResponseDto;
 import com.im.admin.dto.WalletBalanceResponseDto;
+import com.im.admin.entities.UserDetails;
 import com.im.admin.repositories.DashboardQueryRepository;
+import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.service.DashboardService;
 import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,10 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Autowired
     private CommonMethods commonMethods;
+
+    @Autowired
+    private UserDetailsRepository userDetailsRepository;
+
 
     @Override
     public DashboardResponseDto getAdminDashboard() {
@@ -101,6 +107,12 @@ public class DashboardServiceImpl implements DashboardService {
         BigDecimal postpaid =commonMethods.getCurrentBalance(hierarchyId, "POSTPAID");
 
         return new WalletBalanceResponseDto(prepaid, postpaid);
+    }
+
+    @Override
+    public UserDetails getUserProfile(String hierarchyId) {
+        return userDetailsRepository.findFirstByHierarchyId(hierarchyId)
+                .orElseThrow(() -> new RuntimeException("User profile not found for hierarchyId: " + hierarchyId));
     }
 
 }

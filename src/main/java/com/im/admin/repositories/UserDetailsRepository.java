@@ -14,5 +14,5 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
 
     Optional<UserDetails> findByEmailId(String email);
 
-
+    Optional<UserDetails> findFirstByHierarchyId(String hierarchyId);
 }
