@@ -11,6 +11,8 @@ public interface SuperDistributorRepository extends JpaRepository<SuperDistribut
 
     List<SuperDistributor> findByStatus(String status);
 
+    List<SuperDistributor> findByParentAccountContaining(String parentType);
+
     //boolean existsByAbbreviation(String abbreviation);
 
 }

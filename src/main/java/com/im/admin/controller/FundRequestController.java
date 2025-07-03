@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 
+import com.im.admin.dto.ChildUserDto;
 import com.im.admin.dto.FundRequestActionDto;
 import com.im.admin.dto.FundRequestDto;
 import com.im.admin.entities.FundRequest;
@@ -46,5 +47,26 @@ public class FundRequestController {
 
         return ResponseEntity.ok(new CommonResponse<>(200, "Fund requests fetched successfully", allRequests));
     }
+
+
+//    @GetMapping("/child-accounts/{hierarchyId}")
+//    public ResponseEntity<CommonResponse> getChildAccounts(@PathVariable String hierarchyId) {
+//        List<?> result = fundRequestService.getChildUsers(hierarchyId);
+//        return ResponseEntity.ok(new CommonResponse(200, "Fetched child users successfully", result));
+//    }
+
+    @GetMapping("/child-accounts/{hierarchyId}")
+    public ResponseEntity<CommonResponse> getChildAccounts(@PathVariable String hierarchyId) {
+        List<ChildUserDto> result = fundRequestService.getChildUsers(hierarchyId);
+
+        if (result.isEmpty()) {
+            return ResponseEntity.ok(new CommonResponse(200, "No APPROVED child users found. Some users may still be in PENDING status.", result));
+        }
+
+        return ResponseEntity.ok(new CommonResponse(200, "Fetched child users successfully", result));
+    }
+
+
+
 
 }

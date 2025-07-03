@@ -14,6 +14,7 @@ public interface EnterprisesRepository extends JpaRepository<Enterprises, String
     List<Enterprises> findByStatus(String status);
 
 
+    List<Enterprises> findByParentAccountContaining(String parentType);
 }
 
 

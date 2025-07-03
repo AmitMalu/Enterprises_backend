@@ -13,5 +13,6 @@ public interface PartnerRepository extends JpaRepository<Partner, String> {
 
     List<Partner> findByStatus(String status);
 
+    List<Partner> findByParentAccountContaining(String parentType);
 }
 

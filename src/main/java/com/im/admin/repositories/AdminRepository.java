@@ -11,6 +11,9 @@ public interface AdminRepository extends JpaRepository<Admin, String> {
 
     List<Admin> findByStatus(String status);
 
+//    List<Admin> findByParentAccountContaining(String parentType);
+
+
     //boolean existsByAbbreviation(String abbreviation);
 
 }
