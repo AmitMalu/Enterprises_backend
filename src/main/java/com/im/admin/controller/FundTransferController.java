@@ -2,9 +2,11 @@ package com.im.admin.controller;
 
 
 import com.im.admin.request.FundTransferRequestDto;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.response.FundTransferResponseDto;
 import com.im.admin.service.FundTransferService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,9 +21,12 @@ public class FundTransferController {
     private FundTransferService fundTransferService;
 
     @PostMapping
-    public ResponseEntity<FundTransferResponseDto> transferFunds(@RequestBody FundTransferRequestDto requestDto) {
+    public ResponseEntity<CommonResponse<FundTransferResponseDto>> transferFunds(@RequestBody FundTransferRequestDto requestDto) {
         FundTransferResponseDto response = fundTransferService.transferFunds(requestDto);
-        return ResponseEntity.ok(response);
+
+        CommonResponse<FundTransferResponseDto> commonResponse =
+                CommonResponse.success(response,"Fund transfer completed successfully");
+        return ResponseEntity.ok(commonResponse);
     }
 
 }
