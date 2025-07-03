@@ -11,12 +11,10 @@ public interface FundRequestService {
 
     void raiseFundRequest(FundRequestDto fundRequestDto);
 
-   // void takeActionOnFundRequest(FundRequestActionDto actionDto);
+    // void takeActionOnFundRequest(FundRequestActionDto actionDto);
 
     List<FundRequest> fetchAllRecords();
 
-    List<ChildUserDto> getChildUsers(String hierarchyId);
 
-//    List<?> getChildUsers(String hierarchyId);
 }
 
