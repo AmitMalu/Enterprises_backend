@@ -9,9 +9,8 @@ import lombok.Data;
 public class Menu {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "menu_id")
-    private Integer menuId;
+    @Column(name = "menu_id", columnDefinition = "CHAR(2)")
+    private String menuId;
 
     @Column(name = "menu_name")
     private String menuName;

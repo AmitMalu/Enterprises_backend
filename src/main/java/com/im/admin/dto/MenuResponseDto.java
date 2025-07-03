@@ -6,6 +6,6 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class MenuResponseDto {
-    private Integer menuId;
+    private String menuId;
     private String menuName;
 }

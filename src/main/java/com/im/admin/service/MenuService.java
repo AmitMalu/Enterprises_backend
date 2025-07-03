@@ -10,17 +10,17 @@ public interface MenuService {
 
     Page<MenuResponseDto> getAllMenus(int page, int size, Integer menuId, String menuName);
 
-    MenuResponseDto getMenuById(Integer menuId);
+    MenuResponseDto getMenuById(String menuId);
 
-    String updateMenu(Integer menuId, MenuRequestDto requestDto);
+    String updateMenu(String menuId, MenuRequestDto requestDto);
 
     String addSubMenu(SubMenuRequestDto dto);
 
     Page<SubMenuResponseDto> getAllSubMenus(int page, int size, Integer menuId, String subMenuName);
 
-    String updateSubMenu(Integer subMenuId, SubMenuRequestDto dto);
+    String updateSubMenu(String subMenuId, SubMenuRequestDto dto);
 
-    SubMenuResponseDto getSubMenuById(Integer subMenuId);
+    SubMenuResponseDto getSubMenuById(String subMenuId);
 
     List<MenuWithSubMenuResponseDto> getMenusWithSubMenus();
 

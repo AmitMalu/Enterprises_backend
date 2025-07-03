@@ -6,6 +6,7 @@ import com.im.admin.entities.SubMenu;
 import com.im.admin.repositories.MenuRepository;
 import com.im.admin.repositories.SubMenuRepository;
 import com.im.admin.service.MenuService;
+import com.im.admin.util.CommonMethods;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -27,6 +28,9 @@ public class MenuServiceImpl implements MenuService {
     @Autowired
     private SubMenuRepository subMenuRepository;
 
+    @Autowired
+    private CommonMethods commonMethods;
+
     @Override
     public String addMenu(MenuRequestDto menuRequestDto) {
 
@@ -37,10 +41,14 @@ public class MenuServiceImpl implements MenuService {
         }
 
         Menu menu = new Menu();
+
+        //  custom ID generation logic
+        String nextId = commonMethods.generateNextIdForTables("menus", "menu_id");
+        menu.setMenuId(nextId);
         menu.setMenuName(menuRequestDto.getMenuName());
         menuRepository.save(menu);
-        return "Menus added successfully.";
 
+        return "Menu added successfully.";
     }
 
     @Override
@@ -63,7 +71,7 @@ public class MenuServiceImpl implements MenuService {
     }
 
     @Override
-    public MenuResponseDto getMenuById(Integer menuId) {
+    public MenuResponseDto getMenuById(String menuId) {
         Optional<Menu> optionalMenu = menuRepository.findById(menuId);
         if (optionalMenu.isEmpty()) {
             return null;
@@ -74,7 +82,7 @@ public class MenuServiceImpl implements MenuService {
     }
 
     @Override
-    public String updateMenu(Integer menuId, MenuRequestDto dto) {
+    public String updateMenu(String menuId, MenuRequestDto dto) {
         Optional<Menu> menuOptional = menuRepository.findById(menuId);
 
         if (menuOptional.isEmpty()) {
@@ -102,6 +110,10 @@ public class MenuServiceImpl implements MenuService {
 
         // Create and save new SubMenu
         SubMenu subMenu = new SubMenu();
+
+        //  custom ID generation logic
+        String nextId = commonMethods.generateNextIdForTables("sub_menus", "sub_menu_id");
+        subMenu.setSubMenuId(nextId);
         subMenu.setMenuId(dto.getMenuId());
         subMenu.setSubMenuName(dto.getSubMenuName());
 
@@ -128,14 +140,14 @@ public class MenuServiceImpl implements MenuService {
     }
 
     @Override
-    public SubMenuResponseDto getSubMenuById(Integer subMenuId) {
+    public SubMenuResponseDto getSubMenuById(String subMenuId) {
         return subMenuRepository.findById(subMenuId)
                 .map(sm -> new SubMenuResponseDto(sm.getSubMenuId(), sm.getMenuId(), sm.getSubMenuName()))
                 .orElse(null);
     }
 
     @Override
-    public String updateSubMenu(Integer subMenuId, SubMenuRequestDto dto) {
+    public String updateSubMenu(String subMenuId, SubMenuRequestDto dto) {
         Optional<SubMenu> optional = subMenuRepository.findById(subMenuId);
         if (optional.isEmpty()) {
             return "Sub menu not found.";
@@ -155,18 +167,27 @@ public class MenuServiceImpl implements MenuService {
         List<SubMenu> subMenus = subMenuRepository.findAll();
 
         // Group submenus by menuId
-        Map<Integer, List<SubMenu>> subMenuMap = subMenus.stream()
+        Map<String, List<SubMenu>> subMenuMap = subMenus.stream()
                 .collect(Collectors.groupingBy(SubMenu::getMenuId));
 
         // Build the response list
         return menus.stream()
                 .map(menu -> {
-                    List<SubMenuShortDto> subList = subMenuMap.getOrDefault(menu.getMenuId(), new ArrayList<>())
+                    List<SubMenuShortDto> subList = subMenuMap
+                            .getOrDefault(menu.getMenuId(), new ArrayList<>())
                             .stream()
-                            .map(sm -> new SubMenuShortDto(sm.getSubMenuId(), sm.getSubMenuName()))
+                            .map(sm -> new SubMenuShortDto(
+                                    sm.getSubMenuId(),
+                                    sm.getSubMenuName(),
+                                    menu.getMenuId() + sm.getSubMenuId() //  combineId logic
+                            ))
                             .collect(Collectors.toList());
 
-                    return new MenuWithSubMenuResponseDto(menu.getMenuId(), menu.getMenuName(), subList);
+                    return new MenuWithSubMenuResponseDto(
+                            menu.getMenuId(),
+                            menu.getMenuName(),
+                            subList
+                    );
                 })
                 .collect(Collectors.toList());
     }
