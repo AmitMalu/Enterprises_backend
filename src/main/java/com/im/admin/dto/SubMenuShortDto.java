@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class SubMenuShortDto {
-    private Integer id;
+    private String id;
     private String name;
+    private String combineId;
 }

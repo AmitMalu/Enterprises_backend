@@ -13,5 +13,5 @@ public class UserConfigurationRequestDto {
     private String state;
     private String parentAccount;
     private String userRole;
-    private List<UserPermissionDto> permissions;
+    private List<String> permissions;
 }

@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class SubMenuRequestDto {
-    private Integer menuId;
+    private String menuId;
     private String subMenuName;
 }
