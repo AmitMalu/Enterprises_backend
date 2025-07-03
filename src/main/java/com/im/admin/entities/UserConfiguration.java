@@ -14,9 +14,6 @@ public class UserConfiguration {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "user_id")
-    private String userId;
-
     @Column(name = "full_name")
     private String fullName;
 
@@ -35,9 +32,6 @@ public class UserConfiguration {
     @Column(name = "parent_account", nullable = false)
     private String parentAccount;
 
-    @Column(name = "menu_id")
-    private Integer menuId;
-
-    @Column(name = "sub_menu_id")
-    private Integer subMenuId;
+    @Column(name = "permission")
+    private String permission;
 }

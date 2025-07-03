@@ -49,11 +49,4 @@ public class FundRequestController {
     }
 
 
-//    @GetMapping("/child-accounts/{hierarchyId}")
-//    public ResponseEntity<CommonResponse> getChildAccounts(@PathVariable String hierarchyId) {
-//        List<?> result = fundRequestService.getChildUsers(hierarchyId);
-//        return ResponseEntity.ok(new CommonResponse(200, "Fetched child users successfully", result));
-//    }
-
-
 }

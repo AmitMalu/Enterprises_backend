@@ -44,7 +44,7 @@ public class MenuController {
     }
 
     @GetMapping("/{menuId}")
-    public ResponseEntity<CommonResponse<MenuResponseDto>> getMenuById(@PathVariable Integer menuId) {
+    public ResponseEntity<CommonResponse<MenuResponseDto>> getMenuById(@PathVariable String menuId) {
         MenuResponseDto dto = menuService.getMenuById(menuId);
 
         if (dto == null) {
@@ -56,7 +56,7 @@ public class MenuController {
 
     @PutMapping("/{menuId}")
     public ResponseEntity<CommonResponse> updateMenu(
-            @PathVariable Integer menuId,
+            @PathVariable String menuId,
             @RequestBody MenuRequestDto requestDto) {
 
         String result = menuService.updateMenu(menuId, requestDto);
@@ -92,7 +92,7 @@ public class MenuController {
     }
 
     @GetMapping("/submenu/{subMenuId}")
-    public ResponseEntity<CommonResponse<SubMenuResponseDto>> getSubMenuById(@PathVariable Integer subMenuId) {
+    public ResponseEntity<CommonResponse<SubMenuResponseDto>> getSubMenuById(@PathVariable String subMenuId) {
         SubMenuResponseDto dto = menuService.getSubMenuById(subMenuId);
         if (dto == null) {
             return ResponseEntity.status(404).body(new CommonResponse<>(404, "Sub menu not found", null));
@@ -102,7 +102,7 @@ public class MenuController {
 
     @PutMapping("/submenu/{subMenuId}")
     public ResponseEntity<CommonResponse> updateSubMenu(
-            @PathVariable Integer subMenuId,
+            @PathVariable String subMenuId,
             @RequestBody SubMenuRequestDto dto) {
 
         String result = menuService.updateSubMenu(subMenuId, dto);
@@ -114,7 +114,7 @@ public class MenuController {
         return ResponseEntity.ok(new CommonResponse(200, result, null));
     }
 
-    @GetMapping("/menus-dropdown")
+    @GetMapping("/dropdown")
     public ResponseEntity<CommonResponse<List<MenuWithSubMenuResponseDto>>> getMenusWithSubMenus() {
         List<MenuWithSubMenuResponseDto> response = menuService.getMenusWithSubMenus();
         return ResponseEntity.ok(new CommonResponse<>(200, "Success", response));

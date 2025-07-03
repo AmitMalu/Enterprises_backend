@@ -149,26 +149,5 @@ public class FundRequestServiceImpl implements FundRequestService {
         return fundRequestRepository.findAll();
     }
 
-//    @Override
-//    public List<?> getChildUsers(String parentHierarchyId) {
-//        String parentType = commonMethods.extractHierarchyType(parentHierarchyId); // e.g., DT
-//        String childEntityName = hierarchyChildren.get(parentType); // e.g., retailer
-//
-//        if (childEntityName == null)
-//            throw new RuntimeException("No child entity found for hierarchy type: " + parentType);
-//
-//        return switch (childEntityName) {
-////            case "admin" -> adminRepository.findByParentAccountContaining(parentType);
-//            case "enterprises" -> enterprisesRepository.findByParentAccountContaining(parentType);
-//            case "white_labels" -> whiteLabelRepository.findByParentAccountContaining(parentType);
-//            case "super_distributor" -> superDistributorRepository.findByParentAccountContaining(parentType);
-//            case "partner" -> partnerRepository.findByParentAccountContaining(parentType);
-//            case "distributor" -> distributorRepository.findByParentAccountContaining(parentType);
-//            case "retailer" -> retailerRepository.findByParentAccountContaining(parentType);
-//            default -> throw new RuntimeException("Invalid entity name: " + childEntityName);
-//        };
-//    }
-//
-
 
 }

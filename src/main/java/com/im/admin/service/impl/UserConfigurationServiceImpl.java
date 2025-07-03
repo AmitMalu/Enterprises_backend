@@ -31,25 +31,24 @@ public class UserConfigurationServiceImpl implements UserConfigurationService {
     private WhiteLabelRepository whiteLabelRepository;
 
     @Override
-    public  List<UserConfiguration>  addUserConfiguration(UserConfigurationRequestDto dto) {
+    public List<UserConfiguration> addUserConfiguration(UserConfigurationRequestDto dto) {
 
-        List<UserConfiguration> records = dto.getPermissions().stream().map(p -> {
-            UserConfiguration config = new UserConfiguration();
-            config.setUserId(dto.getUserId());
-            config.setFullName(dto.getFullName());
-            config.setEmail(dto.getEmail());
-            config.setMobile(dto.getMobile());
-            config.setState(dto.getState());
-            config.setUserRole(dto.getUserRole());
-            config.setMenuId(p.getMenuId());
-            config.setSubMenuId(p.getSubMenuId());
-            config.setParentAccount(dto.getParentAccount());
-            return config;
-        }).collect(Collectors.toList());
+        // Join permissions into comma-separated string
+        String permissionString = String.join(",", dto.getPermissions());
 
-        List<UserConfiguration> userConfigurations = userConfigurationRepository.saveAll(records);
-        return userConfigurations;
+        UserConfiguration config = new UserConfiguration();
+        config.setFullName(dto.getFullName());
+        config.setEmail(dto.getEmail());
+        config.setMobile(dto.getMobile());
+        config.setState(dto.getState());
+        config.setUserRole(dto.getUserRole());
+        config.setParentAccount(dto.getParentAccount());
+        config.setPermission(permissionString); // Correctly set
+
+        // Save only one record
+        return List.of(userConfigurationRepository.save(config));
     }
+
 
     @Override
     public UserConfiguration getUserConfigurationById(Integer id) {
@@ -62,7 +61,6 @@ public class UserConfigurationServiceImpl implements UserConfigurationService {
         UserConfiguration existing = userConfigurationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User Configuration not found with ID: " + id));
 
-        existing.setUserId(dto.getUserId());
         existing.setFullName(dto.getFullName());
         existing.setEmail(dto.getEmail());
         existing.setMobile(dto.getMobile());
@@ -72,8 +70,6 @@ public class UserConfigurationServiceImpl implements UserConfigurationService {
 
         // If permissions exist, update menuId and subMenuId (take first one)
         if (dto.getPermissions() != null && !dto.getPermissions().isEmpty()) {
-            existing.setMenuId(dto.getPermissions().get(0).getMenuId());
-            existing.setSubMenuId(dto.getPermissions().get(0).getSubMenuId());
         }
 
         return userConfigurationRepository.save(existing);
@@ -97,15 +93,12 @@ public class UserConfigurationServiceImpl implements UserConfigurationService {
         List<UserConfiguration> all = userConfigurationRepository.findAll();
 
         List<UserConfiguration> filtered = all.stream()
-                .filter(u -> userId == null || u.getUserId().equalsIgnoreCase(userId))
                 .filter(u -> fullName == null || (u.getFullName() != null && u.getFullName().toLowerCase().contains(fullName.toLowerCase())))
                 .filter(u -> email == null || (u.getEmail() != null && u.getEmail().toLowerCase().contains(email.toLowerCase())))
                 .filter(u -> mobile == null || (u.getMobile() != null && u.getMobile().contains(mobile)))
                 .filter(u -> state == null || (u.getState() != null && u.getState().equalsIgnoreCase(state)))
                 .filter(u -> userRole == null || (u.getUserRole() != null && u.getUserRole().equalsIgnoreCase(userRole)))
                 .filter(u -> parentAccount == null || (u.getParentAccount() != null && u.getParentAccount().equalsIgnoreCase(parentAccount)))
-                .filter(u -> menuId == null || (u.getMenuId() != null && u.getMenuId().equals(menuId)))
-                .filter(u -> subMenuId == null || (u.getSubMenuId() != null && u.getSubMenuId().equals(subMenuId)))
                 .collect(Collectors.toList());
 
         Pageable pageable = PageRequest.of(page, size);
