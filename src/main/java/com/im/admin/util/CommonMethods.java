@@ -1,6 +1,7 @@
 package com.im.admin.util;
 
 import com.im.admin.dto.AbstractWalletAmountTable;
+import com.im.admin.entities.TransactionSequence;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.*;
 import jakarta.persistence.EntityManager;
@@ -88,6 +89,9 @@ public class CommonMethods {
     @Autowired
     private AdminPrepaidAmountRepository adminPrepaidAmountRepository;
 
+    @Autowired
+    private TransactionSequenceRepository transactionSequenceRepository;
+
     public String generateNextIdForTables(String tableName, String idColumn) {
 
         String query = "SELECT MAX(" + idColumn + ") FROM " + tableName;
@@ -123,8 +127,13 @@ public class CommonMethods {
 
     public String generateBaseTransactionId() {
         String timestamp = new SimpleDateFormat("yyMMddHHmmss").format(new Date());
-        int autoIncrement = getNextTransactionSequence(); // Get from DB or memory (e.g., Redis)
-        return timestamp + String.format("%05d", autoIncrement); // padded to ensure sorting
+        long sequence = transactionSequenceRepository.save(new TransactionSequence()).getId();
+
+        if(sequence == 99999) {
+            jdbcTemplate.execute("TRUNCATE TABLE transaction_sequence");
+        }
+
+        return timestamp + String.format("%05d", sequence);
     }
 
     private int getNextTransactionSequence() {

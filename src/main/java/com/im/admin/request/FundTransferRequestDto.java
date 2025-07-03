@@ -9,9 +9,10 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class FundTransferRequestDto {
 
-    private String parentHierarchyId;
-    private String childHierarchyId;
+    private String fromHierarchyId;
+    private String toHierarchyId;
     private BigDecimal amount;
+    private BigDecimal confirmAmount;
     private WalletType fromWalletType;
     private WalletType toWalletType;
     private String narration;
