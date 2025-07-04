@@ -3,6 +3,7 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.SchemeRateRequestDTO;
 import com.im.admin.dto.SchemeRateSlabDTO;
+import com.im.admin.dto.SchemeSlabUpdateRequestDTO;
 import com.im.admin.entities.Scheme;
 import com.im.admin.entities.SchemeHierarchySelection;
 import com.im.admin.entities.SchemeRate;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -75,25 +77,40 @@ public class SchemeRateServiceImpl implements SchemeRateService {
 
             List<SlabRateDto> slabs = operatorSlabs.stream().map(slab -> {
                 SlabRateDto dto = new SlabRateDto();
+
+                // Common slab fields
                 dto.setRateType(slab.getRateType());
                 dto.setSlabType(slab.getSlabType());
                 dto.setFixedSlabValue(slab.getFixedSlabValue());
                 dto.setSlabStart(slab.getSlabStart());
                 dto.setSlabEnd(slab.getSlabEnd());
-                dto.setGross(slab.getGross());
-                dto.setIm(slab.getIm());
-                dto.setEnterprise(slab.getEnterprise());
 
-                // Conditionally include only those hierarchy levels present in SchemeHierarchySelection
-                if (allowedHierarchies.contains("enterprise")) dto.setEnterprise(slab.getEnterprise());
-                if (allowedHierarchies.contains("whitelabel")) dto.setWhitelabel(slab.getWhitelabel());
-                if (allowedHierarchies.contains("superdistributor") || allowedHierarchies.contains("super_distributor")) dto.setSuperDistributor(slab.getSuperDistributor());
-                if (allowedHierarchies.contains("partner")) dto.setPartner(slab.getPartner());
-                if (allowedHierarchies.contains("distributor")) dto.setDistributor(slab.getDistributor());
-                if (allowedHierarchies.contains("retailer")) dto.setRetailer(slab.getRetailer());
+                // Conversion logic based on RateType
+                Double factor = slab.getRateType() == RateType.PERCENTAGE ? 100.0 : 1.0;
+
+                dto.setGross(safeMultiply(slab.getGross(), factor));
+                dto.setIm(safeMultiply(slab.getIm(), factor));
+                dto.setEnterprise(safeMultiply(slab.getEnterprise(), factor));
+
+                if (allowedHierarchies.contains("whitelabel")) {
+                    dto.setWhitelabel(safeMultiply(slab.getWhitelabel(), factor));
+                }
+                if (allowedHierarchies.contains("superdistributor") || allowedHierarchies.contains("super_distributor")) {
+                    dto.setSuperDistributor(safeMultiply(slab.getSuperDistributor(), factor));
+                }
+                if (allowedHierarchies.contains("partner")) {
+                    dto.setPartner(safeMultiply(slab.getPartner(), factor));
+                }
+                if (allowedHierarchies.contains("distributor")) {
+                    dto.setDistributor(safeMultiply(slab.getDistributor(), factor));
+                }
+                if (allowedHierarchies.contains("retailer")) {
+                    dto.setRetailer(safeMultiply(slab.getRetailer(), factor));
+                }
 
                 return dto;
             }).collect(Collectors.toList());
+
 
             operatorDto.setSlabs(slabs);
             return operatorDto;
@@ -106,6 +123,11 @@ public class SchemeRateServiceImpl implements SchemeRateService {
 
         return responseDto;
     }
+
+    private Double safeMultiply(Double value, Double factor) {
+        return value == null ? null : value * factor;
+    }
+
 
     @Override
     public List<SchemeRate> createSchemeRates(SchemeRateRequestDTO requestDTO) {
@@ -159,11 +181,56 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                 schemeRate.setRetailer(retailer);
             }
 
-            schemeRate.setCreatedBy("admin");
+            schemeRate.setCreatedBy(slab.getCreatedBy());
             schemeRates.add(schemeRate);
         }
 
         return schemeRateRepository.saveAll(schemeRates);
+    }
+
+    @Override
+    @Transactional
+    public SchemeDetailResponseDto updateSchemeRates(SchemeSlabUpdateRequestDTO requestDto) {
+        for (OperatorWithSlabsDto operator : requestDto.getOperators()) {
+            for (SlabRateDto slabDto : operator.getSlabs()) {
+                SchemeRate slab;
+
+                if (slabDto.getId() != null) {
+                    slab = schemeRateRepository.findById(slabDto.getId())
+                            .orElseThrow(() -> new RuntimeException("Slab not found for ID: " + slabDto.getId()));
+                } else {
+                    slab = new SchemeRate();
+                    slab.setSchemeCode(requestDto.getSchemeCode());
+                    slab.setOperatorCode(operator.getOperatorCode());
+                    slab.setOperatorName(operator.getOperatorName());
+                    slab.setCreatedBy("system"); // fixed: was slab.getCreatedBy()
+                }
+
+                slab.setRateType(slabDto.getRateType());
+                slab.setSlabType(slabDto.getSlabType());
+                slab.setFixedSlabValue(slabDto.getFixedSlabValue());
+                slab.setSlabStart(slabDto.getSlabStart());
+                slab.setSlabEnd(slabDto.getSlabEnd());
+
+                double factor = (slabDto.getRateType() == RateType.PERCENTAGE) ? 0.01 : 1.0;
+
+                slab.setGross(safeMultiply(slabDto.getGross(), factor));
+                slab.setIm(safeMultiply(slabDto.getIm(), factor));
+                slab.setEnterprise(safeMultiply(slabDto.getEnterprise(), factor));
+                slab.setWhitelabel(safeMultiply(slabDto.getWhitelabel(), factor));
+                slab.setSuperDistributor(safeMultiply(slabDto.getSuperDistributor(), factor));
+                slab.setPartner(safeMultiply(slabDto.getPartner(), factor));
+                slab.setDistributor(safeMultiply(slabDto.getDistributor(), factor));
+                slab.setRetailer(safeMultiply(slabDto.getRetailer(), factor));
+                slab.setCreatedBy(slab.getCreatedBy());
+                slab.setEditedBy(slabDto.getEditedBy());
+
+                schemeRateRepository.save(slab);
+            }
+        }
+
+        // Reuse existing getSchemeDetails logic after update
+        return getSchemeDetails(requestDto.getSchemeCode());
     }
 
 }
