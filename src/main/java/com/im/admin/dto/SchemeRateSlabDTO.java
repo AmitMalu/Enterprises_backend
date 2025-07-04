@@ -7,13 +7,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class SchemeRateSlabDTO {
-    private RateType rateType;
 
+    private Long id;
+    private RateType rateType;
+    private SlabType slabType;
     private Double slabStart;       // Used if SlabType is VARIABLE
     private Double slabEnd;         // Used if SlabType is VARIABLE
 
@@ -25,4 +29,6 @@ public class SchemeRateSlabDTO {
     private Double partner;
     private Double distributor;
     private Double retailer;
+    private String createdBy;
+    private String editedBy;
 }
