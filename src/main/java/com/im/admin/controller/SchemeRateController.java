@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.SchemeRateRequestDTO;
+import com.im.admin.dto.SchemeSlabUpdateRequestDTO;
 import com.im.admin.entities.SchemeRate;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.SchemeDetailResponseDto;
@@ -31,9 +32,11 @@ public class SchemeRateController {
         return ResponseEntity.ok(schemeRateService.createSchemeRates(requestDTO));
     }
 
-
-
-
+    @PutMapping("/update-slabs")
+    public ResponseEntity<CommonResponse<SchemeDetailResponseDto>> updateSchemeSlabs(@RequestBody SchemeSlabUpdateRequestDTO requestDto) {
+        SchemeDetailResponseDto updatedResponse = schemeRateService.updateSchemeRates(requestDto);
+        return ResponseEntity.ok(CommonResponse.success(updatedResponse, "Slab rates updated successfully"));
+    }
 
 
 }

@@ -32,6 +32,10 @@ public class Scheme {
     @Column(name = "scheme_combination_hashCode")
     private String schemeCombinationHashCode;    //10- productId,-01 sub-productId, -02 vendorId, -001 schemeHierarchySelectionId,00001 and this is generated Id number for table itself
                                                     // final hashcode (10-01-02-001-00001)
+
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
     private LocalDateTime createdOn;
