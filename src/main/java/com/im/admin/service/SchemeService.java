@@ -25,8 +25,6 @@ public interface SchemeService {
 
     OperatorProductResponseDTO getOperatorsAndProduct(String productCode, String subProductCode);
 
-    List<SchemeRate> createSchemeRates(SchemeRateRequestDTO requestDTO);
-
     List<SchemeRate> getSchemeRatesByOperatorCode(String operatorCode);
 
     CommonResponse<List<SchemeAllocation>> allocateSchemes(SchemeAllocationRequestDto request);

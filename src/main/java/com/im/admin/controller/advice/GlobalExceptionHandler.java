@@ -7,6 +7,7 @@ import com.im.admin.exception.FileValidationException;
 import com.im.admin.exception.NoPendingRecordsFoundException;
 import com.im.admin.exception.UserNotFoundException;
 import com.im.admin.response.CommonResponse;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,17 +44,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-
-        ex.getBindingResult().getFieldErrors().forEach(error -> {
-            log.error("Validation error - Field: {}, Message: {}", error.getField(), error.getDefaultMessage());
-            errors.put(error.getField(), error.getDefaultMessage());
-        });
-
-        return ResponseEntity.badRequest().body(errors);
-    }
+//    @ExceptionHandler(MethodArgumentNotValidException.class)
+//    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+//        Map<String, String> errors = new HashMap<>();
+//
+//        ex.getBindingResult().getFieldErrors().forEach(error -> {
+//            log.error("Validation error - Field: {}, Message: {}", error.getField(), error.getDefaultMessage());
+//            errors.put(error.getField(), error.getDefaultMessage());
+//        });
+//
+//        return ResponseEntity.badRequest().body(errors);
+//    }
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<CustomResponseDTO> handleUserNotFound(UserNotFoundException ex) {
@@ -121,6 +122,31 @@ public class GlobalExceptionHandler {
         response.setMessage("Something Went Wrong - " + ex.getMessage());
         response.setData(null);
         return ResponseEntity.ok(response);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<CommonResponse<Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
+        String errorMessage = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+
+        return ResponseEntity.badRequest().body(
+                CommonResponse.handleErrors(errorMessage)
+        );
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<CommonResponse<Object>> handleConstraintViolations(ConstraintViolationException ex) {
+        String errorMessage = ex.getConstraintViolations()
+                .stream()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+                .collect(Collectors.joining(", "));
+
+        return ResponseEntity.badRequest().body(
+                CommonResponse.handleErrors(errorMessage)
+        );
     }
 }
 

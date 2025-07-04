@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface SchemeHierarchySelectionRepository extends JpaRepository<SchemeHierarchySelection, Long> {
+public interface SchemeHierarchySelectionRepository extends JpaRepository<SchemeHierarchySelection, String> {
 
     List<SchemeHierarchySelection> findBySchemeHierarchyCombinationContainingIgnoreCase(String keyword);
 
