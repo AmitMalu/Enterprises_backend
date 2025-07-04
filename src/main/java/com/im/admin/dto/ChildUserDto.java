@@ -15,6 +15,6 @@ public class ChildUserDto {
     private String mobileNumber;
     private String emailId;
     private LocalDate dob;
-
     private String status;
+    private Boolean isBlocked;
 }

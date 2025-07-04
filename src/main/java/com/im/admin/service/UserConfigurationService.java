@@ -1,6 +1,7 @@
 package com.im.admin.service;
 
 import com.im.admin.dto.UserConfigurationRequestDto;
+import com.im.admin.dto.UserConfigurationResponseDto;
 import com.im.admin.entities.UserConfiguration;
 import org.springframework.data.domain.Page;
 
@@ -16,5 +17,5 @@ public interface UserConfigurationService {
     UserConfiguration updateUserConfiguration(Integer id, UserConfigurationRequestDto dto);
 
 
-    Page<UserConfiguration> getAllUserConfigurations(int page, int size, String userId, String fullName, String email, String mobile, String state, String userRole, String parentAccount, Integer menuId, Integer subMenuId);
+    Page<UserConfiguration>  getAllUserConfigurations(int page, int size, String userId, String fullName, String email, String mobile, String state, String userRole, String parentAccount, Integer menuId, Integer subMenuId);
 }

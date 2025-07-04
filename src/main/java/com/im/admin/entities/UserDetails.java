@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -12,8 +13,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
-@Getter
-@Setter
+@Data
 @IdClass(UserDetailsId.class)
 @Entity
 @Table(name = "user_details")
@@ -32,7 +32,7 @@ public class UserDetails {
     @Column(name = "hierarchy_code")
     private String hierarchyCode;  //RT, DT, PT
 
-    @Column(name = "login_username", unique = true, nullable = false)
+    @Column(name = "login_username", nullable = false)
     private String loginUserName;
 
     @Column(name = "login_passwd")

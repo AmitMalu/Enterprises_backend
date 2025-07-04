@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.UserConfigurationRequestDto;
+import com.im.admin.dto.UserConfigurationResponseDto;
 import com.im.admin.entities.UserConfiguration;
 import com.im.admin.entities.WhiteLabels;
 import com.im.admin.repositories.UserConfigurationRepository;
@@ -14,9 +15,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class UserConfigurationServiceImpl implements UserConfigurationService {
@@ -58,22 +62,23 @@ public class UserConfigurationServiceImpl implements UserConfigurationService {
 
     @Override
     public UserConfiguration updateUserConfiguration(Integer id, UserConfigurationRequestDto dto) {
-        UserConfiguration existing = userConfigurationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User Configuration not found with ID: " + id));
 
-        existing.setFullName(dto.getFullName());
-        existing.setEmail(dto.getEmail());
-        existing.setMobile(dto.getMobile());
-        existing.setState(dto.getState());
-        existing.setUserRole(dto.getUserRole());
-        existing.setParentAccount(dto.getParentAccount());
+        UserConfiguration config = userConfigurationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User configuration not found for id: " + id));
 
-        // If permissions exist, update menuId and subMenuId (take first one)
-        if (dto.getPermissions() != null && !dto.getPermissions().isEmpty()) {
-        }
+        config.setFullName(dto.getFullName());
+        config.setEmail(dto.getEmail());
+        config.setMobile(dto.getMobile());
+        config.setState(dto.getState());
+        config.setUserRole(dto.getUserRole());
+        config.setParentAccount(dto.getParentAccount());
 
-        return userConfigurationRepository.save(existing);
+        String permissionString = String.join(",", dto.getPermissions());
+        config.setPermission(permissionString);
+
+        return userConfigurationRepository.save(config);
     }
+
 
 
     @Override
@@ -110,4 +115,6 @@ public class UserConfigurationServiceImpl implements UserConfigurationService {
 
 
     }
+
+
 }

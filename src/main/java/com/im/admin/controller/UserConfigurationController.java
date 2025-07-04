@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.UserConfigurationRequestDto;
+import com.im.admin.dto.UserConfigurationResponseDto;
 import com.im.admin.entities.UserConfiguration;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.UserConfigurationService;
@@ -31,10 +32,14 @@ public class UserConfigurationController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CommonResponse> updateUserConfig(@PathVariable Integer id, @RequestBody UserConfigurationRequestDto dto) {
-        UserConfiguration updated = userConfigurationService.updateUserConfiguration(id, dto);
-        return ResponseEntity.ok(new CommonResponse(200, "Updated successfully", updated));
+    public ResponseEntity<CommonResponse<UserConfiguration>> updateUserConfigById(
+            @PathVariable Integer id,
+            @RequestBody UserConfigurationRequestDto dto) {
+
+        UserConfiguration updatedConfig = userConfigurationService.updateUserConfiguration(id, dto);
+        return ResponseEntity.ok(new CommonResponse<>(200, "User configuration updated successfully", updatedConfig));
     }
+
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<UserConfiguration>>> getAllUserConfigurations(
@@ -55,6 +60,7 @@ public class UserConfigurationController {
         );
         return ResponseEntity.ok(new CommonResponse<>(200, "Success", result));
     }
+
 
 
 

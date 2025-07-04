@@ -109,7 +109,7 @@ public class AuthController {
             return ResponseEntity.ok(response);
         }
 
-        if (Boolean.FALSE.equals(user.getIsBlocked())) {
+        if (Boolean.TRUE.equals(user.getIsBlocked())) {
             CommonResponse<?> response = new CommonResponse<>(403, "User is blocked. Please contact support.", null);
             try {
                 responseJson = objectMapper.writeValueAsString(response);
