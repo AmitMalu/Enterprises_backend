@@ -82,6 +82,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                 dto.setSlabEnd(slab.getSlabEnd());
                 dto.setGross(slab.getGross());
                 dto.setIm(slab.getIm());
+                dto.setEnterprise(slab.getEnterprise());
 
                 // Conditionally include only those hierarchy levels present in SchemeHierarchySelection
                 if (allowedHierarchies.contains("enterprise")) dto.setEnterprise(slab.getEnterprise());
