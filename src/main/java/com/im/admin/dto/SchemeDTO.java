@@ -9,7 +9,7 @@ public class SchemeDTO {
     private String schemeCode;
     private String productId;
     private String subProductId;
-    private String operatorId;
+    //private String operatorId;
     private String vendorId;
     private String schemeHierarchySelectionId;
 }

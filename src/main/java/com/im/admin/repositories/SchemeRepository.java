@@ -22,4 +22,5 @@ public interface SchemeRepository extends JpaRepository<Scheme, Long> {
 
     Optional<Scheme> findBySchemeCode(String schemeCode);
 
+
 }

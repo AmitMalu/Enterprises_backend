@@ -59,11 +59,6 @@ public class SchemeController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/rate")
-    public ResponseEntity<List<SchemeRate>> createSchemeRates(@RequestBody SchemeRateRequestDTO requestDTO) {
-        return ResponseEntity.ok(schemeService.createSchemeRates(requestDTO));
-    }
-
     @GetMapping("/{operatorCode}")
     public ResponseEntity<List<SchemeRate>> getSchemeRatesByOperatorCode(@PathVariable String operatorCode) {
         return ResponseEntity.ok(schemeService.getSchemeRatesByOperatorCode(operatorCode));

@@ -85,7 +85,7 @@ public class SchemeServiceImpl implements SchemeService {
         // Directly use request values to form combination hash
         String schemeCombinationHash = schemeDTO.getProductId() +"-"+
                 schemeDTO.getSubProductId() +"-"+
-                schemeDTO.getOperatorId() +"-"+
+                //schemeDTO.getOperatorId() +"-"+
                 schemeDTO.getVendorId() +"-"+
                 schemeDTO.getSchemeHierarchySelectionId();
 
@@ -99,20 +99,15 @@ public class SchemeServiceImpl implements SchemeService {
             throw new DuplicateEntryException("Scheme Code already exists!");
         }
 
-        // Check if a scheme already exists with the same prefix
-//        if (schemeRepository.existsBySchemeCombinationHashCodeStartingWith(schemeCombinationHash)) {
-//            throw new DuplicateEntryException("This scheme combination already exists!");
-//        }
-
 
         Long maxId = schemeRepository.findMaxSchemeId();
         if (maxId == null) maxId = 0L;
 
         if (maxId >= 9999) {
-            throw new IllegalStateException("Scheme ID limit exceeded (0001-9999). Cannot save new scheme.");
+            throw new IllegalStateException("Scheme ID limit exceeded (0001-99999). Cannot save new scheme.");
         }
 
-        String formattedSchemeId = String.format("%04d", maxId + 1);
+        String formattedSchemeId = String.format("%05d", maxId + 1);
         String finalCombinationHashCode = schemeCombinationHash +"-"+ formattedSchemeId;
 
         Scheme scheme = new Scheme();
@@ -161,7 +156,7 @@ public class SchemeServiceImpl implements SchemeService {
         // Rebuild the hash using the new values, but keep the original suffix
         String schemeCombinationHash = schemeDTO.getProductId() + "-" +
                 schemeDTO.getSubProductId() + "-" +
-                schemeDTO.getOperatorId() + "-" +
+                //schemeDTO.getOperatorId() + "-" +
                 schemeDTO.getVendorId() + "-" +
                 schemeDTO.getSchemeHierarchySelectionId();
 
@@ -201,65 +196,6 @@ public class SchemeServiceImpl implements SchemeService {
                 .orElseThrow(() -> new RuntimeException("Product not found for productCode: " + productCode));
 
         return new OperatorProductResponseDTO(operatorDTOs, product);
-    }
-
-    @Override
-    public List<SchemeRate> createSchemeRates(SchemeRateRequestDTO requestDTO) {
-        List<SchemeRate> schemeRates = new ArrayList<>();
-
-        for (int i = 0; i < requestDTO.getSlabs().size(); i++) {
-            SchemeRateSlabDTO slab = requestDTO.getSlabs().get(i);
-            SchemeRate schemeRate = new SchemeRate();
-
-            schemeRate.setSchemeCode(requestDTO.getSchemeCode());
-            schemeRate.setOperatorName(requestDTO.getOperatorName());
-            schemeRate.setOperatorCode(requestDTO.getOperatorCode());
-            schemeRate.setRateType(slab.getRateType());
-            schemeRate.setSlabStart(slab.getSlabStart());
-            schemeRate.setSlabEnd(slab.getSlabEnd());
-
-            // Ensure gross concept: sum of all fields must be exactly equal to gross
-            double im = slab.getIm() == null ? 0.0 : slab.getIm();
-            double enterprise = slab.getEnterprise() == null ? 0.0 : slab.getEnterprise();
-            double whitelabel = slab.getWhitelabel() == null ? 0.0 : slab.getWhitelabel();
-            double superDistributor = slab.getSuperDistributor() == null ? 0.0 : slab.getSuperDistributor();
-            double partner = slab.getPartner() == null ? 0.0 : slab.getPartner();
-            double distributor = slab.getDistributor() == null ? 0.0 : slab.getDistributor();
-            double retailer = slab.getRetailer() == null ? 0.0 : slab.getRetailer();
-
-            double totalDistributed = im + enterprise + whitelabel + superDistributor + partner + distributor + retailer;
-            double gross = slab.getGross();
-
-            if (!Objects.equals(gross, totalDistributed)) {
-                throw new IllegalArgumentException("Error in slab #" + (i + 1) + ": Sum of all fields must be exactly equal to Gross (Expected: " + gross + ", Found: " + totalDistributed + ").");
-            }
-
-            // Store values based on rateType
-            if (slab.getRateType() == RateType.PERCENTAGE) {
-                schemeRate.setGross(gross / 100);
-                schemeRate.setIm(im / 100);
-                schemeRate.setEnterprise(enterprise / 100);
-                schemeRate.setWhitelabel(whitelabel / 100);
-                schemeRate.setSuperDistributor(superDistributor / 100);
-                schemeRate.setPartner(partner / 100);
-                schemeRate.setDistributor(distributor / 100);
-                schemeRate.setRetailer(retailer / 100);
-            } else {
-                schemeRate.setGross(gross);
-                schemeRate.setIm(im);
-                schemeRate.setEnterprise(enterprise);
-                schemeRate.setWhitelabel(whitelabel);
-                schemeRate.setSuperDistributor(superDistributor);
-                schemeRate.setPartner(partner);
-                schemeRate.setDistributor(distributor);
-                schemeRate.setRetailer(retailer);
-            }
-
-            schemeRate.setCreatedBy("admin");
-            schemeRates.add(schemeRate);
-        }
-
-        return schemeRateRepository.saveAll(schemeRates);
     }
 
     @Override
