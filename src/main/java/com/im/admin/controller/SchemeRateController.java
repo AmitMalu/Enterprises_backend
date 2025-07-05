@@ -1,8 +1,10 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.SchemeRateProductResponseDto;
 import com.im.admin.dto.SchemeRateRequestDTO;
 import com.im.admin.dto.SchemeSlabUpdateRequestDTO;
 import com.im.admin.entities.SchemeRate;
+import com.im.admin.entities.product.Products;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.SchemeDetailResponseDto;
 import com.im.admin.service.SchemeRateService;
@@ -38,5 +40,10 @@ public class SchemeRateController {
         return ResponseEntity.ok(CommonResponse.success(updatedResponse, "Slab rates updated successfully"));
     }
 
+    @PostMapping("/get-product-details-by/{schemeCode}")
+    public ResponseEntity<CommonResponse<SchemeRateProductResponseDto>> getProductBySchemeCode(@PathVariable("schemeCode") String schemeCode) {
+        SchemeRateProductResponseDto productDetails = schemeRateService.getProductDetails(schemeCode);
+        return ResponseEntity.ok(CommonResponse.success(productDetails, "Fetched Product Details By Scheme Code"));
+    }
 
 }

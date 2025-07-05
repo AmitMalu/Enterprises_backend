@@ -1,13 +1,13 @@
 package com.im.admin.service.impl;
 
 
-import com.im.admin.dto.SchemeRateRequestDTO;
-import com.im.admin.dto.SchemeRateSlabDTO;
-import com.im.admin.dto.SchemeSlabUpdateRequestDTO;
+import com.im.admin.dto.*;
 import com.im.admin.entities.Scheme;
 import com.im.admin.entities.SchemeHierarchySelection;
 import com.im.admin.entities.SchemeRate;
 import com.im.admin.entities.enums.RateType;
+import com.im.admin.entities.product.Products;
+import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SchemeHierarchySelectionRepository;
 import com.im.admin.repositories.SchemeRateRepository;
 import com.im.admin.repositories.SchemeRepository;
@@ -16,7 +16,6 @@ import com.im.admin.request.SlabRateDto;
 import com.im.admin.response.SchemeDetailResponseDto;
 import com.im.admin.service.SchemeRateService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +35,9 @@ public class SchemeRateServiceImpl implements SchemeRateService {
 
     @Autowired
     private SchemeHierarchySelectionRepository schemeHierarchySelectionRepository;
+
+    @Autowired
+    private ProductsRepository productsRepository;
 
     @Override
     public SchemeDetailResponseDto getSchemeDetails(String schemeCode) {
@@ -203,7 +205,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                     slab.setSchemeCode(requestDto.getSchemeCode());
                     slab.setOperatorCode(operator.getOperatorCode());
                     slab.setOperatorName(operator.getOperatorName());
-                    slab.setCreatedBy("system"); // fixed: was slab.getCreatedBy()
+                    slab.setCreatedBy(slab.getCreatedBy());
                 }
 
                 slab.setRateType(slabDto.getRateType());
@@ -231,6 +233,47 @@ public class SchemeRateServiceImpl implements SchemeRateService {
 
         // Reuse existing getSchemeDetails logic after update
         return getSchemeDetails(requestDto.getSchemeCode());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SchemeRateProductResponseDto getProductDetails(String schemeCode) {
+
+        Scheme scheme = schemeRepository.findBySchemeCode(schemeCode)
+                .orElseThrow(() -> new RuntimeException("Scheme not found for scheme code: " + schemeCode));
+
+        String[] parts = scheme.getSchemeCombinationHashCode().split("-");
+        if (parts.length < 2) {
+            throw new RuntimeException("Invalid scheme combination hash code format for scheme code: " + schemeCode);
+        }
+
+        short productId;
+        try {
+            productId = Short.parseShort(parts[0]);
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Invalid product ID in hash code for scheme code: " + schemeCode, e);
+        }
+
+        Products product = productsRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found for ID: " + productId));
+
+        return mapToProductResponseDto(product);
+    }
+
+    private SchemeRateProductResponseDto mapToProductResponseDto(Products product) {
+        SchemeRateProductResponseDto dto = new SchemeRateProductResponseDto();
+        dto.setProductName(product.getName());
+        dto.setProductCode(product.getProductCode());
+        dto.setIsSettlement(product.getIsSettlement());
+        dto.setProductCodeForScheme(product.getProductCodeForScheme());
+        dto.setTransactionType(product.getTransactionType());
+        dto.setTds(product.getTds());
+        dto.setSgst(product.getSgst());
+        dto.setEditedBy(product.getEditedBy());
+        dto.setEditedAt(product.getEditedOn());
+        dto.setCreatedBy(product.getCreatedBy());
+        dto.setCreatedAt(product.getCreatedOn());
+        return dto;
     }
 
 }

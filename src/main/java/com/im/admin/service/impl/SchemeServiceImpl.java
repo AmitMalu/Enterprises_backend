@@ -114,7 +114,8 @@ public class SchemeServiceImpl implements SchemeService {
         scheme.setSchemeName(schemeDTO.getSchemeName());
         scheme.setSchemeCode(schemeDTO.getSchemeCode());
         scheme.setSchemeCombinationHashCode(finalCombinationHashCode);
-        scheme.setCreatedBy("Admin");
+        scheme.setIsActive(schemeDTO.getIsActive());
+        scheme.setCreatedBy(schemeDTO.getCreatedBy());
 
         schemeRepository.save(scheme);
 
@@ -379,6 +380,16 @@ public class SchemeServiceImpl implements SchemeService {
                 scheme.getEditedOn(),
                 scheme.getEditedBy()
         );
+    }
+
+    @Override
+    @Transactional
+    public void updateSchemeStatus(String schemeCode, boolean isActive) {
+        Scheme scheme = schemeRepository.findBySchemeCode(schemeCode)
+                .orElseThrow(() -> new RuntimeException("Scheme not found for scheme code: " + schemeCode));
+
+        scheme.setIsActive(isActive);
+        schemeRepository.save(scheme);
     }
 
 }
