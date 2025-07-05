@@ -81,6 +81,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                 SlabRateDto dto = new SlabRateDto();
 
                 // Common slab fields
+                dto.setId(slab.getId());
                 dto.setRateType(slab.getRateType());
                 dto.setSlabType(slab.getSlabType());
                 dto.setFixedSlabValue(slab.getFixedSlabValue());
