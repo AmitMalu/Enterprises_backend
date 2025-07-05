@@ -98,5 +98,17 @@ public class SchemeController {
         }
     }
 
+    @PutMapping("/{schemeCode}/status")
+    public ResponseEntity<CommonResponse<String>> updateSchemeStatus(
+            @PathVariable String schemeCode,
+            @RequestParam boolean isActive
+    ) {
+        schemeService.updateSchemeStatus(schemeCode, isActive);
+        return ResponseEntity.ok(CommonResponse.success(
+                null,
+                "Scheme status updated successfully to " + (isActive ? "ACTIVE" : "INACTIVE")
+        ));
+    }
+
 
 }
