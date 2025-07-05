@@ -35,4 +35,7 @@ public interface SchemeService {
 
     GetAllSchemeResponse getSchemeDtoById(Long id);
 
+    void updateSchemeStatus(String schemeCode, boolean isActive);
+
+
 }

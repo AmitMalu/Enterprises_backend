@@ -12,5 +12,7 @@ public class SchemeDTO {
     //private String operatorId;
     private String vendorId;
     private String schemeHierarchySelectionId;
+    private Boolean isActive;
+    private String createdBy;
 }
 
