@@ -1,8 +1,8 @@
 package com.im.admin.controller.report;
 
-import com.im.admin.request.MyTransactionReportRequest;
+import com.im.admin.request.reports.MyTransactionReportRequest;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.response.MyTransactionReportResponse;
+import com.im.admin.response.reports.MyTransactionReportResponse;
 import com.im.admin.service.reports.MyTransactionReportService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,4 +1,4 @@
-package com.im.admin.response;
+package com.im.admin.response.reports;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

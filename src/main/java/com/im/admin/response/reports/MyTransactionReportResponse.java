@@ -1,4 +1,4 @@
-package com.im.admin.response;
+package com.im.admin.response.reports;
 
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;

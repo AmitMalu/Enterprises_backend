@@ -1,4 +1,4 @@
-package com.im.admin.request;
+package com.im.admin.request.reports;
 
 import com.im.admin.entities.enums.WalletType;
 import lombok.AllArgsConstructor;

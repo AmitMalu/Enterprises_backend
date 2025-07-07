@@ -1,7 +1,7 @@
 package com.im.admin.service.reports;
 
-import com.im.admin.request.CommissionTransactionReportRequest;
-import com.im.admin.response.CommissionTransactionReportResponse;
+import com.im.admin.request.reports.CommissionTransactionReportRequest;
+import com.im.admin.response.reports.CommissionTransactionReportResponse;
 import com.im.admin.response.CommonResponse;
 import org.springframework.data.domain.Page;
 
