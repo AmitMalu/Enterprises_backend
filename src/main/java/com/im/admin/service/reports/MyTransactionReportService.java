@@ -1,9 +1,9 @@
 package com.im.admin.service.reports;
 
 
-import com.im.admin.request.MyTransactionReportRequest;
+import com.im.admin.request.reports.MyTransactionReportRequest;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.response.MyTransactionReportResponse;
+import com.im.admin.response.reports.MyTransactionReportResponse;
 import org.springframework.data.domain.Page;
 
 import java.io.ByteArrayInputStream;

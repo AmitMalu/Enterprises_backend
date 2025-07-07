@@ -16,5 +16,6 @@ public class LoginRequestDto {
     private String otp;
     private String newPassword;
     private String reEnteredPassword;
+    private String url;
 
 }

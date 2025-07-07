@@ -27,7 +27,7 @@ public class SlabRateDto {
     private Double partner;
     private Double distributor;
     private Double retailer;
-    private String createdBY;
+    private String createdBy;
     private String editedBy;
 
 }

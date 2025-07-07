@@ -156,12 +156,12 @@ public class SchemeRateServiceImpl implements SchemeRateService {
             double distributor = slab.getDistributor() == null ? 0.0 : slab.getDistributor();
             double retailer = slab.getRetailer() == null ? 0.0 : slab.getRetailer();
 
-            double totalDistributed = im + enterprise + whitelabel + superDistributor + partner + distributor + retailer;
             double gross = slab.getGross();
+            validateGrossMatch(
+                    gross, im, enterprise, whitelabel, superDistributor,
+                    partner, distributor, retailer, "slab #" + (i + 1)
+            );
 
-            if (!Objects.equals(gross, totalDistributed)) {
-                throw new IllegalArgumentException("Error in slab #" + (i + 1) + ": Sum of all fields must be exactly equal to Gross (Expected: " + gross + ", Found: " + totalDistributed + ").");
-            }
 
             // Store values based on rateType
             if (slab.getRateType() == RateType.PERCENTAGE) {
@@ -201,12 +201,13 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                 if (slabDto.getId() != null) {
                     slab = schemeRateRepository.findById(slabDto.getId())
                             .orElseThrow(() -> new RuntimeException("Slab not found for ID: " + slabDto.getId()));
+                    slab.setCreatedBy(slabDto.getCreatedBy());
                 } else {
                     slab = new SchemeRate();
                     slab.setSchemeCode(requestDto.getSchemeCode());
                     slab.setOperatorCode(operator.getOperatorCode());
                     slab.setOperatorName(operator.getOperatorName());
-                    slab.setCreatedBy(slab.getCreatedBy());
+                    slab.setCreatedBy(slabDto.getCreatedBy());
                 }
 
                 slab.setRateType(slabDto.getRateType());
@@ -215,25 +216,42 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                 slab.setSlabStart(slabDto.getSlabStart());
                 slab.setSlabEnd(slabDto.getSlabEnd());
 
+                double gross = safeValue(slabDto.getGross());
+                double im = safeValue(slabDto.getIm());
+                double enterprise = safeValue(slabDto.getEnterprise());
+                double whitelabel = safeValue(slabDto.getWhitelabel());
+                double superDistributor = safeValue(slabDto.getSuperDistributor());
+                double partner = safeValue(slabDto.getPartner());
+                double distributor = safeValue(slabDto.getDistributor());
+                double retailer = safeValue(slabDto.getRetailer());
+
+                validateGrossMatch(
+                        gross, im, enterprise, whitelabel, superDistributor,
+                        partner, distributor, retailer,
+                        "slab ID " + (slabDto.getId() != null ? slabDto.getId() : "NEW")
+                );
+
                 double factor = (slabDto.getRateType() == RateType.PERCENTAGE) ? 0.01 : 1.0;
 
-                slab.setGross(safeMultiply(slabDto.getGross(), factor));
-                slab.setIm(safeMultiply(slabDto.getIm(), factor));
-                slab.setEnterprise(safeMultiply(slabDto.getEnterprise(), factor));
-                slab.setWhitelabel(safeMultiply(slabDto.getWhitelabel(), factor));
-                slab.setSuperDistributor(safeMultiply(slabDto.getSuperDistributor(), factor));
-                slab.setPartner(safeMultiply(slabDto.getPartner(), factor));
-                slab.setDistributor(safeMultiply(slabDto.getDistributor(), factor));
-                slab.setRetailer(safeMultiply(slabDto.getRetailer(), factor));
-                slab.setCreatedBy(slab.getCreatedBy());
+                slab.setGross(gross * factor);
+                slab.setIm(im * factor);
+                slab.setEnterprise(enterprise * factor);
+                slab.setWhitelabel(whitelabel * factor);
+                slab.setSuperDistributor(superDistributor * factor);
+                slab.setPartner(partner * factor);
+                slab.setDistributor(distributor * factor);
+                slab.setRetailer(retailer * factor);
                 slab.setEditedBy(slabDto.getEditedBy());
 
                 schemeRateRepository.save(slab);
             }
         }
 
-        // Reuse existing getSchemeDetails logic after update
         return getSchemeDetails(requestDto.getSchemeCode());
+    }
+
+    private double safeValue(Double val) {
+        return val == null ? 0.0 : val;
     }
 
     @Override
@@ -275,6 +293,35 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         dto.setCreatedBy(product.getCreatedBy());
         dto.setCreatedAt(product.getCreatedOn());
         return dto;
+    }
+
+    private void validateGrossMatch(
+            double gross,
+            Double im,
+            Double enterprise,
+            Double whitelabel,
+            Double superDistributor,
+            Double partner,
+            Double distributor,
+            Double retailer,
+            String errorReference
+    ) {
+        double imVal = im == null ? 0.0 : im;
+        double enterpriseVal = enterprise == null ? 0.0 : enterprise;
+        double whitelabelVal = whitelabel == null ? 0.0 : whitelabel;
+        double superDistVal = superDistributor == null ? 0.0 : superDistributor;
+        double partnerVal = partner == null ? 0.0 : partner;
+        double distributorVal = distributor == null ? 0.0 : distributor;
+        double retailerVal = retailer == null ? 0.0 : retailer;
+
+        double total = imVal + enterpriseVal + whitelabelVal + superDistVal + partnerVal + distributorVal + retailerVal;
+
+        if (!Objects.equals(gross, total)) {
+            throw new IllegalArgumentException(
+                    "Error in " + errorReference + ": Sum of all shares must be equal to Gross. Expected: "
+                            + gross + ", Found: " + total
+            );
+        }
     }
 
 }
