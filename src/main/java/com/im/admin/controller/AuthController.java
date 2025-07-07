@@ -97,16 +97,16 @@ public class AuthController {
 
         UserDetails user = optionalUser.get();
 
-        if (!isUrlValidForUserHierarchy(user.getHierarchyId(), loginRequestDto.getUrl())) {
-            CommonResponse<?> response = new CommonResponse<>(401, "Invalid login domain for this user", null);
-            try {
-                responseJson = objectMapper.writeValueAsString(response);
-                commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return ResponseEntity.ok(response);
-        }
+//        if (!isUrlValidForUserHierarchy(user.getHierarchyId(), loginRequestDto.getUrl())) {
+//            CommonResponse<?> response = new CommonResponse<>(401, "Invalid login domain for this user", null);
+//            try {
+//                responseJson = objectMapper.writeValueAsString(response);
+//                commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//            return ResponseEntity.ok(response);
+//        }
 
 
         if (isUserLocked(user)) {
