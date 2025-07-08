@@ -27,8 +27,6 @@ public interface SchemeService {
 
     List<SchemeRate> getSchemeRatesByOperatorCode(String operatorCode);
 
-    CommonResponse<List<SchemeAllocation>> allocateSchemes(SchemeAllocationRequestDto request);
-
     VendorRouting saveVendorRouting(VendorRoutingDto request);
 
     Page<GetAllSchemeResponse> getAllSchemes(Pageable pageable);

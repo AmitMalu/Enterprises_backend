@@ -1,6 +1,7 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,22 +15,25 @@ public class SchemeAllocation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Hierarchy ID is required")
     @Column(name = "hierarchy_id", nullable = false)
-    private String hierarchyId;  // Retailer, Distributor, Partner, etc.
+    private String hierarchyId;
 
+    @NotBlank(message = "Sub-product code is required")
     @Column(name = "sub_product_code", nullable = false)
     private String subProductCode;
 
+    @NotBlank(message = "Product code is required")
     @Column(name = "product_code", nullable = false)
     private String productCode;
 
+    @NotBlank(message = "Scheme code is required")
     @Column(name = "scheme_code", nullable = false)
     private String schemeCode;
 
-    @Column(name = "scheme_id", nullable = false)
-    private Long schemeId;
-
-    @Column(name = "operator_code", nullable = false)
+    //@NotBlank(message = "Operator code is required")
+    @Column(name = "operator_code")//, nullable = false)
     private String operatorCode;
+
 }
 
