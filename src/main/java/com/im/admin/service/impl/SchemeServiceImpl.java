@@ -204,49 +204,6 @@ public class SchemeServiceImpl implements SchemeService {
         return schemeRateRepository.findByOperatorCode(operatorCode);
     }
 
-    @Override
-    public CommonResponse<List<SchemeAllocation>> allocateSchemes(SchemeAllocationRequestDto request) {
-        List<SchemeAllocation> schemeEntities = new ArrayList<>();
-
-        for (SchemeAllocationDto scheme : request.getCodes()) {
-            boolean exists = repository.existsByHierarchyIdAndProductCodeAndSubProductCodeAndOperatorCode(
-                    request.getHierarchyId(),
-                    scheme.getProductCode(),
-                    scheme.getSubProductCode(),
-                    scheme.getOperatorCode()
-            );
-
-            if (exists) {
-                return new CommonResponse<>(
-                        400,
-                        "Scheme already allocated for hierarchy: " + request.getHierarchyId() +
-                                ", product: " + scheme.getProductCode() +
-                                ", subProduct: " + scheme.getSubProductCode() +
-                                ", operator: " + scheme.getOperatorCode(),
-                        null
-                );
-            }
-
-            SchemeAllocation entity = new SchemeAllocation();
-            entity.setHierarchyId(request.getHierarchyId());
-            entity.setProductCode(scheme.getProductCode());
-            entity.setSubProductCode(scheme.getSubProductCode());
-            entity.setSchemeCode(scheme.getSchemeCode());
-            entity.setOperatorCode(scheme.getOperatorCode());
-            entity.setSchemeId(scheme.getSchemeId());
-
-            schemeEntities.add(entity);
-        }
-
-        repository.saveAll(schemeEntities);
-
-        return new CommonResponse<>(
-                200,
-                "Schemes allocated successfully for " + request.getHierarchyId(),
-                schemeEntities
-        );
-    }
-
     @Transactional
     @Override
     public VendorRouting saveVendorRouting(VendorRoutingDto request) {

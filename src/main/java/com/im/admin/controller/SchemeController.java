@@ -64,13 +64,6 @@ public class SchemeController {
         return ResponseEntity.ok(schemeService.getSchemeRatesByOperatorCode(operatorCode));
     }
 
-    @PostMapping("/allocateSchemes")
-    public ResponseEntity<CommonResponse<List<SchemeAllocation>>> allocateSchemes(@RequestBody SchemeAllocationRequestDto request) {
-        CommonResponse<List<SchemeAllocation>> response = schemeService.allocateSchemes(request);
-        return ResponseEntity.status(response.getStatusCode()).body(response);
-    }
-
-
     @PostMapping("/routing")
     public ResponseEntity<?> vendorRouting(@RequestBody VendorRoutingDto vendorRoutingDto) {
         VendorRouting savedVendorRouting = schemeService.saveVendorRouting(vendorRoutingDto);
