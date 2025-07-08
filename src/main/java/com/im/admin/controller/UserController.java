@@ -1,10 +1,13 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.StatusWiseUserFullDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/user")
@@ -22,4 +25,11 @@ public class UserController {
 
         return ResponseEntity.ok(CommonResponse.success(null, message));
     }
+
+    @GetMapping("/status/{status}")
+    public ResponseEntity<CommonResponse<List<StatusWiseUserFullDto>>> getUsersByStatus(@PathVariable String status) {
+        List<StatusWiseUserFullDto> users = userService.getUsersByStatus(status.toUpperCase());
+        return ResponseEntity.ok(CommonResponse.success(users, "Fetched records for status: " + status));
+    }
+
 }
