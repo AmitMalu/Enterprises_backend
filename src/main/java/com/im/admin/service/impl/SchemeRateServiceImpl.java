@@ -49,6 +49,11 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         if (parts.length < 4) {
             throw new RuntimeException("Invalid combination hash code format");
         }
+        String productId = parts[0];
+
+        Products products = productsRepository.findById(Short.valueOf(productId))
+                .orElseThrow(() -> new RuntimeException("Product Not Found"));
+
         String schemeHierarchyId = parts[3]; // "001"
 
         // Fetch hierarchy combination record
@@ -123,6 +128,8 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         responseDto.setSchemeCode(scheme.getSchemeCode());
         responseDto.setSchemeName(scheme.getSchemeName());
         responseDto.setOperators(operatorDtos);
+        responseDto.setIsActive(scheme.getIsActive());
+        responseDto.setTdsRate(products.getTds());
 
         return responseDto;
     }
