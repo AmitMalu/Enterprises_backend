@@ -1,12 +1,15 @@
 package com.im.admin.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+
 import java.time.LocalDate;
 
 @Data
 @AllArgsConstructor
 public class ChildUserDto {
+
     private String userId;         // example: partnerId / retailerId
     private String parentAccount;
     private String abbreviation;
@@ -18,3 +21,5 @@ public class ChildUserDto {
     private String status;
     private Boolean isBlocked;
 }
+
+

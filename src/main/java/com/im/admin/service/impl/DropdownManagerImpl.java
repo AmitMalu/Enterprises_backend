@@ -6,12 +6,18 @@ import com.im.admin.repositories.*;
 import com.im.admin.service.DropdownManagerService;
 import com.im.admin.util.CommonMethods;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
 
 @Service
 public class DropdownManagerImpl implements DropdownManagerService {
@@ -48,90 +54,104 @@ public class DropdownManagerImpl implements DropdownManagerService {
 
 
     @Override
-    public List<ChildUserDto> getChildUsers(String parentHierarchyId) {
-        String parentType = commonMethods.extractHierarchyType(parentHierarchyId); // e.g., DT
-        String childEntity = hierarchyChildren.get(parentType); // e.g., retailer
+    public Page<ChildUserDto> getChildUsers(
+            String parentHierarchyId,
+            int page,
+            int size,
+            String userId,
+            String parentAccount,
+            String abbreviation,
+            String title,
+            String name,
+            String mobileNumber,
+            String emailId,
+            String dob,
+            String status,
+            Boolean isBlocked
+    ) {
+        String parentType = commonMethods.extractHierarchyType(parentHierarchyId);
+        String childEntity = hierarchyChildren.get(parentType);
 
         if (childEntity == null)
             throw new RuntimeException("No child entity found for hierarchy type: " + parentType);
 
-        return switch (childEntity) {
-            case "enterprises" -> enterprisesRepository.findByParentAccountContaining(parentType)
-                    .stream()
+        // Step 1: Get all APPROVED child users for the hierarchy type
+        List<ChildUserDto> approvedUsers = switch (childEntity) {
+            case "enterprises" -> enterprisesRepository.findByParentAccountContaining(parentType).stream()
                     .filter(e -> "APPROVED".equalsIgnoreCase(e.getStatus()))
-                    .map(e -> {
-                        Optional<UserDetails> optional = userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId());
-                        Boolean isBlocked = optional.map(UserDetails::getIsBlocked).orElse(false); //  correct
+                    .map(e -> new ChildUserDto(
+                            e.getEnterpriseId(), e.getParentAccount(), e.getAbbreviation(), e.getTitle(),
+                            e.getName(), e.getMobileNumber(), e.getEmailId(), e.getDob(), e.getStatus(),
+                            userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId()).map(UserDetails::getIsBlocked).orElse(false)
+                    )).toList();
 
-                        return new ChildUserDto(
-                                e.getEnterpriseId(), e.getParentAccount(), e.getAbbreviation(), e.getTitle(),
-                                e.getName(), e.getMobileNumber(), e.getEmailId(), e.getDob(), e.getStatus(), isBlocked
-                        );
-                    }).collect(Collectors.toList());
-
-            case "white_labels" -> whiteLabelRepository.findByParentAccountContaining(parentType)
-                    .stream()
+            case "white_labels" -> whiteLabelRepository.findByParentAccountContaining(parentType).stream()
                     .filter(w -> "APPROVED".equalsIgnoreCase(w.getStatus()))
-                    .map(w -> {
-                        Optional<UserDetails> optional = userDetailsRepository.findFirstByHierarchyId(w.getWhiteLabelId());
-                        Boolean isBlocked = optional.map(UserDetails::getIsBlocked).orElse(false); //  correct
-                        return new ChildUserDto(
-                                w.getWhiteLabelId(), w.getParentAccount(), w.getAbbreviation(), w.getTitle(),
-                                w.getName(), w.getMobileNumber(), w.getEmailId(), w.getDob(), w.getStatus(), isBlocked
-                        );
-                    }).collect(Collectors.toList());
+                    .map(w -> new ChildUserDto(
+                            w.getWhiteLabelId(), w.getParentAccount(), w.getAbbreviation(), w.getTitle(),
+                            w.getName(), w.getMobileNumber(), w.getEmailId(), w.getDob(), w.getStatus(),
+                            userDetailsRepository.findFirstByHierarchyId(w.getWhiteLabelId()).map(UserDetails::getIsBlocked).orElse(false)
+                    )).toList();
 
-            case "super_distributor" -> superDistributorRepository.findByParentAccountContaining(parentType)
-                    .stream()
+            case "super_distributor" -> superDistributorRepository.findByParentAccountContaining(parentType).stream()
                     .filter(s -> "APPROVED".equalsIgnoreCase(s.getStatus()))
-                    .map(s -> {
-                        Optional<UserDetails> optional = userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId());
-                        Boolean isBlocked = optional.map(UserDetails::getIsBlocked).orElse(false); //  correct
-                        return new ChildUserDto(
-                                s.getSuperDistributorId(), s.getParentAccount(), s.getAbbreviation(), s.getTitle(),
-                                s.getName(), s.getMobileNumber(), s.getEmailId(), s.getDob(), s.getStatus(), isBlocked
-                        );
-                    }).collect(Collectors.toList());
+                    .map(s -> new ChildUserDto(
+                            s.getSuperDistributorId(), s.getParentAccount(), s.getAbbreviation(), s.getTitle(),
+                            s.getName(), s.getMobileNumber(), s.getEmailId(), s.getDob(), s.getStatus(),
+                            userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId()).map(UserDetails::getIsBlocked).orElse(false)
+                    )).toList();
 
-            case "partner" -> partnerRepository.findByParentAccountContaining(parentType)
-                    .stream()
+            case "partner" -> partnerRepository.findByParentAccountContaining(parentType).stream()
                     .filter(p -> "APPROVED".equalsIgnoreCase(p.getStatus()))
-                    .map(p -> {
-                        Optional<UserDetails> optional = userDetailsRepository.findFirstByHierarchyId(p.getPartnerId());
-                        Boolean isBlocked = optional.map(UserDetails::getIsBlocked).orElse(false); //  correct
-                        return new ChildUserDto(
-                                p.getPartnerId(), p.getParentAccount(), p.getAbbreviation(), p.getTitle(),
-                                p.getName(), p.getMobileNumber(), p.getEmailId(), p.getDob(), p.getStatus(), isBlocked
-                        );
-                    }).collect(Collectors.toList());
+                    .map(p -> new ChildUserDto(
+                            p.getPartnerId(), p.getParentAccount(), p.getAbbreviation(), p.getTitle(),
+                            p.getName(), p.getMobileNumber(), p.getEmailId(), p.getDob(), p.getStatus(),
+                            userDetailsRepository.findFirstByHierarchyId(p.getPartnerId()).map(UserDetails::getIsBlocked).orElse(false)
+                    )).toList();
 
-            case "distributor" -> distributorRepository.findByParentAccountContaining(parentType)
-                    .stream()
+            case "distributor" -> distributorRepository.findByParentAccountContaining(parentType).stream()
                     .filter(d -> "APPROVED".equalsIgnoreCase(d.getStatus()))
-                    .map(d -> {
-                        Optional<UserDetails> optional = userDetailsRepository.findFirstByHierarchyId(d.getDistributorId());
-                        Boolean isBlocked = optional.map(UserDetails::getIsBlocked).orElse(false); //  correct
-                        return new ChildUserDto(
-                                d.getDistributorId(), d.getParentAccount(), d.getAbbreviation(), d.getTitle(),
-                                d.getName(), d.getMobileNumber(), d.getEmailId(), d.getDob(), d.getStatus(), isBlocked
-                        );
-                    }).collect(Collectors.toList());
+                    .map(d -> new ChildUserDto(
+                            d.getDistributorId(), d.getParentAccount(), d.getAbbreviation(), d.getTitle(),
+                            d.getName(), d.getMobileNumber(), d.getEmailId(), d.getDob(), d.getStatus(),
+                            userDetailsRepository.findFirstByHierarchyId(d.getDistributorId()).map(UserDetails::getIsBlocked).orElse(false)
+                    )).toList();
 
-            case "retailer" -> retailerRepository.findByParentAccountContaining(parentType)
-                    .stream()
+            case "retailer" -> retailerRepository.findByParentAccountContaining(parentType).stream()
                     .filter(r -> "APPROVED".equalsIgnoreCase(r.getStatus()))
-                    .map(r -> {
-                        Optional<UserDetails> optional = userDetailsRepository.findFirstByHierarchyId(r.getRetailerId());
-                        Boolean isBlocked = optional.map(UserDetails::getIsBlocked).orElse(false); //  correct
-                        return new ChildUserDto(
-                                r.getRetailerId(), r.getParentAccount(), r.getAbbreviation(), r.getTitle(),
-                                r.getName(), r.getMobileNumber(), r.getEmailId(), r.getDob(), r.getStatus(), isBlocked
-                        );
-                    }).collect(Collectors.toList());
+                    .map(r -> new ChildUserDto(
+                            r.getRetailerId(), r.getParentAccount(), r.getAbbreviation(), r.getTitle(),
+                            r.getName(), r.getMobileNumber(), r.getEmailId(), r.getDob(), r.getStatus(),
+                            userDetailsRepository.findFirstByHierarchyId(r.getRetailerId()).map(UserDetails::getIsBlocked).orElse(false)
+                    )).toList();
 
-            default -> throw new RuntimeException("Invalid entity name: " + childEntity);
+            default -> throw new RuntimeException("Invalid child entity type: " + childEntity);
         };
+
+        // Step 2: Apply filters
+        List<ChildUserDto> filtered = approvedUsers.stream()
+                .filter(u -> parentAccount == null || (u.getParentAccount() != null && u.getParentAccount().toLowerCase().contains(parentAccount.toLowerCase())))
+                .filter(u -> abbreviation == null || (u.getAbbreviation() != null && u.getAbbreviation().toLowerCase().contains(abbreviation.toLowerCase())))
+                .filter(u -> title == null || (u.getTitle() != null && u.getTitle().toLowerCase().contains(title.toLowerCase())))
+                .filter(u -> name == null || (u.getName() != null && u.getName().toLowerCase().contains(name.toLowerCase())))
+                .filter(u -> mobileNumber == null || (u.getMobileNumber() != null && u.getMobileNumber().contains(mobileNumber)))
+                .filter(u -> emailId == null || (u.getEmailId() != null && u.getEmailId().toLowerCase().contains(emailId.toLowerCase())))
+                .filter(u -> status == null || (u.getStatus() != null && u.getStatus().toLowerCase().contains(status.toLowerCase())))
+                .filter(u -> dob == null || (u.getDob() != null && u.getDob().toString().equals(dob)))
+                .filter(u -> isBlocked == null || (u.getIsBlocked() != null && u.getIsBlocked().equals(isBlocked)))
+                .collect(Collectors.toList());
+
+        // Step 3: Pagination
+        Pageable pageable = PageRequest.of(page, size);
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), filtered.size());
+
+        List<ChildUserDto> paginated = (start >= filtered.size()) ? Collections.emptyList() : filtered.subList(start, end);
+
+        return new PageImpl<>(paginated, pageable, filtered.size());
     }
+
+
 
     private static final Map<String, String> hierarchyChildren = Map.of(
             "SA", "admin",
