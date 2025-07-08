@@ -1,6 +1,7 @@
 package com.im.admin.repositories;
 
 import com.im.admin.entities.Retailer;
+import com.im.admin.entities.SuperAdmin;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,6 +16,10 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
     List<Retailer> findByStatus(String status);
 
     List<Retailer> findByParentAccountContaining(String parentType);
+
+    List<Retailer> findByStatusIgnoreCase(String status);
+
+
 
     //boolean existsByAbbreviation(String abbrivation);
 
