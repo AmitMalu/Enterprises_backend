@@ -1,8 +1,8 @@
 package com.im.admin.controller.report;
 
 
-import com.im.admin.request.CommissionTransactionReportRequest;
-import com.im.admin.response.CommissionTransactionReportResponse;
+import com.im.admin.request.reports.CommissionTransactionReportRequest;
+import com.im.admin.response.reports.CommissionTransactionReportResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.CommissionChargeTransactionReportService;
 import lombok.extern.slf4j.Slf4j;

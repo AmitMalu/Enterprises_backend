@@ -7,11 +7,11 @@ import com.im.admin.dto.LoginRequestDto;
 import com.im.admin.entities.ImSubRole;
 import com.im.admin.entities.SchemeAllocation;
 import com.im.admin.entities.UserDetails;
-import com.im.admin.repositories.ImSubRoleRepository;
-import com.im.admin.repositories.SchemeAllocationRepository;
-import com.im.admin.repositories.UserDetailsRepository;
+import com.im.admin.entities.WhiteLabels;
+import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AuthService;
+import com.im.admin.util.CommonMethods;
 import com.im.admin.util.JwtUtil;
 import com.im.admin.util.OtpUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +55,15 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    @Autowired
+    private CommonMethods commonMethods;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelRepository;
+
+    @Autowired
+    private AdminRepository adminRepository;
+
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
@@ -87,6 +96,18 @@ public class AuthController {
         }
 
         UserDetails user = optionalUser.get();
+
+//        if (!isUrlValidForUserHierarchy(user.getHierarchyId(), loginRequestDto.getUrl())) {
+//            CommonResponse<?> response = new CommonResponse<>(401, "Invalid login domain for this user", null);
+//            try {
+//                responseJson = objectMapper.writeValueAsString(response);
+//                commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//            return ResponseEntity.ok(response);
+//        }
+
 
         if (isUserLocked(user)) {
             CommonResponse<?> response = new CommonResponse<>(403, "Account is locked due to multiple failed attempts. Try again later.", null);
@@ -199,6 +220,39 @@ public class AuthController {
             return ResponseEntity.ok(response);
         }
     }
+
+    public boolean isUrlValidForUserHierarchy(String hierarchyId, String requestUrl) {
+        String currentId = hierarchyId;
+
+        while (true) {
+            Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
+            if (parentOpt.isEmpty()) break;
+
+            String parentId = parentOpt.get();
+            String parentType = commonMethods.extractHierarchyType(parentId);
+
+            if ("WL".equals(parentType)) {
+                Optional<WhiteLabels> wlOpt = whiteLabelRepository.findById(parentId);
+                if (wlOpt.isPresent()) {
+                    WhiteLabels wl = wlOpt.get();
+                    if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+                        String expectedUrl = wl.getDomainURL();
+                        return requestUrl.contains(expectedUrl);
+                    }
+                }
+            }
+
+            if ("IM".equals(parentType) || "AD".equals(parentType)) {
+                // For IM/Admin, expect URL to contain "www.im.com"
+                return requestUrl.contains("www.im.com");
+            }
+
+            currentId = parentId;
+        }
+
+        return false;
+    }
+
 
     private boolean isUserLocked(UserDetails user) {
         if (user.getLockTime() == null) return false;
