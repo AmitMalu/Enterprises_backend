@@ -23,10 +23,13 @@ public class SchemeAllocationController {
     @Autowired
     private SchemeAllocationService allocationService;
 
-    @PostMapping
-    public ResponseEntity<CommonResponse<List<SchemeAllocation>>> allocateSchemes(@RequestBody SchemeAllocationRequestDto request) {
-        CommonResponse<List<SchemeAllocation>> response = allocationService.allocateSchemes(request);
-        return ResponseEntity.status(response.getStatusCode()).body(response);
+    @PostMapping("/assign-or-update")
+    public ResponseEntity<CommonResponse<List<SchemeAllocation>>> assignOrUpdateSchemes(
+            @RequestBody SchemeAllocationRequestDto request) {
+
+        List<SchemeAllocation> updatedSchemes = allocationService.assignOrUpdateSchemes(request);
+
+        return ResponseEntity.ok(CommonResponse.success(updatedSchemes, "Scheme allocation processed successfully"));
     }
 
     @PostMapping("/save")
