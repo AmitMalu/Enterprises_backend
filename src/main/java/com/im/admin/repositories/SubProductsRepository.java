@@ -24,6 +24,9 @@ public interface SubProductsRepository extends JpaRepository<SubProducts, String
 
     Optional<SubProducts> findBySubProductTitle(String subProductTitle);
 
+    List<SubProducts> findByIsActiveTrue();
+
+
 }
 
 

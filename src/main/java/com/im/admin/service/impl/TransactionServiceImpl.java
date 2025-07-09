@@ -1293,8 +1293,8 @@ public class TransactionServiceImpl implements TransactionService {
         return allocations.stream()
                 .filter(allocation ->
                         allocation.getHierarchyId().equalsIgnoreCase(request.getHierarchyId()) &&
-                                allocation.getSubProductCode().equalsIgnoreCase(request.getSubProductCode()) &&
-                                allocation.getOperatorCode().equalsIgnoreCase(request.getOperatorCode())
+                                allocation.getSubProductCode().equalsIgnoreCase(request.getSubProductCode()) //&&
+//                                allocation.getOperatorCode().equalsIgnoreCase(request.getOperatorCode())
                 )
                 .findFirst()
                 .map(SchemeAllocation::getSchemeCode)

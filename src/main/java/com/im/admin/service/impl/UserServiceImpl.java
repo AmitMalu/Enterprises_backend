@@ -3,14 +3,19 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.StatusWiseUserFullDto;
 import com.im.admin.entities.UserDetails;
 import com.im.admin.repositories.*;
+import com.im.admin.response.PaginatedResponse;
+import com.im.admin.response.UserSearchResponseDto;
 import com.im.admin.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -186,5 +191,23 @@ public class UserServiceImpl implements UserService {
 
         return result;
     }
+
+
+    @Override
+    public Page<UserSearchResponseDto> searchActiveRetailers(String keyword, Pageable pageable) {
+        Page<UserDetails> page = userDetailsRepository.searchActiveUsersByHierarchyId(keyword, pageable);
+
+        return page.map(u -> {
+            UserSearchResponseDto dto = new UserSearchResponseDto();
+            dto.setMobileNumber(u.getMobileNumber());
+            dto.setHierarchyId(u.getHierarchyId());
+            dto.setHierarchyCode(u.getHierarchyCode());
+            dto.setCreatedDate(u.getCreatedDate());
+            dto.setLastLoginDate(u.getLastLoginDate());
+            dto.setEmailId(u.getEmailId());
+            return dto;
+        });
+    }
+
 
 }
