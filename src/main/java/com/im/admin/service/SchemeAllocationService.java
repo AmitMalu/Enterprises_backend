@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface SchemeAllocationService {
 
-    CommonResponse<List<SchemeAllocation>> allocateSchemes(SchemeAllocationRequestDto request);
+    List<SchemeAllocation> assignOrUpdateSchemes(SchemeAllocationRequestDto request);
 
     CommonResponse<String> saveSchemeAllocation(SchemeAllocationRequest request);
 

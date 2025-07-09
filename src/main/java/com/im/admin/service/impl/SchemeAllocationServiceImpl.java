@@ -6,6 +6,7 @@ import com.im.admin.dto.SchemeAllocationRequestDto;
 import com.im.admin.entities.Scheme;
 import com.im.admin.entities.SchemeAllocation;
 import com.im.admin.entities.SubProducts;
+import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.SchemeAllocationRepository;
 import com.im.admin.repositories.SchemeRepository;
 import com.im.admin.repositories.SubProductsRepository;
@@ -22,8 +23,10 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigInteger;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -44,45 +47,42 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
 
 
     @Override
-    public CommonResponse<List<SchemeAllocation>> allocateSchemes(SchemeAllocationRequestDto request) {
-        List<SchemeAllocation> schemeEntities = new ArrayList<>();
+    @Transactional
+    public List<SchemeAllocation> assignOrUpdateSchemes(SchemeAllocationRequestDto request) {
+        List<SchemeAllocation> result = new ArrayList<>();
 
-        for (SchemeAllocationDto scheme : request.getCodes()) {
-            boolean exists = schemeAllocationRepository.existsByHierarchyIdAndProductCodeAndSubProductCode(
-                    request.getHierarchyId(),
-                    scheme.getProductCode(),
-                    scheme.getSubProductCode()
-//                    scheme.getOperatorCode()
-            );
+        for (SchemeAllocationDto dto : request.getCodes()) {
+            // 1. Find product by subproduct
+            SubProducts subProduct = subProductsRepository.findBySubProductCode(dto.getSubProductCode())
+                    .orElseThrow(() -> new ResourceNotFoundException("SubProduct not found: " + dto.getSubProductCode()));
 
-            if (exists) {
-                return new CommonResponse<>(
-                        400,
-                        "Scheme already allocated for hierarchy: " + request.getHierarchyId() +
-                                ", product: " + scheme.getProductCode() +
-                                ", subProduct: " + scheme.getSubProductCode() +
-                                ", operator: " + scheme.getOperatorCode(),
-                        null
-                );
+            String productCode = subProduct.getProductCode();
+
+            // 2. Check if record already exists
+            Optional<SchemeAllocation> existing = schemeAllocationRepository
+                    .findByHierarchyIdAndProductCodeAndSubProductCode(
+                            request.getHierarchyId(), productCode, dto.getSubProductCode()
+                    );
+
+            SchemeAllocation allocation;
+            if (existing.isPresent()) {
+                // Update
+                allocation = existing.get();
+                allocation.setSchemeCode(dto.getSchemeCode());
+            } else {
+                // Insert
+                allocation = new SchemeAllocation();
+                allocation.setHierarchyId(request.getHierarchyId());
+                allocation.setProductCode(productCode);
+                allocation.setSubProductCode(dto.getSubProductCode());
+                allocation.setSchemeCode(dto.getSchemeCode());
             }
 
-            SchemeAllocation entity = new SchemeAllocation();
-            entity.setHierarchyId(request.getHierarchyId());
-            entity.setProductCode(scheme.getProductCode());
-            entity.setSubProductCode(scheme.getSubProductCode());
-            entity.setSchemeCode(scheme.getSchemeCode());
-            //entity.setOperatorCode(scheme.getOperatorCode());
-
-            schemeEntities.add(entity);
+            result.add(allocation);
         }
 
-        schemeAllocationRepository.saveAll(schemeEntities);
-
-        return new CommonResponse<>(
-                200,
-                "Schemes allocated successfully for " + request.getHierarchyId(),
-                schemeEntities
-        );
+        // Save all at once (JPA handles insert/update automatically)
+        return schemeAllocationRepository.saveAll(result);
     }
 
     @Override
