@@ -31,9 +31,5 @@ public class SchemeAllocation {
     @Column(name = "scheme_code", nullable = false)
     private String schemeCode;
 
-    //@NotBlank(message = "Operator code is required")
-    @Column(name = "operator_code")//, nullable = false)
-    private String operatorCode;
-
 }
 

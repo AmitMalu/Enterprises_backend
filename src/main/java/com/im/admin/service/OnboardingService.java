@@ -1,11 +1,11 @@
 package com.im.admin.service;
 
 import com.im.admin.dto.OnboardingHierarchyRequestDto;
-import com.im.admin.dto.PendingStatusResponseDto;
+import com.im.admin.response.GenericPendingResponseDto;
 
 public interface OnboardingService {
 
-    PendingStatusResponseDto getAllRecordsByStatus(String status);
+    GenericPendingResponseDto getAllRecordsByStatus(String status);
 
     String approveOrRejectHierarchy(OnboardingHierarchyRequestDto hierarchyRequestDto);
 }

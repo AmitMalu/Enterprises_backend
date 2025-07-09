@@ -26,7 +26,7 @@ public class CommissionChargeTransactionReportController {
     @Autowired
     private CommissionChargeTransactionReportService commissionChargeTransactionReportService;
 
-    @PostMapping("/show-records")
+    @PostMapping("/view")
     public ResponseEntity<CommonResponse<Page<CommissionTransactionReportResponse>>> getReport(
             @RequestBody CommissionTransactionReportRequest request) {
 

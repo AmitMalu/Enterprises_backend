@@ -1,11 +1,13 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.OnboardingHierarchyRequestDto;
-import com.im.admin.dto.PendingStatusResponseDto;
+import com.im.admin.dto.GenericPendingRecordDto;
 import com.im.admin.entities.*;
 import com.im.admin.exception.NoPendingRecordsFoundException;
 import com.im.admin.repositories.*;
+import com.im.admin.response.GenericPendingResponseDto;
 import com.im.admin.service.OnboardingService;
+import com.im.admin.service.asyncMethods.AsyncPendingFetcher;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.PasswordGeneratorUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -14,8 +16,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
@@ -51,42 +56,41 @@ public class OnboardingServiceImpl implements OnboardingService {
     @Autowired
     private CommonMethods commonMethods;
 
+    @Autowired
+    private AsyncPendingFetcher asyncPendingFetcher;
+
     @Override
-    @Transactional
-    public PendingStatusResponseDto getAllRecordsByStatus(String status) {
-        PendingStatusResponseDto response = new PendingStatusResponseDto();
+    @Transactional(readOnly = true)
+    public GenericPendingResponseDto getAllRecordsByStatus(String status) {
 
-        List<Retailer> retailers = retailerRepository.findByStatus(status);
-        List<Distributor> distributors = distributorRepository.findByStatus(status);
-        List<Partner> partners = partnerRepository.findByStatus(status);
-        List<SuperDistributor> superDistributors = superDistributorRepository.findByStatus(status);
-        List<WhiteLabels> whiteLabels = whiteLabelsRepository.findByStatus(status);
-        List<Enterprises> enterprises = enterprisesRepository.findByStatus(status);
-        List<Admin> admins = adminRepository.findByStatus(status);
+        CompletableFuture<List<Retailer>> retailersFuture = asyncPendingFetcher.fetchRetailers(status);
+        CompletableFuture<List<Distributor>> distributorsFuture = asyncPendingFetcher.fetchDistributors(status);
+        CompletableFuture<List<Partner>> partnersFuture = asyncPendingFetcher.fetchPartners(status);
+        CompletableFuture<List<SuperDistributor>> superDistributorsFuture = asyncPendingFetcher.fetchSuperDistributors(status);
+        CompletableFuture<List<WhiteLabels>> whiteLabelsFuture = asyncPendingFetcher.fetchWhiteLabels(status);
+        CompletableFuture<List<Enterprises>> enterprisesFuture = asyncPendingFetcher.fetchEnterprises(status);
+        CompletableFuture<List<Admin>> adminsFuture = asyncPendingFetcher.fetchAdmins(status);
 
-        boolean hasAnyData =
-                !retailers.isEmpty() ||
-                        !distributors.isEmpty() ||
-                        !partners.isEmpty() ||
-                        !superDistributors.isEmpty() ||
-                        !whiteLabels.isEmpty() ||
-                        !enterprises.isEmpty() ||
-                        !admins.isEmpty();
+        // Wait for all to complete
+        CompletableFuture.allOf(retailersFuture, distributorsFuture, partnersFuture, superDistributorsFuture,
+                whiteLabelsFuture, enterprisesFuture, adminsFuture).join();
 
-        if (!hasAnyData) {
+        List<GenericPendingRecordDto> records = new ArrayList<>();
+        records.addAll(retailersFuture.join().stream().map(PendingRecordMapper::fromRetailer).toList());
+        records.addAll(distributorsFuture.join().stream().map(PendingRecordMapper::fromDistributor).toList());
+        records.addAll(partnersFuture.join().stream().map(PendingRecordMapper::fromPartner).toList());
+        records.addAll(superDistributorsFuture.join().stream().map(PendingRecordMapper::fromSuperDistributor).toList());
+        records.addAll(whiteLabelsFuture.join().stream().map(PendingRecordMapper::fromWhiteLabel).toList());
+        records.addAll(enterprisesFuture.join().stream().map(PendingRecordMapper::fromEnterprise).toList());
+        records.addAll(adminsFuture.join().stream().map(PendingRecordMapper::fromAdmin).toList());
+
+        if (records.isEmpty()) {
             throw new NoPendingRecordsFoundException("No pending records found in any hierarchy.");
         }
 
-        response.setRetailers(retailers);
-        response.setDistributors(distributors);
-        response.setPartners(partners);
-        response.setSuperDistributors(superDistributors);
-        response.setWhiteLabels(whiteLabels);
-        response.setEnterprises(enterprises);
-        response.setAdmins(admins);
-
-        return response;
+        return new GenericPendingResponseDto(records);
     }
+
 
 
     @Override
@@ -230,5 +234,48 @@ public class OnboardingServiceImpl implements OnboardingService {
         // For testing: return plain password (REMOVE THIS IN PRODUCTION!)
         return randomPassword;
     }
+
+    public class PendingRecordMapper {
+
+        public static GenericPendingRecordDto fromRetailer(Retailer r) {
+            return new GenericPendingRecordDto("RETAILER", r.getRetailerId(), r.getName(), r.getStatus(),
+                    r.getCreatedBy(), toStringOrNull(r.getCreatedOn()), r.getMobileNumber(), r.getEmailId(), r.getParentAccount());
+        }
+
+        public static GenericPendingRecordDto fromDistributor(Distributor d) {
+            return new GenericPendingRecordDto("DISTRIBUTOR", d.getDistributorId(), d.getName(), d.getStatus(),
+                    d.getCreatedBy(), toStringOrNull(d.getCreatedOn()), d.getMobileNumber(), d.getEmailId(), d.getParentAccount());
+        }
+
+        public static GenericPendingRecordDto fromPartner(Partner p) {
+            return new GenericPendingRecordDto("PARTNER", p.getPartnerId(), p.getName(), p.getStatus(),
+                    p.getCreatedBy(), toStringOrNull(p.getCreatedOn()), p.getMobileNumber(), p.getEmailId(), p.getParentAccount());
+        }
+
+        public static GenericPendingRecordDto fromSuperDistributor(SuperDistributor s) {
+            return new GenericPendingRecordDto("SUPER_DISTRIBUTOR", s.getSuperDistributorId(), s.getName(), s.getStatus(),
+                    s.getCreatedBy(), toStringOrNull(s.getCreatedOn()), s.getMobileNumber(), s.getEmailId(), s.getParentAccount());
+        }
+
+        public static GenericPendingRecordDto fromWhiteLabel(WhiteLabels w) {
+            return new GenericPendingRecordDto("WHITE_LABEL", w.getWhiteLabelId(), w.getName(), w.getStatus(),
+                    w.getCreatedBy(), toStringOrNull(w.getCreatedOn()), w.getMobileNumber(), w.getEmailId(), w.getParentAccount());
+        }
+
+        public static GenericPendingRecordDto fromEnterprise(Enterprises e) {
+            return new GenericPendingRecordDto("ENTERPRISE", e.getEnterpriseId(), e.getName(), e.getStatus(),
+                    e.getCreatedBy(), toStringOrNull(e.getCreatedOn()), e.getMobileNumber(), e.getEmailId(), e.getParentAccount());
+        }
+
+        public static GenericPendingRecordDto fromAdmin(Admin a) {
+            return new GenericPendingRecordDto("ADMIN", a.getId(), a.getName(), a.getStatus(),
+                    a.getCreatedBy(), toStringOrNull(a.getCreatedOn()), a.getMobileNumber(), a.getEmailId(), null);
+        }
+
+        private static String toStringOrNull(LocalDateTime dt) {
+            return dt != null ? dt.toString() : null;
+        }
+    }
+
 
 }
