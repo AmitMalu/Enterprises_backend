@@ -5,16 +5,20 @@ import com.im.admin.dto.RaiseTicketRequestDto;
 import com.im.admin.dto.UpdateTicketStatusDto;
 import com.im.admin.entities.Ticket;
 import com.im.admin.entities.TicketComment;
+import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.TicketCommentRepository;
 import com.im.admin.repositories.TicketRepository;
 import com.im.admin.service.TicketService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.ImageHandlerUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -34,38 +38,38 @@ public class TicketServiceImpl implements TicketService {
     @PersistenceContext
     private EntityManager entityManager;
 
+    @Autowired
+    private ImageHandlerUtil imageHandlerUtil;
+
 
     @Override
-    public Object getTransactionDetails(String transactionId, String hierarchyId, String walletType) {
+    public Object getTransactionDetails(String transactionId, String hierarchyId) {
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
-        String tableName = commonMethods.getTransactionTable(hierarchyType, walletType);
+        String entityName = commonMethods.getEntityName(hierarchyType); // e.g., "retailer"
 
-        String sql = "SELECT * FROM " + tableName + " WHERE transaction_id = :transactionId";
+        WalletType[] walletTypes = {WalletType.PREPAID, WalletType.POSTPAID};
 
-        try {
-            Query query = entityManager.createNativeQuery(sql, Map.class);
-            query.setParameter("transactionId", transactionId);
-            return query.getSingleResult();
-        } catch (NoResultException e) {
-            throw new RuntimeException("No record found for transactionId: " + transactionId);
+
+        for (WalletType walletType : walletTypes) {
+            String tableName = entityName + "_" + walletType.name().toLowerCase() + "_transaction_details";
+            String sql = "SELECT * FROM " + tableName + " WHERE transaction_id = :transactionId";
+
+            try {
+                Query query = entityManager.createNativeQuery(sql, Map.class);
+                query.setParameter("transactionId", transactionId);
+                Object result = query.getSingleResult();
+
+                System.out.println("Found in table: " + tableName); // Optional logging
+                return result;
+            } catch (NoResultException e) {
+                // No result, try next table
+            }
         }
+
+        // If no record found in either table
+        throw new RuntimeException("No record found for transactionId: " + transactionId);
     }
 
-    @Override
-    public void saveTicket(RaiseTicketRequestDto request) {
-
-        Ticket ticket = new Ticket();
-        ticket.setTransactionId(request.getTransactionId());
-        ticket.setIssueType(request.getIssueType());
-        ticket.setDescription(request.getDescription());
-        ticket.setEmail(request.getEmail());
-        ticket.setMobileNumber(request.getMobileNumber());
-        ticket.setSubProductName(request.getSubProductName());
-        ticket.setStatus("PENDING");
-
-        ticketRepository.save(ticket);
-
-    }
 
     @Override
     public void addComment(AddTicketCommentDto dto) {
@@ -110,6 +114,31 @@ public class TicketServiceImpl implements TicketService {
         return ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
     }
+
+    @Override
+    public Ticket saveTicket(RaiseTicketRequestDto request, MultipartFile screenshotImage) {
+        Ticket ticket = new Ticket();
+        ticket.setTransactionId(request.getTransactionId());
+        ticket.setIssueType(request.getIssueType());
+        ticket.setDescription(request.getDescription());
+        ticket.setEmail(request.getEmail());
+        ticket.setMobileNumber(request.getMobileNumber());
+        ticket.setSubProductName(request.getSubProductName());
+        ticket.setStatus("PENDING");
+
+        // Handle exception here
+        try {
+            String folder = "Ticket";
+            imageHandlerUtil.handleImageUpload(screenshotImage, "Screenshot Image", folder, ticket::setScreenshotImage);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to upload screenshot image", e);
+        }
+
+        Ticket saveTicket = ticketRepository.save(ticket);
+        return saveTicket;
+    }
+
+
 
 }
 

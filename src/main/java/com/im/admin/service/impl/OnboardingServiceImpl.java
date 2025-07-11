@@ -12,11 +12,17 @@ import com.im.admin.util.CommonMethods;
 import com.im.admin.util.PasswordGeneratorUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -61,7 +67,7 @@ public class OnboardingServiceImpl implements OnboardingService {
 
     @Override
     @Transactional(readOnly = true)
-    public GenericPendingResponseDto getAllRecordsByStatus(String status) {
+    public Page<GenericPendingRecordDto> getAllRecordsByStatus(String status, int page, int size) {
 
         CompletableFuture<List<Retailer>> retailersFuture = asyncPendingFetcher.fetchRetailers(status);
         CompletableFuture<List<Distributor>> distributorsFuture = asyncPendingFetcher.fetchDistributors(status);
@@ -69,11 +75,10 @@ public class OnboardingServiceImpl implements OnboardingService {
         CompletableFuture<List<SuperDistributor>> superDistributorsFuture = asyncPendingFetcher.fetchSuperDistributors(status);
         CompletableFuture<List<WhiteLabels>> whiteLabelsFuture = asyncPendingFetcher.fetchWhiteLabels(status);
         CompletableFuture<List<Enterprises>> enterprisesFuture = asyncPendingFetcher.fetchEnterprises(status);
-        CompletableFuture<List<Admin>> adminsFuture = asyncPendingFetcher.fetchAdmins(status);
+//        CompletableFuture<List<Admin>> adminsFuture = asyncPendingFetcher.fetchAdmins(status);
 
-        // Wait for all to complete
         CompletableFuture.allOf(retailersFuture, distributorsFuture, partnersFuture, superDistributorsFuture,
-                whiteLabelsFuture, enterprisesFuture, adminsFuture).join();
+                whiteLabelsFuture, enterprisesFuture).join();
 
         List<GenericPendingRecordDto> records = new ArrayList<>();
         records.addAll(retailersFuture.join().stream().map(PendingRecordMapper::fromRetailer).toList());
@@ -82,14 +87,21 @@ public class OnboardingServiceImpl implements OnboardingService {
         records.addAll(superDistributorsFuture.join().stream().map(PendingRecordMapper::fromSuperDistributor).toList());
         records.addAll(whiteLabelsFuture.join().stream().map(PendingRecordMapper::fromWhiteLabel).toList());
         records.addAll(enterprisesFuture.join().stream().map(PendingRecordMapper::fromEnterprise).toList());
-        records.addAll(adminsFuture.join().stream().map(PendingRecordMapper::fromAdmin).toList());
+//        records.addAll(adminsFuture.join().stream().map(PendingRecordMapper::fromAdmin).toList());
 
         if (records.isEmpty()) {
-            throw new NoPendingRecordsFoundException("No pending records found in any hierarchy.");
+            throw new NoPendingRecordsFoundException("No " + status + " records found in any hierarchy.");
         }
 
-        return new GenericPendingResponseDto(records);
+        // Pagination
+        Pageable pageable = PageRequest.of(page, size);
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), records.size());
+        List<GenericPendingRecordDto> paginatedList = records.subList(start, end);
+
+        return new PageImpl<>(paginatedList, pageable, records.size());
     }
+
 
 
 
@@ -225,6 +237,8 @@ public class OnboardingServiceImpl implements OnboardingService {
         user.setUserStatus("Active");
         user.setCreatedBy("ADMIN");
         user.setEditedBy("ADMIN");
+        user.setEditedDate(LocalDate.now());
+        user.setEditedTime(LocalTime.now());
         userDetailsRepository.save(user);
 
         log.info("User created for hierarchy: " + hierarchyType + ", mobile: " + mobileNo);
@@ -276,6 +290,52 @@ public class OnboardingServiceImpl implements OnboardingService {
             return dt != null ? dt.toString() : null;
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public GenericPendingRecordDto getRecordById(String id) {
+        // Try each repository one by one
+        Optional<Retailer> retailer = retailerRepository.findById(id);
+        if (retailer.isPresent()) {
+            return PendingRecordMapper.fromRetailer(retailer.get());
+        }
+
+        Optional<Distributor> distributor = distributorRepository.findById(id);
+        if (distributor.isPresent()) {
+            return PendingRecordMapper.fromDistributor(distributor.get());
+        }
+
+        Optional<Partner> partner = partnerRepository.findById(id);
+        if (partner.isPresent()) {
+            return PendingRecordMapper.fromPartner(partner.get());
+        }
+
+        Optional<SuperDistributor> sd = superDistributorRepository.findById(id);
+        if (sd.isPresent()) {
+            return PendingRecordMapper.fromSuperDistributor(sd.get());
+        }
+
+        Optional<WhiteLabels> wl = whiteLabelsRepository.findById(id);
+        if (wl.isPresent()) {
+            return PendingRecordMapper.fromWhiteLabel(wl.get());
+        }
+
+        Optional<Enterprises> ent = enterprisesRepository.findById(id);
+        if (ent.isPresent()) {
+            return PendingRecordMapper.fromEnterprise(ent.get());
+        }
+
+        Optional<Admin> admin = adminRepository.findById(id);
+        if (admin.isPresent()) {
+            return PendingRecordMapper.fromAdmin(admin.get());
+        }
+
+        // If not found in any
+        throw new RuntimeException("No record found for ID: " + id);
+    }
+
+
+
 
 
 }

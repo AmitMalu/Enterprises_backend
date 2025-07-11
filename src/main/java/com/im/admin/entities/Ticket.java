@@ -41,10 +41,14 @@ public class Ticket {
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "screenshot_image")
+    private String screenshotImage;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL)
     private List<TicketComment> comments = new ArrayList<>();
+
 
 }
