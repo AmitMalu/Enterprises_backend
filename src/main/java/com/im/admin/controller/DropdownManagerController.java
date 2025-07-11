@@ -31,11 +31,13 @@ public class DropdownManagerController {
             @RequestParam(required = false) String emailId,
             @RequestParam(required = false) String dob,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) Boolean isBlocked
+            @RequestParam(required = false) Boolean isBlocked,
+            @RequestParam(required = false) String network,
+            @RequestParam(required = false) String createdOn
     ) {
         Page<ChildUserDto> result = dropdownManagerService.getChildUsers(
                 hierarchyId, page, size, userId, parentAccount, abbreviation, title,
-                name, mobileNumber, emailId, dob, status, isBlocked
+                name, mobileNumber, emailId, dob, status, isBlocked, network, createdOn
         );
 
         boolean filtersApplied = userId != null || parentAccount != null || abbreviation != null ||
