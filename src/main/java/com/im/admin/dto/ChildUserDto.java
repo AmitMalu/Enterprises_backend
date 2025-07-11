@@ -5,11 +5,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
 public class ChildUserDto {
 
+    private String network;         //RETAILER, PARTNER, SUPER DISTRIBUTOR etc
     private String userId;         // example: partnerId / retailerId
     private String parentAccount;
     private String abbreviation;
@@ -20,6 +22,7 @@ public class ChildUserDto {
     private LocalDate dob;
     private String status;
     private Boolean isBlocked;
+    private LocalDateTime createdOn;
 }
 
 

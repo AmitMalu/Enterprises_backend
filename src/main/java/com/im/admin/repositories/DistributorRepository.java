@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface DistributorRepository extends JpaRepository<Distributor, String> {
@@ -18,6 +19,9 @@ public interface DistributorRepository extends JpaRepository<Distributor, String
     List<Distributor> findByStatusIgnoreCase(String status);
 
     //boolean existsByAbbreviation(String abbreviation);
+
+    Optional<Distributor> findByDistributorId(String distributorId);
+
 
 }
 
