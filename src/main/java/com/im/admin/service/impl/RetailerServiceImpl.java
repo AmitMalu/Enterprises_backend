@@ -4,11 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.dto.RetailerDTO;
-import com.im.admin.entities.Distributor;
-import com.im.admin.entities.Retailer;
-import com.im.admin.entities.RetailerPostpaidAmount;
-import com.im.admin.entities.RetailerPrepaidAmount;
+import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.repositories.RetailerGullakAmountRepository;
 import com.im.admin.repositories.RetailerPostpaidAmountRepository;
 import com.im.admin.repositories.RetailerPrepaidAmountRepository;
 import com.im.admin.repositories.RetailerRepository;
@@ -41,6 +39,9 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Autowired
     private RetailerPostpaidAmountRepository postpaidAmountRepository;
+
+    @Autowired
+    private RetailerGullakAmountRepository gullakAmountRepository;
 
     @Autowired
     private IdGenerator idGenerator;
@@ -143,6 +144,11 @@ public class RetailerServiceImpl implements RetailerService {
         postpaidAmount.setRetailerId(savedRetailer);
         postpaidAmountRepository.save(postpaidAmount);
         log.info("Postpaid amount record created for Retailer ID: {}", savedRetailer.getRetailerId());
+
+        RetailerGullakAmount gullakAmount = new RetailerGullakAmount();
+        gullakAmount.setRetailerId(savedRetailer);
+        gullakAmountRepository.save(gullakAmount);
+        log.info("Gullak amount record created for Retailer ID: {}", savedRetailer.getRetailerId());
 
         LocalDateTime ResponseDateTime = LocalDateTime.now();
         String retailerRequest  = objectMapper.writeValueAsString(retailer);
