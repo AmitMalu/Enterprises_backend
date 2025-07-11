@@ -5,12 +5,22 @@ import com.im.admin.entities.Ticket;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.TicketService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/ticket")
 public class TicketController {
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
 
     @Autowired
     private TicketService ticketService;
@@ -19,17 +29,24 @@ public class TicketController {
     public ResponseEntity<?> getTransactionDetails(@RequestBody TransactionRequestDto requestDto) {
         Object result = ticketService.getTransactionDetails(
                 requestDto.getTransactionId(),
-                requestDto.getHierarchyId(),
-                requestDto.getWalletType()
+                requestDto.getHierarchyId()
         );
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(new CommonResponse<>(200, "TransactionDetails fetch successfully.",result));
     }
 
-    @PostMapping("/raise-ticket")
-    public ResponseEntity<CustomResponseDTO> raiseTicket(@RequestBody RaiseTicketRequestDto request) {
-        ticketService.saveTicket(request);
-        return ResponseEntity.ok(new CustomResponseDTO(200, "Ticket raised successfully."));
+
+    @PostMapping(value = "/raise-ticket", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommonResponse> raiseTicket(
+            @RequestPart("data") String ticketJson,
+            @RequestPart("screenshotImage") MultipartFile screenshotImage) throws IOException {
+
+        RaiseTicketRequestDto request = objectMapper.readValue(ticketJson, RaiseTicketRequestDto.class);
+        Ticket ticket = ticketService.saveTicket(request, screenshotImage);
+        return ResponseEntity.ok(new CommonResponse<>(200, "Ticket raised successfully.",ticket));
+
+
     }
+
 
     @PostMapping("/comment")
     public ResponseEntity<CustomResponseDTO> addComment(@RequestBody AddTicketCommentDto dto) {
