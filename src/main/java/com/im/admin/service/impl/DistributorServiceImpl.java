@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.Distributor;
+import com.im.admin.entities.DistributorGullakAmount;
 import com.im.admin.entities.DistributorPostpaidAmount;
 import com.im.admin.entities.DistributorPrepaidAmount;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.repositories.DistributorGullakAmountRepository;
 import com.im.admin.repositories.DistributorPostpaidAmountRepository;
 import com.im.admin.repositories.DistributorPrepaidAmountRepository;
 import com.im.admin.repositories.DistributorRepository;
@@ -39,6 +41,9 @@ public class DistributorServiceImpl implements DistributorService {
 
     @Autowired
     private DistributorPostpaidAmountRepository postpaidAmountRepository;
+
+    @Autowired
+    private DistributorGullakAmountRepository gullakAmountRepository;
 
     @Autowired
     private IdGenerator idGenerator;
@@ -137,6 +142,9 @@ public class DistributorServiceImpl implements DistributorService {
         postpaid.setDistributorId(savedDistributor);
         postpaidAmountRepository.save(postpaid);
 
+        DistributorGullakAmount gullak = new DistributorGullakAmount();
+        gullak.setDistributorId(savedDistributor);
+        gullakAmountRepository.save(gullak);
 
         LocalDateTime ResponseDateTime = LocalDateTime.now();
         String DistributorRequest = objectMapper.writeValueAsString(distributor);
