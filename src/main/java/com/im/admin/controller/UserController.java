@@ -41,10 +41,10 @@ public class UserController {
     @GetMapping("/search-retailers")
     public ResponseEntity<CommonResponse<Page<UserSearchResponseDto>>> searchRetailers(
             @RequestParam String keyword,
-            @RequestParam(defaultValue = "0") int pageNumber,
-            @RequestParam(defaultValue = "10") int pageSize) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by("createdDate").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
 
         Page<UserSearchResponseDto> result = userService.searchActiveRetailers(keyword, pageable);
 

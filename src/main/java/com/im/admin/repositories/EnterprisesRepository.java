@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface EnterprisesRepository extends JpaRepository<Enterprises, String> {
@@ -18,6 +19,9 @@ public interface EnterprisesRepository extends JpaRepository<Enterprises, String
     List<Enterprises> findByParentAccountContaining(String parentType);
 
     List<Enterprises> findByStatusIgnoreCase(String status);
+
+    Optional<Enterprises> findByEnterpriseId(String enterpriseId);
+
 }
 
 

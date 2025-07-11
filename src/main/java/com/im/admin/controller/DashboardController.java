@@ -5,6 +5,7 @@ import com.im.admin.dto.DashboardResponseDto;
 import com.im.admin.dto.WalletBalanceResponseDto;
 import com.im.admin.entities.UserDetails;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.MyProfileResponseDto;
 import com.im.admin.service.DashboardService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,18 +31,15 @@ public class DashboardController {
     public ResponseEntity<CommonResponse> getWalletBalances(@PathVariable String hierarchyId) {
         log.info("Fetching wallet balances for hierarchyId: {}", hierarchyId);
         WalletBalanceResponseDto response = dashboardService.getWalletBalances(hierarchyId);
-        return ResponseEntity.ok(new CommonResponse(201, "Wallet Balnce", response));
+        return ResponseEntity.ok(new CommonResponse(201, "Wallet Balance", response));
     }
 
     @GetMapping("/profile/{hierarchyId}")
-    public ResponseEntity<CommonResponse> getUserProfile(@PathVariable String hierarchyId) {
+    public ResponseEntity<CommonResponse<MyProfileResponseDto>> getUserProfile(@PathVariable String hierarchyId) {
         log.info("Fetching profile for hierarchyId: {}", hierarchyId);
-        UserDetails userDetails = dashboardService.getUserProfile(hierarchyId);
-        return ResponseEntity.ok(new CommonResponse(200, "Profile fetched successfully", userDetails));
+        MyProfileResponseDto profile = dashboardService.getUserProfile(hierarchyId);
+        return ResponseEntity.ok(new CommonResponse<>(200, "Profile fetched successfully", profile));
     }
-
-
-
 
 
 }
