@@ -6,8 +6,5 @@ import lombok.Data;
 public class SchemeAllocationDto {
 
     private String schemeCode;
-    //private Long schemeId;
-    private String productCode;
     private String subProductCode;
-    private String operatorCode;
 }

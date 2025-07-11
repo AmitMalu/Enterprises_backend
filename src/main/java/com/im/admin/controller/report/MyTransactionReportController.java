@@ -25,7 +25,7 @@ public class MyTransactionReportController {
     @Autowired
     private MyTransactionReportService myTransactionReportService;
 
-    @PostMapping("/show-records")
+    @PostMapping("/view")
     public ResponseEntity<CommonResponse<Page<MyTransactionReportResponse>>> getReport(
             @RequestBody MyTransactionReportRequest request) {
 

@@ -2,7 +2,11 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.UserDetails;
 import com.im.admin.entities.UserDetailsId;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,4 +22,7 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
     Optional<UserDetails> findFirstByHierarchyId(String hierarchyId);
 
     List<UserDetails> findByHierarchyId(String hierarchyId);
+
+    @Query("SELECT u FROM UserDetails u WHERE u.userStatus = 'Active' AND u.hierarchyId LIKE %:keyword%")
+    Page<UserDetails> searchActiveUsersByHierarchyId(@Param("keyword") String keyword, Pageable pageable);
 }

@@ -1,7 +1,9 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.OnboardingHierarchyRequestDto;
-import com.im.admin.dto.PendingStatusResponseDto;
+import com.im.admin.dto.GenericPendingRecordDto;
+import com.im.admin.response.CommonResponse;
+import com.im.admin.response.GenericPendingResponseDto;
 import com.im.admin.service.OnboardingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,11 +19,11 @@ public class OnboardingHierarchyController {
     private OnboardingService onboardingService;
 
     @PostMapping("/getAll-records")
-    public ResponseEntity<PendingStatusResponseDto> getAllRecordsByStatus(@RequestParam("status") String status) {
-
-       PendingStatusResponseDto response = onboardingService.getAllRecordsByStatus(status);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<CommonResponse<GenericPendingResponseDto>> getAllRecordsByStatus(@RequestParam("status") String status) {
+        GenericPendingResponseDto response = onboardingService.getAllRecordsByStatus(status);
+        return ResponseEntity.ok(CommonResponse.success(response, "Pending records fetched successfully"));
     }
+
 
     @PostMapping("/approve-or-reject")
     public ResponseEntity<String> onboardHierarchy(@RequestBody OnboardingHierarchyRequestDto hierarchyRequestDto) {

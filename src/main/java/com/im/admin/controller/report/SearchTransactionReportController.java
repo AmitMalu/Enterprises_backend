@@ -28,7 +28,7 @@ public class SearchTransactionReportController {
     @Autowired
     private CommonMethods commonMethods;
 
-    @GetMapping("/show-records")
+    @GetMapping("/view")
     public ResponseEntity<CommonResponse<Page<SearchTransactionReportResponseDto>>> searchTransaction(
             @RequestParam String transactionId,
             @RequestParam(required = false) String hierarchyId,

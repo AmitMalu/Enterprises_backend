@@ -20,15 +20,13 @@ public interface SchemeAllocationRepository extends JpaRepository<SchemeAllocati
             String hierarchyId
     );
 
-    boolean existsByHierarchyIdAndProductCodeAndSubProductCodeAndOperatorCode(
-            String hierarchyId,
-            String productCode,
-            String subProductCode,
-            String operatorCode
-    );
+    Optional<SchemeAllocation> findByHierarchyIdAndProductCodeAndSubProductCode(
+            String hierarchyId, String productCode, String subProductCode);
 
     boolean existsByHierarchyIdAndSchemeCodeAndProductCodeAndSubProductCode(
             String hierarchyId, String schemeCode, String productCode, String subProductCode);
+
+    Optional<SchemeAllocation> findByHierarchyIdAndSubProductCode(String hierarchyId, String subProductCode);
 
 }
 
