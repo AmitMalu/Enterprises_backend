@@ -65,7 +65,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         }
 
         String fileExtension = imageFile.getOriginalFilename();
-        if (fileExtension == null || !fileExtension.matches("(?i).*\\.(jpg|jpeg|png)$")) {
+        if (fileExtension == null || !fileExtension.matches("(?i).*\\.(jpg|jpeg|png|pdf)$")) {
             throw new IllegalArgumentException("Invalid image format. Only JPG, JPEG, or PNG are allowed.");
         }
 
@@ -80,7 +80,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
             throw new IllegalArgumentException("Duplicate request detected within last 5 minutes.");
         }
 
-        String  fileName = imageUtil.saveImage(imageFile, "Prefund");
+        String fileName = imageUtil.saveImage(imageFile, "Prefund");
 
         // Save new record
         PrefundRequest entity = new PrefundRequest();
