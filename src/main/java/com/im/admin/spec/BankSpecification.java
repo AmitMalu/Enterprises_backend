@@ -1,6 +1,6 @@
 package com.im.admin.spec;
 
-import com.im.admin.entities.BankMaster;
+import com.im.admin.entities.NetworkBankMaster;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -10,7 +10,7 @@ import java.util.List;
 
 public class BankSpecification {
 
-    public static Specification<BankMaster> getFilter(
+    public static Specification<NetworkBankMaster> getFilter(
             String id,
             String bankCode,
             String bankName,
