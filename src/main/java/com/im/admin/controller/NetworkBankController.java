@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.NetworkBankMaster;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.NetworkBankDropdownResponse;
 import com.im.admin.service.NetworkBankService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -103,6 +105,12 @@ public class NetworkBankController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/dropdown")
+    public ResponseEntity<CommonResponse<List<NetworkBankDropdownResponse>>> getBankDropdown() {
+        List<NetworkBankDropdownResponse> list = bankService.getBankDropdownList();
+        return ResponseEntity.ok(CommonResponse.success(list, "Bank dropdown data loaded successfully"));
     }
 
 }
