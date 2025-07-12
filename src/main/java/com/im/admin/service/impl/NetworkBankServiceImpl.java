@@ -5,6 +5,7 @@ import com.im.admin.entities.NetworkBankMaster;
 import com.im.admin.repositories.NetworkBankMasterRepository;
 import com.im.admin.service.NetworkBankService;
 import com.im.admin.spec.BankSpecification;
+import com.im.admin.util.FileValidatorUtil;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
 import jakarta.persistence.EntityNotFoundException;
@@ -13,8 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,6 +36,8 @@ public class NetworkBankServiceImpl implements NetworkBankService {
     @Autowired
     private ImageUtil imageUtil;
 
+    @Autowired
+    private FileValidatorUtil fileValidatorUtil;
 
 
     @Override
@@ -43,9 +48,14 @@ public class NetworkBankServiceImpl implements NetworkBankService {
 
         NetworkBankMaster bank = getNetworkBankMaster(dto);
 
-        if (logoFile != null && !logoFile.isEmpty()) {
-            String  imagePath = imageUtil.saveImage(logoFile, "Bank_Logos");
-            bank.setLogo(imagePath);
+        try {
+            if (logoFile != null && !logoFile.isEmpty()) {
+                fileValidatorUtil.validateFile(logoFile, "Bank logo");
+                String imagePath = imageUtil.saveImage(logoFile, "Bank_Logos");
+                bank.setLogo(imagePath);
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
         }
 
         return bankMasterRepository.save(bank);
