@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AESFilter extends OncePerRequestFilter {
 
-	private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/webjars/**", "cache",
+	private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/images/","/webjars/**", "cache",
 			"/api/aes/generate-token", "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password","/auth/forgot-password",
 			"/api/aes/validate-token", "/api/pg/generate-token", "/api/pg/payment/callback","/auth/forget-verify-otp");
 
@@ -108,13 +108,6 @@ public class AESFilter extends OncePerRequestFilter {
 				.anyMatch(path::startsWith);
 
 	}
-
-//	private boolean isPathViewableWithoutAuthentication(HttpServletRequest request) {
-//		String requestURI = this.pathHelper.getPathWithinApplication(request);
-//		log.info("<-------- Path ------> " + requestURI);
-//		return PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.stream()
-//				.anyMatch(allowedPath -> requestURI.equals(allowedPath) || requestURI.startsWith(allowedPath));
-//	}
 
 	private String decryptToken(String token) throws Exception {
 		if (token == null || token.isBlank()) {

@@ -38,6 +38,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())  // Enable CORS here
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.toArray(new String[0])).permitAll()
                         .anyRequest().permitAll()
                 );
 
