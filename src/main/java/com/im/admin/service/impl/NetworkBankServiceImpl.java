@@ -3,6 +3,7 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.NetworkBankMaster;
 import com.im.admin.repositories.NetworkBankMasterRepository;
+import com.im.admin.response.NetworkBankDropdownResponse;
 import com.im.admin.service.NetworkBankService;
 import com.im.admin.spec.BankSpecification;
 import com.im.admin.util.FileValidatorUtil;
@@ -23,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 
@@ -133,4 +135,9 @@ public class NetworkBankServiceImpl implements NetworkBankService {
         return bankMasterRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Bank not found with ID: " + id));
     }
+
+    public List<NetworkBankDropdownResponse> getBankDropdownList() {
+        return bankMasterRepository.getActiveBankDropdown();
+    }
+
 }
