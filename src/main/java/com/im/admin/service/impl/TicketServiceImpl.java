@@ -11,6 +11,7 @@ import com.im.admin.repositories.TicketRepository;
 import com.im.admin.service.TicketService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageHandlerUtil;
+import com.im.admin.util.ImageUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
@@ -40,6 +41,11 @@ public class TicketServiceImpl implements TicketService {
 
     @Autowired
     private ImageHandlerUtil imageHandlerUtil;
+
+    @Autowired
+    private ImageUtil imageUtil;
+
+
 
 
     @Override
@@ -129,7 +135,10 @@ public class TicketServiceImpl implements TicketService {
         // Handle exception here
         try {
             String folder = "Ticket";
-            imageHandlerUtil.handleImageUpload(screenshotImage, "Screenshot Image", folder, ticket::setScreenshotImage);
+
+            String  imagePath = imageUtil.saveImage(screenshotImage, "Ticket");
+            ticket.setScreenshotImage(imagePath);
+
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload screenshot image", e);
         }
