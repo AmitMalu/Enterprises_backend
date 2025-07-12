@@ -25,6 +25,9 @@ public class ImageUtil {
     public String saveImage(MultipartFile imageFile, String category) throws IOException {
         if (imageFile == null || imageFile.isEmpty()) return null;
 
+        // Validate file type and size
+        FileValidatorUtil.validateFile(imageFile, "Uploaded File");
+
         Path categoryDir = Paths.get(fileStorageProperties.getBaseDir(), category);
         if (!Files.exists(categoryDir)) {
             Files.createDirectories(categoryDir);

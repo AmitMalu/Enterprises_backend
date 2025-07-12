@@ -50,7 +50,6 @@ public class NetworkBankServiceImpl implements NetworkBankService {
 
         try {
             if (logoFile != null && !logoFile.isEmpty()) {
-                fileValidatorUtil.validateFile(logoFile, "Bank logo");
                 String imagePath = imageUtil.saveImage(logoFile, "Bank_Logos");
                 bank.setLogo(imagePath);
             }
