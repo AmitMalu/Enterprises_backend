@@ -14,8 +14,8 @@ import java.util.Date;
 
 @Entity
 @Data
-@Table(name = "bank_master")
-public class BankMaster {
+@Table(name = "network_bank_master")
+public class NetworkBankMaster {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,6 +24,9 @@ public class BankMaster {
     @Column(name = "bank_code")
     private String bankCode;
 
+    @Column(name = "bank_code_BI")
+    private String bankCodeBI;
+
     @Column(name = "bank_name")
     private String bankName;
 
@@ -31,16 +34,19 @@ public class BankMaster {
     private String ifscCode;
 
     @Column(name = "imps")
-    private Boolean imps;     //b
+    private Boolean imps;
 
     @Column(name = "neft")
-    private Boolean neft;     //b
+    private Boolean neft;
 
     @Column(name = "rtgs")
-    private Boolean rtgs;          //boolean
+    private Boolean rtgs;
 
     @Column(name = "active_status")
-    private Boolean isActive;     //boolean
+    private Boolean isActive;
+
+    @Column(name = "max_account_no_length")
+    private Integer maxAccountNoLength;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy HH:mm:ss")
     @CreationTimestamp
@@ -53,12 +59,15 @@ public class BankMaster {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy HH:mm:ss")
     @UpdateTimestamp
     @Column(name = "edited_on")
-    private LocalDateTime editedOn;  // changed from Date to LocalDateTime
+    private LocalDateTime editedOn;
 
     @Column(name = "edited_by")
     private String editedBy;
 
     @Column(name = "is_blocked")
     private Boolean isBlocked;
+
+    @Column(name = "logo")
+    private String logo;
 
 }
