@@ -3,6 +3,7 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.NetworkBankMaster;
 import com.im.admin.repositories.NetworkBankMasterRepository;
+import com.im.admin.response.BankInfoResponse;
 import com.im.admin.response.NetworkBankDropdownResponse;
 import com.im.admin.service.NetworkBankService;
 import com.im.admin.spec.BankSpecification;
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 
@@ -37,9 +39,6 @@ public class NetworkBankServiceImpl implements NetworkBankService {
 
     @Autowired
     private ImageUtil imageUtil;
-
-    @Autowired
-    private FileValidatorUtil fileValidatorUtil;
 
 
     @Override
@@ -138,6 +137,14 @@ public class NetworkBankServiceImpl implements NetworkBankService {
 
     public List<NetworkBankDropdownResponse> getBankDropdownList() {
         return bankMasterRepository.getActiveBankDropdown();
+    }
+
+    @Override
+    public BankInfoResponse getBankInfoByIfsc(String ifscCode) {
+        NetworkBankMaster bank = bankMasterRepository.findByIfscCodeIgnoreCase(ifscCode.trim())
+                .orElseThrow(() -> new NoSuchElementException("No bank found with IFSC: " + ifscCode));
+
+        return new BankInfoResponse(bank.getBankName());
     }
 
 }

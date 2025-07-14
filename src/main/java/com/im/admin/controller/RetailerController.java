@@ -6,11 +6,17 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Retailer;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.RetailerResponseDTO;
 import com.im.admin.service.RetailerService;
 import com.im.admin.service.impl.PhoneNumberValidationService;
 import com.im.admin.util.JsonUtil;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -89,17 +95,41 @@ public class RetailerController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Retailer>> getAllRetailers() {
-        log.info("Received request to fetch all retailers");
-        return ResponseEntity.ok(retailerService.getAllRetailers());
+    public ResponseEntity<CommonResponse<Page<RetailerResponseDTO>>> getAllRetailers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdOn") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction
+    ) {
+        try {
+            Sort sort = direction.equalsIgnoreCase("asc") ?
+                    Sort.by(sortBy).ascending() :
+                    Sort.by(sortBy).descending();
+
+            Pageable pageable = PageRequest.of(page, size, sort);
+            Page<RetailerResponseDTO> retailerPage = retailerService.getAllRetailers(pageable);
+
+            return ResponseEntity.ok(CommonResponse.success(retailerPage, "Retailers fetched successfully"));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.failure("Something went wrong while fetching retailers"));
+        }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Retailer> getRetailerById(@PathVariable String id) {
-        log.info("Received request to fetch retailer by ID: {}", id);
-        Optional<Retailer> retailer = retailerService.getRetailerById(id);
-        return retailer.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<CommonResponse<RetailerResponseDTO>> getRetailerById(@PathVariable String id) {
+        try {
+            RetailerResponseDTO responseDto = retailerService.getRetailerById(id);
+            return ResponseEntity.ok(CommonResponse.success(responseDto, "Retailer data fetched successfully"));
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(CommonResponse.failure("Retailer not found"));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.failure("Something went wrong"));
+        }
     }
+
 }
 
 

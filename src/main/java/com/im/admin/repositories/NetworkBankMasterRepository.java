@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface NetworkBankMasterRepository extends JpaRepository<NetworkBankMaster,Long>, JpaSpecificationExecutor<NetworkBankMaster>  {
@@ -15,4 +16,7 @@ public interface NetworkBankMasterRepository extends JpaRepository<NetworkBankMa
 
     @Query("SELECT new com.im.admin.response.NetworkBankDropdownResponse(b.id, b.bankName) FROM NetworkBankMaster b WHERE b.isActive = true")
     List<NetworkBankDropdownResponse> getActiveBankDropdown();
+
+    Optional<NetworkBankMaster> findByIfscCodeIgnoreCase(String ifscCode);
+
 }
