@@ -2,6 +2,7 @@ package com.im.admin.service;
 
 import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.NetworkBankMaster;
+import com.im.admin.response.BankInfoResponse;
 import com.im.admin.response.NetworkBankDropdownResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,5 +27,7 @@ public interface NetworkBankService {
     NetworkBankMaster getBankById(Long id);
 
     List<NetworkBankDropdownResponse> getBankDropdownList();
+
+    BankInfoResponse getBankInfoByIfsc(String ifscCode);
 
 }
