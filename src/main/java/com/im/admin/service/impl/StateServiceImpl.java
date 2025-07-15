@@ -54,6 +54,7 @@ public class StateServiceImpl implements StateService {
         dto.setStateCode(state.getStateCode());
         dto.setRegionType(state.getRegionType());
         dto.setCountryName(state.getCountry().getCountryName());
+        dto.setCountryId(state.getCountry().getId());
         dto.setBlocked(state.getBlocked());
         return dto;
     }

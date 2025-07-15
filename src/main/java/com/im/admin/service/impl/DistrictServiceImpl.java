@@ -119,6 +119,8 @@ public class DistrictServiceImpl implements DistrictService {
         dto.setBlocked(district.getBlocked());
         dto.setCountryName(district.getCountry().getCountryName());
         dto.setStateName(district.getState().getStateName());
+        dto.setStateId(district.getState().getId());
+        dto.setCountryId(district.getCountry().getId());
         return dto;
     }
 

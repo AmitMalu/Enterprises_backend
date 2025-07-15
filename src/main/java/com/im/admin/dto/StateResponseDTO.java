@@ -12,5 +12,7 @@ public class StateResponseDTO {
     private String stateCode;
     private String regionType;
     private String countryName;
+    private Long countryId;
     private Boolean blocked;
 }
+
