@@ -5,6 +5,8 @@ import com.im.admin.entities.Ticket;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.TicketService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 
 import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/ticket")
@@ -65,4 +68,13 @@ public class TicketController {
         Ticket ticket = ticketService.getTicketWithComments(ticketId);
         return ResponseEntity.ok(ticket);
     }
+
+    @GetMapping("/issue-type-dropdown")
+    public ResponseEntity<CommonResponse<List<TicketIssueTypeDto>>> getIssueTypeDropdown() {
+        List<TicketIssueTypeDto> result = ticketService.getAllIssueTypes();
+        return ResponseEntity.ok(new CommonResponse<>(200, "Issue types fetched", result));
+
+    }
+
+
 }
