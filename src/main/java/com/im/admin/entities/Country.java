@@ -21,7 +21,7 @@ public class Country {
     private String countryCode;
 
     @Column(name = "blocked")
-    private Boolean blocked;
+    private Boolean blocked = false;
 
     @Column(name = "created_on")
     private LocalDateTime createdOn = LocalDateTime.now();
