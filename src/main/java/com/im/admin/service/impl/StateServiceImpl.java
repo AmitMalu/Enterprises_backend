@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.StateDTO;
 import com.im.admin.entities.Country;
 import com.im.admin.entities.State;
 import com.im.admin.repositories.CountryRepository;
@@ -92,4 +93,13 @@ public class StateServiceImpl implements StateService {
         List<State> pagedList = (start < end) ? filtered.subList(start, end) : List.of();
         return new PageImpl<>(pagedList, PageRequest.of(page, size), filtered.size());
     }
+
+    @Override
+    public List<StateDTO> getStatesByCountry(Long countryId) {
+        List<State> stateList = stateRepository.findByCountryId(countryId);
+        return stateList.stream()
+                .map(state -> new StateDTO(state.getId(), state.getStateName()))
+                .collect(Collectors.toList());
+    }
+
 }
