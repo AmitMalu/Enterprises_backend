@@ -57,6 +57,6 @@ public class DistrictController {
         List<DistrictDTO> districts = districtService.getDistrictsByState(stateId);
         return ResponseEntity.ok(CommonResponse.success(districts, "Districts loaded successfully"));
     }
-    
+
 }
 
