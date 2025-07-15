@@ -1,0 +1,136 @@
+package com.im.admin.service.impl;
+
+import com.im.admin.dto.CityDTO;
+import com.im.admin.dto.CityRequestDTO;
+import com.im.admin.dto.CityResponseDTO;
+import com.im.admin.entities.City;
+import com.im.admin.repositories.CityRepository;
+import com.im.admin.repositories.CountryRepository;
+import com.im.admin.repositories.DistrictRepository;
+import com.im.admin.repositories.StateRepository;
+import com.im.admin.response.CommonResponse;
+import com.im.admin.service.CityService;
+import jakarta.persistence.criteria.Predicate;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class CityServiceImpl implements CityService {
+
+    @Autowired
+    private CityRepository cityRepository;
+
+    @Autowired
+    private CountryRepository countryRepository;
+
+    @Autowired
+    private StateRepository stateRepository;
+
+    @Autowired
+    private DistrictRepository districtRepository;
+
+    @Override
+    public CommonResponse<CityResponseDTO> save(CityRequestDTO dto) {
+        City city = new City();
+        city.setCityName(dto.getCityName());
+        city.setCityCode(dto.getCityCode());
+        city.setBlocked(dto.getBlocked());
+        city.setCreatedBy(dto.getCreatedBy());
+
+        city.setCountry(countryRepository.findById(dto.getCountryId()).orElseThrow(() -> new RuntimeException("Country not found")));
+        city.setState(stateRepository.findById(dto.getStateId()).orElseThrow(() -> new RuntimeException("State not found")));
+        city.setDistrict(districtRepository.findById(dto.getDistrictId()).orElseThrow(() -> new RuntimeException("District not found")));
+
+        cityRepository.save(city);
+        return CommonResponse.success(toDTO(city), "City saved successfully");
+    }
+
+    @Override
+    public CommonResponse<CityResponseDTO> update(Long id, CityRequestDTO dto) {
+        City city = cityRepository.findById(id).orElseThrow(() -> new RuntimeException("City not found"));
+
+        city.setCityName(dto.getCityName());
+        city.setCityCode(dto.getCityCode());
+        city.setBlocked(dto.getBlocked());
+        city.setEditedOn(LocalDateTime.now());
+        city.setEditedBy(dto.getCreatedBy());
+
+        city.setCountry(countryRepository.findById(dto.getCountryId()).orElseThrow(() -> new RuntimeException("Country not found")));
+        city.setState(stateRepository.findById(dto.getStateId()).orElseThrow(() -> new RuntimeException("State not found")));
+        city.setDistrict(districtRepository.findById(dto.getDistrictId()).orElseThrow(() -> new RuntimeException("District not found")));
+
+        cityRepository.save(city);
+        return CommonResponse.success(toDTO(city), "City updated successfully");
+    }
+
+    @Override
+    public CommonResponse<CityResponseDTO> getById(Long id) {
+        City city = cityRepository.findById(id).orElseThrow(() -> new RuntimeException("City not found"));
+        return CommonResponse.success(toDTO(city), "City fetched successfully");
+    }
+
+    @Override
+    public CommonResponse<Page<CityResponseDTO>> getAll(int page, int size,
+                                                        String cityName, String cityCode, Boolean blocked, String createdBy, String editedBy) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Specification<City> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (cityName != null && !cityName.isEmpty()) {
+                predicates.add(cb.like(cb.lower(root.get("cityName")), "%" + cityName.toLowerCase() + "%"));
+            }
+            if (cityCode != null && !cityCode.isEmpty()) {
+                predicates.add(cb.like(cb.lower(root.get("cityCode")), "%" + cityCode.toLowerCase() + "%"));
+            }
+            if (blocked != null) {
+                predicates.add(cb.equal(root.get("blocked"), blocked));
+            }
+            if (createdBy != null && !createdBy.isEmpty()) {
+                predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+            }
+            if (editedBy != null && !editedBy.isEmpty()) {
+                predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<City> pageResult = cityRepository.findAll(spec, pageable);
+        Page<CityResponseDTO> dtoPage = pageResult.map(this::toDTO);
+        return CommonResponse.success(dtoPage, "Cities fetched successfully");
+    }
+
+    @Override
+    public List<CityDTO> getCitiesByDistrict(Long districtId) {
+        List<City> cities = cityRepository.findByDistrict_Id(districtId);
+        return cities.stream()
+                .map(c -> new CityDTO(c.getId(), c.getCityName()))
+                .collect(Collectors.toList());
+    }
+
+    private CityResponseDTO toDTO(City city) {
+        CityResponseDTO dto = new CityResponseDTO();
+        dto.setId(city.getId());
+        dto.setCityName(city.getCityName());
+        dto.setCityCode(city.getCityCode());
+        dto.setBlocked(city.getBlocked());
+        dto.setCountryName(city.getCountry().getCountryName());
+        dto.setStateName(city.getState().getStateName());
+        dto.setDistrictName(city.getDistrict().getDistrictName());
+        return dto;
+    }
+}
+
