@@ -130,6 +130,9 @@ public class CityServiceImpl implements CityService {
         dto.setCountryName(city.getCountry().getCountryName());
         dto.setStateName(city.getState().getStateName());
         dto.setDistrictName(city.getDistrict().getDistrictName());
+        dto.setCountryId(city.getCountry().getId());
+        dto.setDistrictId(city.getDistrict().getId());
+        dto.setStateId(city.getState().getId());
         return dto;
     }
 }

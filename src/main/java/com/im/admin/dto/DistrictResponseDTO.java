@@ -14,8 +14,9 @@ public class DistrictResponseDTO {
     private String districtName;
     private String districtCode;
     private String countryName;
+    private Long countryId;
     private String stateName;
+    private Long stateId;
     private Boolean blocked;
-
 }
 
