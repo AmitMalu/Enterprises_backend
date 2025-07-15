@@ -1,10 +1,13 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.StateDTO;
+import com.im.admin.dto.StateRequestDTO;
+import com.im.admin.dto.StateResponseDTO;
 import com.im.admin.entities.Country;
 import com.im.admin.entities.State;
 import com.im.admin.repositories.CountryRepository;
 import com.im.admin.repositories.StateRepository;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.StateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
@@ -17,82 +20,96 @@ import java.util.stream.Collectors;
 @Service
 public class StateServiceImpl implements StateService {
 
- @Autowired
- private StateRepository stateRepository;
+
+    @Autowired
+    private StateRepository stateRepository;
 
     @Autowired
     private CountryRepository countryRepository;
 
+
     @Override
-    public State createState(State state) {
-        if (state.getCountry() == null || state.getCountry().getId() == null) {
-            throw new RuntimeException("Country ID is required.");
-        }
+    public CommonResponse<StateResponseDTO> save(StateRequestDTO dto) {
+        State state = new State();
+        state.setZone(dto.getZone());
+        state.setStateName(dto.getStateName());
+        state.setStateCode(dto.getStateCode());
+        state.setRegionType(dto.getRegionType());
+        state.setBlocked(dto.getBlocked());
+        state.setCreatedBy(dto.getCreatedBy());
 
-        // Fetch full Country from DB
-        Country fullCountry = countryRepository.findById(state.getCountry().getId())
-                .orElseThrow(() -> new RuntimeException("Country not found with ID: " + state.getCountry().getId()));
+        Country country = countryRepository.findById(dto.getCountryId())
+                .orElseThrow(() -> new RuntimeException("Country not found"));
+        state.setCountry(country);
 
-        state.setCountry(fullCountry);
-        return stateRepository.save(state);
+        stateRepository.save(state);
+        return CommonResponse.success(toDTO(state), "State saved successfully");
+    }
+
+    private StateResponseDTO toDTO(State state) {
+        StateResponseDTO dto = new StateResponseDTO();
+        dto.setId(state.getId());
+        dto.setZone(state.getZone());
+        dto.setStateName(state.getStateName());
+        dto.setStateCode(state.getStateCode());
+        dto.setRegionType(state.getRegionType());
+        dto.setCountryName(state.getCountry().getCountryName());
+        dto.setBlocked(state.getBlocked());
+        return dto;
     }
 
     @Override
-    public State updateState(Long id, State updatedState) {
-        State existing = stateRepository.findById(id)
+    public CommonResponse<StateResponseDTO> update(Long id, StateRequestDTO dto) {
+        State state = stateRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("State not found"));
 
-        // Fetch full country from DB if country ID is provided
-        if (updatedState.getCountry() == null || updatedState.getCountry().getId() == null) {
-            throw new RuntimeException("Country ID is required for update.");
-        }
+        state.setZone(dto.getZone());
+        state.setStateName(dto.getStateName());
+        state.setStateCode(dto.getStateCode());
+        state.setRegionType(dto.getRegionType());
+        state.setBlocked(dto.getBlocked());
+        state.setEditedBy(dto.getEditedBy());
+        state.setEditedOn(LocalDateTime.now());
 
-        Country fullCountry = countryRepository.findById(updatedState.getCountry().getId())
-                .orElseThrow(() -> new RuntimeException("Country not found with ID: " + updatedState.getCountry().getId()));
+        Country country = countryRepository.findById(dto.getCountryId())
+                .orElseThrow(() -> new RuntimeException("Country not found"));
+        state.setCountry(country);
 
-        existing.setZone(updatedState.getZone());
-        existing.setStateName(updatedState.getStateName());
-        existing.setStateCode(updatedState.getStateCode());
-        existing.setRegionType(updatedState.getRegionType());
-        existing.setCountry(fullCountry); //  Set full country
-        existing.setBlocked(updatedState.getBlocked());
-        existing.setEditedOn(LocalDateTime.now());
-        existing.setEditedBy(updatedState.getEditedBy());
-
-        return stateRepository.save(existing);
+        stateRepository.save(state);
+        return CommonResponse.success(toDTO(state), "State updated successfully");
     }
 
 
     @Override
-    public State getStateById(Long id) {
-        return stateRepository.findById(id)
+    public CommonResponse<StateResponseDTO> getById(Long id) {
+        State state = stateRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("State not found"));
+        return CommonResponse.success(toDTO(state), "State fetched successfully");
     }
 
+
     @Override
-    public Page<State> getFilteredStates(int page, int size,
-                                         String zone, String stateName, String stateCode,
-                                         String regionType, Boolean blocked,
-                                         String createdBy, String editedBy) {
+    public Page<StateResponseDTO> getAllStates(int page, int size, String zone, String stateName, String stateCode, String regionType, Long countryId, Boolean blocked) {
+        List<State> allStates = stateRepository.findAll();
 
-        List<State> all = stateRepository.findAll();
-
-        List<State> filtered = all.stream()
+        List<State> filtered = allStates.stream()
                 .filter(s -> zone == null || (s.getZone() != null && s.getZone().toLowerCase().contains(zone.toLowerCase())))
                 .filter(s -> stateName == null || (s.getStateName() != null && s.getStateName().toLowerCase().contains(stateName.toLowerCase())))
                 .filter(s -> stateCode == null || (s.getStateCode() != null && s.getStateCode().toLowerCase().contains(stateCode.toLowerCase())))
                 .filter(s -> regionType == null || (s.getRegionType() != null && s.getRegionType().toLowerCase().contains(regionType.toLowerCase())))
+                .filter(s -> countryId == null || (s.getCountry() != null && s.getCountry().getId().equals(countryId)))
                 .filter(s -> blocked == null || (s.getBlocked() != null && s.getBlocked().equals(blocked)))
-                .filter(s -> createdBy == null || (s.getCreatedBy() != null && s.getCreatedBy().toLowerCase().contains(createdBy.toLowerCase())))
-                .filter(s -> editedBy == null || (s.getEditedBy() != null && s.getEditedBy().toLowerCase().contains(editedBy.toLowerCase())))
-                .collect(Collectors.toList());
+                .toList();
 
         int start = page * size;
         int end = Math.min(start + size, filtered.size());
-
         List<State> pagedList = (start < end) ? filtered.subList(start, end) : List.of();
-        return new PageImpl<>(pagedList, PageRequest.of(page, size), filtered.size());
+
+        List<StateResponseDTO> dtoList = pagedList.stream().map(this::toDTO).toList();
+
+        return new PageImpl<>(dtoList, PageRequest.of(page, size), filtered.size());
     }
+
 
     @Override
     public List<StateDTO> getStatesByCountry(Long countryId) {
