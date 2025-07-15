@@ -31,7 +31,7 @@ public class State {
     private Country country;
 
     @Column(name = "blocked")
-    private Boolean blocked;
+    private Boolean blocked = false;
 
     @Column(name = "created_on")
     private LocalDateTime createdOn = LocalDateTime.now();
