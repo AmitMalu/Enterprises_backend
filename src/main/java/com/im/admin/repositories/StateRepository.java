@@ -11,4 +11,6 @@ public interface StateRepository extends JpaRepository<State,Long> {
 
     List<State> findByCountryId(Long countryId);
 
+    boolean existsByStateNameIgnoreCaseAndStateCodeIgnoreCase(String stateName, String stateCode);
+
 }

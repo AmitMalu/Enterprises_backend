@@ -9,12 +9,23 @@ import com.im.admin.repositories.CountryRepository;
 import com.im.admin.repositories.StateRepository;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.StateService;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -119,5 +130,134 @@ public class StateServiceImpl implements StateService {
                 .map(state -> new StateDTO(state.getId(), state.getStateName()))
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public ByteArrayResource generateSampleTemplate() throws IOException {
+        List<String> headers = List.of("Zone", "State", "State Code", "Region Type", "Country");
+        List<List<String>> data = List.of(List.of("Western", "Maharashtra", "MH", "state", "India"),
+                                            List.of("Northern","Delhi","DL","union territory","India"));
+
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("States");
+
+        // Header row
+        Row headerRow = sheet.createRow(0);
+        for (int i = 0; i < headers.size(); i++) {
+            headerRow.createCell(i).setCellValue(headers.get(i));
+        }
+
+        // Sample data row
+        for (int rowIndex = 0; rowIndex < data.size(); rowIndex++) {
+            Row row = sheet.createRow(rowIndex + 1);
+            List<String> rowData = data.get(rowIndex);
+            for (int colIndex = 0; colIndex < rowData.size(); colIndex++) {
+                row.createCell(colIndex).setCellValue(rowData.get(colIndex));
+            }
+        }
+
+        // Convert to ByteArrayResource
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        workbook.write(out);
+        workbook.close();
+        return new ByteArrayResource(out.toByteArray());
+    }
+
+    @Override
+    public ByteArrayResource saveStatesFromExcel(MultipartFile file, String createdBy) {
+        List<String> expectedHeaders = List.of("Zone", "State", "State Code", "Region Type", "Country");
+
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Row headerRow = sheet.getRow(0);
+
+            // Validate header
+            for (int i = 0; i < expectedHeaders.size(); i++) {
+                String actual = getStringCellValue(headerRow.getCell(i));
+                String expected = expectedHeaders.get(i);
+                if (!expected.equalsIgnoreCase(actual)) {
+                    throw new RuntimeException("Invalid header at column " + (i + 1)
+                            + ". Expected '" + expected + "' but found '" + actual + "'");
+                }
+            }
+
+            // Add new columns
+            int statusCol = expectedHeaders.size();
+            headerRow.createCell(statusCol).setCellValue("Status");
+            headerRow.createCell(statusCol + 1).setCellValue("Remark");
+
+            // Process data rows
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+
+                String zone = getStringCellValue(row.getCell(0));
+                String stateName = getStringCellValue(row.getCell(1));
+                String stateCode = getStringCellValue(row.getCell(2));
+                String regionType = getStringCellValue(row.getCell(3));
+                String countryName = getStringCellValue(row.getCell(4));
+
+                String status = "Success";
+                String remark = "Saved successfully";
+
+                try {
+                    if (isBlank(stateName) || isBlank(stateCode) || isBlank(regionType) || isBlank(countryName)) {
+                        throw new IllegalArgumentException("Required field(s) missing.");
+                    }
+
+                    Country country = countryRepository.findByCountryNameIgnoreCase(countryName.trim())
+                            .orElseThrow(() -> new IllegalArgumentException("Country not found - " + countryName));
+
+                    boolean exists = stateRepository.existsByStateNameIgnoreCaseAndStateCodeIgnoreCase(stateName, stateCode);
+                    if (exists) {
+                        throw new IllegalArgumentException("State already exists.");
+                    }
+
+                    State state = new State();
+                    state.setZone(zone);
+                    state.setStateName(stateName);
+                    state.setStateCode(stateCode);
+                    state.setRegionType(regionType);
+                    state.setCountry(country);
+                    state.setBlocked(false);
+                    state.setCreatedBy(createdBy);
+                    state.setCreatedOn(LocalDateTime.now());
+
+                    stateRepository.save(state);
+
+                } catch (Exception ex) {
+                    status = "Fail";
+                    remark = ex.getMessage();
+                }
+
+                // Set Status & Remark
+                row.createCell(statusCol).setCellValue(status);
+                row.createCell(statusCol + 1).setCellValue(remark);
+            }
+
+            // Return updated file
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
+            return new ByteArrayResource(out.toByteArray());
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to process Excel file: " + e.getMessage(), e);
+        }
+    }
+
+    private String getStringCellValue(Cell cell) {
+        if (cell == null) return null;
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue().trim();
+            case NUMERIC -> String.valueOf((int) cell.getNumericCellValue());
+            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+            default -> null;
+        };
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+
 
 }
