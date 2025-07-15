@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.StateDTO;
 import com.im.admin.entities.State;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.StateService;
@@ -7,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/state")
@@ -50,4 +53,11 @@ public class StateController {
         );
         return ResponseEntity.ok(new CommonResponse<>(200, "States fetched", result));
     }
+
+    @GetMapping("/by-country/{countryId}")
+    public ResponseEntity<CommonResponse<List<StateDTO>>> getStatesByCountry(@PathVariable Long countryId) {
+        List<StateDTO> states = stateService.getStatesByCountry(countryId);
+        return ResponseEntity.ok(CommonResponse.success(states, "States loaded successfully"));
+    }
+
 }
