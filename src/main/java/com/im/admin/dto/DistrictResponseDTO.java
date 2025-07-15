@@ -1,9 +1,12 @@
 package com.im.admin.dto;
 
 
+import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
@@ -18,5 +21,9 @@ public class DistrictResponseDTO {
     private String stateName;
     private Long stateId;
     private Boolean blocked;
+    private LocalDateTime createdOn;
+    private String createdBy;
+    private LocalDateTime editedOn;
+    private String editedBy;
 }
 

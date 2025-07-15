@@ -121,6 +121,10 @@ public class DistrictServiceImpl implements DistrictService {
         dto.setStateName(district.getState().getStateName());
         dto.setStateId(district.getState().getId());
         dto.setCountryId(district.getCountry().getId());
+        dto.setCreatedBy(district.getCreatedBy());
+        dto.setEditedBy(district.getEditedBy());
+        dto.setCreatedOn(district.getCreatedOn());
+        dto.setEditedOn(district.getEditedOn());
         return dto;
     }
 
