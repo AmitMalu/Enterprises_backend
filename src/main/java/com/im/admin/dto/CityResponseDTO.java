@@ -1,10 +1,13 @@
 package com.im.admin.dto;
 
 
+import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -22,6 +25,10 @@ public class CityResponseDTO {
     private Long districtId;
     private String districtName;
     private Boolean blocked;
+    private LocalDateTime createdOn;
+    private String createdBy;
+    private LocalDateTime editedOn;
+    private String editedBy;
 
 }
 
