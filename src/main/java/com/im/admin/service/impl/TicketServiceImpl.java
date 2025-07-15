@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.AddTicketCommentDto;
 import com.im.admin.dto.RaiseTicketRequestDto;
+import com.im.admin.dto.TicketIssueTypeDto;
 import com.im.admin.dto.UpdateTicketStatusDto;
 import com.im.admin.entities.Ticket;
 import com.im.admin.entities.TicketComment;
@@ -17,11 +18,14 @@ import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -146,6 +150,17 @@ public class TicketServiceImpl implements TicketService {
         Ticket saveTicket = ticketRepository.save(ticket);
         return saveTicket;
     }
+
+    @Override
+    public List<TicketIssueTypeDto> getAllIssueTypes() {
+        List<Ticket> allIssues = ticketRepository.findAll();
+        return allIssues.stream()
+                .map(issue -> new TicketIssueTypeDto(issue.getId(), issue.getIssueType()))
+                .toList();
+    }
+
+
+
 
 
 
