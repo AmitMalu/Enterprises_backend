@@ -67,6 +67,10 @@ public class StateServiceImpl implements StateService {
         dto.setCountryName(state.getCountry().getCountryName());
         dto.setCountryId(state.getCountry().getId());
         dto.setBlocked(state.getBlocked());
+        dto.setCreatedBy(state.getCreatedBy());
+        dto.setEditedBy(state.getEditedBy());
+        dto.setCreatedOn(state.getCreatedOn());
+        dto.setEditedOn(state.getEditedOn());
         return dto;
     }
 
