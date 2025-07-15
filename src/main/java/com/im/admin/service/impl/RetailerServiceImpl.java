@@ -2,14 +2,14 @@ package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.dto.AddressDTO;
+import com.im.admin.dto.BankDetailsDTO;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.dto.RetailerDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
-import com.im.admin.repositories.RetailerGullakAmountRepository;
-import com.im.admin.repositories.RetailerPostpaidAmountRepository;
-import com.im.admin.repositories.RetailerPrepaidAmountRepository;
-import com.im.admin.repositories.RetailerRepository;
+import com.im.admin.repositories.*;
+import com.im.admin.response.RetailerResponseDTO;
 import com.im.admin.service.RetailerService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -18,6 +18,8 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -57,8 +59,12 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Autowired
     private CommonFunctions commonFunctions;
+
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private BankDetailsRepository bankDetailsRepository;
 
     @Transactional
     @Override
@@ -131,6 +137,20 @@ public class RetailerServiceImpl implements RetailerService {
         imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, retailer::setShopImage);
         imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, retailer::setBusinessProofImage);
 
+        // Save Bank Details separately (Before retailer save)
+        if (retailer.getBankDetails() != null) {
+            BanksDetailss bankDetails = retailer.getBankDetails();
+            bankDetails.setHierarchyId(retailer.getRetailerId()); // set after ID is generated
+            bankDetails.setBankAccountNumber(retailer.getBankDetails().getBankAccountNumber());
+            bankDetails.setCreatedBy(retailer.getCreatedBy());
+            bankDetails.setIsVerified(false);
+
+            // Save bank details
+            BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+
+            // Attach it to retailer (foreign key)
+            retailer.setBankDetails(savedBankDetails);
+        }
 
         Retailer savedRetailer = retailerRepository.save(retailer);
         log.info("Retailer created successfully with ID: {}", savedRetailer.getRetailerId());
@@ -151,8 +171,8 @@ public class RetailerServiceImpl implements RetailerService {
         log.info("Gullak amount record created for Retailer ID: {}", savedRetailer.getRetailerId());
 
         LocalDateTime ResponseDateTime = LocalDateTime.now();
-        String retailerRequest  = objectMapper.writeValueAsString(retailer);
-        String retailerResponse  = objectMapper.writeValueAsString(savedRetailer);
+        String retailerRequest = objectMapper.writeValueAsString(retailer);
+        String retailerResponse = objectMapper.writeValueAsString(savedRetailer);
 
         commonFunctions.saveHierarchyLogs(
                 RequestDateTime,
@@ -266,17 +286,80 @@ public class RetailerServiceImpl implements RetailerService {
         log.info("Retailer deleted successfully with ID: {}", retailerId);
     }
 
-
     @Override
-    public List<Retailer> getAllRetailers() {
-        log.info("Fetching all retailers");
-        return retailerRepository.findAll();
+    public Page<RetailerResponseDTO> getAllRetailers(Pageable pageable) {
+        Page<Retailer> retailerPage = retailerRepository.findAll(pageable);
+        return retailerPage.map(this::convertToDto);
     }
 
+
     @Override
-    public Optional<Retailer> getRetailerById(String retailerId) {
+    public RetailerResponseDTO getRetailerById(String retailerId) {
         log.info("Fetching retailer by ID: {}", retailerId);
-        return retailerRepository.findById(retailerId);
+        Retailer retailer = retailerRepository.findById(retailerId)
+                .orElseThrow(() -> new EntityNotFoundException("Retailer not found with ID: " + retailerId));
+        return convertToDto(retailer);
     }
+
+    public RetailerResponseDTO convertToDto(Retailer retailer) {
+        RetailerResponseDTO dto = new RetailerResponseDTO();
+        dto.setRetailerId(retailer.getRetailerId());
+        dto.setName(retailer.getName());
+        dto.setMobileNumber(retailer.getMobileNumber());
+        dto.setEmailId(retailer.getEmailId());
+        dto.setTitle(retailer.getTitle());
+        dto.setAbbreviation(retailer.getAbbreviation());
+        dto.setDob(retailer.getDob());
+
+        dto.setAddress(mapAddress(retailer.getAddress()));
+        dto.setOutletAddress(mapAddress(retailer.getOutletAddress()));
+
+        if (retailer.getBankDetails() != null) {
+            BanksDetailss bank = retailer.getBankDetails();
+            BankDetailsDTO bankDto = new BankDetailsDTO();
+            bankDto.setBankName(bank.getBankName());
+            bankDto.setBankAccountNumber(bank.getBankAccountNumber());
+            bankDto.setIfscCode(bank.getIfscCode());
+            bankDto.setBankHolderName(bank.getBankHolderName());
+            bankDto.setIsVerified(bank.getIsVerified());
+            dto.setBankDetails(bankDto);
+        }
+
+        dto.setAadhaarNumber(retailer.getAadhaarNumber());
+        dto.setPanNumber(retailer.getPanNumber());
+        dto.setShopNumber(retailer.getShopNumber());
+        dto.setBusinessNumber(retailer.getBusinessNumber());
+        dto.setAadhaarCardFrontImage(retailer.getAadhaarCardFrontImage());
+        dto.setAadhaarCardBackImage(retailer.getAadhaarCardBackImage());
+        dto.setPanCardImage(retailer.getPanCardImage());
+        dto.setShopImage(retailer.getShopImage());
+        dto.setBusinessProofImage(retailer.getBusinessProofImage());
+
+        dto.setStatus(retailer.getStatus());
+        dto.setRemarks(retailer.getRemarks());
+        dto.setRejectionReason(retailer.getRejectionReason());
+
+        dto.setCreatedBy(retailer.getCreatedBy());
+        dto.setCreatedByIPAddress(retailer.getCreatedByIPAddress());
+        dto.setCreatedOn(retailer.getCreatedOn());
+        dto.setLastEditedOn(retailer.getLastEditedOn());
+
+        return dto;
+    }
+
+    private AddressDTO mapAddress(Address address) {
+        if (address == null) return null;
+        AddressDTO dto = new AddressDTO();
+        dto.setOutletName(address.getOutletName());
+        dto.setCompanyType(address.getCompanyType());
+        dto.setCompanyName(address.getCompanyName());
+        dto.setAddress(address.getAddress());
+        dto.setCity(address.getCity());
+        dto.setState(address.getState());
+        dto.setZipCode(address.getZipCode());
+        return dto;
+    }
+
+
 }
 

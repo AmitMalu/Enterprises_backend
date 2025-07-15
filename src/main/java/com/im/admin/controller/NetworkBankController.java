@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.NetworkBankMaster;
+import com.im.admin.response.BankInfoResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.NetworkBankDropdownResponse;
 import com.im.admin.service.NetworkBankService;
@@ -20,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @Slf4j
 @RestController
@@ -112,5 +114,20 @@ public class NetworkBankController {
         List<NetworkBankDropdownResponse> list = bankService.getBankDropdownList();
         return ResponseEntity.ok(CommonResponse.success(list, "Bank dropdown data loaded successfully"));
     }
+
+    @GetMapping("/details-by-ifsc/{ifscCode}")
+    public ResponseEntity<CommonResponse<BankInfoResponse>> getBankDetailsByIfsc(@PathVariable String ifscCode) {
+        try {
+            BankInfoResponse response = bankService.getBankInfoByIfsc(ifscCode);
+            return ResponseEntity.ok(CommonResponse.success(response, "Bank details fetched successfully"));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(CommonResponse.failure(ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.failure("Something went wrong"));
+        }
+    }
+
 
 }

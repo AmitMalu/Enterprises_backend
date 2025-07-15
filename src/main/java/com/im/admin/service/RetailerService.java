@@ -2,6 +2,9 @@ package com.im.admin.service;
 
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Retailer;
+import com.im.admin.response.RetailerResponseDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -18,9 +21,12 @@ public interface RetailerService {
 
     void deleteRetailer(String retailerId);
 
-    List<Retailer> getAllRetailers();
+    Page<RetailerResponseDTO> getAllRetailers(Pageable pageable);
 
-    Optional<Retailer> getRetailerById(String retailerId);
+    RetailerResponseDTO getRetailerById(String retailerId);
+
+
 }
+
 
 

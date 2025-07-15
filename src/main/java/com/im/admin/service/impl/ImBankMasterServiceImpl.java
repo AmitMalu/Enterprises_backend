@@ -1,0 +1,148 @@
+package com.im.admin.service.impl;
+
+import com.im.admin.entities.ImBankMaster;
+import com.im.admin.repositories.ImBankMasterRepository;
+import com.im.admin.request.ImBankMasterRequestDTO;
+import com.im.admin.response.CommonResponse;
+import com.im.admin.response.ImBankDropdownResponse;
+import com.im.admin.response.ImBankMasterResponseDTO;
+import com.im.admin.service.ImBankMasterService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
+
+
+@Service
+@Slf4j
+public class ImBankMasterServiceImpl implements ImBankMasterService {
+
+    @Autowired
+    private ImBankMasterRepository repository;
+
+    @Override
+    public CommonResponse<ImBankMasterResponseDTO> create(ImBankMasterRequestDTO dto) {
+        ImBankMaster entity = mapToEntity(dto);
+        entity.setCreatedBy(dto.getCreatedBy());
+        ImBankMaster saved = repository.save(entity);
+        return CommonResponse.success(mapToDto(saved), "Bank created successfully");
+    }
+
+    @Override
+    public CommonResponse<ImBankMasterResponseDTO> update(Long id, ImBankMasterRequestDTO dto) {
+        ImBankMaster entity = repository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Bank not found"));
+        updateEntity(entity, dto);
+        ImBankMaster updated = repository.save(entity);
+        return CommonResponse.success(mapToDto(updated), "Bank updated successfully");
+    }
+
+    @Override
+    public CommonResponse<ImBankMasterResponseDTO> getById(Long id) {
+        ImBankMaster entity = repository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Bank not found"));
+        return CommonResponse.success(mapToDto(entity), "Bank details fetched successfully");
+    }
+
+    @Override
+    public CommonResponse<Page<ImBankMaster>> getAll(
+            String bankName,
+            String accountNumber,
+            String ifscCode,
+            Boolean charges,
+            String chargesType,
+            Boolean isActive,
+            Boolean isBlocked,
+            String createdBy,
+            int page,
+            int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdOn").descending());
+
+        Specification<ImBankMaster> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (bankName != null && !bankName.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("bankName")), "%" + bankName.toLowerCase() + "%"));
+
+            if (accountNumber != null && !accountNumber.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("accountNumber")), "%" + accountNumber.toLowerCase() + "%"));
+
+            if (ifscCode != null && !ifscCode.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("ifscCode")), "%" + ifscCode.toLowerCase() + "%"));
+
+            if (charges != null)
+                predicates.add(cb.equal(root.get("charges"), charges));
+
+            if (chargesType != null && !chargesType.isEmpty())
+                predicates.add(cb.equal(cb.lower(root.get("chargesType")), chargesType.toLowerCase()));
+
+            if (isActive != null)
+                predicates.add(cb.equal(root.get("isActive"), isActive));
+
+            if (isBlocked != null)
+                predicates.add(cb.equal(root.get("isBlocked"), isBlocked));
+
+            if (createdBy != null && !createdBy.isEmpty())
+                predicates.add(cb.equal(cb.lower(root.get("createdBy")), createdBy.toLowerCase()));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<ImBankMaster> result = repository.findAll(spec, pageable);
+        return CommonResponse.success(result, "Bank list fetched successfully");
+    }
+
+
+    // Utility methods
+    private ImBankMaster mapToEntity(ImBankMasterRequestDTO dto) {
+        ImBankMaster e = new ImBankMaster();
+        updateEntity(e, dto);
+        return e;
+    }
+
+    private void updateEntity(ImBankMaster entity, ImBankMasterRequestDTO dto) {
+        entity.setBankName(dto.getBankName());
+        entity.setAccountNumber(dto.getAccountNumber());
+        entity.setIfscCode(dto.getIfscCode());
+        entity.setCharges(dto.getCharges());
+        entity.setChargesType(dto.getChargesType());
+        entity.setIsActive(dto.getIsActive());
+        entity.setIsBlocked(dto.getIsBlocked());
+        entity.setCreatedBy(entity.getCreatedBy());
+        entity.setEditedBy(dto.getEditedBy());
+        entity.setEditedOn(LocalDateTime.now());
+    }
+
+    private ImBankMasterResponseDTO mapToDto(ImBankMaster e) {
+        ImBankMasterResponseDTO d = new ImBankMasterResponseDTO();
+        BeanUtils.copyProperties(e, d);
+        return d;
+    }
+
+    @Override
+    public CommonResponse<List<ImBankDropdownResponse>> getDropdown() {
+        List<ImBankMaster> banks = repository.findForDropdown();
+
+        List<ImBankDropdownResponse> responseList = banks.stream()
+                .map(bank -> new ImBankDropdownResponse(bank.getId(), bank.getBankName() + " #" + bank.getAccountNumber()))
+                .collect(Collectors.toList());
+
+        return CommonResponse.success(responseList, "Bank dropdown loaded");
+    }
+
+}
+
