@@ -52,17 +52,39 @@ public class SubProducts {
     @Column(name = "wallet_type")
     private String walletType;
 
-    @Column(name = "is_settlement", nullable = false)
-    @NotNull(message = "Is Settlement is required")
+    @Column(name = "is_settlement")
+    //@NotNull(message = "Is Settlement is required")
     private Boolean isSettlement;
+
+    @Column(name = "settlement_time")
+    private String settlementTime;
 
     @Column(name = "is_active", nullable = false)
     @NotNull(message = "Is Active is required")
     private Boolean isActive = false;
 
-    @Column(name = "enabled")
-    @NotNull(message = "Is Enabled is required")
-    private Boolean enabled;
+    @Column(name = "is_visible")
+    @NotNull(message = "Is Visible is required")
+    private Boolean isVisible;
+
+    @Column(name = "is_blocked")
+    @NotNull(message = "Is Blocked is required")
+    private Boolean isBlocked;
+
+    @Column(name = "is_white_label_admin")
+    private Boolean isWhiteLabelAdmin;
+
+    @Column(name = "white_label_admin_id")
+    private String whiteLabelAdminId;
+
+    @Column(name = "user_field_1")
+    private String userField1;
+
+    @Column(name = "user_field_2")
+    private String userField2;
+
+    @Column(name = "user_field_3")
+    private String userField3;
 
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)

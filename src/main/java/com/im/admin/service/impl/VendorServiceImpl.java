@@ -52,13 +52,19 @@ public class VendorServiceImpl implements VendorService {
                 .orElseThrow(() -> new RuntimeException("Product not found with ID: " + vendor.getProductId()));
 
         // Fetch SubProduct by ID
-        SubProducts subProduct = subProductsRepository.findById(vendor.getSubProductId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid SubProduct ID: " + vendor.getSubProductId()));
+        //SubProducts subProduct = subProductsRepository.findById(vendor.getSubProductId())
+          //      .orElseThrow(() -> new IllegalArgumentException("Invalid SubProduct ID: " + vendor.getSubProductId()));
 
         // Set SubProductCode from the fetched entity
-        vendor.setSubProductCode(subProduct.getSubProductCode());
+        //vendor.setSubProductCode(subProduct.getSubProductCode());
 
         vendor.setId(commonMethods.generateNextIdForTables("vendors", "id"));
+
+        if (!Boolean.TRUE.equals(vendor.getIsWhiteLabelAdmin())) {
+            vendor.setIsWhiteLabelAdmin(false);
+            vendor.setWhiteLabelAdminId("-");
+        }
+
         Vendors savedVendor = vendorsRepository.save(vendor);
         log.info("Vendor {} saved successfully.", savedVendor.getId());
         return savedVendor;
@@ -95,8 +101,8 @@ public class VendorServiceImpl implements VendorService {
         Vendors existingVendor = vendorsRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Vendor with ID " + id + " not found."));
 
-        SubProducts subProduct = subProductsRepository.findById(String.valueOf(updatedVendor.getSubProductId()))
-                .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + updatedVendor.getSubProductId()));
+        //SubProducts subProduct = subProductsRepository.findById(String.valueOf(updatedVendor.getSubProductId()))
+         //       .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + updatedVendor.getSubProductId()));
 
         existingVendor.setActive(updatedVendor.getActive());
         existingVendor.setVendorName(updatedVendor.getVendorName());
@@ -109,10 +115,20 @@ public class VendorServiceImpl implements VendorService {
         existingVendor.setLogo(updatedVendor.getLogo());
         existingVendor.setParameter(updatedVendor.getParameter());
         existingVendor.setVendorAccount(updatedVendor.getVendorAccount());
-       existingVendor.setSubProductId(updatedVendor.getSubProductId());
-        existingVendor.setSubProductCode(subProduct.getSubProductCode());
+       //existingVendor.setSubProductId(updatedVendor.getSubProductId());
+       // existingVendor.setSubProductCode(subProduct.getSubProductCode());
+        existingVendor.setUserField1(updatedVendor.getUserField1());
+        existingVendor.setUserField2(updatedVendor.getUserField2());
+        existingVendor.setUserField3(updatedVendor.getUserField3());
         existingVendor.setEditedBy(updatedVendor.getEditedBy());
 
+        if (Boolean.TRUE.equals(updatedVendor.getIsWhiteLabelAdmin())) {
+            existingVendor.setIsWhiteLabelAdmin(true);
+            existingVendor.setWhiteLabelAdminId(updatedVendor.getWhiteLabelAdminId());
+        }else {
+            existingVendor.setIsWhiteLabelAdmin(false);
+            existingVendor.setWhiteLabelAdminId("-");
+        }
 
         Vendors savedVendor = vendorsRepository.save(existingVendor);
         log.info("Vendor {} updated successfully.", savedVendor.getId());
@@ -129,27 +145,31 @@ public class VendorServiceImpl implements VendorService {
     }
 
     @Override
-    public List<VendorDropdownResponseDto> getActiveVendorBySubProductId(String subProductId) {
-        log.info("Fetching vendors for subProductId: {}", subProductId);
+    public List<VendorDropdownResponseDto> getActiveVendorByProductId(String productId) {
+        log.info("Fetching vendors for productId: {}", productId);
 
         try {
-            List<Vendors> vendorList = vendorsRepository.findBySubProductIdAndActiveTrue(subProductId);
+            List<Vendors> vendorList = vendorsRepository.findByProductIdAndActiveTrue(productId);
 
             if (vendorList.isEmpty()) {
-                log.warn("No active vendors found for subProductId: {}", subProductId);
+                log.warn("No active vendors found for productId: {}", productId);
             } else {
-                log.info("Found {} active vendors for subProductId: {}", vendorList.size(), subProductId);
+                log.info("Found {} active vendors for productId: {}", vendorList.size(), productId);
             }
 
             return vendorList.stream()
-                    .map(vendor -> new VendorDropdownResponseDto(vendor.getId(), vendor.getVendorName(), vendor.getVendorCode()))
+                    .map(vendor -> new VendorDropdownResponseDto(
+                            vendor.getId(),
+                            vendor.getVendorName(),
+                            vendor.getVendorCode()))
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
-            log.error("Error while fetching vendors for subProductId: {}", subProductId, e);
+            log.error("Error while fetching vendors for productId: {}", productId, e);
             throw new RuntimeException("Error fetching vendors", e);
         }
     }
+
 
     @Override
     public List<VendorActiveResponseDto> getAllActiveVendors() {
