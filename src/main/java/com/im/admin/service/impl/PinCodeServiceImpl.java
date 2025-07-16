@@ -125,9 +125,13 @@ public class PinCodeServiceImpl implements PinCodeService {
         dto.setPinCode(pin.getPinCode());
         dto.setBlocked(pin.getBlocked());
         dto.setCountryName(pin.getCountry().getCountryName());
+        dto.setCountryId(pin.getCountry().getId());
         dto.setStateName(pin.getState().getStateName());
+        dto.setStateId(pin.getState().getId());
         dto.setDistrictName(pin.getDistrict().getDistrictName());
+        dto.setDistrictId(pin.getDistrict().getId());
         dto.setCityName(pin.getCity().getCityName());
+        dto.setCityId(pin.getCity().getId());
         dto.setCreatedOn(pin.getCreatedOn());
         dto.setEditedOn(pin.getEditedOn());
         dto.setCreatedBy(pin.getCreatedBy());
