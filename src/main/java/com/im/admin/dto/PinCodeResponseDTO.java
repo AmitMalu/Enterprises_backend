@@ -16,9 +16,13 @@ public class PinCodeResponseDTO {
     private Long id;
     private String pinCode;
     private String countryName;
+    private Long countryId;
     private String stateName;
+    private Long stateId;
     private String districtName;
+    private Long districtId;
     private String cityName;
+    private Long cityId;
     private Boolean blocked;
     private LocalDateTime createdOn;
     private String createdBy;
