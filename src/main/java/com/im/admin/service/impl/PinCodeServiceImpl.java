@@ -130,7 +130,7 @@ public class PinCodeServiceImpl implements PinCodeService {
         dto.setCityName(pin.getCity().getCityName());
         dto.setCreatedOn(pin.getCreatedOn());
         dto.setEditedOn(pin.getEditedOn());
-        dto.setCreatedBy(pin.getEditedBy());
+        dto.setCreatedBy(pin.getCreatedBy());
         dto.setEditedBy(pin.getEditedBy());
         return dto;
     }
