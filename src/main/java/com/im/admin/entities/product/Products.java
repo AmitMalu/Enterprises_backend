@@ -121,6 +121,15 @@ public class Products {
     @Column(name = "tds", nullable = false)
     private Double tds;
 
+    @Column(name = "user_field_1")
+    private String userField1;
+
+    @Column(name = "user_field_2")
+    private String userField2;
+
+    @Column(name = "user_field_3")
+    private String userField3;
+
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
     private LocalDateTime createdOn;

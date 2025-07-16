@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.im.admin.dto.WhiteLabelDropdownDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.WhiteLabels;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,4 +27,6 @@ public interface WhiteLabelService {
     WhiteLabels getWhiteLabelById(String id);
 
     void deleteWhiteLabel(String id);
+
+    List<WhiteLabelDropdownDTO> getAdminWhiteLabels();
 }

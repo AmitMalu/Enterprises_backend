@@ -62,6 +62,17 @@ public class SubProductsServiceImpl implements SubProductsService {
         }
 
         subProduct.setId(commonMethods.generateNextIdForTables("sub_products", "id"));
+
+        if(!Boolean.TRUE.equals(subProduct.getIsSettlement())) {
+            subProduct.setIsSettlement(false);
+            subProduct.setSettlementTime("-");
+        }
+
+        if (!Boolean.TRUE.equals(subProduct.getIsWhiteLabelAdmin())) {
+            subProduct.setIsWhiteLabelAdmin(false);
+            subProduct.setWhiteLabelAdminId("-");
+        }
+
         return subProductsRepository.save(subProduct);
     }
 
@@ -95,9 +106,26 @@ public class SubProductsServiceImpl implements SubProductsService {
         existingSubProduct.setProductId(subProduct.getProductId());
         existingSubProduct.setIsSettlement(subProduct.getIsSettlement());
         existingSubProduct.setWalletType(subProduct.getWalletType());
-        existingSubProduct.setEnabled(subProduct.getEnabled());
+        existingSubProduct.setIsVisible(subProduct.getIsVisible());
+        existingSubProduct.setIsBlocked(subProduct.getIsBlocked());
         existingSubProduct.setEditedBy(subProduct.getEditedBy());
         existingSubProduct.setIsActive(subProduct.getIsActive());
+
+        if(Boolean.TRUE.equals(subProduct.getIsSettlement())) {
+            existingSubProduct.setIsSettlement(true);
+            existingSubProduct.setSettlementTime(subProduct.getSettlementTime());
+        }else {
+            existingSubProduct.setIsSettlement(false);
+            existingSubProduct.setSettlementTime("-");
+        }
+
+        if (Boolean.TRUE.equals(subProduct.getIsWhiteLabelAdmin())) {
+            existingSubProduct.setIsWhiteLabelAdmin(true);
+            existingSubProduct.setWhiteLabelAdminId(subProduct.getWhiteLabelAdminId());
+        }else {
+            existingSubProduct.setIsWhiteLabelAdmin(false);
+            existingSubProduct.setWhiteLabelAdminId("-");
+        }
 
         SubProducts updatedSubProduct = subProductsRepository.save(existingSubProduct);
         log.info("Updated SubProduct with ID: {}", id);

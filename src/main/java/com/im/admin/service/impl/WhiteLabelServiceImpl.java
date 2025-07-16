@@ -3,6 +3,7 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
+import com.im.admin.dto.WhiteLabelDropdownDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.WhiteLabelPostpaidAmount;
 import com.im.admin.entities.WhiteLabelPrepaidAmount;
@@ -266,6 +267,13 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
         postpaidRepository.deleteByWhiteLabelId(whiteLabel);
         whiteLabelRepository.delete(whiteLabel);
         log.info("WhiteLabel deleted successfully: {}", id);
+    }
+
+    @Override
+    public List<WhiteLabelDropdownDTO> getAdminWhiteLabels() {
+        return whiteLabelRepository.findByIsAdminTrue().stream()
+                .map(wl -> new WhiteLabelDropdownDTO(wl.getWhiteLabelId(), wl.getName()))
+                .collect(Collectors.toList());
     }
 }
 
