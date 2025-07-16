@@ -12,10 +12,9 @@ import java.util.List;
 @Repository
 public interface VendorRepository extends JpaRepository<Vendors, String>, JpaSpecificationExecutor<Vendors> {
 
-  List<Vendors> findBySubProductIdAndActiveTrue(String subProductId);
+  List<Vendors> findByProductIdAndActiveTrue(String productId);
 
   boolean existsByVendorCode(String vendorCode);
-
 
   List<Vendors> findByActiveTrue();
 }

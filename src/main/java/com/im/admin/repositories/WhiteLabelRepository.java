@@ -21,6 +21,8 @@ public interface WhiteLabelRepository extends JpaRepository<WhiteLabels, String>
 
     Optional<WhiteLabels> findByWhiteLabelId(String whiteLabelId);
 
+    List<WhiteLabels> findByIsAdminTrue();
+
 }
 
 

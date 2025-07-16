@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.WhiteLabelDropdownDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.WhiteLabels;
 import com.im.admin.response.CommonResponse;
@@ -95,6 +96,13 @@ public class WhiteLabelController {
         whiteLabelService.deleteWhiteLabel(id);
         return ResponseEntity.ok("WhiteLabel " + id + " deleted successfully.");
     }
+
+    @GetMapping("/admin-dropdown")
+    public ResponseEntity<CommonResponse<List<WhiteLabelDropdownDTO>>> getAdminWhiteLabelDropdown() {
+        List<WhiteLabelDropdownDTO> list = whiteLabelService.getAdminWhiteLabels();
+        return ResponseEntity.ok(CommonResponse.success(list, "Admin white labels loaded successfully"));
+    }
+
 }
 
 

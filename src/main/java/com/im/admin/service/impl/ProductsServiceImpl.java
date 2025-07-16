@@ -35,15 +35,6 @@ public class ProductsServiceImpl implements ProductsService {
             throw new IllegalArgumentException("Product ID limit reached (10-99). No more IDs available.");
         }
 
-        // Convert SGST and TDS to percentage form (e.g., 18 → 0.18)
-//        if (product.getSgst() != null && product.getSgst() > 1) {
-//            product.setSgst(product.getSgst() / 100);
-//        }
-//
-//        if (product.getTds() != null && product.getTds() > 1) {
-//            product.setTds(product.getTds() / 100);
-//        }
-
         Products savedProduct = productsRepository.save(product);
 
         log.info("Product saved successfully with ID: {}", savedProduct.getId());
@@ -148,7 +139,8 @@ public class ProductsServiceImpl implements ProductsService {
                 .map(product -> new ProductDropdownResponseDto(
                         product.getId(),
                         product.getName(),
-                        product.getProductCode()))
+                        product.getProductCode(),
+                        product.getIsSettlement()))
                 .collect(Collectors.toList());
     }
 

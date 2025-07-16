@@ -32,21 +32,20 @@ public class VendorCredentials {
     @NotNull(message = "Product is required")
     private Short productId;
 
-    @Column(name = "sub_product_id", nullable = false)
-    @NotNull(message = "Sub Product is required")
-    private String subProductId;
-
     @Column(name = "base_url_uat")
     private String baseUrlUat;
 
     @Column(name = "base_url_prod")
     private String baseUrlProd;
 
-    @Column(name = "client_key")
-    private String clientKey;
+    @Column(name = "client_id")
+    private String clientId;
 
     @Column(name = "client_secret")
     private String clientSecret;
+
+    @Column(name = "slat_key")
+    private String saltKey;
 
     @Column(name = "username")
     private String username;
@@ -56,6 +55,21 @@ public class VendorCredentials {
 
     @Column(name = "is_active")
     private Boolean isActive = false;
+
+    @Column(name = "is_white_label_admin")
+    private Boolean isWhiteLabelAdmin;
+
+    @Column(name = "white_label_admin_id")
+    private String whiteLabelAdminId;
+
+    @Column(name = "user_field_1")
+    private String userField1;
+
+    @Column(name = "user_field_2")
+    private String userField2;
+
+    @Column(name = "user_field_3")
+    private String userField3;
 
     @CreationTimestamp
     @Column(name = "created_on", updatable = false)

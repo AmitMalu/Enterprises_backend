@@ -94,23 +94,24 @@ public class VendorController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/dropdown/{subProductId}")
-    public ResponseEntity<CommonResponse<List<VendorDropdownResponseDto>>> getActiveVendors(
-            @PathVariable("subProductId") String subProductId) {
+    @GetMapping("/dropdown/by-product/{productId}")
+    public ResponseEntity<CommonResponse<List<VendorDropdownResponseDto>>> getActiveVendorsByProduct(
+            @PathVariable("productId") String productId) {
 
-        log.info("Fetching active vendors for subProductId: {}", subProductId);
+        log.info("Fetching active vendors for productId: {}", productId);
 
-        List<VendorDropdownResponseDto> vendorList = vendorsService.getActiveVendorBySubProductId(subProductId);
+        List<VendorDropdownResponseDto> vendorList = vendorsService.getActiveVendorByProductId(productId);
 
         if (vendorList.isEmpty()) {
-            log.warn("No active vendors found for subProductId: {}", subProductId);
+            log.warn("No active vendors found for productId: {}", productId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new CommonResponse<>(404, "No active vendors found for the given subProductId.", null));
+                    .body(new CommonResponse<>(404, "No active vendors found for the given productId.", null));
         }
 
-        log.info("Successfully retrieved {} vendors for subProductId: {}", vendorList.size(), subProductId);
+        log.info("Successfully retrieved {} vendors for productId: {}", vendorList.size(), productId);
         return ResponseEntity.ok(new CommonResponse<>(200, "Active vendors fetched successfully", vendorList));
     }
+
 
     @GetMapping("/active")
     public ResponseEntity<CommonResponse<List<VendorActiveResponseDto>>> getActiveVendorsOnly() {

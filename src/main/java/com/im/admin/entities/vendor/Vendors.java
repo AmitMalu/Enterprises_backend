@@ -24,16 +24,16 @@ public class Vendors {
     @Column(name = "id", columnDefinition = "CHAR(2)")
     private String id;
 
-    @Column(name = "sub_product_code")
-    private String subProductCode;
+//    @Column(name = "sub_product_code")
+//    private String subProductCode;
 
     @NotNull(message = "Product is required")
     @Column(name = "product_id")
     private String productId;
 
-    @NotBlank(message = "Sub Product is required")
-    @Column(name = "sub_product_Id")
-    private String subProductId;
+//    @NotBlank(message = "Sub Product is required")
+//    @Column(name = "sub_product_Id")
+//    private String subProductId;
 
     @NotBlank(message = "Vendor Name is required")
     private String vendorName;
@@ -63,6 +63,21 @@ public class Vendors {
     @Embedded
     @Valid
     private VendorAccount vendorAccount;
+
+    @Column(name = "is_white_label_admin")
+    private Boolean isWhiteLabelAdmin;
+
+    @Column(name = "white_label_admin_id")
+    private String whiteLabelAdminId;
+
+    @Column(name = "user_field_1")
+    private String userField1;
+
+    @Column(name = "user_field_2")
+    private String userField2;
+
+    @Column(name = "user_field_3")
+    private String userField3;
 
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
