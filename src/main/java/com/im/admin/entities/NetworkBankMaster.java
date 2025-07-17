@@ -30,6 +30,9 @@ public class NetworkBankMaster {
     @Column(name = "bank_name")
     private String bankName;
 
+    @Column(name = "bank_branch_name")
+    private String bankBranchName;
+
     @Column(name = "ifsc_code")
     private String ifscCode;
 
