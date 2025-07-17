@@ -86,7 +86,7 @@ public class VendorServiceImpl implements VendorService {
     }
 
     @Override
-    public List<VendorDropdownResponseDto> getActiveVendorByProductId(String productId) {
+    public List<VendorDropdownResponseDto> getActiveVendorByProductId(Short productId) {
         log.info("Fetching vendors for productId: {}", productId);
 
         try {
