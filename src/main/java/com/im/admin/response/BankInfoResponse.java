@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 public class BankInfoResponse {
 
     private String bankName;
+    private String bankBranchName;
 
 }

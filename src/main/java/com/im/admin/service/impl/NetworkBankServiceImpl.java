@@ -66,6 +66,7 @@ public class NetworkBankServiceImpl implements NetworkBankService {
         bank.setBankCode(dto.getBankCode());
         bank.setBankCodeBI(dto.getBankCodeBi());
         bank.setBankName(dto.getBankName());
+        bank.setBankBranchName(dto.getBankBranchName());
         bank.setIfscCode(dto.getIfscCode());
         bank.setImps(dto.getImps());
         bank.setNeft(dto.getNeft());
@@ -81,13 +82,13 @@ public class NetworkBankServiceImpl implements NetworkBankService {
 
     @Override
     public Page<NetworkBankMaster> getAllBanks(Pageable pageable, String id, String bankCode, String bankName,
-                                        String ifscCode, String imps, String neft,
+                                        String bankBranchName, String ifscCode, String imps, String neft,
                                         String rtgs, String activeStatus, String createdBy,
                                         String editedBy, Boolean isBlocked, LocalDate createdOn,
                                         LocalDate editedOn) {
 
         Specification<NetworkBankMaster> spec = BankSpecification.getFilter(
-                id, bankCode, bankName, ifscCode, imps, neft, rtgs,
+                id, bankCode, bankName, bankBranchName, ifscCode, imps, neft, rtgs,
                 activeStatus, createdBy, editedBy, isBlocked, createdOn, editedOn
         );
 
@@ -104,6 +105,7 @@ public class NetworkBankServiceImpl implements NetworkBankService {
         existing.setBankCode(dto.getBankCode());
         existing.setBankCodeBI(dto.getBankCodeBi());
         existing.setBankName(dto.getBankName());
+        existing.setBankBranchName(dto.getBankBranchName());
         existing.setIfscCode(dto.getIfscCode());
         existing.setImps(dto.getImps());
         existing.setNeft(dto.getNeft());
@@ -144,7 +146,7 @@ public class NetworkBankServiceImpl implements NetworkBankService {
         NetworkBankMaster bank = bankMasterRepository.findByIfscCodeIgnoreCase(ifscCode.trim())
                 .orElseThrow(() -> new NoSuchElementException("No bank found with IFSC: " + ifscCode));
 
-        return new BankInfoResponse(bank.getBankName());
+        return new BankInfoResponse(bank.getBankName(), bank.getBankBranchName());
     }
 
 }

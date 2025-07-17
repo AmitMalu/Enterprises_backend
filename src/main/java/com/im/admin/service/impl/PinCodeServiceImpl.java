@@ -147,9 +147,13 @@ public class PinCodeServiceImpl implements PinCodeService {
         PinCodeLocationResponse response = new PinCodeLocationResponse();
         response.setPinCode(pin.getPinCode());
         response.setCountryName(pin.getCountry().getCountryName());
+        response.setCountryId(pin.getCountry().getId());
         response.setStateName(pin.getState().getStateName());
+        response.setStateId(pin.getState().getId());
         response.setDistrictName(pin.getDistrict().getDistrictName());
+        response.setDistrictId(pin.getDistrict().getId());
         response.setCityName(pin.getCity().getCityName());
+        response.setCityId(pin.getCity().getId());
 
         return response;
     }
