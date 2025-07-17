@@ -17,12 +17,12 @@ public interface NetworkBankService {
     NetworkBankMaster addBank(BankRequestDto bankRequestDto, MultipartFile logoFile) throws IOException;
 
     Page<NetworkBankMaster> getAllBanks(Pageable pageable, String id, String bankCode, String bankName,
-                                 String ifscCode, String imps, String neft,
-                                 String rtgs, String activeStatus, String createdBy,
-                                 String editedBy, Boolean isBlocked, LocalDate createdOn,
-                                 LocalDate editedOn);
+                                        String bankBranchName, String ifscCode, String imps, String neft,
+                                        String rtgs, String activeStatus, String createdBy,
+                                        String editedBy, Boolean isBlocked, LocalDate createdOn,
+                                        LocalDate editedOn);
 
-    NetworkBankMaster updateBank(Long id,BankRequestDto bankRequestDto, MultipartFile logoFile);
+    NetworkBankMaster updateBank(Long id, BankRequestDto bankRequestDto, MultipartFile logoFile);
 
     NetworkBankMaster getBankById(Long id);
 

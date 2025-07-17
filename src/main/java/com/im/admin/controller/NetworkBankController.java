@@ -57,6 +57,7 @@ public class NetworkBankController {
             @RequestParam(required = false) String id,
             @RequestParam(required = false) String bankCode,
             @RequestParam(required = false) String bankName,
+            @RequestParam(required = false) String bankBranchName,
             @RequestParam(required = false) String ifscCode,
             @RequestParam(required = false) String imps,
             @RequestParam(required = false) String neft,
@@ -71,7 +72,7 @@ public class NetworkBankController {
 
         Pageable pageable = PageRequest.of(page, size);
         Page<NetworkBankMaster> banks = bankService.getAllBanks(
-                pageable, id, bankCode, bankName, ifscCode, imps, neft, rtgs,
+                pageable, id, bankCode, bankName, bankBranchName, ifscCode, imps, neft, rtgs,
                 activeStatus, createdBy, editedBy, isBlocked, createdOn, editedOn
         );
 

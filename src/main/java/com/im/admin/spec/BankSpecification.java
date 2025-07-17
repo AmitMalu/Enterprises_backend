@@ -14,6 +14,7 @@ public class BankSpecification {
             String id,
             String bankCode,
             String bankName,
+            String bankBranchName,
             String ifscCode,
             String imps,
             String neft,
@@ -34,6 +35,8 @@ public class BankSpecification {
                 predicates.add(cb.like(cb.lower(root.get("bankCode")), "%" + bankCode.toLowerCase() + "%"));
             if (bankName != null)
                 predicates.add(cb.like(cb.lower(root.get("bankName")), "%" + bankName.toLowerCase() + "%"));
+            if (bankBranchName != null)
+                predicates.add(cb.like(cb.lower(root.get("bankBranchName")), "%" + bankBranchName.toLowerCase() + "%"));
             if (ifscCode != null)
                 predicates.add(cb.like(cb.lower(root.get("ifscCode")), "%" + ifscCode.toLowerCase() + "%"));
             if (imps != null)

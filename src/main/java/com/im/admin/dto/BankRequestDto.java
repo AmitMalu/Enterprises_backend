@@ -8,6 +8,7 @@ public class BankRequestDto {
     private String bankCode;
     private String bankCodeBi;
     private String bankName;
+    private String bankBranchName;
     private String ifscCode;
     private Boolean imps;
     private Boolean neft;
