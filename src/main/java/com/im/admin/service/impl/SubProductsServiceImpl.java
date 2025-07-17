@@ -40,13 +40,10 @@ public class SubProductsServiceImpl implements SubProductsService {
     @Override
     public SubProducts saveSubProduct(SubProducts subProduct) {
 
-        // Fetch the product by ID
-        Products product = productsRepository.findById(subProduct.getProductId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid productId: " + subProduct.getProductId()));
+        Products product = productsRepository.findById(subProduct.getProduct().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid productId: " + subProduct.getProduct().getId()));
 
-        // Set name and code from product
-        subProduct.setProductName(product.getName());
-        subProduct.setProductCode(product.getProductCode());
+        subProduct.setProduct(product);
 
         Optional<SubProducts> existingSubProduct = subProductsRepository
                 .findBySubProductCodeOrSubProductTitle(subProduct.getSubProductCode(), subProduct.getSubProductTitle());
@@ -94,16 +91,15 @@ public class SubProductsServiceImpl implements SubProductsService {
                 .orElseThrow(() -> new IllegalArgumentException("SubProduct with ID " + id + " not found."));
 
         // Check if productId is changed and fetch product
-        if (!Objects.equals(existingSubProduct.getProductId(), subProduct.getProductId())) {
-            Products product = productsRepository.findById(subProduct.getProductId())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid productId: " + subProduct.getProductId()));
-            existingSubProduct.setProductName(product.getName());
-            existingSubProduct.setProductCode(product.getProductCode());
+        if (!Objects.equals(existingSubProduct.getProduct().getId(), subProduct.getProduct().getId())) {
+            Products product = productsRepository.findById(subProduct.getProduct().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid productId: " + subProduct.getProduct().getId()));
+            existingSubProduct.setProduct(product);
         }
 
         existingSubProduct.setSubProductTitle(subProduct.getSubProductTitle());
         existingSubProduct.setSubProductCode(subProduct.getSubProductCode());
-        existingSubProduct.setProductId(subProduct.getProductId());
+//        existingSubProduct.setProductId(subProduct.getProductId());
         existingSubProduct.setIsSettlement(subProduct.getIsSettlement());
         existingSubProduct.setWalletType(subProduct.getWalletType());
         existingSubProduct.setIsVisible(subProduct.getIsVisible());

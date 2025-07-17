@@ -1,6 +1,8 @@
 package com.im.admin.entities;
 
 
+import com.im.admin.entities.product.Products;
+import com.im.admin.entities.vendor.Vendors;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -24,13 +26,15 @@ public class VendorCredentials {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "vendor_id", nullable = false)
-    @NotNull(message = "vendor is required")
-    private String vendorId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendor_id", nullable = false)
+    @NotNull(message = "Vendor is required")
+    private Vendors vendor;
 
-    @Column(name = "product_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
     @NotNull(message = "Product is required")
-    private Short productId;
+    private Products product;
 
     @Column(name = "base_url_uat")
     private String baseUrlUat;

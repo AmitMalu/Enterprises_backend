@@ -1661,7 +1661,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         // Replace with actual codes based on your data model or transaction
         newRequest.setOperatorCode(operator.getOperatorCode());
-        newRequest.setProductCode(subProduct.getProductCode());
+        newRequest.setProductCode(subProduct.getProduct().getProductCode());
         newRequest.setSubProductCode(subProduct.getSubProductCode());
 
         // Step 2: Fetch scheme details

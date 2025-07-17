@@ -56,7 +56,7 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
             SubProducts subProduct = subProductsRepository.findBySubProductCode(dto.getSubProductCode())
                     .orElseThrow(() -> new ResourceNotFoundException("SubProduct not found: " + dto.getSubProductCode()));
 
-            String productCode = subProduct.getProductCode();
+            String productCode = subProduct.getProduct().getProductCode();
 
             // 2. Check if record already exists
             Optional<SchemeAllocation> existing = schemeAllocationRepository

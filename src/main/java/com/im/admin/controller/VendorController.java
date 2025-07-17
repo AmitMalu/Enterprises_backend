@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.dto.VendorActiveResponseDto;
 import com.im.admin.dto.VendorDropdownResponseDto;
+import com.im.admin.dto.VendorsDTO;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.VendorService;
@@ -31,21 +32,21 @@ public class VendorController {
     private VendorService vendorsService;
 
     @PostMapping
-    public ResponseEntity<CommonResponse<Vendors>> createVendor(@RequestBody @Valid Vendors vendor) {
-        Vendors savedVendor = vendorsService.saveVendor(vendor);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new CommonResponse<>(201, "Vendor created successfully", savedVendor));
+    public ResponseEntity<CommonResponse<Vendors>> createVendor(@RequestBody @Valid VendorsDTO dto) {
+        Vendors savedVendor = vendorsService.saveVendor(dto);
+        return ResponseEntity.ok(CommonResponse.success(savedVendor, "Vendor saved successfully"));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommonResponse<Vendors>> getVendorById(@PathVariable String id) {
-        Vendors vendor = vendorsService.getVendorById(id);
-        return ResponseEntity.ok(
-                new CommonResponse<>(200, "Vendor fetched successfully", vendor));
+    public ResponseEntity<CommonResponse<VendorsDTO>> getVendorById(@PathVariable String id) {
+        VendorsDTO dto = vendorsService.getVendorById(id);
+        return ResponseEntity.ok(CommonResponse.success(dto, "Vendor fetched successfully"));
     }
 
+
+
     @GetMapping
-    public ResponseEntity<CommonResponse<Page<Vendors>>> getAllVendors(
+    public ResponseEntity<CommonResponse<Page<VendorsDTO>>> getAllVendors(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) List<String> id,
@@ -68,25 +69,26 @@ public class VendorController {
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate editedOn
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Vendors> result = vendorsService.getAllVendors(pageable, id, vendorName, vendorCode, productId, productCode,
-                subProductId, subProductCode, modesSupported, priority, isActive, bankType, website, logo, parameter,
-                createdBy, editedBy, createdOn, editedOn);
-
-        return ResponseEntity.ok(
-                new CommonResponse<>(200, "Vendors fetched successfully", result)
+        Page<VendorsDTO> dtoPage = vendorsService.getAllVendors(
+                pageable, id, vendorName, vendorCode, productId, productCode,
+                subProductId, subProductCode, modesSupported, priority, isActive,
+                bankType, website, logo, parameter, createdBy, editedBy, createdOn, editedOn
         );
+
+        return ResponseEntity.ok(CommonResponse.success(dtoPage, "Vendors fetched successfully"));
     }
 
 
     @PutMapping("/{id}")
     public ResponseEntity<CommonResponse<Vendors>> updateVendor(
             @PathVariable String id,
-            @RequestBody @Valid Vendors vendor) {
+            @RequestBody @Valid VendorsDTO vendorDto) {
 
-        Vendors updatedVendor = vendorsService.updateVendor(id, vendor);
+        Vendors updatedVendor = vendorsService.updateVendor(id, vendorDto);
         return ResponseEntity.ok(
-                new CommonResponse<>(200, "Vendor updated successfully", updatedVendor));
+                CommonResponse.success(updatedVendor, "Vendor updated successfully"));
     }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVendor(@PathVariable String id) {
@@ -96,7 +98,7 @@ public class VendorController {
 
     @GetMapping("/dropdown/by-product/{productId}")
     public ResponseEntity<CommonResponse<List<VendorDropdownResponseDto>>> getActiveVendorsByProduct(
-            @PathVariable("productId") String productId) {
+            @PathVariable("productId") Short productId) {
 
         log.info("Fetching active vendors for productId: {}", productId);
 
@@ -105,13 +107,11 @@ public class VendorController {
         if (vendorList.isEmpty()) {
             log.warn("No active vendors found for productId: {}", productId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new CommonResponse<>(404, "No active vendors found for the given productId.", null));
+                    .body(CommonResponse.error(404, "No active vendors found for the given productId."));
         }
 
-        log.info("Successfully retrieved {} vendors for productId: {}", vendorList.size(), productId);
-        return ResponseEntity.ok(new CommonResponse<>(200, "Active vendors fetched successfully", vendorList));
+        return ResponseEntity.ok(CommonResponse.success(vendorList, "Active vendors fetched successfully"));
     }
-
 
     @GetMapping("/active")
     public ResponseEntity<CommonResponse<List<VendorActiveResponseDto>>> getActiveVendorsOnly() {
@@ -119,11 +119,12 @@ public class VendorController {
 
         if (result.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new CommonResponse<>(404, "No active vendors found", null));
+                    .body(CommonResponse.error(404, "No active vendors found"));
         }
 
-        return ResponseEntity.ok(new CommonResponse<>(200, "Active vendors fetched successfully", result));
+        return ResponseEntity.ok(CommonResponse.success(result, "Active vendors fetched successfully"));
     }
+
 
 }
 
