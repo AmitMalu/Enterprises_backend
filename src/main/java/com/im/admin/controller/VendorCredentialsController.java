@@ -58,8 +58,8 @@ public class VendorCredentialsController {
 
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommonResponse<VendorCredentials>> getById(@PathVariable Long id) {
-        VendorCredentials data = vendorCredentialsService.getVendorCredentialsById(id);
+    public ResponseEntity<CommonResponse<VendorCredentialsResponseDTO>> getById(@PathVariable Long id) {
+        VendorCredentialsResponseDTO data = vendorCredentialsService.getVendorCredentialsById(id);
         return ResponseEntity.ok(CommonResponse.success(data, "Vendor credentials fetched successfully"));
     }
 }

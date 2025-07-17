@@ -3,6 +3,8 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.VendorCredentialsDTO;
 import com.im.admin.dto.VendorCredentialsResponseDTO;
 import com.im.admin.entities.VendorCredentials;
+import com.im.admin.entities.product.Products;
+import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRepository;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,12 +42,9 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
     @Override
     @Transactional
     public VendorCredentials saveVendorCredentials(VendorCredentialsDTO dto) {
-        VendorCredentials entity = new VendorCredentials();
-        BeanUtils.copyProperties(dto, entity);
-        entity.setCreatedBy(dto.getCreatedBy());
+        VendorCredentials entity = mapToEntity(dto);
         return repository.save(entity);
     }
-
 
     @Override
     @Transactional
@@ -52,8 +52,30 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         VendorCredentials existing = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("VendorCredentials not found with id: " + id));
 
-        BeanUtils.copyProperties(dto, existing, "id", "createdOn", "createdBy");
+        // Fetch vendor and product entities
+        Vendors vendor = vendorsRepository.findById(dto.getVendorId().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid vendor ID: " + dto.getVendorId().getId()));
+
+        Products product = productsRepository.findById(dto.getProductId().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid product ID: " + dto.getProductId().getId()));
+
+        // Set fields manually
+        existing.setVendor(vendor);
+        existing.setProduct(product);
+        existing.setBaseUrlUat(dto.getBaseUrlUat());
+        existing.setBaseUrlProd(dto.getBaseUrlProd());
+        existing.setClientId(dto.getClientId());
+        existing.setClientSecret(dto.getClientSecret());
+        existing.setUsername(dto.getUsername());
+        existing.setPassword(dto.getPassword());
+        existing.setIsActive(dto.getIsActive());
+        existing.setIsWhiteLabelAdmin(dto.getIsWhiteLabelAdmin());
+        existing.setWhiteLabelAdminId(dto.getWhiteLabelAdminId());
+        existing.setUserField1(dto.getUserField1());
+        existing.setUserField2(dto.getUserField2());
+        existing.setUserField3(dto.getUserField3());
         existing.setEditedBy(dto.getEditedBy());
+
         return repository.save(existing);
     }
 
@@ -68,11 +90,10 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
             String createdBy,
             Pageable pageable) {
 
-        // DB filtering for username, isActive, createdBy
         Specification<VendorCredentials> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (username != null && !username.isEmpty()) {
+            if (StringUtils.hasText(username)) {
                 predicates.add(cb.like(cb.lower(root.get("username")), "%" + username.toLowerCase() + "%"));
             }
 
@@ -80,8 +101,21 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
                 predicates.add(cb.equal(root.get("isActive"), isActive));
             }
 
-            if (createdBy != null && !createdBy.isEmpty()) {
+            if (StringUtils.hasText(createdBy)) {
                 predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+            }
+
+            if (StringUtils.hasText(productName)) {
+                predicates.add(cb.like(cb.lower(root.get("product").get("name")), "%" + productName.toLowerCase() + "%"));
+            }
+
+            if (StringUtils.hasText(vendorName)) {
+                predicates.add(cb.like(cb.lower(root.get("vendor").get("vendorName")), "%" + vendorName.toLowerCase() + "%"));
+            }
+
+            if (StringUtils.hasText(whiteLabelAdminName)) {
+                // Join white label admin if modeled, or skip
+                // predicates.add(cb.like(...)) if applicable
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -89,8 +123,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
 
         Page<VendorCredentials> page = repository.findAll(spec, pageable);
 
-        // Map to DTOs and apply in-memory filtering for names
-        List<VendorCredentialsResponseDTO> filtered = page.getContent().stream().map(entity -> {
+        return page.map(entity -> {
             VendorCredentialsResponseDTO dto = new VendorCredentialsResponseDTO();
             dto.setId(entity.getId());
             dto.setUsername(entity.getUsername());
@@ -107,63 +140,89 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
             dto.setEditedBy(entity.getEditedBy());
             dto.setEditedOn(entity.getEditedOn());
 
-            dto.setVendorId(entity.getVendorId());
-            vendorsRepository.findById(entity.getVendorId()).ifPresent(v ->
-                    dto.setVendorName(v.getVendorName()));
+            // Vendor & Product info
+            if (entity.getVendor() != null) {
+                dto.setVendorId(entity.getVendor().getId());
+                dto.setVendorName(entity.getVendor().getVendorName());
+            }
 
-            dto.setProductId(entity.getProductId());
-            productsRepository.findById(entity.getProductId()).ifPresent(p ->
-                    dto.setProductName(p.getName()));
+            if (entity.getProduct() != null) {
+                dto.setProductId(entity.getProduct().getId());
+                dto.setProductName(entity.getProduct().getName());
+            }
 
             dto.setWhiteLabelAdminId(entity.getWhiteLabelAdminId());
-            if (entity.getWhiteLabelAdminId() != null) {
+            if (StringUtils.hasText(entity.getWhiteLabelAdminId())) {
                 whiteLabelsRepository.findById(entity.getWhiteLabelAdminId()).ifPresent(wl ->
                         dto.setWhiteLabelAdminName(wl.getName()));
             }
 
             return dto;
-        }).filter(dto -> {
-            return (productName == null || (dto.getProductName() != null && dto.getProductName().toLowerCase().contains(productName.toLowerCase()))) &&
-                    (vendorName == null || (dto.getVendorName() != null && dto.getVendorName().toLowerCase().contains(vendorName.toLowerCase()))) &&
-                    (whiteLabelAdminName == null || (dto.getWhiteLabelAdminName() != null && dto.getWhiteLabelAdminName().toLowerCase().contains(whiteLabelAdminName.toLowerCase())));
-        }).toList();
-
-        // Manual pagination
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), filtered.size());
-        List<VendorCredentialsResponseDTO> paged = (start > end) ? List.of() : filtered.subList(start, end);
-
-        return new PageImpl<>(paged, pageable, filtered.size());
+        });
     }
-
-    public static Specification<VendorCredentials> filter(
-            String vendorId, Short productId, Boolean isActive, String whiteLabelAdminId) {
-
-        return (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            if (vendorId != null && !vendorId.isEmpty()) {
-                predicates.add(cb.equal(root.get("vendorId"), vendorId));
-            }
-            if (productId != null) {
-                predicates.add(cb.equal(root.get("productId"), productId));
-            }
-            if (isActive != null) {
-                predicates.add(cb.equal(root.get("isActive"), isActive));
-            }
-            if (whiteLabelAdminId != null && !whiteLabelAdminId.isEmpty()) {
-                predicates.add(cb.equal(root.get("whiteLabelAdminId"), whiteLabelAdminId));
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-    }
-
 
     @Override
-    public VendorCredentials getVendorCredentialsById(Long id) {
-        return repository.findById(id)
+    public VendorCredentialsResponseDTO getVendorCredentialsById(Long id) {
+        VendorCredentials entity = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("VendorCredentials not found with id: " + id));
+        return mapToDTO(entity);
     }
+
+    private VendorCredentials mapToEntity(VendorCredentialsDTO dto) {
+        Vendors vendor = vendorsRepository.findById(dto.getVendorId().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid vendor ID: " + dto.getVendorId().getId()));
+
+        Products product = productsRepository.findById(dto.getProductId().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid product ID: " + dto.getProductId().getId()));
+
+        VendorCredentials entity = new VendorCredentials();
+        entity.setVendor(vendor);
+        entity.setProduct(product);
+
+        entity.setBaseUrlUat(dto.getBaseUrlUat());
+        entity.setBaseUrlProd(dto.getBaseUrlProd());
+        entity.setClientId(dto.getClientId());
+        entity.setClientSecret(dto.getClientSecret());
+        entity.setUsername(dto.getUsername());
+        entity.setPassword(dto.getPassword());
+        entity.setIsActive(dto.getIsActive());
+        entity.setIsWhiteLabelAdmin(dto.getIsWhiteLabelAdmin());
+        entity.setWhiteLabelAdminId(dto.getWhiteLabelAdminId());
+        entity.setUserField1(dto.getUserField1());
+        entity.setUserField2(dto.getUserField2());
+        entity.setUserField3(dto.getUserField3());
+        entity.setCreatedBy(dto.getCreatedBy());
+        entity.setEditedBy(dto.getEditedBy());
+
+        return entity;
+    }
+
+    private VendorCredentialsResponseDTO mapToDTO(VendorCredentials entity) {
+        VendorCredentialsResponseDTO dto = new VendorCredentialsResponseDTO();
+        BeanUtils.copyProperties(entity, dto);
+
+        // Set vendor info
+        if (entity.getVendor() != null) {
+            dto.setVendorId(entity.getVendor().getId());
+            dto.setVendorName(entity.getVendor().getVendorName());
+        }
+
+        // Set product info
+        if (entity.getProduct() != null) {
+            dto.setProductId(entity.getProduct().getId());
+            dto.setProductName(entity.getProduct().getName());
+        }
+
+        // Set whitelabel info (optional)
+        if (entity.getWhiteLabelAdminId() != null) {
+            dto.setWhiteLabelAdminId(entity.getWhiteLabelAdminId());
+            whiteLabelsRepository.findById(entity.getWhiteLabelAdminId()).ifPresent(wl ->
+                    dto.setWhiteLabelAdminName(wl.getName()));
+        }
+
+        return dto;
+    }
+
+
 }
 

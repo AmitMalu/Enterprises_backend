@@ -1,5 +1,7 @@
 package com.im.admin.dto;
 
+import com.im.admin.entities.product.Products;
+import com.im.admin.entities.vendor.Vendors;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,8 +14,8 @@ import lombok.Setter;
 public class VendorCredentialsDTO {
 
     private Long id;
-    private String vendorId;
-    private Short productId;
+    private Vendors vendorId;
+    private Products productId;
     private String baseUrlUat;
     private String baseUrlProd;
     private String clientId;

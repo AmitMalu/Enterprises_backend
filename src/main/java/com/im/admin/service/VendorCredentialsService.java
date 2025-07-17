@@ -21,6 +21,6 @@ public interface VendorCredentialsService {
             String createdBy,
             Pageable pageable);
 
-    VendorCredentials getVendorCredentialsById(Long id);
+    VendorCredentialsResponseDTO getVendorCredentialsById(Long id);
 }
 
