@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.dto.ChangePasswordRequestDto;
 import com.im.admin.dto.LoginRequestDto;
 import com.im.admin.entities.ImSubRole;
 import com.im.admin.entities.SchemeAllocation;
@@ -565,6 +566,40 @@ public class AuthController {
 
         commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
         return ResponseEntity.ok(commonResponse);
+    }
+
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequestDto request) {
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = "";
+        String responseJson = "";
+
+        try {
+            // Convert request to string manually
+            requestJson = "userName=" + request.getUserName()
+                    + "&otp=" + request.getOtp()
+                    + "&oldPassword=" + request.getOldPassword();
+
+            authService.changePassword(request);  // call to service
+
+            CommonResponse<?> response = new CommonResponse<>(200, "Password changed successfully", null);
+            responseJson = objectMapper.writeValueAsString(response);
+
+            commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException | JsonProcessingException ex) {
+            ex.printStackTrace();
+            CommonResponse<?> error = new CommonResponse<>(500, ex.getMessage(), null);
+            try {
+                responseJson = objectMapper.writeValueAsString(error);
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+            commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), ex.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
 
