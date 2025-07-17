@@ -3,6 +3,7 @@ package com.im.admin.service;
 
 import com.im.admin.dto.VendorActiveResponseDto;
 import com.im.admin.dto.VendorDropdownResponseDto;
+import com.im.admin.dto.VendorsDTO;
 import com.im.admin.entities.vendor.Vendors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,31 +13,38 @@ import java.util.List;
 
 public interface VendorService {
 
-    Vendors saveVendor(Vendors vendor);
+    Vendors saveVendor(VendorsDTO dto);
 
-    Vendors getVendorById(String id);
+    VendorsDTO getVendorById(String id);
 
-    Page<Vendors> getAllVendors(Pageable pageable, List<String> id, String vendorName,
-                                String vendorCode, String productId,
-                                String productCode, String subProductId,
-                                String subProductCode, String modesSupported,
-                                Integer priority, Boolean isActive,
-                                String bankType, String website,
-                                String logo, String parameter,
-                                String createdBy, String editedBy,
-                                LocalDate createdOn,
-                                LocalDate editedOn);
+    Page<VendorsDTO> getAllVendors(Pageable pageable,
+                                   List<String> ids,
+                                   String vendorName,
+                                   String vendorCode,
+                                   String productId,
+                                   String productCode,
+                                   String subProductId,
+                                   String subProductCode,
+                                   String modesSupported,
+                                   Integer priority,
+                                   Boolean isActive,
+                                   String bankType,
+                                   String website,
+                                   String logo,
+                                   String parameter,
+                                   String createdBy,
+                                   String editedBy,
+                                   LocalDate createdOn,
+                                   LocalDate editedOn);
 
 
-    Vendors updateVendor(String id, Vendors vendor);
+    Vendors updateVendor(String id, VendorsDTO dto);
 
     void deleteVendor(String id);
 
     List<VendorDropdownResponseDto> getActiveVendorByProductId(String productId);
 
     List<VendorActiveResponseDto> getAllActiveVendors();
-
-    String getVendorNameById(String vendorId);
 
 }
 
