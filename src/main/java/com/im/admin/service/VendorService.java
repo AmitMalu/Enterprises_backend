@@ -42,7 +42,7 @@ public interface VendorService {
 
     void deleteVendor(String id);
 
-    List<VendorDropdownResponseDto> getActiveVendorByProductId(String productId);
+    List<VendorDropdownResponseDto> getActiveVendorByProductId(Short productId);
 
     List<VendorActiveResponseDto> getAllActiveVendors();
 
