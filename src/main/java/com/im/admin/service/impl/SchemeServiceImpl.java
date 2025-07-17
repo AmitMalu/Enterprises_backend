@@ -204,20 +204,20 @@ public class SchemeServiceImpl implements SchemeService {
         return schemeRateRepository.findByOperatorCode(operatorCode);
     }
 
-    @Transactional
-    @Override
-    public VendorRouting saveVendorRouting(VendorRoutingDto request) {
-        VendorRouting vendorRouting = new VendorRouting();
-        vendorRouting.setSubProductId(request.getSubProductId());
-        vendorRouting.setSubProductName(request.getSubProductName());
-        vendorRouting.setVendorId(request.getVendorId());
-        vendorRouting.setVendorName(request.getVendorName());
-        vendorRouting.setPriority(request.getPriority());
-        vendorRouting.setCreatedBy(request.getCreatedBy());
-        vendorRouting.setEditedBy(request.getEditedBy());
-
-        return vendorRoutingRepository.save(vendorRouting);
-    }
+//    @Transactional
+//    @Override
+//    public VendorRouting saveVendorRouting(VendorRoutingDto request) {
+//        VendorRouting vendorRouting = new VendorRouting();
+//        vendorRouting.setSubProductId(request.getSubProductId());
+//        vendorRouting.setSubProductName(request.getSubProductName());
+//        vendorRouting.setVendorId(request.getVendorId());
+//        vendorRouting.setVendorName(request.getVendorName());
+//        vendorRouting.setPriority(request.getPriority());
+//        vendorRouting.setCreatedBy(request.getCreatedBy());
+//        vendorRouting.setEditedBy(request.getEditedBy());
+//
+//        return vendorRoutingRepository.save(vendorRouting);
+//    }
 
     @Override
     public Page<GetAllSchemeResponse> getAllSchemes(Pageable pageable) {

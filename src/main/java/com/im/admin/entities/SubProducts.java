@@ -1,13 +1,12 @@
 package com.im.admin.entities;
 
+import com.im.admin.entities.product.Products;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -24,6 +23,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
+@AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "sub_products")
 public class SubProducts {
 
@@ -39,21 +40,15 @@ public class SubProducts {
     @NotBlank(message = "Sub Product Code cannot be blank")
     private String subProductCode;
 
-    @Column(name = "product_id")
-    @NotNull(message = "Product Id cannot be null")
-    private Short productId;
-
-    @Column(name = "product", nullable = false)
-    private String productCode;
-
-    @Column(name = "product_name")
-    private String productName;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
+    @NotNull(message = "Product is required")
+    private Products product;
 
     @Column(name = "wallet_type")
     private String walletType;
 
     @Column(name = "is_settlement")
-    //@NotNull(message = "Is Settlement is required")
     private Boolean isSettlement;
 
     @Column(name = "settlement_time")

@@ -35,5 +35,8 @@ public interface VendorService {
     List<VendorDropdownResponseDto> getActiveVendorByProductId(String productId);
 
     List<VendorActiveResponseDto> getAllActiveVendors();
+
+    String getVendorNameById(String vendorId);
+
 }
 

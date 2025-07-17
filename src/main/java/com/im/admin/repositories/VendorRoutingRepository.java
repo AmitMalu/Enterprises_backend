@@ -2,10 +2,11 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.VendorRouting;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface VendorRoutingRepository extends JpaRepository<VendorRouting, Long> {
+public interface VendorRoutingRepository extends JpaRepository<VendorRouting, Long>, JpaSpecificationExecutor<VendorRouting> {
 
 
 }

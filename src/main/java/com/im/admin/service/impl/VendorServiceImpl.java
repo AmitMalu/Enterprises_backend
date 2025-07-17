@@ -180,4 +180,15 @@ public class VendorServiceImpl implements VendorService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public String getVendorNameById(String vendorId) {
+        if (vendorId == null || vendorId.trim().isEmpty()) {
+            return null;
+        }
+
+        return vendorsRepository.findById(vendorId)
+                .map(Vendors::getVendorName)
+                .orElse("Unknown Vendor");
+    }
+
 }

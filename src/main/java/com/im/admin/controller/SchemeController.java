@@ -64,11 +64,11 @@ public class SchemeController {
         return ResponseEntity.ok(schemeService.getSchemeRatesByOperatorCode(operatorCode));
     }
 
-    @PostMapping("/routing")
-    public ResponseEntity<?> vendorRouting(@RequestBody VendorRoutingDto vendorRoutingDto) {
-        VendorRouting savedVendorRouting = schemeService.saveVendorRouting(vendorRoutingDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedVendorRouting);
-    }
+//    @PostMapping("/routing")
+//    public ResponseEntity<?> vendorRouting(@RequestBody VendorRoutingDto vendorRoutingDto) {
+//        VendorRouting savedVendorRouting = schemeService.saveVendorRouting(vendorRoutingDto);
+//        return ResponseEntity.status(HttpStatus.CREATED).body(savedVendorRouting);
+//    }
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<GetAllSchemeResponse>>> getAllSchemes(
