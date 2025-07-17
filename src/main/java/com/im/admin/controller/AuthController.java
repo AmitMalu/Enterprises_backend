@@ -576,16 +576,10 @@ public class AuthController {
         String responseJson = "";
 
         try {
-            // Convert request to string manually
-            requestJson = "userName=" + request.getUserName()
-                    + "&otp=" + request.getOtp()
-                    + "&oldPassword=" + request.getOldPassword();
+            requestJson = objectMapper.writeValueAsString(request);
 
-            authService.changePassword(request);  // call to service
-
-            CommonResponse<?> response = new CommonResponse<>(200, "Password changed successfully", null);
+            CommonResponse<?> response = authService.changePassword(request);  // updated to return response
             responseJson = objectMapper.writeValueAsString(response);
-
             commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
             return ResponseEntity.ok(response);
 

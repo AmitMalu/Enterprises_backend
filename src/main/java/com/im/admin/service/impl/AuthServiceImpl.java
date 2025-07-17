@@ -6,12 +6,15 @@ import com.im.admin.entities.UserDetails;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AuthService;
+import com.im.admin.util.OtpUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -57,10 +60,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void changePassword(ChangePasswordRequestDto request) {
+    public CommonResponse<?> changePassword(ChangePasswordRequestDto request) {
         String username = request.getUserName();
 
-        // Fetch user by mobile or email
         Optional<UserDetails> optionalUser = username.matches("\\d{10}")
                 ? userDetailsRepository.findByMobileNumber(username)
                 : userDetailsRepository.findByEmailId(username);
@@ -71,12 +73,31 @@ public class AuthServiceImpl implements AuthService {
 
         UserDetails user = optionalUser.get();
 
-        //  Check if user status is Active
+        // Check Active status
         if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
             throw new RuntimeException("User account is not active");
         }
 
-        //  OTP validation
+        if ("REQUEST_OTP".equalsIgnoreCase(request.getStep())) {
+            //  Generate OTP
+            String otp = OtpUtil.generateOtp();
+            user.setOtp(otp);
+            user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
+            userDetailsRepository.save(user);
+
+            Map<String, String> otpData = new HashMap<>();
+            otpData.put("otp", otp);
+
+
+            return new CommonResponse<>(200, "OTP sent successfully", otpData);
+        }
+
+        // Step 2: VERIFY_AND_CHANGE
+        if (!"VERIFY_AND_CHANGE".equalsIgnoreCase(request.getStep())) {
+            throw new RuntimeException("Invalid step value. Must be 'REQUEST_OTP' or 'VERIFY_AND_CHANGE'");
+        }
+
+        // OTP validation
         if (user.getOtp() == null || user.getOtpExpiryTime() == null) {
             throw new RuntimeException("No OTP generated");
         }
@@ -89,25 +110,25 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("Invalid OTP");
         }
 
-        //  Password match validation
+        //  Password checks
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             throw new RuntimeException("New password and confirm password do not match");
         }
 
-        //  Old password validation
         if (!passwordEncoder.matches(request.getOldPassword(), user.getLoginPassword())) {
             throw new RuntimeException("Old password is incorrect");
         }
 
-        // s New password must be different from old
         if (passwordEncoder.matches(request.getNewPassword(), user.getLoginPassword())) {
             throw new RuntimeException("New password cannot be same as old password");
         }
 
-        //  Update password
+        //  Save new password
         String encodedPassword = passwordEncoder.encode(request.getNewPassword());
         user.setLoginPassword(encodedPassword);
         userDetailsRepository.save(user);
+
+        return new CommonResponse<>(200, "Password changed successfully", null);
     }
 
 
