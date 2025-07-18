@@ -22,7 +22,7 @@ public class VendorLogsReportServiceImpl implements VendorLogsReportService {
     @Override
     public List<VendorLogsResponseDTO> getFilteredVendorLogs(LocalDate start, LocalDate end,
                                                              String vendorId, String requestText, String responseText,
-                                                             String ip, LocalDate requestDateTime, LocalDate responseDateTime) {
+                                                             String ip,  Integer srNo,LocalDate requestDateTime, LocalDate responseDateTime) {
 
         List<Object[]> rows = vendorLogsRepo.getVendorLogsBetweenDates(
                 start.atStartOfDay(), end.atTime(23, 59, 59)
@@ -44,6 +44,7 @@ public class VendorLogsReportServiceImpl implements VendorLogsReportService {
 
                     return dto;
                 })
+                .filter(r -> srNo == null || r.getSrNo().equals(srNo))
                 .filter(r -> vendorId == null || r.getImVendorId().equalsIgnoreCase(vendorId))
                 .filter(r -> requestText == null || (r.getRequest() != null && r.getRequest().toLowerCase().contains(requestText.toLowerCase())))
                 .filter(r -> responseText == null || (r.getResponse() != null && r.getResponse().toLowerCase().contains(responseText.toLowerCase())))
@@ -56,9 +57,9 @@ public class VendorLogsReportServiceImpl implements VendorLogsReportService {
     @Override
     public ByteArrayResource exportVendorLogsToCSV(LocalDate start, LocalDate end,
                                                    String vendorId, String requestText, String responseText,
-                                                   String ip, LocalDate requestDateTime, LocalDate responseDateTime) {
+                                                   String ip, Integer srNo, LocalDate requestDateTime, LocalDate responseDateTime) {
 
-        List<VendorLogsResponseDTO> logs = getFilteredVendorLogs(start, end, vendorId, requestText, responseText, ip, requestDateTime, responseDateTime);
+        List<VendorLogsResponseDTO> logs = getFilteredVendorLogs(start, end, vendorId, requestText, responseText, ip,srNo, requestDateTime, responseDateTime);
 
         if (logs.isEmpty()) return null;
 

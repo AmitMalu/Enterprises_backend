@@ -31,8 +31,9 @@ public class VendorLogs {
     @Column(name = "request_date_time")
     private LocalDateTime requestDateTime;
 
-    @Column(name = "response _date_time")
+    @Column(name = "response_date_time")
     private LocalDateTime responseDateTime;
+
 
 
 }
