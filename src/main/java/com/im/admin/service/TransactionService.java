@@ -12,6 +12,8 @@ public interface TransactionService {
 
     String getOperatorDetailsByCardBIN(CardTypeRequestDto cardTypeRequestDto);
 
+    CommonResponse<CardBinDetailsResponseDto> getDetailsByCardBINNumber(CardTypeRequestDto cardTypeRequestDto);
+
     TransactionSchemeDetailsResponseDto getTransactionSchemeDetails(TransactionSchemeDetailsRequestDto request);
 
     String processTransaction(TransactionSchemeDetailsRequestDto request, String vendorCallbackStatus);

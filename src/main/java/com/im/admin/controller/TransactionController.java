@@ -9,6 +9,7 @@ import com.im.admin.util.CommonMethods;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -27,15 +28,22 @@ public class TransactionController {
     @Autowired
     private TransactionService transactionService;
 
-    @Autowired
-    private CommonMethods commonMethods;
-
     @PostMapping("/fetch-card-details")
     public ResponseEntity<String> getCardOperatorDetails(@Valid @RequestBody CardTypeRequestDto cardTypeRequestDto) {
-        log.info("Received request to fetch card details for BIN: {}", cardTypeRequestDto.getCardBIN_No());
+        log.info("Received request to fetch card details for BIN: {}", cardTypeRequestDto.getCardBinNo());
         String result = transactionService.getOperatorDetailsByCardBIN(cardTypeRequestDto);
         return ResponseEntity.ok(result);
     }
+
+    @PostMapping("/fetch-card-bin-details")
+    public ResponseEntity<CommonResponse<CardBinDetailsResponseDto>> getCardBinDetails(
+            @Valid @RequestBody CardTypeRequestDto cardTypeRequestDto) {
+
+        log.info("Received Request To Fetch Card Bin Details for BIN: {}", cardTypeRequestDto.getCardBinNo());
+        CommonResponse<CardBinDetailsResponseDto> response = transactionService.getDetailsByCardBINNumber(cardTypeRequestDto);
+        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getStatusCode()));
+    }
+
 
     @PostMapping("/fetch-scheme")
     public ResponseEntity<?> getSchemeDetails(@RequestBody TransactionSchemeDetailsRequestDto request) {

@@ -81,6 +81,9 @@ public class RetailerPrepaidTransactionDetails implements AbstractRetailerTransa
     @Column(name = "transaction_id")
     private String transactionId;
 
+    @Column(name = "transaction_type")
+    private String transactionType;
+
     @Column(name = "vendor_name")
     private String vendorName;
 

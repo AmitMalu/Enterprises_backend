@@ -3,10 +3,7 @@ package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.commons.CommonFunctions;
-import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
-import com.im.admin.dto.RetailerCommissionResponseDTO;
-import com.im.admin.dto.PgTokenResponseDTO;
-import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.request.CreateOrderRequest;
@@ -15,6 +12,9 @@ import com.im.admin.response.RunPaisaCallback;
 import com.im.admin.service.PaymentGatewayService;
 import com.im.admin.service.VendorCallbackParser;
 import com.im.admin.util.CommonMethods;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.ParameterMode;
+import jakarta.persistence.StoredProcedureQuery;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +27,8 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +69,9 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     @Autowired
     private TransactionSchemeRequestEntityRepository transactionSchemeRequestEntityRepository;
 
+    @Autowired
+    private ProductTransactionLimitRepository productTransactionLimitRepository;
+
     RestTemplate restTemplate = new RestTemplate();
 
     @Value("${runpaisa.token.username}")
@@ -89,6 +94,9 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
     @Autowired
     private CallbackParserFactory callbackParserFactory;
+
+    @Autowired
+    private EntityManager entityManager;
 
 
     @Override
@@ -407,6 +415,50 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
         log.info("---- [Callback] Callback object created: {}", callback);
         return callback;
+    }
+
+
+    @Override
+    public CommonResponse<String> validateTransaction(PgTransactionRequestDto request) {
+
+        ProductTransactionLimit limit = getLimit(request.getProductId())
+                .orElseThrow(() -> new RuntimeException("No transaction limits configured"));
+
+        StoredProcedureQuery query = entityManager
+                .createStoredProcedureQuery("check_pg_transaction_limit")
+                .registerStoredProcedureParameter("wallet_type", String.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("in_card_bin_no", String.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("in_card_holder_mobile", String.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("transaction_amount", BigDecimal.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("daily_limit", Integer.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("monthly_limit", Integer.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("yearly_limit", Integer.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("daily_amt_limit", BigDecimal.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("result_msg", String.class, ParameterMode.OUT)
+                .registerStoredProcedureParameter("is_valid", Boolean.class, ParameterMode.OUT);
+
+        query.setParameter("wallet_type", request.getWalletType());
+        query.setParameter("in_card_bin_no", request.getCardBinNo());
+        query.setParameter("in_card_holder_mobile", request.getCardHolderMobileNumber());
+        query.setParameter("transaction_amount", request.getAmount());
+        query.setParameter("daily_limit", limit.getDailyTransactionLimit());
+        query.setParameter("monthly_limit", limit.getMonthlyTransactionLimit());
+        query.setParameter("yearly_limit", limit.getYearlyTransactionLimit());
+        query.setParameter("daily_amt_limit", limit.getMaxPerTransactionAmt());
+
+        query.execute();
+
+        String resultMsg = (String) query.getOutputParameterValue("result_msg");
+        Boolean isValid = (Boolean) query.getOutputParameterValue("is_valid");
+
+        return isValid
+                ? CommonResponse.success("ALLOWED", resultMsg)
+                : CommonResponse.failure(resultMsg);
+    }
+
+    public Optional<ProductTransactionLimit> getLimit(Short productId) {
+        return productTransactionLimitRepository
+                .findByProduct_Id(productId);
     }
 
 }
