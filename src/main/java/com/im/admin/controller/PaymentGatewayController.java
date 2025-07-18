@@ -3,6 +3,7 @@ package com.im.admin.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
+import com.im.admin.dto.PgTransactionRequestDto;
 import com.im.admin.dto.RetailerCommissionResponseDTO;
 import com.im.admin.request.CreateOrderRequest;
 import com.im.admin.response.CommonResponse;
@@ -31,6 +32,14 @@ public class PaymentGatewayController {
     private PaymentGatewayService paymentGatewayService;
 
     LocalDateTime currentDateTimeDate = LocalDateTime.now();
+
+    @PostMapping("/validate")
+    public ResponseEntity<CommonResponse<String>> validateTransaction(
+            @RequestBody PgTransactionRequestDto request) {
+
+        CommonResponse<String> response = paymentGatewayService.validateTransaction(request);
+        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getStatusCode()));
+    }
 
     @GetMapping("/generate-token")
     public ResponseEntity<String> generateToken() {

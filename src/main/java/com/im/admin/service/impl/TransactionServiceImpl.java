@@ -111,21 +111,39 @@ public class TransactionServiceImpl implements TransactionService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private CardTypeMasterRepository cardTypeMasterRepository;
+
     @Override
     public String getOperatorDetailsByCardBIN(CardTypeRequestDto cardTypeRequestDto) {
-        log.info("Fetching operator details for BIN: {}", cardTypeRequestDto.getCardBIN_No());
+        log.info("Fetching operator details for BIN: {}", cardTypeRequestDto.getCardBinNo());
 
-        return operatorsRepository.findByCardBinNo(cardTypeRequestDto.getCardBIN_No())
+        return operatorsRepository.findByCardBinNo(cardTypeRequestDto.getCardBinNo())
                 .map(operator -> {
                     log.info("Operator found - Name: {}, Code: {}", operator.getOperatorName(), operator.getOperatorCode());
                     return "Operator Name: " + operator.getOperatorName() + ", Operator Code: " + operator.getOperatorCode();
                 })
                 .orElseGet(() -> {
-                    log.warn("No operator found for BIN No: {}", cardTypeRequestDto.getCardBIN_No());
-                    return "No operator found for BIN No: " + cardTypeRequestDto.getCardBIN_No();
+                    log.warn("No operator found for BIN No: {}", cardTypeRequestDto.getCardBinNo());
+                    return "No operator found for BIN No: " + cardTypeRequestDto.getCardBinNo();
                 });
     }
 
+    @Override
+    public CommonResponse<CardBinDetailsResponseDto> getDetailsByCardBINNumber(CardTypeRequestDto cardTypeRequestDto) {
+        log.info("Fetching details for BIN: {}", cardTypeRequestDto.getCardBinNo());
+
+        return cardTypeMasterRepository.findByCardBinNo(cardTypeRequestDto.getCardBinNo())
+                .map(cardType -> {
+                    log.info("Card Type found - Type: {}, Name: {}", cardType.getCardType(), cardType.getIssuerName());
+                    CardBinDetailsResponseDto dto = new CardBinDetailsResponseDto(cardType.getCardType(), cardType.getIssuerName());
+                    return CommonResponse.success(dto, "Card BIN details found");
+                })
+                .orElseGet(() -> {
+                    log.warn("No card type found for BIN No: {}", cardTypeRequestDto.getCardBinNo());
+                    return CommonResponse.failure("No card details found for BIN No: " + cardTypeRequestDto.getCardBinNo());
+                });
+    }
 
     @Override
     public TransactionSchemeDetailsResponseDto getTransactionSchemeDetails(TransactionSchemeDetailsRequestDto request) {
