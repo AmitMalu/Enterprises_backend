@@ -9,9 +9,9 @@ import java.util.List;
 public interface VendorLogsReportService {
     List<VendorLogsResponseDTO> getFilteredVendorLogs(LocalDate start, LocalDate end,
                                                       String vendorId, String requestText, String responseText,
-                                                      String ip, LocalDate requestDateTime, LocalDate responseDateTime);
+                                                      String ip, Integer srNo,LocalDate requestDateTime, LocalDate responseDateTime);
 
     ByteArrayResource exportVendorLogsToCSV(LocalDate start, LocalDate end,
                                             String vendorId, String requestText, String responseText,
-                                            String ip, LocalDate requestDateTime, LocalDate responseDateTime);
+                                            String ip,Integer srNo, LocalDate requestDateTime, LocalDate responseDateTime);
 }

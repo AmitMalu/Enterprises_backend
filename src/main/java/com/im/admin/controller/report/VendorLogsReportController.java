@@ -30,11 +30,12 @@ public class VendorLogsReportController {
             @RequestParam(value = "request", required = false) String request,
             @RequestParam(value = "response", required = false) String response,
             @RequestParam(value = "ipAddress", required = false) String ip,
+            @RequestParam(value = "srNo", required = false) Integer srNo,
             @RequestParam(value = "requestDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate requestDateTime,
             @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime
     ) {
         List<VendorLogsResponseDTO> data = vendorLogsReportService.getFilteredVendorLogs(
-                startDate, endDate, vendorId, request, response, ip, requestDateTime, responseDateTime
+                startDate, endDate, vendorId, request, response, ip,srNo, requestDateTime, responseDateTime
         );
 
         if (data.isEmpty()) {
@@ -55,11 +56,12 @@ public class VendorLogsReportController {
             @RequestParam(value = "request", required = false) String request,
             @RequestParam(value = "response", required = false) String response,
             @RequestParam(value = "ipAddress", required = false) String ip,
+            @RequestParam(value = "srNo", required = false) Integer srNo,
             @RequestParam(value = "requestDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate requestDateTime,
             @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime
     ) {
         ByteArrayResource resource = vendorLogsReportService.exportVendorLogsToCSV(
-                startDate, endDate, vendorId, request, response, ip, requestDateTime, responseDateTime
+                startDate, endDate, vendorId, request, response, ip,srNo, requestDateTime, responseDateTime
         );
 
         if (resource == null) {
