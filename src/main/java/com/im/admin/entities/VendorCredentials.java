@@ -48,7 +48,7 @@ public class VendorCredentials {
     @Column(name = "client_secret")
     private String clientSecret;
 
-    @Column(name = "slat_key")
+    @Column(name = "salt_key")
     private String saltKey;
 
     @Column(name = "username")
