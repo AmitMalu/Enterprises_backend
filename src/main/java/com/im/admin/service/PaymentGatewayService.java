@@ -27,4 +27,6 @@ public interface PaymentGatewayService {
 
     void processCallback(RunPaisaCallback callback) throws JsonProcessingException;
 
+    CommonResponse<String> validateTransaction(PgTransactionRequestDto request);
+
 }
