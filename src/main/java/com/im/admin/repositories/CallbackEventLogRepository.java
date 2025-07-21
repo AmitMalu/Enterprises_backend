@@ -2,9 +2,15 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.CallbackEventLog;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-@Repository
+import java.time.LocalDateTime;
+import java.util.List;
+
 public interface CallbackEventLogRepository extends JpaRepository<CallbackEventLog, Integer> {
 
+    @Query(value = "CALL callback_event_log_report(:startDate, :endDate)", nativeQuery = true)
+    List<Object[]> getCallbackLogsBetweenDates(@Param("startDate") LocalDateTime startDate,
+                                               @Param("endDate") LocalDateTime endDate);
 }
