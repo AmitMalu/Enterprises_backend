@@ -12,4 +12,9 @@ public class SubProductDropdownResponseDto {
     private String id;
     private String subProduct_name;
     private String subProduct_code;
+
+    public SubProductDropdownResponseDto(String id, String subProduct_name) {
+        this.id = id;
+        this.subProduct_name = subProduct_name;
+    }
 }

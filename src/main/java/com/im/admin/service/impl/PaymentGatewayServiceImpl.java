@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
+import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
 import com.im.admin.request.CreateOrderRequest;
 import com.im.admin.response.CommonResponse;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -72,6 +74,12 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     @Autowired
     private ProductTransactionLimitRepository productTransactionLimitRepository;
 
+    @Autowired
+    private VendorRoutingRepository vendorRoutingRepository;
+
+    @Autowired
+    private VendorCredentialsRepository vendorCredentialsRepository;
+
     RestTemplate restTemplate = new RestTemplate();
 
     @Value("${runpaisa.token.username}")
@@ -85,9 +93,6 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
     @Value("${runpaisa.client.id}")
     private String clientId;
-
-    @Value("${runpaisa.create.order.url.prod}")
-    private String createOrderUrl;
 
     @Value("${runpaisa.order.status.url.prod}")
     private String orderStatusUrl;
@@ -112,6 +117,36 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
 
         String url = baseUrlPROD + "/token";
+        log.info("Sending token request to URL: {}", url);
+
+        ResponseEntity<PgTokenResponseDTO> response = restTemplate.postForEntity(
+                url,
+                requestEntity,
+                PgTokenResponseDTO.class
+        );
+
+        PgTokenResponseDTO tokenResponse = response.getBody();
+        log.info("Bearer token response: {}", tokenResponse);
+
+        if (tokenResponse != null && tokenResponse.getData() != null) {
+            return tokenResponse.getData().getToken();
+        } else {
+            throw new RuntimeException("Failed to get token from Runpaisa");
+        }
+    }
+
+    public String generateTokenAsPerVendor(VendorCredentials vendorCredentials) {
+
+        // Set headers only
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("username", vendorCredentials.getUsername());
+        headers.set("password", vendorCredentials.getPassword());
+        headers.set("client_id", vendorCredentials.getClientId());
+
+        HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
+
+        String url = vendorCredentials.getTokenUrlUat() + "/token";
         log.info("Sending token request to URL: {}", url);
 
         ResponseEntity<PgTokenResponseDTO> response = restTemplate.postForEntity(
@@ -189,17 +224,25 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     }
 
     @Override
+    @Transactional
     public ResponseEntity<?> createOrder(CreateOrderRequest req) {
         try {
 
-            //Step 1: Generate token
-            String token = generateToken();
+            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
 
+            Vendors vendor = getVendors(vendorRouting);
+
+            VendorCredentials credentials = vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+
+            //Step 1: Generate token
             // Step 2: Build multipart request
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-            headers.set("client_id", clientId);
-            headers.set("token", token);
+            headers.set("client_id", credentials.getClientId());
+            headers.set("token", generateTokenAsPerVendor(credentials));
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("callbackurl", req.getCallbackUrl());
@@ -211,23 +254,25 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 body.add("merc_unq_ref", req.getMerchantRef());
             }
 
-            String dtoJson = objectMapper.writeValueAsString(req.getTransactionScheme());
-
-            log.debug("DTO JSON: {}", dtoJson);
-
-            TransactionSchemeRequestEntity entity = TransactionSchemeRequestEntity.builder()
-                    .orderId("ORD" + baseTransactionId)
-                    .fullRequestDtoJson(dtoJson)
-                    .createdOn(LocalDateTime.now())
-                    .build();
-
-            log.info("Saving TransactionSchemeRequestEntity with orderId: {}", entity.getOrderId());
-            transactionSchemeRequestEntityRepository.save(entity);
-            log.info("Entity saved successfully");
+//            String dtoJson = objectMapper.writeValueAsString(req.getTransactionScheme());
+//
+//            log.debug("DTO JSON: {}", dtoJson);
+//
+//            TransactionSchemeRequestEntity entity = TransactionSchemeRequestEntity.builder()
+//                    .orderId("ORD" + baseTransactionId)
+//                    .fullRequestDtoJson(dtoJson)
+//                    .createdOn(LocalDateTime.now())
+//                    .build();
+//
+//            log.info("Saving TransactionSchemeRequestEntity with orderId: {}", entity.getOrderId());
+//            transactionSchemeRequestEntityRepository.save(entity);
+//            log.info("Entity saved successfully");
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
             log.info("CreateOrder Request: headers={}, body={}", headers, body);
-            ResponseEntity<String> response = restTemplate.postForEntity(createOrderUrl, requestEntity, String.class);
+
+            String url = credentials.getBaseUrlUat();
+            ResponseEntity<String> response = restTemplate.postForEntity(url + "/order", requestEntity, String.class);
 
             log.info("Run paisa create order response: {}", response.getBody());
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
@@ -236,6 +281,23 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             log.error("Error while creating order: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Order creation failed");
         }
+    }
+
+    private static Vendors getVendors(VendorRouting vendorRouting) {
+        Vendors vendor = null;
+
+        if (vendorRouting.getRoutingPriority1() != null && vendorRouting.getRoutingPriority1().getActive()) {
+            vendor = vendorRouting.getRoutingPriority1();
+        } else if (vendorRouting.getRoutingPriority2() != null && vendorRouting.getRoutingPriority2().getActive()) {
+            vendor = vendorRouting.getRoutingPriority2();
+        } else if (vendorRouting.getRoutingPriority3() != null && vendorRouting.getRoutingPriority3().getActive()) {
+            vendor = vendorRouting.getRoutingPriority3();
+        }
+
+        if (vendor == null) {
+            throw new RuntimeException("No active vendor found for this subProductId");
+        }
+        return vendor;
     }
 
     @Override

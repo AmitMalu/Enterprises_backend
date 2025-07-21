@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.SubProductDropdownResponseDto;
+import com.im.admin.dto.SubProductsResponseDTO;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.SubProductsService;
@@ -63,7 +64,7 @@ public class SubProductsController {
     }
 
     @GetMapping
-    public ResponseEntity<CommonResponse<Page<SubProducts>>> getAllSubProducts(
+    public ResponseEntity<CommonResponse<Page<SubProductsResponseDTO>>> getAllSubProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
 
@@ -81,39 +82,25 @@ public class SubProductsController {
             @RequestParam(required = false) String editedBy,
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createdOn,
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate editedOn
-
     ) {
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<SubProducts> subProductsPage = subProductsService.getAllSubProducts(
+        Page<SubProductsResponseDTO> result = subProductsService.getAllSubProducts(
                 pageable, id, subProductTitle, subProductCode, productCode,
                 productId, productName, walletType, isSettlement, isActive, enabled,
                 createdBy, editedBy, createdOn, editedOn
         );
 
-
-        CommonResponse<Page<SubProducts>> response = new CommonResponse<>(
-                200,
-                "SubProducts fetched successfully",
-                subProductsPage
-        );
-
+        CommonResponse<Page<SubProductsResponseDTO>> response = new CommonResponse<>(200, "SubProducts fetched successfully", result);
         return ResponseEntity.ok(response);
     }
-
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommonResponse<SubProducts>> getSubProductById(@PathVariable String id) {
-        SubProducts subProduct = subProductsService.getSubProductById(id);
-
-        CommonResponse<SubProducts> response = new CommonResponse<>(
-                200,
-                "SubProduct fetched successfully",
-                subProduct
-        );
-
-        return ResponseEntity.ok(response);
+    public ResponseEntity<CommonResponse<SubProductsResponseDTO>> getSubProductById(@PathVariable String id) {
+        SubProductsResponseDTO result = subProductsService.getSubProductById(id);
+        return ResponseEntity.ok(CommonResponse.success(result, "SubProduct fetched successfully"));
     }
+
 
     @GetMapping("/dropdown/{productId}")
     public ResponseEntity<CommonResponse<List<SubProductDropdownResponseDto>>> getActiveSubProducts(
@@ -128,6 +115,12 @@ public class SubProductsController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/dropdown")
+    public ResponseEntity<CommonResponse<List<SubProductDropdownResponseDto>>> getSubProductDropdown() {
+        List<SubProductDropdownResponseDto> dropdownList = subProductsService.getSubProductDropdown();
+        return ResponseEntity.ok(CommonResponse.success(dropdownList, "SubProduct dropdown loaded successfully"));
     }
 
 }

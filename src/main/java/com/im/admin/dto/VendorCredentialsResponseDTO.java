@@ -26,6 +26,8 @@ public class VendorCredentialsResponseDTO {
     private Boolean isActive;
     private String baseUrlUat;
     private String baseUrlProd;
+    private String tokenUrlUat;
+    private String tokenUrlProd;
     private String clientId;
     private String clientSecret;
     private String saltKey;

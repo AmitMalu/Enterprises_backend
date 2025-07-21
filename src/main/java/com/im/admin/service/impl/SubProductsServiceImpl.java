@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.SubProductDropdownResponseDto;
+import com.im.admin.dto.SubProductsResponseDTO;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.ProductsRepository;
@@ -129,12 +130,20 @@ public class SubProductsServiceImpl implements SubProductsService {
     }
 
     @Override
-    public Page<SubProducts> getAllSubProducts(Pageable pageable, List<String> id,
-                                               String subProductTitle, String subProductCode, String productCode,
-                                               Short productId, String productName, String walletType,
-                                               Boolean isSettlement, Boolean isActive, Boolean enabled,
-                                               String createdBy, String editedBy,
-                                               LocalDate createdOn, LocalDate editedOn) {
+    public SubProductsResponseDTO getSubProductById(String id) {
+        SubProducts subProduct = subProductsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("SubProduct with ID " + id + " not found."));
+
+        return toDTO(subProduct);
+    }
+
+    @Override
+    public Page<SubProductsResponseDTO> getAllSubProducts(Pageable pageable, List<String> id,
+                                                          String subProductTitle, String subProductCode, String productCode,
+                                                          Short productId, String productName, String walletType,
+                                                          Boolean isSettlement, Boolean isActive, Boolean enabled,
+                                                          String createdBy, String editedBy,
+                                                          LocalDate createdOn, LocalDate editedOn) {
 
         Specification<SubProducts> spec = SubProductSpecification.getFilter(
                 id, subProductTitle, subProductCode, productCode, productId,
@@ -142,15 +151,11 @@ public class SubProductsServiceImpl implements SubProductsService {
                 createdBy, editedBy, createdOn, editedOn
         );
 
-        return subProductsRepository.findAll(spec, pageable);
+        Page<SubProducts> subProductEntities = subProductsRepository.findAll(spec, pageable);
+
+        return subProductEntities.map(this::toDTO);
     }
 
-
-    @Override
-    public SubProducts getSubProductById(String id) {
-        return subProductsRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("SubProduct with ID " + id + " not found."));
-    }
 
     @Override
     public List<SubProductDropdownResponseDto> getActiveSubProductsByProductId(Short productId) {
@@ -170,5 +175,45 @@ public class SubProductsServiceImpl implements SubProductsService {
             throw new RuntimeException("Error fetching sub-products", e);
         }
     }
+
+    public SubProductsResponseDTO toDTO(SubProducts entity) {
+        SubProductsResponseDTO dto = new SubProductsResponseDTO();
+        dto.setId(entity.getId());
+        dto.setSubProductTitle(entity.getSubProductTitle());
+        dto.setSubProductCode(entity.getSubProductCode());
+        dto.setWalletType(entity.getWalletType());
+        dto.setIsSettlement(entity.getIsSettlement());
+        dto.setSettlementTime(entity.getSettlementTime());
+        dto.setIsActive(entity.getIsActive());
+        dto.setIsVisible(entity.getIsVisible());
+        dto.setIsBlocked(entity.getIsBlocked());
+        dto.setIsWhiteLabelAdmin(entity.getIsWhiteLabelAdmin());
+        dto.setWhiteLabelAdminId(entity.getWhiteLabelAdminId());
+        dto.setUserField1(entity.getUserField1());
+        dto.setUserField2(entity.getUserField2());
+        dto.setUserField3(entity.getUserField3());
+        dto.setCreatedBy(entity.getCreatedBy());
+        dto.setEditedBy(entity.getEditedBy());
+        dto.setCreatedOn(entity.getCreatedOn());
+        dto.setEditedOn(entity.getEditedOn());
+
+        if (entity.getProduct() != null) {
+            dto.setProductId(entity.getProduct().getId());
+            dto.setProductCode(entity.getProduct().getProductCode());
+            dto.setProductName(entity.getProduct().getName());
+        }
+
+        return dto;
+    }
+
+    @Override
+    public List<SubProductDropdownResponseDto> getSubProductDropdown() {
+        List<SubProducts> allSubProducts = subProductsRepository.findAll();
+
+        return allSubProducts.stream()
+                .map(sp -> new SubProductDropdownResponseDto(sp.getId(), sp.getSubProductTitle()))
+                .collect(Collectors.toList());
+    }
+
 }
 
