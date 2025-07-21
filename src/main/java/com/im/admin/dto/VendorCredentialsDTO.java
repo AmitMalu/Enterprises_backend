@@ -18,6 +18,8 @@ public class VendorCredentialsDTO {
     private Products productId;
     private String baseUrlUat;
     private String baseUrlProd;
+    private String tokenUrlUat;
+    private String tokenUrlProd;
     private String clientId;
     private String saltKey;
     private String clientSecret;
