@@ -1,6 +1,7 @@
 package com.im.admin.service;
 
 import com.im.admin.dto.SubProductDropdownResponseDto;
+import com.im.admin.dto.SubProductsResponseDTO;
 import com.im.admin.entities.SubProducts;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,16 +17,18 @@ public interface SubProductsService {
 
     SubProducts updateSubProduct(String id, SubProducts subProduct);
 
-    Page<SubProducts> getAllSubProducts(
-            Pageable pageable, List<String> id, String subProductTitle,
-            String subProductCode, String productCode, Short productId,
-            String productName, String walletType, Boolean isSettlement,
-            Boolean isActive, Boolean enabled, String createdBy,
-            String editedBy, LocalDate createdOn, LocalDate editedOn);
+    Page<SubProductsResponseDTO> getAllSubProducts(Pageable pageable, List<String> id,
+                                                   String subProductTitle, String subProductCode, String productCode,
+                                                   Short productId, String productName, String walletType,
+                                                   Boolean isSettlement, Boolean isActive, Boolean enabled,
+                                                   String createdBy, String editedBy,
+                                                   LocalDate createdOn, LocalDate editedOn);
 
-
-    SubProducts getSubProductById(String id);
+    SubProductsResponseDTO getSubProductById(String id);
 
     List<SubProductDropdownResponseDto> getActiveSubProductsByProductId(Short productId);
+
+    List<SubProductDropdownResponseDto> getSubProductDropdown();
+
 }
 

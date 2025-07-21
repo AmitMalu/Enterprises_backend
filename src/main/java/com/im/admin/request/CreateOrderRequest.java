@@ -15,6 +15,8 @@ public class CreateOrderRequest {
     private double amount;
     private String callbackUrl;
     private String merchantRef; // optional
+    private Short productId;
+    private String subProductId;
 
     // Include full scheme details here
     private TransactionSchemeDetailsRequestDto transactionScheme;
