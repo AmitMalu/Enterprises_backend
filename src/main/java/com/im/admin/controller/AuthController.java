@@ -312,6 +312,7 @@ public class AuthController {
             responseMap.put("token", token);
             responseMap.put("hierarchyId", user.getHierarchyId());
             responseMap.put("mobileNumber", user.getMobileNumber());
+            responseMap.put("emailId",user.getEmailId());
 
             String hierarchyCode = user.getHierarchyCode();
 

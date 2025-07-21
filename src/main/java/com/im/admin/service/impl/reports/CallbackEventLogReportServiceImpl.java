@@ -1,0 +1,76 @@
+package com.im.admin.service.impl.reports;
+
+import com.im.admin.dto.CallbackEventLogResponseDTO;
+import com.im.admin.repositories.CallbackEventLogRepository;
+import com.im.admin.service.reports.CallbackEventLogReportService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.stereotype.Service;
+
+import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class CallbackEventLogReportServiceImpl implements CallbackEventLogReportService {
+
+    @Autowired
+    private CallbackEventLogRepository callbackEventLogRepository;
+
+    @Override
+    public List<CallbackEventLogResponseDTO> getFilteredLogs(LocalDate startDate, LocalDate endDate,
+                                                             Integer id, String request, String response,
+                                                             String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime) {
+
+        List<Object[]> rows = callbackEventLogRepository.getCallbackLogsBetweenDates(
+                startDate.atStartOfDay(), endDate.atTime(23, 59, 59));
+
+        return rows.stream().map(row -> {
+                    CallbackEventLogResponseDTO dto = new CallbackEventLogResponseDTO();
+                    dto.setId((Integer) row[0]);
+                    dto.setRequest((String) row[1]);
+                    dto.setResponse((String) row[2]);
+                    dto.setIpAddress((String) row[3]);
+
+                    Timestamp reqTs = (Timestamp) row[4];
+                    if (reqTs != null) dto.setRequestDateTime(reqTs.toLocalDateTime());
+
+                    Timestamp resTs = (Timestamp) row[5];
+                    if (resTs != null) dto.setResponseDateTime(resTs.toLocalDateTime());
+
+                    return dto;
+                })
+                .filter(r -> id == null || r.getId().equals(id))
+                .filter(r -> request == null || (r.getRequest() != null && r.getRequest().toLowerCase().contains(request.toLowerCase())))
+                .filter(r -> response == null || (r.getResponse() != null && r.getResponse().toLowerCase().contains(response.toLowerCase())))
+                .filter(r -> ipAddress == null || (r.getIpAddress() != null && r.getIpAddress().contains(ipAddress)))
+                .filter(r -> requestDateTime == null || (r.getRequestDateTime() != null && r.getRequestDateTime().toLocalDate().equals(requestDateTime)))
+                .filter(r -> responseDateTime == null || (r.getResponseDateTime() != null && r.getResponseDateTime().toLocalDate().equals(responseDateTime)))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public ByteArrayResource exportLogsToCSV(LocalDate startDate, LocalDate endDate,
+                                             Integer id, String request, String response,
+                                             String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime) {
+
+        List<CallbackEventLogResponseDTO> logs = getFilteredLogs(startDate, endDate, id, request, response, ipAddress, requestDateTime, responseDateTime);
+        if (logs.isEmpty()) return null;
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("Id,Request,Response,IP Address,Request DateTime,Response DateTime\n");
+
+        for (CallbackEventLogResponseDTO log : logs) {
+            csv.append(log.getId()).append(",")
+                    .append("\"").append(log.getRequest().replace("\"", "\"\"")).append("\",")
+                    .append("\"").append(log.getResponse().replace("\"", "\"\"")).append("\",")
+                    .append(log.getIpAddress()).append(",")
+                    .append(log.getRequestDateTime()).append(",")
+                    .append(log.getResponseDateTime()).append("\n");
+        }
+
+        return new ByteArrayResource(csv.toString().getBytes(StandardCharsets.UTF_8));
+    }
+}
