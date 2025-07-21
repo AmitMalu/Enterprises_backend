@@ -17,10 +17,10 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:5173", "http://192.168.1.126:5173") // Allow Vite React app
+                .allowedOrigins("*") // Allow Vite React app
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .allowCredentials(true);  // if you’re using cookies or Authorization header
+                .allowCredentials(false);  // if you’re using cookies or Authorization header
     }
 
     @Override
