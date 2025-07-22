@@ -223,22 +223,77 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         return new CommonResponse<>(200, "Retailer commission fetched successfully", dto);
     }
 
+//    @Override
+//    @Transactional
+//    public ResponseEntity<?> createOrder(CreateOrderRequest req) {
+//        try {
+//
+//            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+//
+//            Vendors vendor = getVendors(vendorRouting);
+//
+//            VendorCredentials credentials = vendorCredentialsRepository
+//                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+//                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+//
+//
+//            //Step 1: Generate token
+//            // Step 2: Build multipart request
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+//            headers.set("client_id", credentials.getClientId());
+//            headers.set("token", generateTokenAsPerVendor(credentials));
+//
+//            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+//            body.add("callbackurl", req.getCallbackUrl());
+//            String baseTransactionId = commonMethods.generateBaseTransactionId();
+//            body.add("order_id", "ORD" + baseTransactionId);
+//            body.add("amount", String.valueOf(req.getAmount()));
+//
+//            if (req.getMerchantRef() != null) {
+//                body.add("merc_unq_ref", req.getMerchantRef());
+//            }
+//
+////            String dtoJson = objectMapper.writeValueAsString(req.getTransactionScheme());
+////
+////            log.debug("DTO JSON: {}", dtoJson);
+////
+////            TransactionSchemeRequestEntity entity = TransactionSchemeRequestEntity.builder()
+////                    .orderId("ORD" + baseTransactionId)
+////                    .fullRequestDtoJson(dtoJson)
+////                    .createdOn(LocalDateTime.now())
+////                    .build();
+////
+////            log.info("Saving TransactionSchemeRequestEntity with orderId: {}", entity.getOrderId());
+////            transactionSchemeRequestEntityRepository.save(entity);
+////            log.info("Entity saved successfully");
+//
+//            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+//            log.info("CreateOrder Request: headers={}, body={}", headers, body);
+//
+//            String url = credentials.getBaseUrlUat();
+//            ResponseEntity<String> response = restTemplate.postForEntity(url + "/order", requestEntity, String.class);
+//
+//            log.info("Run paisa create order response: {}", response.getBody());
+//            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
+//
+//        } catch (Exception e) {
+//            log.error("Error while creating order: ", e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Order creation failed");
+//        }
+//    }
+
     @Override
     @Transactional
-    public ResponseEntity<?> createOrder(CreateOrderRequest req) {
+    public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req) {
         try {
-
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
-
             Vendors vendor = getVendors(vendorRouting);
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-
-            //Step 1: Generate token
-            // Step 2: Build multipart request
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
             headers.set("client_id", credentials.getClientId());
@@ -254,34 +309,24 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 body.add("merc_unq_ref", req.getMerchantRef());
             }
 
-//            String dtoJson = objectMapper.writeValueAsString(req.getTransactionScheme());
-//
-//            log.debug("DTO JSON: {}", dtoJson);
-//
-//            TransactionSchemeRequestEntity entity = TransactionSchemeRequestEntity.builder()
-//                    .orderId("ORD" + baseTransactionId)
-//                    .fullRequestDtoJson(dtoJson)
-//                    .createdOn(LocalDateTime.now())
-//                    .build();
-//
-//            log.info("Saving TransactionSchemeRequestEntity with orderId: {}", entity.getOrderId());
-//            transactionSchemeRequestEntityRepository.save(entity);
-//            log.info("Entity saved successfully");
-
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
             log.info("CreateOrder Request: headers={}, body={}", headers, body);
 
             String url = credentials.getBaseUrlUat();
             ResponseEntity<String> response = restTemplate.postForEntity(url + "/order", requestEntity, String.class);
 
-            log.info("Run paisa create order response: {}", response.getBody());
-            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
+            log.info("Create order response: {}", response.getBody());
+
+            return ResponseEntity.status(response.getStatusCode())
+                    .body(CommonResponse.success(response.getBody(), "Order created successfully"));
 
         } catch (Exception e) {
             log.error("Error while creating order: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Order creation failed");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.failure("Order creation failed: " + e.getMessage()));
         }
     }
+
 
     private static Vendors getVendors(VendorRouting vendorRouting) {
         Vendors vendor = null;
