@@ -316,7 +316,7 @@ public class AuthController {
 
             String hierarchyCode = user.getHierarchyCode();
 
-            if ("AD".equalsIgnoreCase(hierarchyCode) || "WL-AD".equalsIgnoreCase(hierarchyCode)) {
+            if ("AD".equalsIgnoreCase(hierarchyCode)) {
                 responseMap.put("role_id", user.getRole_id());
 
                 ImSubRole subRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
@@ -324,7 +324,24 @@ public class AuthController {
                     responseMap.put("sub_role_id", subRole.getSubRoleId());
                     responseMap.put("role", hierarchyCode);
                 }
+
+            } else if ("WL".equalsIgnoreCase(hierarchyCode)) {
+                WhiteLabels whiteLabel = whiteLabelRepository.findByMobileNumber(user.getMobileNumber());
+
+                if (whiteLabel != null && Boolean.TRUE.equals(whiteLabel.getIsAdmin())) {
+                    responseMap.put("role_id", user.getRole_id());
+
+                    ImSubRole subRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                    if (subRole != null) {
+                        responseMap.put("sub_role_id", subRole.getSubRoleId());
+                    }
+
+                    responseMap.put("role", "WL-AD"); // Treat as WL Admin
+                } else {
+                    responseMap.put("role", "WL"); // Normal WhiteLabel user
+                }
             }
+
 
             if ("RT".equalsIgnoreCase(hierarchyCode)) {
                 List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
