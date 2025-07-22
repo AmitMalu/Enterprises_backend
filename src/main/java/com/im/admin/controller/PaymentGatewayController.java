@@ -51,7 +51,7 @@ public class PaymentGatewayController {
 
     @PostMapping("/create-order")
     @Transactional
-    public ResponseEntity<?> createOrder(@RequestBody CreateOrderRequest request) {
+    public ResponseEntity<CommonResponse<String>> createOrder(@RequestBody CreateOrderRequest request) {
         return paymentGatewayService.createOrder(request);
     }
 

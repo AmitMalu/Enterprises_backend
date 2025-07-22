@@ -19,7 +19,9 @@ public interface PaymentGatewayService {
 
     CommonResponse<RetailerCommissionResponseDTO> fetchRetailerCommission(PaymentGatewayCardBinRequestDTO paymentGatewayCardBinRequestDTO);
 
-    ResponseEntity<?> createOrder(CreateOrderRequest request);
+    //ResponseEntity<?> createOrder(CreateOrderRequest request);
+
+    ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req);
 
     ResponseEntity<?> orderStatus(String orderId);
 
