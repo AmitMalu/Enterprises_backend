@@ -1,12 +1,10 @@
 package com.im.admin.service;
 
-import com.im.admin.dto.AddTicketCommentDto;
-import com.im.admin.dto.RaiseTicketRequestDto;
-import com.im.admin.dto.TicketIssueTypeDto;
-import com.im.admin.dto.UpdateTicketStatusDto;
+import com.im.admin.dto.*;
 import com.im.admin.entities.Ticket;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
@@ -25,6 +23,10 @@ public interface TicketService {
 
     List<TicketIssueTypeDto> getAllIssueTypes();
 
+    Page<TicketWithTransactionDto> getAllTickets(Pageable pageable);
 
 
+    Ticket getTicketById(Long id);
+
+    Ticket updateStatusAndRemark(Long id, TicketStatusUpdateDto dto);
 }
