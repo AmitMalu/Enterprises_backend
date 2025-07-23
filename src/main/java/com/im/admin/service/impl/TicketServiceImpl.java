@@ -1,14 +1,13 @@
 package com.im.admin.service.impl;
 
-import com.im.admin.dto.AddTicketCommentDto;
-import com.im.admin.dto.RaiseTicketRequestDto;
-import com.im.admin.dto.TicketIssueTypeDto;
-import com.im.admin.dto.UpdateTicketStatusDto;
+import com.im.admin.dto.*;
 import com.im.admin.entities.Ticket;
 import com.im.admin.entities.TicketComment;
+import com.im.admin.entities.UserDetails;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.TicketCommentRepository;
 import com.im.admin.repositories.TicketRepository;
+import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.service.TicketService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageHandlerUtil;
@@ -17,16 +16,24 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+
+import static com.fasterxml.jackson.datatype.jsr310.DecimalUtils.toBigDecimal;
 
 @Service
 public class TicketServiceImpl implements TicketService {
@@ -45,6 +52,9 @@ public class TicketServiceImpl implements TicketService {
 
     @Autowired
     private ImageHandlerUtil imageHandlerUtil;
+
+    @Autowired
+    private UserDetailsRepository userDetailsRepository;
 
     @Autowired
     private ImageUtil imageUtil;
@@ -136,20 +146,30 @@ public class TicketServiceImpl implements TicketService {
         ticket.setSubProductName(request.getSubProductName());
         ticket.setStatus("PENDING");
 
-        // Handle exception here
+        // Fetch UserDetails and set raisedBy from hierarchyId
+        Optional<UserDetails> optionalUser = userDetailsRepository.findByMobileNumber(request.getMobileNumber());
+        if (optionalUser.isPresent()) {
+            UserDetails user = optionalUser.get();
+            if (user.getHierarchyId() != null) {
+                ticket.setRaisedBy(user.getHierarchyId());
+            } else {
+                throw new RuntimeException("Hierarchy ID not found for user with mobile number: " + request.getMobileNumber());
+            }
+        } else {
+            throw new RuntimeException("User not found with mobile number: " + request.getMobileNumber());
+        }
+
         try {
-            String folder = "Ticket";
-
-            String  imagePath = imageUtil.saveImage(screenshotImage, "Ticket");
+            String imagePath = imageUtil.saveImage(screenshotImage, "Ticket");
             ticket.setScreenshotImage(imagePath);
-
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload screenshot image", e);
         }
 
-        Ticket saveTicket = ticketRepository.save(ticket);
-        return saveTicket;
+        return ticketRepository.save(ticket);
     }
+
+
 
     @Override
     public List<TicketIssueTypeDto> getAllIssueTypes() {
@@ -159,10 +179,104 @@ public class TicketServiceImpl implements TicketService {
                 .toList();
     }
 
+    @Override
+    public Page<TicketWithTransactionDto> getAllTickets(Pageable pageable) {
+        Page<Ticket> tickets = ticketRepository.findAll(pageable);
+
+        return tickets.map(ticket -> {
+            TicketWithTransactionDto dto = new TicketWithTransactionDto();
+            BeanUtils.copyProperties(ticket, dto);
+
+            try {
+                Map<String, Object> transactionDetails = getTransactionDetailsMap(ticket.getTransactionId(), ticket.getRaisedBy());
+
+                if (transactionDetails != null) {
+                    dto.setTranStatus((String) transactionDetails.get("tran_status"));
+                    dto.setBalBeforeTran(toBigDecimal(transactionDetails.get("bal_before_tran")));
+                    dto.setBalAfterTran(toBigDecimal(transactionDetails.get("bal_after_tran")));
+                    dto.setDateOfTransaction(toLocalDate(transactionDetails.get("date_of_transaction")));
+                    dto.setAmount(toBigDecimal(transactionDetails.get("amount")));
+                    dto.setService((String) transactionDetails.get("service"));
+                    dto.setActionOnBalanceAmount((String) transactionDetails.get("action_on_balance_amount"));
+                }
+            } catch (Exception e) {
+                System.out.println("Transaction details not found for transactionId: " + ticket.getTransactionId());
+            }
+
+            return dto;
+        });
+    }
 
 
+    public Map<String, Object> getTransactionDetailsMap(String transactionId, String hierarchyId) {
+        if (transactionId == null || hierarchyId == null) return null;
 
+        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
+        String entityName = commonMethods.getEntityName(hierarchyType);
 
+        WalletType[] walletTypes = {WalletType.PREPAID, WalletType.POSTPAID};
+
+        for (WalletType walletType : walletTypes) {
+            String tableName = entityName + "_" + walletType.name().toLowerCase() + "_transaction_details";
+            String sql = "SELECT * FROM " + tableName + " WHERE transaction_id = :transactionId";
+
+            try {
+                Query query = entityManager.createNativeQuery(sql, Map.class);
+                query.setParameter("transactionId", transactionId);
+                return (Map<String, Object>) query.getSingleResult();
+            } catch (NoResultException e) {
+                // Try next table
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal toBigDecimal(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof BigDecimal) return (BigDecimal) obj;
+        try {
+            return new BigDecimal(obj.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private LocalDate toLocalDate(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof LocalDate) return (LocalDate) obj;
+        try {
+            return LocalDate.parse(obj.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String toStringValue(Object obj) {
+        return obj != null ? obj.toString() : null;
+    }
+
+    @Override
+    public Ticket getTicketById(Long id) {
+        return ticketRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ticket not found with ID: " + id));
+    }
+
+    @Override
+    public Ticket updateStatusAndRemark(Long id, TicketStatusUpdateDto dto) {
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ticket not found with ID: " + id));
+
+        if (dto.getStatus() != null) {
+            ticket.setStatus(dto.getStatus());
+        }
+
+        if (dto.getRemark() != null) {
+            ticket.setRemark(dto.getRemark());
+        }
+
+        ticket.setUpdatedAt(LocalDateTime.now());
+        return ticketRepository.save(ticket);
+    }
 
 }
 
