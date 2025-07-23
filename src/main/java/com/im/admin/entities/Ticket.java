@@ -44,6 +44,12 @@ public class Ticket {
     @Column(name = "screenshot_image")
     private String screenshotImage;
 
+    @Column(name = "raised_by")
+    private String raisedBy; // hierarchyId
+
+    @Column(name = "remark")
+    private String remark;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
 

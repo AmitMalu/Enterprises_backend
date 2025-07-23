@@ -7,6 +7,8 @@ import com.im.admin.service.TicketService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -63,7 +65,7 @@ public class TicketController {
         return ResponseEntity.ok(new CustomResponseDTO(200, "Ticket status updated."));
     }
 
-    @GetMapping("/{ticketId}")
+    @GetMapping("/details/{ticketId}")
     public ResponseEntity<Ticket> getTicketDetails(@PathVariable Long ticketId) {
         Ticket ticket = ticketService.getTicketWithComments(ticketId);
         return ResponseEntity.ok(ticket);
@@ -75,6 +77,33 @@ public class TicketController {
         return ResponseEntity.ok(new CommonResponse<>(200, "Issue types fetched", result));
 
     }
+
+    @GetMapping
+    public ResponseEntity<CommonResponse<Page<TicketWithTransactionDto>>> getAllTickets(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
+
+        Page<TicketWithTransactionDto> tickets = ticketService.getAllTickets(pageable);
+        return ResponseEntity.ok(new CommonResponse<>(200, "Tickets fetched successfully.", tickets));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<CommonResponse> getTicketById(@PathVariable Long id) {
+        Ticket ticket = ticketService.getTicketById(id);
+        return ResponseEntity.ok(new CommonResponse<>(200, "Success", ticket));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CommonResponse<Ticket>> updateTicketStatusAndRemark(
+            @PathVariable Long id,
+            @RequestBody TicketStatusUpdateDto dto) {
+
+        Ticket updatedTicket = ticketService.updateStatusAndRemark(id, dto);
+        return ResponseEntity.ok(new CommonResponse<>(200, "Ticket updated successfully", updatedTicket));
+    }
+
 
 
 }
