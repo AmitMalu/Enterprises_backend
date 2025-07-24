@@ -29,9 +29,6 @@ public class VendorsDTO {
     private Short productId;
     private String productName;
 
-    @NotNull(message = "Priority is required")
-    private Integer priority;
-
     private String modesSupported;
     private Boolean active;
     private String bankType;

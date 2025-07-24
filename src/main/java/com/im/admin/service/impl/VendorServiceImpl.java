@@ -130,7 +130,7 @@ public class VendorServiceImpl implements VendorService {
         vendor.setProduct(product);
         vendor.setVendorName(dto.getVendorName());
         vendor.setVendorCode(dto.getVendorCode());
-        vendor.setPriority(dto.getPriority());
+        //vendor.setPriority(dto.getPriority());
         vendor.setModesSupported(dto.getModesSupported());
         vendor.setActive(Boolean.TRUE.equals(dto.getActive()));
         vendor.setBankType(dto.getBankType());
@@ -158,7 +158,7 @@ public class VendorServiceImpl implements VendorService {
         entity.setVendorName(dto.getVendorName());
         entity.setVendorCode(dto.getVendorCode());
         entity.setActive(dto.getActive());
-        entity.setPriority(dto.getPriority());
+        //entity.setPriority(dto.getPriority());
         entity.setModesSupported(dto.getModesSupported());
         entity.setBankType(dto.getBankType());
         entity.setWebsite(dto.getWebsite());
@@ -199,7 +199,6 @@ public class VendorServiceImpl implements VendorService {
                                           String subProductId,
                                           String subProductCode,
                                           String modesSupported,
-                                          Integer priority,
                                           Boolean isActive,
                                           String bankType,
                                           String website,
@@ -212,7 +211,7 @@ public class VendorServiceImpl implements VendorService {
 
         Specification<Vendors> spec = VendorSpecification.getFilter(
                 ids, vendorName, vendorCode, productId, productCode,
-                subProductId, subProductCode, modesSupported, priority,
+                subProductId, subProductCode, modesSupported,
                 isActive, bankType, website, logo, parameter,
                 createdBy, editedBy, createdOn, editedOn
         );
@@ -235,7 +234,6 @@ public class VendorServiceImpl implements VendorService {
             dto.setProductName(vendor.getProduct().getName());
         }
 
-        dto.setPriority(vendor.getPriority());
         dto.setModesSupported(vendor.getModesSupported());
         dto.setActive(vendor.getActive());
         dto.setBankType(vendor.getBankType());
