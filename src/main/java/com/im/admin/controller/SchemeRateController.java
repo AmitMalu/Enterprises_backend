@@ -23,7 +23,7 @@ public class SchemeRateController {
     @Autowired
     private SchemeRateService schemeRateService;
 
-    @GetMapping("/{schemeCode}")
+    @GetMapping("/get-scheme-details-by-scheme-code/{schemeCode}")
     public ResponseEntity<CommonResponse<SchemeDetailResponseDto>> getSchemeDetails(@PathVariable String schemeCode) {
         SchemeDetailResponseDto responseDto = schemeRateService.getSchemeDetails(schemeCode);
         return ResponseEntity.ok(CommonResponse.success(responseDto, "Scheme details fetched successfully"));

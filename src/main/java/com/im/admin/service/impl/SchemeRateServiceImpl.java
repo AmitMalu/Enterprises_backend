@@ -2,15 +2,10 @@ package com.im.admin.service.impl;
 
 
 import com.im.admin.dto.*;
-import com.im.admin.entities.Scheme;
-import com.im.admin.entities.SchemeHierarchySelection;
-import com.im.admin.entities.SchemeRate;
+import com.im.admin.entities.*;
 import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.product.Products;
-import com.im.admin.repositories.ProductsRepository;
-import com.im.admin.repositories.SchemeHierarchySelectionRepository;
-import com.im.admin.repositories.SchemeRateRepository;
-import com.im.admin.repositories.SchemeRepository;
+import com.im.admin.repositories.*;
 import com.im.admin.request.OperatorWithSlabsDto;
 import com.im.admin.request.SlabRateDto;
 import com.im.admin.response.SchemeDetailResponseDto;
@@ -39,53 +34,58 @@ public class SchemeRateServiceImpl implements SchemeRateService {
     @Autowired
     private ProductsRepository productsRepository;
 
+    @Autowired
+    private SubProductsRepository subProductsRepository;
+
+    @Autowired
+    private OperatorsRepository operatorRepository;
+
     @Override
     public SchemeDetailResponseDto getSchemeDetails(String schemeCode) {
         Scheme scheme = schemeRepository.findBySchemeCode(schemeCode)
                 .orElseThrow(() -> new RuntimeException("Scheme not found"));
 
-        // Extract schemeHierarchyId from schemeCombinationHashCode (e.g., "10-01-02-001-00001")
+        // Extract from combination hash: 10-01-02-001-00001
         String[] parts = scheme.getSchemeCombinationHashCode().split("-");
         if (parts.length < 4) {
             throw new RuntimeException("Invalid combination hash code format");
         }
-        String productId = parts[0];
 
-        Products products = productsRepository.findById(Short.valueOf(productId))
+        String productId = parts[0];
+        String subProductId = parts[1];
+        String schemeHierarchyId = parts[3];
+
+        Products product = productsRepository.findById(Short.valueOf(productId))
                 .orElseThrow(() -> new RuntimeException("Product Not Found"));
 
-        String schemeHierarchyId = parts[3]; // "001"
+        SubProducts subProduct = subProductsRepository.findById(subProductId)
+                .orElseThrow(() -> new RuntimeException("Sub Product Not Found"));
 
-        // Fetch hierarchy combination record
         SchemeHierarchySelection hierarchySelection = schemeHierarchySelectionRepository.findById(schemeHierarchyId)
                 .orElseThrow(() -> new RuntimeException("Scheme hierarchy not found"));
 
-        String hierarchyCombination = hierarchySelection.getSchemeHierarchyCombination(); // e.g., "Distributor-Retailer-Partner"
-
-        // Convert it to a Set for quick checking
+        String hierarchyCombination = hierarchySelection.getSchemeHierarchyCombination(); // e.g., "Distributor-Retailer"
         Set<String> allowedHierarchies = Arrays.stream(hierarchyCombination.split("-"))
                 .map(String::toLowerCase)
                 .collect(Collectors.toSet());
 
-        // Fetch all rates by scheme code
-        List<SchemeRate> rates = schemeRateRepository.findBySchemeCode(schemeCode);
+        // Fetch all operators linked to this sub-product
+        List<Operators> operators = operatorRepository.findBySubProductId(subProduct.getId());
 
-        // Group by operator code
-        Map<String, List<SchemeRate>> groupedByOperator = rates.stream()
-                .collect(Collectors.groupingBy(SchemeRate::getOperatorCode));
+        List<OperatorWithSlabsDto> operatorDtos = new ArrayList<>();
 
-        List<OperatorWithSlabsDto> operatorDtos = groupedByOperator.entrySet().stream().map(entry -> {
-            String operatorCode = entry.getKey();
-            List<SchemeRate> operatorSlabs = entry.getValue();
+        for (Operators operator : operators) {
+            List<SchemeRate> operatorSlabs = schemeRateRepository
+                    .findBySchemeCodeAndOperatorName(schemeCode, operator.getOperatorName());
+
+            if (operatorSlabs.isEmpty()) continue;
 
             OperatorWithSlabsDto operatorDto = new OperatorWithSlabsDto();
-            operatorDto.setOperatorCode(operatorCode);
-            operatorDto.setOperatorName(operatorSlabs.get(0).getOperatorName());
+            operatorDto.setOperatorCode(operator.getOperatorCode());
+            operatorDto.setOperatorName(operator.getOperatorName());
 
             List<SlabRateDto> slabs = operatorSlabs.stream().map(slab -> {
                 SlabRateDto dto = new SlabRateDto();
-
-                // Common slab fields
                 dto.setId(slab.getId());
                 dto.setRateType(slab.getRateType());
                 dto.setSlabType(slab.getSlabType());
@@ -93,7 +93,6 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                 dto.setSlabStart(slab.getSlabStart());
                 dto.setSlabEnd(slab.getSlabEnd());
 
-                // Conversion logic based on RateType
                 Double factor = slab.getRateType() == RateType.PERCENTAGE ? 100.0 : 1.0;
 
                 dto.setGross(safeMultiply(slab.getGross(), factor));
@@ -119,20 +118,119 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                 return dto;
             }).collect(Collectors.toList());
 
-
             operatorDto.setSlabs(slabs);
-            return operatorDto;
-        }).collect(Collectors.toList());
+            operatorDtos.add(operatorDto);
+        }
 
         SchemeDetailResponseDto responseDto = new SchemeDetailResponseDto();
         responseDto.setSchemeCode(scheme.getSchemeCode());
         responseDto.setSchemeName(scheme.getSchemeName());
         responseDto.setOperators(operatorDtos);
         responseDto.setIsActive(scheme.getIsActive());
-        responseDto.setTdsRate(products.getTds());
+        responseDto.setTdsRate(product.getTds());
 
         return responseDto;
     }
+
+
+//    @Override
+//    public SchemeDetailResponseDto getSchemeDetails(String schemeCode) {
+//        Scheme scheme = schemeRepository.findBySchemeCode(schemeCode)
+//                .orElseThrow(() -> new RuntimeException("Scheme not found"));
+//
+//        // Extract schemeHierarchyId from schemeCombinationHashCode (e.g., "10-01-02-001-00001")
+//        String[] parts = scheme.getSchemeCombinationHashCode().split("-");
+//        if (parts.length < 4) {
+//            throw new RuntimeException("Invalid combination hash code format");
+//        }
+//        String productId = parts[0];
+//        String subProductId = parts[1];
+//
+//        Products products = productsRepository.findById(Short.valueOf(productId))
+//                .orElseThrow(() -> new RuntimeException("Product Not Found"));
+//
+//        SubProducts subProduct = subProductsRepository.findById(subProductId)
+//                .orElseThrow(() -> new RuntimeException("Sub Product Not Found"));
+//
+//        String schemeHierarchyId = parts[3]; // "001"
+//
+//        // Fetch hierarchy combination record
+//        SchemeHierarchySelection hierarchySelection = schemeHierarchySelectionRepository.findById(schemeHierarchyId)
+//                .orElseThrow(() -> new RuntimeException("Scheme hierarchy not found"));
+//
+//        String hierarchyCombination = hierarchySelection.getSchemeHierarchyCombination(); // e.g., "Distributor-Retailer-Partner"
+//
+//        // Convert it to a Set for quick checking
+//        Set<String> allowedHierarchies = Arrays.stream(hierarchyCombination.split("-"))
+//                .map(String::toLowerCase)
+//                .collect(Collectors.toSet());
+//
+//        // Fetch all rates by scheme code
+//        List<SchemeRate> rates = schemeRateRepository.findBySchemeCode(schemeCode);
+//
+//        // Group by operator code
+//        Map<String, List<SchemeRate>> groupedByOperator = rates.stream()
+//                .collect(Collectors.groupingBy(SchemeRate::getOperatorCode));
+//
+//        List<OperatorWithSlabsDto> operatorDtos = groupedByOperator.entrySet().stream().map(entry -> {
+//            String operatorCode = entry.getKey();
+//            List<SchemeRate> operatorSlabs = entry.getValue();
+//
+//            OperatorWithSlabsDto operatorDto = new OperatorWithSlabsDto();
+//            operatorDto.setOperatorCode(operatorCode);
+//            operatorDto.setOperatorName(operatorSlabs.get(0).getOperatorName());
+//
+//            List<SlabRateDto> slabs = operatorSlabs.stream().map(slab -> {
+//                SlabRateDto dto = new SlabRateDto();
+//
+//                // Common slab fields
+//                dto.setId(slab.getId());
+//                dto.setRateType(slab.getRateType());
+//                dto.setSlabType(slab.getSlabType());
+//                dto.setFixedSlabValue(slab.getFixedSlabValue());
+//                dto.setSlabStart(slab.getSlabStart());
+//                dto.setSlabEnd(slab.getSlabEnd());
+//
+//                // Conversion logic based on RateType
+//                Double factor = slab.getRateType() == RateType.PERCENTAGE ? 100.0 : 1.0;
+//
+//                dto.setGross(safeMultiply(slab.getGross(), factor));
+//                dto.setIm(safeMultiply(slab.getIm(), factor));
+//                dto.setEnterprise(safeMultiply(slab.getEnterprise(), factor));
+//
+//                if (allowedHierarchies.contains("whitelabel")) {
+//                    dto.setWhitelabel(safeMultiply(slab.getWhitelabel(), factor));
+//                }
+//                if (allowedHierarchies.contains("superdistributor") || allowedHierarchies.contains("super_distributor")) {
+//                    dto.setSuperDistributor(safeMultiply(slab.getSuperDistributor(), factor));
+//                }
+//                if (allowedHierarchies.contains("partner")) {
+//                    dto.setPartner(safeMultiply(slab.getPartner(), factor));
+//                }
+//                if (allowedHierarchies.contains("distributor")) {
+//                    dto.setDistributor(safeMultiply(slab.getDistributor(), factor));
+//                }
+//                if (allowedHierarchies.contains("retailer")) {
+//                    dto.setRetailer(safeMultiply(slab.getRetailer(), factor));
+//                }
+//
+//                return dto;
+//            }).collect(Collectors.toList());
+//
+//
+//            operatorDto.setSlabs(slabs);
+//            return operatorDto;
+//        }).collect(Collectors.toList());
+//
+//        SchemeDetailResponseDto responseDto = new SchemeDetailResponseDto();
+//        responseDto.setSchemeCode(scheme.getSchemeCode());
+//        responseDto.setSchemeName(scheme.getSchemeName());
+//        responseDto.setOperators(operatorDtos);
+//        responseDto.setIsActive(scheme.getIsActive());
+//        responseDto.setTdsRate(products.getTds());
+//
+//        return responseDto;
+//    }
 
     private Double safeMultiply(Double value, Double factor) {
         return value == null ? null : value * factor;

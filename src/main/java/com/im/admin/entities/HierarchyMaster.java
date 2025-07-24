@@ -1,13 +1,17 @@
 package com.im.admin.entities;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "hierarchy_master")
+@AllArgsConstructor
+@NoArgsConstructor
 public class HierarchyMaster {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
