@@ -25,25 +25,35 @@ public class SchemeRateController {
 
     @GetMapping("/get-scheme-details-by-scheme-code/{schemeCode}")
     public ResponseEntity<CommonResponse<SchemeDetailResponseDto>> getSchemeDetails(@PathVariable String schemeCode) {
+        log.info("Received request to fetch scheme details for schemeCode: {}", schemeCode);
         SchemeDetailResponseDto responseDto = schemeRateService.getSchemeDetails(schemeCode);
+        log.info("Successfully fetched scheme details for schemeCode: {}", schemeCode);
         return ResponseEntity.ok(CommonResponse.success(responseDto, "Scheme details fetched successfully"));
     }
 
     @PostMapping
     public ResponseEntity<List<SchemeRate>> createSchemeRates(@RequestBody SchemeRateRequestDTO requestDTO) {
-        return ResponseEntity.ok(schemeRateService.createSchemeRates(requestDTO));
+        log.info("Received request to create scheme rates: {}", requestDTO);
+        List<SchemeRate> createdRates = schemeRateService.createSchemeRates(requestDTO);
+        log.info("Successfully created {} scheme rates.", createdRates.size());
+        return ResponseEntity.ok(createdRates);
     }
 
     @PutMapping("/update-slabs")
     public ResponseEntity<CommonResponse<SchemeDetailResponseDto>> updateSchemeSlabs(@RequestBody SchemeSlabUpdateRequestDTO requestDto) {
+        log.info("Received request to update scheme slabs: {}", requestDto);
         SchemeDetailResponseDto updatedResponse = schemeRateService.updateSchemeRates(requestDto);
+        log.info("Successfully updated slabs for schemeCode: {}", requestDto.getSchemeCode());
         return ResponseEntity.ok(CommonResponse.success(updatedResponse, "Slab rates updated successfully"));
     }
 
     @PostMapping("/get-product-details-by/{schemeCode}")
     public ResponseEntity<CommonResponse<SchemeRateProductResponseDto>> getProductBySchemeCode(@PathVariable("schemeCode") String schemeCode) {
+        log.info("Received request to fetch product details for schemeCode: {}", schemeCode);
         SchemeRateProductResponseDto productDetails = schemeRateService.getProductDetails(schemeCode);
+        log.info("Successfully fetched product details for schemeCode: {}", schemeCode);
         return ResponseEntity.ok(CommonResponse.success(productDetails, "Fetched Product Details By Scheme Code"));
     }
+
 
 }
