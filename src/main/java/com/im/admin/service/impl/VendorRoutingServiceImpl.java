@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.VendorRoutingRequestDTO;
 import com.im.admin.dto.VendorRoutingResponseDTO;
+import com.im.admin.dto.VendorsDTO;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.VendorRepository;
@@ -118,9 +119,9 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
         VendorRouting entity = new VendorRouting();
         entity.setSubProductId(dto.getSubProductId());
 
-        entity.setRoutingPriority1(getVendorEntity(dto.getRoutingPriority1().getId()));
-        entity.setRoutingPriority2(getVendorEntity(dto.getRoutingPriority2().getId()));
-        entity.setRoutingPriority3(getVendorEntity(dto.getRoutingPriority3().getId()));
+        entity.setRoutingPriority1(getVendorEntitySafe(dto.getRoutingPriority1()));
+        entity.setRoutingPriority2(getVendorEntitySafe(dto.getRoutingPriority2()));
+        entity.setRoutingPriority3(getVendorEntitySafe(dto.getRoutingPriority3()));
 
         entity.setVolume1(dto.getVolume1());
         entity.setVolume2(dto.getVolume2());
@@ -139,21 +140,22 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
         return entity;
     }
 
-    private Vendors getVendorEntity(String vendorId) {
-        if (vendorId == null || vendorId.trim().isEmpty()) return null;
+    private Vendors getVendorEntitySafe(VendorsDTO dto) {
+        if (dto == null || dto.getId() == null || dto.getId().trim().isEmpty()) {
+            return null;
+        }
 
-        return vendorsRepository.findById(vendorId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid vendor ID: " + vendorId));
+        return vendorsRepository.findById(dto.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid vendor ID: " + dto.getId()));
     }
 
 
     private void updateEntity(VendorRouting entity, VendorRoutingRequestDTO dto) {
         entity.setSubProductId(dto.getSubProductId());
 
-        // Resolve vendor references
-        entity.setRoutingPriority1(getVendorEntity(dto.getRoutingPriority1().getId()));
-        entity.setRoutingPriority2(getVendorEntity(dto.getRoutingPriority2().getId()));
-        entity.setRoutingPriority3(getVendorEntity(dto.getRoutingPriority3().getId()));
+        entity.setRoutingPriority1(getVendorEntitySafe(dto.getRoutingPriority1()));
+        entity.setRoutingPriority2(getVendorEntitySafe(dto.getRoutingPriority2()));
+        entity.setRoutingPriority3(getVendorEntitySafe(dto.getRoutingPriority3()));
 
         entity.setVolume1(dto.getVolume1());
         entity.setVolume2(dto.getVolume2());

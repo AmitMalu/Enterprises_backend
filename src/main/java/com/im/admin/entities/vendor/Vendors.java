@@ -36,11 +36,9 @@ public class Vendors {
     @NotNull(message = "Product is required")
     private Products product;
 
-    @NotNull(message = "Priority is required")
-    private Integer priority;
-
     private String modesSupported;
 
+    @Builder.Default
     @NotNull(message = "Active status is required")
     private Boolean active = false;
 

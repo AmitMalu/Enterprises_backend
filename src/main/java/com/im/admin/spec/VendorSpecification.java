@@ -19,7 +19,6 @@ public class VendorSpecification {
             String subProductId,
             String subProductCode,
             String modesSupported,
-            Integer priority,
             Boolean isActive,
             String bankType,
             String website,
