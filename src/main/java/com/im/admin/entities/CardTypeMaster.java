@@ -14,8 +14,6 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CardTypeMaster {
-   // ID	Entry	Network	Type	Sub Type	Card iin	Issuer Code	Issuer Name
-//	  42171	iin	 MasterCard	credit	consumer	null	unknown	       unknown
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,7 +21,7 @@ public class CardTypeMaster {
     private Long id;
 
     @Column(name = "card_bin_no", unique = true, nullable = false, length = 10)
-    private String cardBinNo;     //ID = 42171 like that
+    private String cardBinNo;
 
     @Column(name = "entry")
     private String entry;   //in
