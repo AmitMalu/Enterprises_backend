@@ -104,6 +104,11 @@ public class TicketController {
         return ResponseEntity.ok(new CommonResponse<>(200, "Ticket updated successfully", updatedTicket));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<CommonResponse<String>> deleteTicket(@PathVariable Long id) {
+        ticketService.deleteTicketById(id);
+        return ResponseEntity.ok(new CommonResponse<>(200, "Ticket deleted successfully", "Deleted ID: " + id));
+    }
 
 
 }

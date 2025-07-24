@@ -278,5 +278,14 @@ public class TicketServiceImpl implements TicketService {
         return ticketRepository.save(ticket);
     }
 
+    @Override
+    public void deleteTicketById(Long id) {
+        if (!ticketRepository.existsById(id)) {
+            throw new RuntimeException("Ticket not found with ID: " + id);
+        }
+        ticketRepository.deleteById(id);
+    }
+
+
 }
 

@@ -29,4 +29,6 @@ public interface TicketService {
     Ticket getTicketById(Long id);
 
     Ticket updateStatusAndRemark(Long id, TicketStatusUpdateDto dto);
+
+    void deleteTicketById(Long id);
 }
