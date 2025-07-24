@@ -57,7 +57,6 @@ public class VendorController {
             @RequestParam(required = false) String subProductId,
             @RequestParam(required = false) String subProductCode,
             @RequestParam(required = false) String modesSupported,
-            @RequestParam(required = false) Integer priority,
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) String bankType,
             @RequestParam(required = false) String website,
@@ -71,7 +70,7 @@ public class VendorController {
         Pageable pageable = PageRequest.of(page, size);
         Page<VendorsDTO> dtoPage = vendorsService.getAllVendors(
                 pageable, id, vendorName, vendorCode, productId, productCode,
-                subProductId, subProductCode, modesSupported, priority, isActive,
+                subProductId, subProductCode, modesSupported, isActive,
                 bankType, website, logo, parameter, createdBy, editedBy, createdOn, editedOn
         );
 
