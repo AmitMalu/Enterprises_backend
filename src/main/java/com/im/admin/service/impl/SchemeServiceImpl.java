@@ -228,19 +228,18 @@ public class SchemeServiceImpl implements SchemeService {
 
             String productId = parts.length > 0 ? parts[0] : null;
             String subProductId = parts.length > 1 ? parts[1] : null;
-            String operatorId = parts.length > 2 ? parts[2] : null;
-            String vendorId = parts.length > 3 ? parts[3] : null;
-            String schemeHierarchyId = parts.length > 4 ? parts[4] : null;
+            String vendorId = parts.length > 2 ? parts[2] : null;
+            String schemeHierarchyId = parts.length > 3 ? parts[3] : null;
 
+            assert productId != null;
             String productName = productsRepository.findById(Short.valueOf(productId))
                     .map(Products::getName).orElse("N/A");
 
+            assert subProductId != null;
             String subProductName = subProductsRepository.findById(subProductId)
                     .map(SubProducts::getSubProductTitle).orElse("N/A");
 
-            String operatorName = operatorsRepository.findById(operatorId)
-                    .map(Operators::getOperatorName).orElse("N/A");
-
+            assert vendorId != null;
             String vendorName = vendorRepository.findById(vendorId)
                     .map(Vendors::getVendorName).orElse("N/A");
 
@@ -256,8 +255,6 @@ public class SchemeServiceImpl implements SchemeService {
                     productName,
                     subProductId,
                     subProductName,
-                    operatorId,
-                    operatorName,
                     vendorId,
                     vendorName,
                     schemeHierarchyName,
@@ -279,9 +276,8 @@ public class SchemeServiceImpl implements SchemeService {
 
         String productId = parts.length > 0 ? parts[0] : null;
         String subProductId = parts.length > 1 ? parts[1] : null;
-        String operatorId = parts.length > 2 ? parts[2] : null;
-        String vendorId = parts.length > 3 ? parts[3] : null;
-        String schemeHierarchyId = parts.length > 4 ? parts[4] : null;
+        String vendorId = parts.length > 2 ? parts[2] : null;
+        String schemeHierarchyId = parts.length > 3 ? parts[3] : null;
 
         String productName = null;
         if (productId != null) {
@@ -294,13 +290,6 @@ public class SchemeServiceImpl implements SchemeService {
         if (subProductId != null) {
             subProductName = subProductsRepository.findById(subProductId)
                     .map(SubProducts::getSubProductTitle)
-                    .orElse("N/A");
-        }
-
-        String operatorName = null;
-        if(operatorId != null){
-            operatorName = operatorsRepository.findById(operatorId)
-                    .map(Operators::getOperatorName)
                     .orElse("N/A");
         }
 
@@ -326,8 +315,6 @@ public class SchemeServiceImpl implements SchemeService {
                 productName,
                 subProductId,
                 subProductName,
-                operatorId,
-                operatorName,
                 vendorId,
                 vendorName,
                 schemeHierarchyName,

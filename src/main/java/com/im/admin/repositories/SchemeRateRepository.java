@@ -21,6 +21,11 @@ public interface SchemeRateRepository extends JpaRepository<SchemeRate, Long> {
     @Query("SELECT s FROM SchemeRate s WHERE s.operatorCode = :operatorCode")
     Optional<SchemeRate> findSchemeByOperatorCode(@Param("operatorCode") String operatorCode);
 
+    @Query("SELECT s FROM SchemeRate s WHERE s.operatorName = :operatorName")
+    List<SchemeRate> findSchemeByOperatorName(@Param("operatorName") String operatorName);
+
+    List<SchemeRate> findBySchemeCodeAndOperatorName(String schemeCode, String operatorName);
+
     List<SchemeRate> findBySchemeCode(String schemeCode);
 
 
