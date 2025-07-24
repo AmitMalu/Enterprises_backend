@@ -585,7 +585,7 @@ public class AuthController {
         commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
         return ResponseEntity.ok(commonResponse);
     }
-    
+
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequestDto request) {
         LocalDateTime requestTime = LocalDateTime.now();
