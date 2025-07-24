@@ -28,11 +28,11 @@ public class Operators {
     private String operatorCategory;
 
     @NotBlank(message = "Operator Code is required")
-    @Column(name = "operator_code", nullable = false, unique = true)
+    @Column(name = "operator_code", nullable = false)
     private String operatorCode;
 
     @NotBlank(message = "Operator Name is required")
-    @Column(name = "operator_name", nullable = false)
+    @Column(name = "operator_name")
     private String operatorName;
 
     @Column(name = "operator_alias")
