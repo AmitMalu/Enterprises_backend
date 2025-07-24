@@ -54,8 +54,6 @@ public class VendorSpecification {
                 predicates.add(cb.like(cb.lower(root.get("subProductCode")), "%" + subProductCode.toLowerCase() + "%"));
             if (modesSupported != null)
                 predicates.add(cb.like(cb.lower(root.get("modesSupported")), "%" + modesSupported.toLowerCase() + "%"));
-            if (priority != null)
-                predicates.add(cb.equal(root.get("priority"), priority));
             if (isActive != null)
                 predicates.add(cb.equal(root.get("isActive"), isActive));
             if (bankType != null)

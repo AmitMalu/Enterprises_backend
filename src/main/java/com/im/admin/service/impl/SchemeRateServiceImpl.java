@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -530,9 +532,13 @@ public class SchemeRateServiceImpl implements SchemeRateService {
 
         double total = imVal + enterpriseVal + whitelabelVal + superDistVal + partnerVal + distributorVal + retailerVal;
 
+        // Round both values to 2 decimal places (or as required)
+        BigDecimal roundedGross = BigDecimal.valueOf(gross).setScale(2, RoundingMode.FLOOR);
+        BigDecimal roundedTotal = BigDecimal.valueOf(total).setScale(2, RoundingMode.FLOOR);
+
         log.debug("Validating gross for {}: gross={}, total share sum={}", errorReference, gross, total);
 
-        if (!Objects.equals(gross, total)) {
+        if (!Objects.equals(roundedGross, roundedTotal)) {
             log.error("Gross mismatch in {}: Expected gross={}, Found total={}", errorReference, gross, total);
             throw new IllegalArgumentException(
                     "Error in " + errorReference + ": Sum of all shares must be equal to Gross. Expected: "
