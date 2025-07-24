@@ -41,6 +41,120 @@ public class SchemeRateServiceImpl implements SchemeRateService {
     @Autowired
     private OperatorsRepository operatorRepository;
 
+//    @Override
+//    public SchemeDetailResponseDto getSchemeDetails(String schemeCode) {
+//        log.info("Fetching scheme details for schemeCode: {}", schemeCode);
+//
+//        Scheme scheme = schemeRepository.findBySchemeCode(schemeCode)
+//                .orElseThrow(() -> {
+//                    log.error("Scheme not found for schemeCode: {}", schemeCode);
+//                    return new RuntimeException("Scheme not found");
+//                });
+//
+//        log.debug("Scheme found: {}", scheme.getSchemeName());
+//
+//        String[] parts = scheme.getSchemeCombinationHashCode().split("-");
+//        if (parts.length < 4) {
+//            log.error("Invalid scheme combination hash: {}", scheme.getSchemeCombinationHashCode());
+//            throw new RuntimeException("Invalid combination hash code format");
+//        }
+//
+//        String productId = parts[0];
+//        String subProductId = parts[1];
+//        String schemeHierarchyId = parts[3];
+//
+//        log.debug("Parsed combination hash - productId: {}, subProductId: {}, schemeHierarchyId: {}", productId, subProductId, schemeHierarchyId);
+//
+//        Products product = productsRepository.findById(Short.valueOf(productId))
+//                .orElseThrow(() -> {
+//                    log.error("Product not found for productId: {}", productId);
+//                    return new RuntimeException("Product Not Found");
+//                });
+//
+//        SubProducts subProduct = subProductsRepository.findById(subProductId)
+//                .orElseThrow(() -> {
+//                    log.error("SubProduct not found for subProductId: {}", subProductId);
+//                    return new RuntimeException("Sub Product Not Found");
+//                });
+//
+//        SchemeHierarchySelection hierarchySelection = schemeHierarchySelectionRepository.findById(schemeHierarchyId)
+//                .orElseThrow(() -> {
+//                    log.error("Scheme hierarchy not found for ID: {}", schemeHierarchyId);
+//                    return new RuntimeException("Scheme hierarchy not found");
+//                });
+//
+//        Set<String> allowedHierarchies = Arrays.stream(hierarchySelection.getSchemeHierarchyCombination().split("-"))
+//                .map(String::toLowerCase)
+//                .collect(Collectors.toSet());
+//
+//        log.debug("Allowed hierarchy levels: {}", allowedHierarchies);
+//
+//        List<Operators> operators = operatorRepository.findBySubProductId(subProduct.getId());
+//        log.info("Found {} operators for subProductId: {}", operators.size(), subProduct.getId());
+//
+//        List<OperatorWithSlabsDto> operatorDtos = new ArrayList<>();
+//
+//        for (Operators operator : operators) {
+//            log.debug("Processing operator: {} ({})", operator.getOperatorName(), operator.getOperatorCode());
+//
+//            List<SchemeRate> slabsList = schemeRateRepository
+//                    .findBySchemeCodeAndOperatorName(schemeCode, operator.getOperatorName());
+//
+//            if (slabsList.isEmpty()) {
+//                log.warn("No slabs defined for operator: {}", operator.getOperatorName());
+//
+//                OperatorWithSlabsDto operatorDto = new OperatorWithSlabsDto();
+//                operatorDto.setOperatorCode(operator.getOperatorCode());
+//                operatorDto.setOperatorName(operator.getOperatorName());
+//                operatorDto.setSlabs(new ArrayList<>()); // empty list
+//                operatorDtos.add(operatorDto);
+//                continue; // skip rest
+//            }
+//
+//            List<SlabRateDto> slabs = slabsList.stream().map(slab -> {
+//                SlabRateDto dto = new SlabRateDto();
+//                dto.setId(slab.getId());
+//                dto.setRateType(slab.getRateType());
+//                dto.setSlabType(slab.getSlabType());
+//                dto.setFixedSlabValue(slab.getFixedSlabValue());
+//                dto.setSlabStart(slab.getSlabStart());
+//                dto.setSlabEnd(slab.getSlabEnd());
+//
+//                double factor = slab.getRateType() == RateType.PERCENTAGE ? 100.0 : 1.0;
+//
+//                dto.setGross(safeMultiply(slab.getGross(), factor));
+//                dto.setIm(safeMultiply(slab.getIm(), factor));
+//                dto.setEnterprise(allowedHierarchies.contains("enterprise") ? safeMultiply(slab.getEnterprise(), factor) : null);
+//                dto.setWhitelabel(allowedHierarchies.contains("whitelabel") ? safeMultiply(slab.getWhitelabel(), factor) : null);
+//                dto.setSuperDistributor(hasHierarchy("superdistributor", allowedHierarchies) ? safeMultiply(slab.getSuperDistributor(), factor) : null);
+//                dto.setPartner(allowedHierarchies.contains("partner") ? safeMultiply(slab.getPartner(), factor) : null);
+//                dto.setDistributor(allowedHierarchies.contains("distributor") ? safeMultiply(slab.getDistributor(), factor) : null);
+//                dto.setRetailer(allowedHierarchies.contains("retailer") ? safeMultiply(slab.getRetailer(), factor) : null);
+//
+//                return dto;
+//            }).collect(Collectors.toList());
+//
+//            log.debug("Added {} slabs for operator: {}", slabs.size(), operator.getOperatorName());
+//
+//            OperatorWithSlabsDto operatorDto = new OperatorWithSlabsDto();
+//            operatorDto.setOperatorCode(operator.getOperatorCode());
+//            operatorDto.setOperatorName(operator.getOperatorName());
+//            operatorDto.setSlabs(slabs);
+//
+//            operatorDtos.add(operatorDto);
+//        }
+//
+//        SchemeDetailResponseDto responseDto = new SchemeDetailResponseDto();
+//        responseDto.setSchemeCode(scheme.getSchemeCode());
+//        responseDto.setSchemeName(scheme.getSchemeName());
+//        responseDto.setOperators(operatorDtos);
+//        responseDto.setIsActive(scheme.getIsActive());
+//        responseDto.setTdsRate(product.getTds());
+//
+//        log.info("Scheme detail response ready for schemeCode: {}", schemeCode);
+//        return responseDto;
+//    }
+
     @Override
     public SchemeDetailResponseDto getSchemeDetails(String schemeCode) {
         log.info("Fetching scheme details for schemeCode: {}", schemeCode);
@@ -150,6 +264,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         log.info("Scheme detail response ready for schemeCode: {}", schemeCode);
         return responseDto;
     }
+
 
     private SlabRateDto createEmptySlab(Set<String> allowedHierarchies) {
         log.debug("Creating empty default slab for allowed hierarchies: {}", allowedHierarchies);

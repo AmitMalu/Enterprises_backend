@@ -14,9 +14,9 @@ public class VendorRoutingRequestDTO {
 
     private String subProductId;
 
-    private Vendors routingPriority1;
-    private Vendors routingPriority2;
-    private Vendors routingPriority3;
+    private VendorsDTO routingPriority1;
+    private VendorsDTO routingPriority2;
+    private VendorsDTO routingPriority3;
 
     private String volume1;
     private String volume2;
