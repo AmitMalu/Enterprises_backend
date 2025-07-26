@@ -11,4 +11,7 @@ import java.util.Optional;
 public interface CardTypeMasterRepository extends JpaRepository<CardTypeMaster, Long> {
 
     Optional<CardTypeMaster> findByCardBinNo(String cardBinNo);
+
+    boolean existsByCardBinNo(String cardBinNo);
+
 }
