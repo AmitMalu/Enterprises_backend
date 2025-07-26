@@ -1,5 +1,8 @@
 package com.im.admin.util;
 
+import org.springframework.stereotype.Service;
+
+
 public class OtpUtil {
 
     public static String generateOtp() {

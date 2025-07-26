@@ -5,31 +5,27 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.ChangePasswordRequestDto;
 import com.im.admin.dto.LoginRequestDto;
-import com.im.admin.entities.ImSubRole;
-import com.im.admin.entities.SchemeAllocation;
-import com.im.admin.entities.UserDetails;
-import com.im.admin.entities.WhiteLabels;
+import com.im.admin.entities.*;
+import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AuthService;
 import com.im.admin.util.CommonMethods;
-import com.im.admin.util.JwtUtil;
 import com.im.admin.util.OtpUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/auth")
+@Slf4j
 public class AuthController {
 
     @Autowired
@@ -63,7 +59,10 @@ public class AuthController {
     private WhiteLabelRepository whiteLabelRepository;
 
     @Autowired
-    private AdminRepository adminRepository;
+    private ProductsRepository productsRepository;
+
+    @Autowired
+    private SubProductsRepository subProductsRepository;
 
 
     @PostMapping("/login")
@@ -342,28 +341,52 @@ public class AuthController {
                 }
             }
 
-
             if ("RT".equalsIgnoreCase(hierarchyCode)) {
                 List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
 
-                // Group by product_code and collect list of sub_product_code + scheme_code pairs
-                Map<String, List<Map<String, String>>> productToSubProductsWithSchemeMap = schemes.stream()
-                        .collect(Collectors.groupingBy(
-                                SchemeAllocation::getProductCode,
-                                Collectors.mapping(
-                                        sa -> {
-                                            Map<String, String> subProductWithScheme = new HashMap<>();
-                                            subProductWithScheme.put("subProductCode", sa.getSubProductCode());
-                                            subProductWithScheme.put("schemeCode", sa.getSchemeCode());
-                                            return subProductWithScheme;
-                                        },
-                                        Collectors.toList()
-                                )
-                        ));
+                Map<String, List<Map<String, String>>> productSubMap = new LinkedHashMap<>();
+                Map<String, String> productIdToName = new HashMap<>();
 
-                responseMap.put("product_sub_product_scheme_codes", productToSubProductsWithSchemeMap);
+                for (SchemeAllocation sa : schemes) {
+                    Optional<Products> productOpt = productsRepository.findByProductCode(sa.getProductCode());
+                    Optional<SubProducts> subProductOpt = subProductsRepository.findBySubProductCode(sa.getSubProductCode());
+
+                    if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
+                        log.warn("Skipping scheme due to missing mapping for productCode={} or subProductCode={}", sa.getProductCode(), sa.getSubProductCode());
+                        continue;
+                    }
+
+                    String productId = String.valueOf(productOpt.get().getId());
+                    String productName = productOpt.get().getName();
+
+                    String subProductId = String.valueOf(subProductOpt.get().getId());
+                    String subProductName = subProductOpt.get().getSubProductTitle();
+
+                    // Save product name once
+                    productIdToName.putIfAbsent(productId, productName);
+
+                    Map<String, String> subProductMap = new HashMap<>();
+                    subProductMap.put("subProductId", subProductId);
+                    subProductMap.put("subProductName", subProductName);
+                    subProductMap.put("schemeCode", sa.getSchemeCode());
+
+                    productSubMap.computeIfAbsent(productId, k -> new ArrayList<>()).add(subProductMap);
+                }
+
+                List<Map<String, Object>> productList = new ArrayList<>();
+
+                for (Map.Entry<String, List<Map<String, String>>> entry : productSubMap.entrySet()) {
+                    Map<String, Object> product = new HashMap<>();
+                    product.put("productId", entry.getKey());
+                    product.put("productName", productIdToName.get(entry.getKey()));
+                    product.put("subProducts", entry.getValue());
+                    productList.add(product);
+                }
+
+                responseMap.put("products", productList);
                 responseMap.put("role", hierarchyCode);
             }
+
             responseMap.put("role", hierarchyCode);
             try {
                 responseJson = objectMapper.writeValueAsString(
