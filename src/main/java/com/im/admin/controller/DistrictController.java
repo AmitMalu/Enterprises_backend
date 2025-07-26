@@ -8,10 +8,16 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DistrictService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -56,6 +62,27 @@ public class DistrictController {
     public ResponseEntity<CommonResponse<List<DistrictDTO>>> getDistrictsByState(@PathVariable Long stateId) {
         List<DistrictDTO> districts = districtService.getDistrictsByState(stateId);
         return ResponseEntity.ok(CommonResponse.success(districts, "Districts loaded successfully"));
+    }
+
+    @GetMapping("/download-sample-template")
+    public ResponseEntity<Resource> downloadSampleTemplate() throws IOException {
+        ByteArrayResource resource = districtService.generateSampleTemplate();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=district_sample_template.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(resource);
+    }
+
+    @PostMapping("/bulk-upload")
+    public ResponseEntity<CommonResponse<String>> uploadDistrictExcel(@RequestParam("file") MultipartFile file,
+                                                                      @RequestParam("uploadedBy") String uploadedBy) {
+        try {
+            String result = districtService.uploadDistrictsFromExcel(file, uploadedBy);
+            return ResponseEntity.ok(CommonResponse.success("Upload Result", result));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(CommonResponse.failure("Upload failed: " + e.getMessage()));
+        }
     }
 
 }

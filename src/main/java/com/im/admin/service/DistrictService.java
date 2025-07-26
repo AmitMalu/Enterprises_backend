@@ -4,8 +4,11 @@ import com.im.admin.dto.DistrictDTO;
 import com.im.admin.dto.DistrictRequestDTO;
 import com.im.admin.dto.DistrictResponseDTO;
 import com.im.admin.response.CommonResponse;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Page;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 public interface DistrictService {
@@ -20,6 +23,10 @@ public interface DistrictService {
                                                      String districtName, String districtCode, Boolean blocked, String createdBy, String editedBy);
 
     List<DistrictDTO> getDistrictsByState(Long stateId);
+
+    ByteArrayResource generateSampleTemplate() throws IOException;
+
+    String uploadDistrictsFromExcel(MultipartFile file, String uploadedBy) throws IOException;
 
 }
 
