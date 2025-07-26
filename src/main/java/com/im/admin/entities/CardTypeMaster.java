@@ -41,4 +41,7 @@ public class CardTypeMaster {
     @Column(name = "issuer_name")
     private String issuerName;
 
+    @Column(name = "is_blocked")
+    private Boolean isBlocked = false;
+
 }
