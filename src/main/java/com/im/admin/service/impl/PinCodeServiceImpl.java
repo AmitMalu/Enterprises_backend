@@ -3,14 +3,16 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.PinCodeDTO;
 import com.im.admin.dto.PinCodeRequestDTO;
 import com.im.admin.dto.PinCodeResponseDTO;
-import com.im.admin.entities.PinCode;
+import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PinCodeLocationResponse;
 import com.im.admin.service.PinCodeService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +23,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.List;
+
 
 @Service
 @RequiredArgsConstructor
@@ -157,6 +168,123 @@ public class PinCodeServiceImpl implements PinCodeService {
 
         return response;
     }
+
+
+    @Override
+    public ByteArrayResource generateSampleTemplate() {
+        List<String> headers = List.of(
+                "Pin Code",
+                "Country Name",
+                "State Name",
+                "District Name",
+                "City Name"
+        );
+
+        List<String> sampleRow = List.of(
+                "400001",
+                "India",
+                "Maharashtra",
+                "Mumbai",
+                "Mumbai City"
+        );
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Pincode Template");
+
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.size(); i++) {
+                headerRow.createCell(i).setCellValue(headers.get(i));
+            }
+
+            Row dataRow = sheet.createRow(1);
+            for (int i = 0; i < sampleRow.size(); i++) {
+                dataRow.createCell(i).setCellValue(sampleRow.get(i));
+            }
+
+            for (int i = 0; i < headers.size(); i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(out);
+            return new ByteArrayResource(out.toByteArray());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to generate template", e);
+        }
+
+    }
+
+    @Override
+    public String uploadPinCodesFromExcel(MultipartFile file, String uploadedBy) {
+        if (file.isEmpty() || !file.getOriginalFilename().endsWith(".xlsx")) {
+            return "Invalid file. Only .xlsx format supported.";
+        }
+
+        int success = 0, skipped = 0;
+        List<String> errors = new ArrayList<>();
+
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+
+                try {
+                    String pinCode = getCellString(row, 0);
+                    String countryName = getCellString(row, 1);
+                    String stateName = getCellString(row, 2);
+                    String districtName = getCellString(row, 3);
+                    String cityName = getCellString(row, 4);
+
+                    if (pinCodeRepository.existsByPinCode(pinCode)) {
+                        skipped++;
+                        continue;
+                    }
+
+                    Country country = countryRepository.findByCountryNameIgnoreCase(countryName)
+                            .orElseThrow(() -> new RuntimeException("Country not found: " + countryName));
+
+                    State state = stateRepository.findByStateNameIgnoreCaseAndCountry(stateName, country)
+                            .orElseThrow(() -> new RuntimeException("State not found: " + stateName));
+
+                    District district = districtRepository.findByDistrictNameIgnoreCaseAndState(districtName, state)
+                            .orElseThrow(() -> new RuntimeException("District not found: " + districtName));
+
+                    City city = cityRepository.findByCityNameIgnoreCaseAndDistrict(cityName, district)
+                            .orElseThrow(() -> new RuntimeException("City not found: " + cityName));
+
+                    PinCode pin = new PinCode();
+                    pin.setPinCode(pinCode);
+                    pin.setCountry(country);
+                    pin.setState(state);
+                    pin.setDistrict(district);
+                    pin.setCity(city);
+                    pin.setCreatedBy(uploadedBy);
+                    pin.setCreatedOn(LocalDateTime.now());
+
+                    pinCodeRepository.save(pin);
+                    success++;
+
+                } catch (Exception e) {
+                    skipped++;
+                    errors.add("Row " + (i + 1) + ": " + e.getMessage());
+                }
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read Excel file", e);
+        }
+
+        return "Upload complete. Inserted: " + success + ", Skipped: " + skipped +
+                (errors.isEmpty() ? "" : ". Errors: " + String.join("; ", errors));
+    }
+
+    private String getCellString(Row row, int index) {
+        Cell cell = row.getCell(index, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellType(CellType.STRING);
+        return cell.getStringCellValue().trim();
+    }
+
 
 }
 
