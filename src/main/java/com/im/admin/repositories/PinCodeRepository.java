@@ -15,5 +15,6 @@ public interface PinCodeRepository extends JpaRepository<PinCode, Long>, JpaSpec
 
     Optional<PinCode> findByPinCode(String pinCode);
 
+    boolean existsByPinCode(String pinCode);
 }
 
