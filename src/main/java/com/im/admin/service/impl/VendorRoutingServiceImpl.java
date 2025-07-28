@@ -3,13 +3,17 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.VendorRoutingRequestDTO;
 import com.im.admin.dto.VendorRoutingResponseDTO;
 import com.im.admin.dto.VendorsDTO;
+import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.VendorRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.VendorRoutingService;
 import com.im.admin.service.VendorService;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,10 +35,12 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
     private VendorRoutingRepository vendorRoutingRepository;
 
     @Autowired
-    private VendorService vendorService; // to fetch vendor name
+    private SubProductsRepository subProductsRepository;
 
     @Autowired
     private VendorRepository vendorsRepository;
+
+
 
     @Override
     @Transactional
@@ -64,12 +70,16 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
     public CommonResponse<Page<VendorRoutingResponseDTO>> getAll(String subProductId, String createdBy, Pageable pageable) {
         Specification<VendorRouting> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+
             if (StringUtils.hasText(subProductId)) {
-                predicates.add(cb.equal(root.get("subProductId"), subProductId));
+                Join<VendorRouting, SubProducts> subProductJoin = root.join("subProduct", JoinType.INNER);
+                predicates.add(cb.equal(subProductJoin.get("id"), subProductId));
             }
+
             if (StringUtils.hasText(createdBy)) {
                 predicates.add(cb.equal(root.get("createdBy"), createdBy));
             }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
@@ -78,10 +88,15 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
         return CommonResponse.success(dtoPage, "Fetched all records");
     }
 
+
     private VendorRoutingResponseDTO mapToDTO(VendorRouting entity) {
         VendorRoutingResponseDTO dto = new VendorRoutingResponseDTO();
         dto.setId(entity.getId());
-        dto.setSubProductId(entity.getSubProductId());
+
+        if (entity.getSubProduct() != null) {
+            dto.setSubProductId(entity.getSubProduct().getId());
+            dto.setSubProductName(entity.getSubProduct().getSubProductTitle());
+        }
 
         // Set vendor objects
         Vendors v1 = entity.getRoutingPriority1();
@@ -117,7 +132,10 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
 
     private VendorRouting mapToEntity(VendorRoutingRequestDTO dto) {
         VendorRouting entity = new VendorRouting();
-        entity.setSubProductId(dto.getSubProductId());
+
+        SubProducts subProduct = subProductsRepository.findById(dto.getSubProductId())
+                .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + dto.getSubProductId()));
+        entity.setSubProduct(subProduct);
 
         entity.setRoutingPriority1(getVendorEntitySafe(dto.getRoutingPriority1()));
         entity.setRoutingPriority2(getVendorEntitySafe(dto.getRoutingPriority2()));
@@ -151,7 +169,10 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
 
 
     private void updateEntity(VendorRouting entity, VendorRoutingRequestDTO dto) {
-        entity.setSubProductId(dto.getSubProductId());
+
+        SubProducts subProduct = subProductsRepository.findById(dto.getSubProductId())
+                .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + dto.getSubProductId()));
+        entity.setSubProduct(subProduct);
 
         entity.setRoutingPriority1(getVendorEntitySafe(dto.getRoutingPriority1()));
         entity.setRoutingPriority2(getVendorEntitySafe(dto.getRoutingPriority2()));

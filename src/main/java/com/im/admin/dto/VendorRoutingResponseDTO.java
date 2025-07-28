@@ -14,6 +14,7 @@ public class VendorRoutingResponseDTO {
 
     private Long id;
     private String subProductId;
+    private String subProductName;
 
     private String routingPriority1;
     private String routingPriority1Name;

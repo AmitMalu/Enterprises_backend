@@ -30,9 +30,9 @@ public class VendorCredentialsController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CommonResponse<VendorCredentials>> update(
+    public ResponseEntity<CommonResponse<VendorCredentialsResponseDTO>> update(
             @PathVariable Long id, @RequestBody VendorCredentialsDTO dto) {
-        VendorCredentials updated = vendorCredentialsService.updateVendorCredentials(id, dto);
+        VendorCredentialsResponseDTO updated = vendorCredentialsService.updateVendorCredentials(id, dto);
         return ResponseEntity.ok(CommonResponse.success(updated, "Vendor credentials updated successfully"));
     }
 

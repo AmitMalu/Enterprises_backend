@@ -48,7 +48,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
 
     @Override
     @Transactional
-    public VendorCredentials updateVendorCredentials(Long id, VendorCredentialsDTO dto) {
+    public VendorCredentialsResponseDTO updateVendorCredentials(Long id, VendorCredentialsDTO dto) {
         VendorCredentials existing = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("VendorCredentials not found with id: " + id));
 
@@ -59,7 +59,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         Products product = productsRepository.findById(dto.getProductId().getId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid product ID: " + dto.getProductId().getId()));
 
-        // Set fields manually
+        // Set updated fields
         existing.setVendor(vendor);
         existing.setProduct(product);
         existing.setBaseUrlUat(dto.getBaseUrlUat());
@@ -79,8 +79,10 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         existing.setUserField3(dto.getUserField3());
         existing.setEditedBy(dto.getEditedBy());
 
-        return repository.save(existing);
+        VendorCredentials saved = repository.save(existing);
+        return mapToDTO(saved);
     }
+
 
 
     @Override
@@ -167,12 +169,14 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         });
     }
 
+
     @Override
     public VendorCredentialsResponseDTO getVendorCredentialsById(Long id) {
         VendorCredentials entity = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("VendorCredentials not found with id: " + id));
         return mapToDTO(entity);
     }
+
 
     private VendorCredentials mapToEntity(VendorCredentialsDTO dto) {
         Vendors vendor = vendorsRepository.findById(dto.getVendorId().getId())
@@ -206,23 +210,43 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         return entity;
     }
 
+
     private VendorCredentialsResponseDTO mapToDTO(VendorCredentials entity) {
         VendorCredentialsResponseDTO dto = new VendorCredentialsResponseDTO();
-        BeanUtils.copyProperties(entity, dto);
 
-        // Set vendor info
+        // Use manual mapping instead of BeanUtils to avoid lazy-loading issues
+        dto.setId(entity.getId());
+        dto.setBaseUrlUat(entity.getBaseUrlUat());
+        dto.setBaseUrlProd(entity.getBaseUrlProd());
+        dto.setTokenUrlUat(entity.getTokenUrlUat());
+        dto.setTokenUrlProd(entity.getTokenUrlProd());
+        dto.setClientId(entity.getClientId());
+        dto.setClientSecret(entity.getClientSecret());
+        dto.setSaltKey(entity.getSaltKey());
+        dto.setUsername(entity.getUsername());
+        dto.setPassword(entity.getPassword());
+        dto.setIsActive(entity.getIsActive());
+        dto.setIsWhiteLabelAdmin(entity.getIsWhiteLabelAdmin());
+        dto.setWhiteLabelAdminId(entity.getWhiteLabelAdminId());
+        dto.setUserField1(entity.getUserField1());
+        dto.setUserField2(entity.getUserField2());
+        dto.setUserField3(entity.getUserField3());
+        dto.setCreatedBy(entity.getCreatedBy());
+        dto.setEditedBy(entity.getEditedBy());
+
+        // Vendor info
         if (entity.getVendor() != null) {
             dto.setVendorId(entity.getVendor().getId());
             dto.setVendorName(entity.getVendor().getVendorName());
         }
 
-        // Set product info
+        // Product info
         if (entity.getProduct() != null) {
             dto.setProductId(entity.getProduct().getId());
             dto.setProductName(entity.getProduct().getName());
         }
 
-        // Set whitelabel info (optional)
+        // Whitelabel name (if present)
         if (entity.getWhiteLabelAdminId() != null) {
             dto.setWhiteLabelAdminId(entity.getWhiteLabelAdminId());
             whiteLabelsRepository.findById(entity.getWhiteLabelAdminId()).ifPresent(wl ->
@@ -231,7 +255,6 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
 
         return dto;
     }
-
 
 }
 
