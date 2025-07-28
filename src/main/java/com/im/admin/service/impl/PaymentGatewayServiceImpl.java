@@ -233,7 +233,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     @Transactional
     public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req) {
         try {
-            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(Long.valueOf(req.getSubProductId()));
             Vendors vendor = getVendors(vendorRouting);
 
             VendorCredentials credentials = vendorCredentialsRepository

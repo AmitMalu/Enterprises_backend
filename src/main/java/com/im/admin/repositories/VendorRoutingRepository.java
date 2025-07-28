@@ -18,9 +18,10 @@ public interface VendorRoutingRepository extends JpaRepository<VendorRouting, Lo
                 LEFT JOIN FETCH r2.product
                 LEFT JOIN FETCH vr.routingPriority3 r3
                 LEFT JOIN FETCH r3.product
-                WHERE vr.subProductId = :subProductId
+                JOIN FETCH vr.subProduct sp
+                WHERE sp.id = :subProductId
             """)
-    VendorRouting findBySubProductId(@Param("subProductId") String subProductId);
+    VendorRouting findBySubProductId(@Param("subProductId") Long subProductId);
 
 
 }
