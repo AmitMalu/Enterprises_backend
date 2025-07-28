@@ -7,10 +7,16 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.service.CityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 
@@ -57,5 +63,28 @@ public class CityController {
         return ResponseEntity.ok(CommonResponse.success(
                 cityService.getCitiesByDistrict(districtId), "Cities loaded successfully"));
     }
+
+    @GetMapping("/download-city-template")
+    public ResponseEntity<Resource> downloadCityTemplate() throws IOException {
+        ByteArrayResource resource = cityService.generateCitySampleTemplate();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=city_sample_template.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(resource);
+    }
+
+    @PostMapping("/bulk-upload-city")
+    public ResponseEntity<CommonResponse<String>> uploadCityExcel(@RequestParam("file") MultipartFile file,
+                                                                  @RequestParam("uploadedBy") String uploadedBy) {
+        try {
+            String result = cityService.uploadCitiesFromExcel(file, uploadedBy);
+            return ResponseEntity.ok(CommonResponse.success("Upload Result", result));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(CommonResponse.failure("Upload failed: " + e.getMessage()));
+        }
+    }
+
+
 }
 

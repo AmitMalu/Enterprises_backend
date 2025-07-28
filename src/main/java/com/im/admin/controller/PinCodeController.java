@@ -8,9 +8,14 @@ import com.im.admin.response.PinCodeLocationResponse;
 import com.im.admin.service.PinCodeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -63,5 +68,27 @@ public class PinCodeController {
         return ResponseEntity.ok(CommonResponse.success(response, "Location found for given pin code"));
     }
 
+    @GetMapping("/download-sample-template")
+    public ResponseEntity<Resource> downloadPincodeTemplate() {
+        ByteArrayResource resource = pinCodeService.generateSampleTemplate();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=pincode_sample_template.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(resource);
+    }
+
+    @PostMapping("/bulk-upload")
+    public ResponseEntity<CommonResponse<String>> uploadPincodeExcel(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("uploadedBy") String uploadedBy
+    ) {
+        try {
+            String result = pinCodeService.uploadPinCodesFromExcel(file, uploadedBy);
+            return ResponseEntity.ok(CommonResponse.success("Upload Result", result));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(CommonResponse.failure("Upload failed: " + e.getMessage()));
+        }
+    }
 }
 
