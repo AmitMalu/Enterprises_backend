@@ -10,7 +10,7 @@ public interface VendorCredentialsService {
 
     VendorCredentials saveVendorCredentials(VendorCredentialsDTO dto);
 
-    VendorCredentials updateVendorCredentials(Long id, VendorCredentialsDTO dto);
+    VendorCredentialsResponseDTO updateVendorCredentials(Long id, VendorCredentialsDTO dto);
 
     Page<VendorCredentialsResponseDTO> getAllVendorCredentials(
             String productName,
