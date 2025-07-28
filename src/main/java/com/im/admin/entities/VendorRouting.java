@@ -21,8 +21,9 @@ public class VendorRouting {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "sub_product_id")
-    private String subProductId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sub_product_id", referencedColumnName = "id")
+    private SubProducts subProduct;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "routing_priority_1", referencedColumnName = "id")

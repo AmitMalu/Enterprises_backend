@@ -32,6 +32,7 @@ public class VendorCredentialsResponseDTO {
     private String clientSecret;
     private String saltKey;
     private String username;
+    private String password;
     private String userField1;
     private String userField2;
     private String userField3;
