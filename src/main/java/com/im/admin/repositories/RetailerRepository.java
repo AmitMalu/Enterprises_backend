@@ -3,6 +3,8 @@ package com.im.admin.repositories;
 import com.im.admin.entities.Retailer;
 import com.im.admin.entities.SuperAdmin;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,6 +20,10 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
     List<Retailer> findByParentAccountContaining(String parentType);
 
     List<Retailer> findByStatusIgnoreCase(String status);
+
+    @Query("SELECT r.name FROM Retailer r WHERE r.retailerId = :hierarchyId")
+    String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
+
 
 
 
