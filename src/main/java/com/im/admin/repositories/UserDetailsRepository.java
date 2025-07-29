@@ -25,4 +25,9 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
 
     @Query("SELECT u FROM UserDetails u WHERE u.userStatus = 'Active' AND u.hierarchyId LIKE %:keyword%")
     Page<UserDetails> searchActiveUsersByHierarchyId(@Param("keyword") String keyword, Pageable pageable);
+
+    @Query("SELECT u.hierarchyId FROM UserDetails u WHERE u.hierarchyCode = :code")
+    List<String> findHierarchyIdsByHierarchyCode(@Param("code") String code);
+
+
 }
