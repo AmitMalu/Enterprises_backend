@@ -91,17 +91,17 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         List<CommissionTransactionReportResponse> dataList = results.stream()
                 .map(record -> {
                     CommissionTransactionReportResponse dto = new CommissionTransactionReportResponse();
-                    dto.setId((Integer) record[0]);
-                    dto.setTransactionDate(((Date) record[11]).toLocalDate());
-                    dto.setTransactionTime(((Time) record[25]).toLocalTime());
-                    dto.setSubProductName((String) record[24]);
-                    dto.setTxType((String) record[22]);
-                    dto.setBalBefore((BigDecimal) record[4]);
-                    dto.setAmount((BigDecimal) record[2]);
-                    dto.setBalAfter((BigDecimal) record[3]);
-                    dto.setOperator((String) record[16]);
+                    dto.setId(((Number) record[5]).intValue());
+                    dto.setTransactionDate(((Date) record[3]).toLocalDate());
+                    dto.setTransactionTime(((Time) record[6]).toLocalTime());
+                    dto.setSubProductName((String) record[28]);
+                    dto.setTxType((String) record[31]);
+                    dto.setBalBefore((BigDecimal) record[2]);
+                    dto.setAmount((BigDecimal) record[0]);
+                    dto.setBalAfter((BigDecimal) record[1]);
+                    dto.setOperator((String) record[20]);
                     //dto.setNarration();
-                    dto.setTxId((String) record[27]);
+                    dto.setTxId((String) record[30]);
 
                     // Map more fields if needed
                     return dto;
