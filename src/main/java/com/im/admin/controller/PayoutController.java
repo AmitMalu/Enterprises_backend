@@ -23,6 +23,7 @@ import java.util.Map;
 
 @RequestMapping("/api/payout")
 @Slf4j
+@RestController
 public class PayoutController {
 
     @Autowired
