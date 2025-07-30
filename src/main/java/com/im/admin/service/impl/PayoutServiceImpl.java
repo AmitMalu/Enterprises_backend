@@ -27,6 +27,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -127,6 +128,7 @@ public class PayoutServiceImpl implements PayoutService {
     }
 
     @Override
+    @Transactional
     public String sendPayoutRequest(SendPayoutRequest sendPayoutRequest) {
         try {
 
@@ -143,7 +145,7 @@ public class PayoutServiceImpl implements PayoutService {
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(String.valueOf(walletType), sendPayoutRequest.getRetailerId());
             commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN"+baseTransactionId, "VENDOR PENDING", "DEBIT" );
 
-            VendorRouting routing = vendorRoutingRepository.findBySubProductId(Long.valueOf(sendPayoutRequest.getSubProductId()));
+            VendorRouting routing = vendorRoutingRepository.findBySubProductId(sendPayoutRequest.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(routing);
 
             VendorCredentials credentials = vendorCredentialsRepository
