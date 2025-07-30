@@ -2,7 +2,9 @@ package com.im.admin.util;
 
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.entities.TransactionSequence;
+import com.im.admin.entities.VendorRouting;
 import com.im.admin.entities.enums.WalletType;
+import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
@@ -396,4 +398,21 @@ public class CommonMethods {
                 .setParameter("tranStatus", tranStatus)
                 .executeUpdate();
     }
+
+    public static Vendors getVendors(VendorRouting vendorRouting) {
+        if (vendorRouting == null) {
+            throw new IllegalArgumentException("vendorRouting is null");
+        }
+
+        if (vendorRouting.getRoutingPriority1() != null && vendorRouting.getRoutingPriority1().getActive()) {
+            return vendorRouting.getRoutingPriority1();
+        } else if (vendorRouting.getRoutingPriority2() != null && vendorRouting.getRoutingPriority2().getActive()) {
+            return vendorRouting.getRoutingPriority2();
+        } else if (vendorRouting.getRoutingPriority3() != null && vendorRouting.getRoutingPriority3().getActive()) {
+            return vendorRouting.getRoutingPriority3();
+        }
+
+        throw new RuntimeException("No active vendor found for this subProductId");
+    }
+
 }

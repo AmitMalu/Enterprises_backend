@@ -82,6 +82,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     @Autowired
     private VendorCredentialsRepository vendorCredentialsRepository;
 
+
     RestTemplate restTemplate = new RestTemplate();
 
     @Value("${runpaisa.token.username}")
@@ -234,7 +235,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req) {
         try {
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(Long.valueOf(req.getSubProductId()));
-            Vendors vendor = getVendors(vendorRouting);
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
