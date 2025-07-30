@@ -1,9 +1,18 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.BeneficiaryBankAccountDTO;
 import com.im.admin.dto.PayoutTokenResponseDTO;
 import com.im.admin.entities.BeneficiaryBankAccount;
+import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.VendorCredentials;
+import com.im.admin.entities.VendorRouting;
+import com.im.admin.entities.enums.WalletType;
+import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.BeneficiaryBankAccountRepository;
+import com.im.admin.repositories.SubProductsRepository;
+import com.im.admin.repositories.VendorCredentialsRepository;
+import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.PayoutMerchantCallbackRequest;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
@@ -22,9 +31,11 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -35,6 +46,15 @@ public class PayoutServiceImpl implements PayoutService {
 
     @Autowired
     private BeneficiaryBankAccountRepository beneficiaryBankAccountRepository;
+
+    @Autowired
+    private VendorRoutingRepository vendorRoutingRepository;
+
+    @Autowired
+    private VendorCredentialsRepository vendorCredentialsRepository;
+
+    @Autowired
+    private SubProductsRepository subProductsRepository;
 
     RestTemplate restTemplate = new RestTemplate();
 
@@ -77,37 +97,89 @@ public class PayoutServiceImpl implements PayoutService {
         }
     }
 
-    @Override
-    public String sendPayoutRequest(SendPayoutRequest sendPayoutRequest) {
-        // Step 1: Generate token
-        String token = generateToken();
+    public String generateTokenForPayout(VendorCredentials vendorCredentials) {
 
-        // Step 2: Build request
+        // Set headers only
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("token", token);
+        headers.set("client_secret", vendorCredentials.getClientSecret());
+        headers.set("client_id", vendorCredentials.getClientId());
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("account_number", sendPayoutRequest.getAccountNumber());
-        body.add("ifsc_code", sendPayoutRequest.getIfscCode());
-        body.add("amount", sendPayoutRequest.getAmount());
+        HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
 
-        String baseTransactionId = commonMethods.generateBaseTransactionId();
-        body.add("order_id", "ORD" + baseTransactionId);
+        String url = vendorCredentials.getTokenUrlUat();
+        log.info("Sending token request to URL: {}", url);
 
-        body.add("beneficiary_name", sendPayoutRequest.getBeneficiaryName());
-        body.add("payment_mode", sendPayoutRequest.getPaymentMode());
+        ResponseEntity<PayoutTokenResponseDTO> response = restTemplate.postForEntity(
+                url,
+                requestEntity,
+                PayoutTokenResponseDTO.class
+        );
 
-        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+        PayoutTokenResponseDTO tokenResponse = response.getBody();
+        log.info("Bearer token response: {}", tokenResponse);
 
-        log.info("Payout Request: headers={}, body={}", headers, body);
+        if (tokenResponse != null && tokenResponse.getData() != null) {
+            return tokenResponse.getData().getToken();
+        } else {
+            throw new RuntimeException("Failed To Get Token From Payout Vendor");
+        }
+    }
 
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                baseUrl + "/payment", requestEntity, String.class);
+    @Override
+    public String sendPayoutRequest(SendPayoutRequest sendPayoutRequest) {
+        try {
 
-        log.info("RunPaisa payout response: {}", response.getBody());
+            Optional<SubProducts> subProducts = subProductsRepository.findById(sendPayoutRequest.getSubProductId());
+            WalletType walletType = WalletType.valueOf(subProducts.get().getWalletType());
 
-        return response.getBody();
+            BigDecimal availableBalance = commonMethods.getCurrentBalance(sendPayoutRequest.getRetailerId(), String.valueOf(walletType));
+            if(availableBalance.compareTo(sendPayoutRequest.getAmount()) < 0) {
+                throw new IllegalArgumentException("Insufficient Balance");
+            }
+
+            String baseTransactionId = commonMethods.generateBaseTransactionId();
+
+            AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(String.valueOf(walletType), sendPayoutRequest.getRetailerId());
+            commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN"+baseTransactionId, "VENDOR PENDING", "DEBIT" );
+
+            VendorRouting routing = vendorRoutingRepository.findBySubProductId(Long.valueOf(sendPayoutRequest.getSubProductId()));
+            Vendors vendor = CommonMethods.getVendors(routing);
+
+            VendorCredentials credentials = vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+            // Step 1: Build request
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("token", generateTokenForPayout(credentials));
+
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("account_number", sendPayoutRequest.getAccountNumber());
+            body.add("ifsc_code", sendPayoutRequest.getIfscCode());
+            body.add("amount", sendPayoutRequest.getAmount());
+
+            body.add("order_id", "TXN"+baseTransactionId);
+
+            body.add("beneficiary_name", sendPayoutRequest.getBeneficiaryName());
+            body.add("payment_mode", sendPayoutRequest.getPaymentMode());
+
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            log.info("Sending payout request to RunPaisa. Headers: {}, Body: {}", headers, body);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    baseUrl + "/payment", requestEntity, String.class);
+
+            log.info("RunPaisa payout response: {}", response.getBody());
+
+            return response.getBody();
+
+        } catch (Exception e) {
+            log.error("Error while sending payout request: ", e);
+            return "Order creation failed: " + e.getMessage();
+        }
     }
 
     @Override
@@ -181,7 +253,7 @@ public class PayoutServiceImpl implements PayoutService {
             return cb.conjunction(); // no filtering
         }, pageable);
 
-        return CommonResponse.success(results,"Filtered results");
+        return CommonResponse.success(results, "Filtered results");
     }
 
 

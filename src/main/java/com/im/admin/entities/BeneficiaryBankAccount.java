@@ -33,11 +33,11 @@ public class BeneficiaryBankAccount {
     @Column(name = "ifsc_code")
     private String ifscCode;
 
+    @Column(name = "payment_mode")
+    private String paymentMode;
+
     @Column(name = "is_verified")
     private Boolean isVerified = false;
-
-//    @Column(name = "is_deleted")
-//    private Boolean isDeleted;
 
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
