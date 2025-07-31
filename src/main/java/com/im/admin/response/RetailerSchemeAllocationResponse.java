@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 public class RetailerSchemeAllocationResponse {
 
     private String subProductName;
+    private String subProductCode;
     private String schemeName;
 }

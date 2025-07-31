@@ -3,6 +3,7 @@ package com.im.admin.service;
 import com.im.admin.dto.BeneficiaryBankAccountDTO;
 import com.im.admin.entities.BeneficiaryBankAccount;
 import com.im.admin.request.PayoutMerchantCallbackRequest;
+import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PayoutMerchantCallbackResponse;
@@ -16,7 +17,7 @@ public interface PayoutService {
 
     String generateToken();
 
-    String sendPayoutRequest(SendPayoutRequest sendPayoutRequest);
+    CommonResponse<PayoutResponseDto> sendPayoutRequest(SendPayoutRequest sendPayoutRequest);
 
     PayoutMerchantCallbackResponse updateMerchantCallbackUrl(PayoutMerchantCallbackRequest request);
 

@@ -19,5 +19,6 @@ public class SendPayoutRequest {
     private String beneficiaryName;
     private String paymentMode;
     private String subProductId;
+    private String callbackurl;
 
 }

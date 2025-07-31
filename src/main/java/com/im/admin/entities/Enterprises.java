@@ -132,6 +132,21 @@ public class Enterprises {
     @Column(name = "business_number")
     private String businessNumber;
 
+    @Column(name = "pan_verified")
+    private Boolean panVerified;
+
+    @Column(name = "aadhaar_pan_verified")
+    private Boolean aadhaarPanVerified;
+
+    @Column(name = "is_aadhaar_verified")
+    private Boolean isAadhaarVerified;
+
+    @Column(name = "email_verified")
+    private Boolean emailVerified;
+
+    @Column(name = "GST_number_verified")
+    private Boolean GSTNumberVerified;
+
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
     private LocalDateTime createdOn;
