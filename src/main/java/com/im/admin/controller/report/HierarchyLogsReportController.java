@@ -31,9 +31,12 @@ public class HierarchyLogsReportController {
             @RequestParam(value = "response", required = false) String response,
             @RequestParam(value = "ipAddress", required = false) String ipAddress,
             @RequestParam(value = "requestDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate requestDateTime,
-            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime
+            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+
     ) {
-        List<HierarchyLogsResponseDTO> data = hierarchyLogsReportService.getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime);
+        List<HierarchyLogsResponseDTO> data = hierarchyLogsReportService.getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime,page,size);
 
         if (data.isEmpty()) {
             Map<String, Object> responseMap = new HashMap<>();
@@ -54,9 +57,12 @@ public class HierarchyLogsReportController {
             @RequestParam(value = "response", required = false) String response,
             @RequestParam(value = "ipAddress", required = false) String ipAddress,
             @RequestParam(value = "requestDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate requestDateTime,
-            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime
+            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+
     ) {
-        ByteArrayResource resource = hierarchyLogsReportService.exportLogsToCSV(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime);
+        ByteArrayResource resource = hierarchyLogsReportService.exportLogsToCSV(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime,page,size);
 
         if (resource == null) {
             Map<String, Object> responseMap = new HashMap<>();

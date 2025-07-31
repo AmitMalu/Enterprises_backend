@@ -10,9 +10,11 @@ public interface HierarchyLogsReportService {
 
     List<HierarchyLogsResponseDTO> getFilteredLogs(LocalDate start, LocalDate end,
                                                    Integer srNo, String request, String response,
-                                                   String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime);
+                                                   String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
+                                                   int page, int size);
 
     ByteArrayResource exportLogsToCSV(LocalDate start, LocalDate end,
                                       Integer srNo, String request, String response,
-                                      String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime);
+                                      String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
+                                      int page, int size);
 }

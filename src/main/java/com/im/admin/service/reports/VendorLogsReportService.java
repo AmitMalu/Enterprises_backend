@@ -7,11 +7,16 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface VendorLogsReportService {
+
     List<VendorLogsResponseDTO> getFilteredVendorLogs(LocalDate start, LocalDate end,
                                                       String vendorId, String requestText, String responseText,
-                                                      String ip, Integer srNo,LocalDate requestDateTime, LocalDate responseDateTime);
+                                                      String ip, Integer srNo,
+                                                      LocalDate requestDateTime, LocalDate responseDateTime,
+                                                      int page, int size);
 
     ByteArrayResource exportVendorLogsToCSV(LocalDate start, LocalDate end,
                                             String vendorId, String requestText, String responseText,
-                                            String ip,Integer srNo, LocalDate requestDateTime, LocalDate responseDateTime);
+                                            String ip, Integer srNo,
+                                            LocalDate requestDateTime, LocalDate responseDateTime,
+                                            int page, int size);
 }

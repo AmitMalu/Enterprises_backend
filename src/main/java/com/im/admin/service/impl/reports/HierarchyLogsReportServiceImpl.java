@@ -22,11 +22,12 @@ public class HierarchyLogsReportServiceImpl implements HierarchyLogsReportServic
     @Override
     public List<HierarchyLogsResponseDTO> getFilteredLogs(LocalDate start, LocalDate end,
                                                           Integer srNo, String request, String response,
-                                                          String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime) {
+                                                          String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
+                                                          int page, int size) {
 
         List<Object[]> rows = hierarchyLogsRepository.getHierarchyLogsBetweenDates(start.atStartOfDay(), end.atTime(23, 59, 59));
 
-        return rows.stream().map(row -> {
+        List<HierarchyLogsResponseDTO> filtered = rows.stream().map(row -> {
                     HierarchyLogsResponseDTO dto = new HierarchyLogsResponseDTO();
                     dto.setSrNo((Integer) row[0]);
                     dto.setRequest((String) row[1]);
@@ -48,14 +49,22 @@ public class HierarchyLogsReportServiceImpl implements HierarchyLogsReportServic
                 .filter(r -> requestDateTime == null || (r.getRequestDateTime() != null && r.getRequestDateTime().toLocalDate().equals(requestDateTime)))
                 .filter(r -> responseDateTime == null || (r.getResponseDateTime() != null && r.getResponseDateTime().toLocalDate().equals(responseDateTime)))
                 .collect(Collectors.toList());
+
+        // Manual pagination
+        int fromIndex = page * size;
+        int toIndex = Math.min(fromIndex + size, filtered.size());
+        if (fromIndex >= filtered.size()) return List.of();
+
+        return filtered.subList(fromIndex, toIndex);
     }
 
     @Override
     public ByteArrayResource exportLogsToCSV(LocalDate start, LocalDate end,
                                              Integer srNo, String request, String response,
-                                             String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime) {
+                                             String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
+                                             int page, int size) {
 
-        List<HierarchyLogsResponseDTO> logs = getFilteredLogs(start, end, srNo, request, response, ipAddress, requestDateTime, responseDateTime);
+        List<HierarchyLogsResponseDTO> logs = getFilteredLogs(start, end, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
 
         if (logs.isEmpty()) return null;
 
