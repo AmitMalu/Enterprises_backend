@@ -5,6 +5,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.LoginLogsReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -36,7 +37,9 @@ public class LoginLogsReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        List<LoginLogsResponseDTO> data = loginLogsReportService.getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
+        Page<LoginLogsResponseDTO> data = loginLogsReportService.getFilteredLogs(
+                startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size
+        );
 
         if (data.isEmpty()) {
             Map<String, Object> responseMap = new HashMap<>();
@@ -45,11 +48,9 @@ public class LoginLogsReportController {
             return ResponseEntity.ok(responseMap);
         }
 
-//        return ResponseEntity.ok(data);
-
-        return ResponseEntity
-                .ok(new CommonResponse(201, "Success", data));
+        return ResponseEntity.ok(new CommonResponse(200, "Success", data));
     }
+
 
 
     @PostMapping("/login-logs-excel")

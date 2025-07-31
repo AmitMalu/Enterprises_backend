@@ -5,6 +5,9 @@ import com.im.admin.repositories.LoginLogsRepository;
 import com.im.admin.service.reports.LoginLogsReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -20,11 +23,12 @@ public class LoginLogsReportServiceImpl implements LoginLogsReportService {
     private LoginLogsRepository loginLogsRepository;
 
     @Override
-    public List<LoginLogsResponseDTO> getFilteredLogs(LocalDate start, LocalDate end,
-                                                      Integer srNo, String request, String response,
-                                                      String ipAddress, LocalDate requestDateTime,
-                                                      LocalDate responseDateTime, int page, int size) {
-
+    public Page<LoginLogsResponseDTO> getFilteredLogs(
+            LocalDate start, LocalDate end,
+            Integer srNo, String request, String response,
+            String ipAddress, LocalDate requestDateTime,
+            LocalDate responseDateTime, int page, int size
+    ) {
         List<Object[]> rows = loginLogsRepository.getLoginLogsBetweenDates(start.atStartOfDay(), end.atTime(23, 59, 59));
 
         List<LoginLogsResponseDTO> filtered = rows.stream().map(row -> {
@@ -50,13 +54,15 @@ public class LoginLogsReportServiceImpl implements LoginLogsReportService {
                 .filter(r -> responseDateTime == null || (r.getResponseDateTime() != null && r.getResponseDateTime().toLocalDate().equals(responseDateTime)))
                 .collect(Collectors.toList());
 
-        // Pagination
         int total = filtered.size();
         int fromIndex = Math.min(page * size, total);
         int toIndex = Math.min(fromIndex + size, total);
 
-        return filtered.subList(fromIndex, toIndex);
+        List<LoginLogsResponseDTO> paginatedList = filtered.subList(fromIndex, toIndex);
+
+        return new PageImpl<>(paginatedList, PageRequest.of(page, size), total);
     }
+
 
     @Override
     public ByteArrayResource exportLogsToCSV(LocalDate start, LocalDate end,
@@ -64,7 +70,7 @@ public class LoginLogsReportServiceImpl implements LoginLogsReportService {
                                              String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
                                              int page, int size) {
 
-        List<LoginLogsResponseDTO> logs = getFilteredLogs(start, end, srNo, request, response,
+        Page<LoginLogsResponseDTO> logs = getFilteredLogs(start, end, srNo, request, response,
                 ipAddress, requestDateTime, responseDateTime, page, size);
 
         if (logs.isEmpty()) return null;
