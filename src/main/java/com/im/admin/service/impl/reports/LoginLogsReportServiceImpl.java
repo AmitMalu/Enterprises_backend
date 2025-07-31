@@ -22,11 +22,12 @@ public class LoginLogsReportServiceImpl implements LoginLogsReportService {
     @Override
     public List<LoginLogsResponseDTO> getFilteredLogs(LocalDate start, LocalDate end,
                                                       Integer srNo, String request, String response,
-                                                      String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime) {
+                                                      String ipAddress, LocalDate requestDateTime,
+                                                      LocalDate responseDateTime, int page, int size) {
 
         List<Object[]> rows = loginLogsRepository.getLoginLogsBetweenDates(start.atStartOfDay(), end.atTime(23, 59, 59));
 
-        return rows.stream().map(row -> {
+        List<LoginLogsResponseDTO> filtered = rows.stream().map(row -> {
                     LoginLogsResponseDTO dto = new LoginLogsResponseDTO();
                     dto.setSrNo((Integer) row[0]);
                     dto.setRequest((String) row[1]);
@@ -48,14 +49,23 @@ public class LoginLogsReportServiceImpl implements LoginLogsReportService {
                 .filter(r -> requestDateTime == null || (r.getRequestDateTime() != null && r.getRequestDateTime().toLocalDate().equals(requestDateTime)))
                 .filter(r -> responseDateTime == null || (r.getResponseDateTime() != null && r.getResponseDateTime().toLocalDate().equals(responseDateTime)))
                 .collect(Collectors.toList());
+
+        // Pagination
+        int total = filtered.size();
+        int fromIndex = Math.min(page * size, total);
+        int toIndex = Math.min(fromIndex + size, total);
+
+        return filtered.subList(fromIndex, toIndex);
     }
 
     @Override
     public ByteArrayResource exportLogsToCSV(LocalDate start, LocalDate end,
                                              Integer srNo, String request, String response,
-                                             String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime) {
+                                             String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
+                                             int page, int size) {
 
-        List<LoginLogsResponseDTO> logs = getFilteredLogs(start, end, srNo, request, response, ipAddress, requestDateTime, responseDateTime);
+        List<LoginLogsResponseDTO> logs = getFilteredLogs(start, end, srNo, request, response,
+                ipAddress, requestDateTime, responseDateTime, page, size);
 
         if (logs.isEmpty()) return null;
 
@@ -73,4 +83,5 @@ public class LoginLogsReportServiceImpl implements LoginLogsReportService {
 
         return new ByteArrayResource(csv.toString().getBytes(StandardCharsets.UTF_8));
     }
+
 }

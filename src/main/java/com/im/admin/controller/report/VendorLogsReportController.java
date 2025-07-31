@@ -32,10 +32,13 @@ public class VendorLogsReportController {
             @RequestParam(value = "ipAddress", required = false) String ip,
             @RequestParam(value = "srNo", required = false) Integer srNo,
             @RequestParam(value = "requestDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate requestDateTime,
-            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime
+            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+
     ) {
         List<VendorLogsResponseDTO> data = vendorLogsReportService.getFilteredVendorLogs(
-                startDate, endDate, vendorId, request, response, ip,srNo, requestDateTime, responseDateTime
+                startDate, endDate, vendorId, request, response, ip,srNo, requestDateTime, responseDateTime,page,size
         );
 
         if (data.isEmpty()) {
@@ -58,10 +61,12 @@ public class VendorLogsReportController {
             @RequestParam(value = "ipAddress", required = false) String ip,
             @RequestParam(value = "srNo", required = false) Integer srNo,
             @RequestParam(value = "requestDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate requestDateTime,
-            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime
+            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
         ByteArrayResource resource = vendorLogsReportService.exportVendorLogsToCSV(
-                startDate, endDate, vendorId, request, response, ip,srNo, requestDateTime, responseDateTime
+                startDate, endDate, vendorId, request, response, ip,srNo, requestDateTime, responseDateTime,page,size
         );
 
         if (resource == null) {

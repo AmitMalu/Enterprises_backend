@@ -39,6 +39,9 @@ public class VendorCredentials {
     @Column(name = "token_url_uat")
     private String tokenUrlUat;
 
+    @Column(name = "token", length = 2000)
+    private String token;
+
     @Column(name = "token_url_prod")
     private String tokenUrlProd;
 

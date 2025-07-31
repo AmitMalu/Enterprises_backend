@@ -42,6 +42,9 @@ public class Enterprises {
     @Email(message = "Invalid email format")
     private String emailId;
 
+    @Column(name = "email_verified")
+    private Boolean emailVerified;
+
     @Column(name = "abbreviation", length = 3)
     @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
     @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
@@ -119,6 +122,13 @@ public class Enterprises {
 
     @Column(name = "pan_number")
     private String panNumber;
+
+    @Column(name = "pan_verified")
+    private Boolean panVerified;
+
+    @Column(name = "aadhaar_pan_verified")
+    private Boolean aadhaarPanVerified;
+
 
     @Column(name = "shop_image")
     private String shopImage;
