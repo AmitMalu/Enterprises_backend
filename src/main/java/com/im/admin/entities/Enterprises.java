@@ -2,7 +2,6 @@ package com.im.admin.entities;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -11,7 +10,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.validator.constraints.URL;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -41,9 +39,6 @@ public class Enterprises {
     @NotBlank(message = "Email is mandatory")
     @Email(message = "Invalid email format")
     private String emailId;
-
-    @Column(name = "email_verified")
-    private Boolean emailVerified;
 
     @Column(name = "abbreviation", length = 3)
     @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
@@ -122,13 +117,6 @@ public class Enterprises {
 
     @Column(name = "pan_number")
     private String panNumber;
-
-    @Column(name = "pan_verified")
-    private Boolean panVerified;
-
-    @Column(name = "aadhaar_pan_verified")
-    private Boolean aadhaarPanVerified;
-
 
     @Column(name = "shop_image")
     private String shopImage;
