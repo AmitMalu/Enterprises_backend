@@ -47,6 +47,9 @@ public class Retailer {
     @Email(message = "Invalid email format")
     private String emailId;
 
+    @Column(name = "email_verified")
+    private Boolean emailVerified;
+
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dob;
 
@@ -93,6 +96,9 @@ public class Retailer {
     @Column(name = "aadhaar_card_back_image")
     private String aadhaarCardBackImage;
 
+    @Column(name = "is_aadhaar_verified")
+    private Boolean isAadhaarVerified;
+
     @Column(name = "aadhaar_number")
     private String aadhaarNumber;
 
@@ -101,6 +107,12 @@ public class Retailer {
 
     @Column(name = "pan_number")
     private String panNumber;
+
+    @Column(name = "pan_verified")
+    private Boolean panVerified;
+
+    @Column(name = "aadhaar_pan_verified")
+    private Boolean aadhaarPanVerified;
 
     @Column(name = "shop_image")
     private String shopImage;
@@ -113,6 +125,9 @@ public class Retailer {
 
     @Column(name = "business_number")
     private String businessNumber;
+
+    @Column(name = "GST_number_verified")
+    private Boolean GSTNumberVerified;
 
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
