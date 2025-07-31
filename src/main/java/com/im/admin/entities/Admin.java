@@ -30,6 +30,9 @@ public class Admin extends BaseEntity {
     @Column(name = "email_id", nullable = false, unique = true)
     private String emailId;
 
+    @Column(name = "email_verified")
+    private Boolean emailVerified;
+
     @NotBlank(message = "User Name is mandatory")
     @Column(name = "user_name", nullable = false, unique = true)
     private String userName;

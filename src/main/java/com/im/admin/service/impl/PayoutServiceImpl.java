@@ -14,6 +14,7 @@ import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.PayoutMerchantCallbackRequest;
+import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PayoutMerchantCallbackResponse;
@@ -30,13 +31,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -103,8 +103,9 @@ public class PayoutServiceImpl implements PayoutService {
         // Set headers only
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("client_secret", vendorCredentials.getClientSecret());
         headers.set("client_id", vendorCredentials.getClientId());
+        headers.set("username", vendorCredentials.getUsername());
+        headers.set("password", vendorCredentials.getPassword());
 
         HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
 
@@ -112,7 +113,7 @@ public class PayoutServiceImpl implements PayoutService {
         log.info("Sending token request to URL: {}", url);
 
         ResponseEntity<PayoutTokenResponseDTO> response = restTemplate.postForEntity(
-                url,
+                url + "/token",
                 requestEntity,
                 PayoutTokenResponseDTO.class
         );
@@ -129,21 +130,20 @@ public class PayoutServiceImpl implements PayoutService {
 
     @Override
     @Transactional
-    public String sendPayoutRequest(SendPayoutRequest sendPayoutRequest) {
+    public CommonResponse<PayoutResponseDto> sendPayoutRequest(SendPayoutRequest sendPayoutRequest) {
         try {
-
             Optional<SubProducts> subProducts = subProductsRepository.findById(sendPayoutRequest.getSubProductId());
             WalletType walletType = WalletType.valueOf(subProducts.get().getWalletType());
 
-            BigDecimal availableBalance = commonMethods.getCurrentBalance(sendPayoutRequest.getRetailerId(), String.valueOf(walletType));
-            if(availableBalance.compareTo(sendPayoutRequest.getAmount()) < 0) {
-                throw new IllegalArgumentException("Insufficient Balance");
+            BigDecimal availableBalance = commonMethods.getCurrentBalance(sendPayoutRequest.getRetailerId(), walletType.name());
+            if (availableBalance.compareTo(sendPayoutRequest.getAmount()) < 0) {
+                return new CommonResponse<>(400, "Insufficient Balance", null);
             }
 
             String baseTransactionId = commonMethods.generateBaseTransactionId();
 
-            AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(String.valueOf(walletType), sendPayoutRequest.getRetailerId());
-            commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN"+baseTransactionId, "VENDOR PENDING", "DEBIT" );
+            AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), sendPayoutRequest.getRetailerId());
+            commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR PENDING", "DEBIT");
 
             VendorRouting routing = vendorRoutingRepository.findBySubProductId(sendPayoutRequest.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(routing);
@@ -152,37 +152,58 @@ public class PayoutServiceImpl implements PayoutService {
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-            // Step 1: Build request
+            // Prepare request
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setContentType(MediaType.APPLICATION_JSON); // <-- fix here
             headers.set("token", generateTokenForPayout(credentials));
+            headers.set("client_id", credentials.getClientId());
 
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("account_number", sendPayoutRequest.getAccountNumber());
-            body.add("ifsc_code", sendPayoutRequest.getIfscCode());
-            body.add("amount", sendPayoutRequest.getAmount());
+            Map<String, Object> payout = new LinkedHashMap<>();
+            payout.put("beneficiaryAccountNumber", sendPayoutRequest.getAccountNumber());
+            payout.put("beneficiaryIfscCode", sendPayoutRequest.getIfscCode());
+            payout.put("amount", sendPayoutRequest.getAmount().toPlainString());
+            payout.put("orderId", "TXN" + baseTransactionId);
+            payout.put("beneficiaryName", sendPayoutRequest.getBeneficiaryName());
+            payout.put("paymentMode", sendPayoutRequest.getPaymentMode());
+            payout.put("callbackurl", sendPayoutRequest.getCallbackurl());
 
-            body.add("order_id", "TXN"+baseTransactionId);
+            List<Map<String, Object>> requestBody = Collections.singletonList(payout); // JSON array with one object
 
-            body.add("beneficiary_name", sendPayoutRequest.getBeneficiaryName());
-            body.add("payment_mode", sendPayoutRequest.getPaymentMode());
+            HttpEntity<List<Map<String, Object>>> requestEntity = new HttpEntity<>(requestBody, headers);
 
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+            String url = credentials.getBaseUrlUat() + "/payment";
+            log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, headers, requestBody);
 
-            log.info("Sending payout request to RunPaisa. Headers: {}, Body: {}", headers, body);
+            ResponseEntity<PayoutResponseDto> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    PayoutResponseDto.class
+            );
 
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                    baseUrl + "/payment", requestEntity, String.class);
 
-            log.info("RunPaisa payout response: {}", response.getBody());
+            PayoutResponseDto payoutResponse = response.getBody();
+            log.info("RunPaisa payout response: {}", payoutResponse);
 
-            return response.getBody();
+            if (payoutResponse != null && "ACCEPTED".equalsIgnoreCase(payoutResponse.getStatus())) {
+                return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
+            } else {
+                String errorMsg = payoutResponse != null ? payoutResponse.getMessage() : "Null response from vendor";
+                return new CommonResponse<>(400, errorMsg, payoutResponse);
+            }
 
-        } catch (Exception e) {
-            log.error("Error while sending payout request: ", e);
-            return "Order creation failed: " + e.getMessage();
-        }
+        }  catch (HttpStatusCodeException e) {
+        log.error("Vendor returned HTTP error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+        return new CommonResponse<>(e.getStatusCode().value(), "Vendor Error", null);
+    } catch (RestClientException e) {
+        log.error("Vendor communication error: {}", e.getMessage(), e);
+        return new CommonResponse<>(500, "Vendor communication failed", null);
+    } catch (Exception e) {
+        log.error("General exception: {}", e.getMessage(), e);
+        return new CommonResponse<>(500, "Exception occurred during payout", null);
     }
+
+}
 
     @Override
     public PayoutMerchantCallbackResponse updateMerchantCallbackUrl(PayoutMerchantCallbackRequest request) {
