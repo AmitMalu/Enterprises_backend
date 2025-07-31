@@ -151,7 +151,7 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
                 schemeName = scheme.map(Scheme::getSchemeName).orElse("No scheme assigned");
             }
 
-            responseList.add(new RetailerSchemeAllocationResponse(subProductName, schemeName));
+            responseList.add(new RetailerSchemeAllocationResponse(subProductName, subProductCode, schemeName));
         }
 
         return responseList;

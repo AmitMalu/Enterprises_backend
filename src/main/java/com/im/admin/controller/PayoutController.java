@@ -4,6 +4,7 @@ package com.im.admin.controller;
 import com.im.admin.dto.BeneficiaryBankAccountDTO;
 import com.im.admin.entities.BeneficiaryBankAccount;
 import com.im.admin.request.PayoutMerchantCallbackRequest;
+import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PayoutMerchantCallbackResponse;
@@ -40,11 +41,18 @@ public class PayoutController {
     }
 
     @PostMapping("/send-payout-request")
-    public ResponseEntity<String> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest) {
+    public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest) {
         log.info("======= Calling payoutService.sendPayoutRequest =======");
-        String response = payoutService.sendPayoutRequest(sendPayoutRequest);
-        log.info("======= sendPayoutRequest completed at {} =======", LocalDateTime.now());
-        return ResponseEntity.ok(response);
+
+        try {
+            CommonResponse<PayoutResponseDto> response = payoutService.sendPayoutRequest(sendPayoutRequest);
+            log.info("======= sendPayoutRequest completed at {} =======", LocalDateTime.now());
+            return ResponseEntity.status(response.getStatusCode()).body(response);
+        } catch (Exception e) {
+            log.error("Error during payout request: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Failed to process payout request", null));
+        }
     }
 
     @PostMapping("/update-callback-url")
