@@ -22,13 +22,15 @@ public class VendorLogsReportServiceImpl implements VendorLogsReportService {
     @Override
     public List<VendorLogsResponseDTO> getFilteredVendorLogs(LocalDate start, LocalDate end,
                                                              String vendorId, String requestText, String responseText,
-                                                             String ip,  Integer srNo,LocalDate requestDateTime, LocalDate responseDateTime) {
+                                                             String ip, Integer srNo,
+                                                             LocalDate requestDateTime, LocalDate responseDateTime,
+                                                             int page, int size) {
 
         List<Object[]> rows = vendorLogsRepo.getVendorLogsBetweenDates(
                 start.atStartOfDay(), end.atTime(23, 59, 59)
         );
 
-        return rows.stream().map(row -> {
+        List<VendorLogsResponseDTO> filtered = rows.stream().map(row -> {
                     VendorLogsResponseDTO dto = new VendorLogsResponseDTO();
                     dto.setSrNo((Integer) row[0]);
                     dto.setImVendorId((String) row[1]);
@@ -52,14 +54,23 @@ public class VendorLogsReportServiceImpl implements VendorLogsReportService {
                 .filter(r -> requestDateTime == null || (r.getRequestDateTime() != null && r.getRequestDateTime().toLocalDate().equals(requestDateTime)))
                 .filter(r -> responseDateTime == null || (r.getResponseDateTime() != null && r.getResponseDateTime().toLocalDate().equals(responseDateTime)))
                 .collect(Collectors.toList());
+
+        // Apply manual pagination
+        int fromIndex = page * size;
+        int toIndex = Math.min(fromIndex + size, filtered.size());
+        if (fromIndex >= filtered.size()) return List.of(); // return empty list if out of bounds
+
+        return filtered.subList(fromIndex, toIndex);
     }
 
     @Override
     public ByteArrayResource exportVendorLogsToCSV(LocalDate start, LocalDate end,
                                                    String vendorId, String requestText, String responseText,
-                                                   String ip, Integer srNo, LocalDate requestDateTime, LocalDate responseDateTime) {
+                                                   String ip, Integer srNo,
+                                                   LocalDate requestDateTime, LocalDate responseDateTime,
+                                                   int page, int size) {
 
-        List<VendorLogsResponseDTO> logs = getFilteredVendorLogs(start, end, vendorId, requestText, responseText, ip,srNo, requestDateTime, responseDateTime);
+        List<VendorLogsResponseDTO> logs = getFilteredVendorLogs(start, end, vendorId, requestText, responseText, ip, srNo, requestDateTime, responseDateTime, page, size);
 
         if (logs.isEmpty()) return null;
 
@@ -76,4 +87,5 @@ public class VendorLogsReportServiceImpl implements VendorLogsReportService {
 
         return new ByteArrayResource(csv.toString().getBytes(StandardCharsets.UTF_8));
     }
+
 }

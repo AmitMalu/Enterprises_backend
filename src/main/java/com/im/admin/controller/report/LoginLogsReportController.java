@@ -1,6 +1,7 @@
 package com.im.admin.controller.report;
 
 import com.im.admin.dto.LoginLogsResponseDTO;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.LoginLogsReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
@@ -31,9 +32,11 @@ public class LoginLogsReportController {
             @RequestParam(value = "response", required = false) String response,
             @RequestParam(value = "ipAddress", required = false) String ipAddress,
             @RequestParam(value = "requestDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate requestDateTime,
-            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime
+            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        List<LoginLogsResponseDTO> data = loginLogsReportService.getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime);
+        List<LoginLogsResponseDTO> data = loginLogsReportService.getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
 
         if (data.isEmpty()) {
             Map<String, Object> responseMap = new HashMap<>();
@@ -42,8 +45,12 @@ public class LoginLogsReportController {
             return ResponseEntity.ok(responseMap);
         }
 
-        return ResponseEntity.ok(data);
+//        return ResponseEntity.ok(data);
+
+        return ResponseEntity
+                .ok(new CommonResponse(201, "Success", data));
     }
+
 
     @PostMapping("/login-logs-excel")
     public ResponseEntity<?> downloadLoginLogsCSV(
@@ -54,9 +61,12 @@ public class LoginLogsReportController {
             @RequestParam(value = "response", required = false) String response,
             @RequestParam(value = "ipAddress", required = false) String ipAddress,
             @RequestParam(value = "requestDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate requestDateTime,
-            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime
+            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        ByteArrayResource resource = loginLogsReportService.exportLogsToCSV(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime);
+        ByteArrayResource resource = loginLogsReportService.exportLogsToCSV(
+                startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
 
         if (resource == null) {
             Map<String, Object> responseMap = new HashMap<>();
@@ -71,4 +81,5 @@ public class LoginLogsReportController {
                 .contentLength(resource.contentLength())
                 .body(resource);
     }
+
 }

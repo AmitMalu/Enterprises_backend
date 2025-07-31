@@ -8,11 +8,14 @@ import java.util.List;
 
 public interface LoginLogsReportService {
 
-    List<LoginLogsResponseDTO> getFilteredLogs(LocalDate start, LocalDate end,
+    List<LoginLogsResponseDTO> getFilteredLogs(LocalDate startDate, LocalDate endDate,
                                                Integer srNo, String request, String response,
-                                               String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime);
+                                               String ipAddress, LocalDate requestDateTime,
+                                               LocalDate responseDateTime, int page, int size);
 
-    ByteArrayResource exportLogsToCSV(LocalDate start, LocalDate end,
+
+    ByteArrayResource exportLogsToCSV(LocalDate startDate, LocalDate endDate,
                                       Integer srNo, String request, String response,
-                                      String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime);
+                                      String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
+                                      int page, int size);
 }
