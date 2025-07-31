@@ -225,14 +225,10 @@ public class AuthController {
         String currentId = hierarchyId;
 
         while (true) {
-            Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
-            if (parentOpt.isEmpty()) break;
+            String currentType = commonMethods.extractHierarchyType(currentId);
 
-            String parentId = parentOpt.get();
-            String parentType = commonMethods.extractHierarchyType(parentId);
-
-            if ("WL".equals(parentType)) {
-                Optional<WhiteLabels> wlOpt = whiteLabelRepository.findById(parentId);
+            if ("WL".equals(currentType)) {
+                Optional<WhiteLabels> wlOpt = whiteLabelRepository.findById(currentId);
                 if (wlOpt.isPresent()) {
                     WhiteLabels wl = wlOpt.get();
                     if (Boolean.TRUE.equals(wl.getIsAdmin())) {
@@ -242,12 +238,16 @@ public class AuthController {
                 }
             }
 
-            if ("IM".equals(parentType) || "AD".equals(parentType)) {
-                // For IM/Admin, expect URL to contain "www.im.com"
-                return requestUrl.contains("www.im.com");
+            if ("IM".equals(currentType) || "AD".equals(currentType)) {
+                // For IM/Admin, expect URL to contain specific domain
+                return requestUrl.contains("https://uat.decipay.in/");
             }
 
-            currentId = parentId;
+            // Move to parent
+            Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
+            if (parentOpt.isEmpty()) break;
+
+            currentId = parentOpt.get();
         }
 
         return false;
