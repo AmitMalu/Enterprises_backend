@@ -231,16 +231,17 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                     dto.setSlabStart(slab.getSlabStart());
                     dto.setSlabEnd(slab.getSlabEnd());
 
-                    double factor = slab.getRateType() == RateType.PERCENTAGE ? 100.0 : 1.0;
+                    boolean isPercentage = slab.getRateType() == RateType.PERCENTAGE;
+                    double factor = isPercentage ? 100.0 : 1.0;
 
-                    dto.setGross(safeMultiply(slab.getGross(), factor));
-                    dto.setIm(safeMultiply(slab.getIm(), factor));
-                    dto.setEnterprise(allowedHierarchies.contains("enterprise") ? safeMultiply(slab.getEnterprise(), factor) : null);
-                    dto.setWhitelabel(allowedHierarchies.contains("whitelabel") ? safeMultiply(slab.getWhitelabel(), factor) : null);
-                    dto.setSuperDistributor(hasHierarchy("superdistributor", allowedHierarchies) ? safeMultiply(slab.getSuperDistributor(), factor) : null);
-                    dto.setPartner(allowedHierarchies.contains("partner") ? safeMultiply(slab.getPartner(), factor) : null);
-                    dto.setDistributor(allowedHierarchies.contains("distributor") ? safeMultiply(slab.getDistributor(), factor) : null);
-                    dto.setRetailer(allowedHierarchies.contains("retailer") ? safeMultiply(slab.getRetailer(), factor) : null);
+                    dto.setGross(applyRounding(slab.getGross(), factor, isPercentage));
+                    dto.setIm(applyRounding(slab.getIm(), factor, isPercentage));
+                    dto.setEnterprise(allowedHierarchies.contains("enterprise") ? applyRounding(slab.getEnterprise(), factor, isPercentage) : null);
+                    dto.setWhitelabel(allowedHierarchies.contains("whitelabel") ? applyRounding(slab.getWhitelabel(), factor, isPercentage) : null);
+                    dto.setSuperDistributor(hasHierarchy("superdistributor", allowedHierarchies) ? applyRounding(slab.getSuperDistributor(), factor, isPercentage) : null);
+                    dto.setPartner(allowedHierarchies.contains("partner") ? applyRounding(slab.getPartner(), factor, isPercentage) : null);
+                    dto.setDistributor(allowedHierarchies.contains("distributor") ? applyRounding(slab.getDistributor(), factor, isPercentage) : null);
+                    dto.setRetailer(allowedHierarchies.contains("retailer") ? applyRounding(slab.getRetailer(), factor, isPercentage) : null);
 
                     return dto;
                 }).collect(Collectors.toList());
@@ -267,6 +268,15 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         return responseDto;
     }
 
+    private Double applyRounding(Double value, double factor, boolean round) {
+        if (value == null) return null;
+        double result = value * factor;
+        return round ? roundToThreeDecimalPlaces(result) : result;
+    }
+
+    private Double roundToThreeDecimalPlaces(Double value) {
+        return Math.round(value * 1000.0) / 1000.0;
+    }
 
     private SlabRateDto createEmptySlab(Set<String> allowedHierarchies) {
         log.debug("Creating empty default slab for allowed hierarchies: {}", allowedHierarchies);
@@ -341,14 +351,14 @@ public class SchemeRateServiceImpl implements SchemeRateService {
             );
 
             if (slab.getRateType() == RateType.PERCENTAGE) {
-                schemeRate.setGross(gross / 100);
-                schemeRate.setIm(im / 100);
-                schemeRate.setEnterprise(enterprise / 100);
-                schemeRate.setWhitelabel(whitelabel / 100);
-                schemeRate.setSuperDistributor(superDistributor / 100);
-                schemeRate.setPartner(partner / 100);
-                schemeRate.setDistributor(distributor / 100);
-                schemeRate.setRetailer(retailer / 100);
+                schemeRate.setGross(roundToThreeDecimalPlaces(gross / 100));
+                schemeRate.setIm(roundToThreeDecimalPlaces(im / 100));
+                schemeRate.setEnterprise(roundToThreeDecimalPlaces(enterprise / 100));
+                schemeRate.setWhitelabel(roundToThreeDecimalPlaces(whitelabel / 100));
+                schemeRate.setSuperDistributor(roundToThreeDecimalPlaces(superDistributor / 100));
+                schemeRate.setPartner(roundToThreeDecimalPlaces(partner / 100));
+                schemeRate.setDistributor(roundToThreeDecimalPlaces(distributor / 100));
+                schemeRate.setRetailer(roundToThreeDecimalPlaces(retailer / 100));
             } else {
                 schemeRate.setGross(gross);
                 schemeRate.setIm(im);
