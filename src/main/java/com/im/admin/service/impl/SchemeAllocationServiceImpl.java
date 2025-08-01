@@ -6,14 +6,17 @@ import com.im.admin.dto.SchemeAllocationRequestDto;
 import com.im.admin.entities.Scheme;
 import com.im.admin.entities.SchemeAllocation;
 import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.UserDetails;
 import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.SchemeAllocationRepository;
 import com.im.admin.repositories.SchemeRepository;
 import com.im.admin.repositories.SubProductsRepository;
+import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.request.SchemeAllocationRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.RetailerSchemeAllocationResponse;
 import com.im.admin.response.SchemeDropdownListBySubProductResponse;
+import com.im.admin.response.UserSearchResponseDto;
 import com.im.admin.service.SchemeAllocationService;
 import jakarta.persistence.Column;
 import jakarta.persistence.GeneratedValue;
@@ -22,6 +25,8 @@ import jakarta.persistence.Id;
 import jakarta.validation.constraints.NotBlank;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +49,9 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
 
     @Autowired
     private SchemeRepository schemeRepository;
+
+    @Autowired
+    private UserDetailsRepository userDetailsRepository;
 
 
     @Override
@@ -157,5 +165,20 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
         return responseList;
     }
 
+    @Override
+    public Page<UserSearchResponseDto> searchActiveRetailers(String keyword, Pageable pageable) {
+        Page<UserDetails> page = userDetailsRepository.searchActiveRetailers(keyword, pageable);
+
+        return page.map(u -> {
+            UserSearchResponseDto dto = new UserSearchResponseDto();
+            dto.setMobileNumber(u.getMobileNumber());
+            dto.setHierarchyId(u.getHierarchyId());
+            dto.setHierarchyCode(u.getHierarchyCode());
+            dto.setCreatedDate(u.getCreatedDate());
+            dto.setLastLoginDate(u.getLastLoginDate());
+            dto.setEmailId(u.getEmailId());
+            return dto;
+        });
+    }
 
 }

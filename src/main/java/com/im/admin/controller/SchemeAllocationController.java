@@ -6,9 +6,14 @@ import com.im.admin.request.SchemeAllocationRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.RetailerSchemeAllocationResponse;
 import com.im.admin.response.SchemeDropdownListBySubProductResponse;
+import com.im.admin.response.UserSearchResponseDto;
 import com.im.admin.service.SchemeAllocationService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -62,6 +67,23 @@ public class SchemeAllocationController {
                 allocationService.getAllocatedSchemesForRetailer(hierarchyId);
 
         return ResponseEntity.ok(CommonResponse.success(result, "Scheme allocation data loaded successfully"));
+    }
+
+    @GetMapping("/active-retailers")
+    public ResponseEntity<CommonResponse<Page<UserSearchResponseDto>>> ActiveRetailers(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+
+        Page<UserSearchResponseDto> result = allocationService.searchActiveRetailers(keyword, pageable);
+
+        if (result.isEmpty()) {
+            return ResponseEntity.ok(CommonResponse.success(result, "No active retailers found for keyword: " + keyword));
+        }
+
+        return ResponseEntity.ok(CommonResponse.success(result, "Retailer search successful"));
     }
 
 

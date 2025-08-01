@@ -263,6 +263,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         responseDto.setOperators(operatorDtos);
         responseDto.setIsActive(scheme.getIsActive());
         responseDto.setTdsRate(product.getTds());
+        responseDto.setProductName(product.getName());
 
         log.info("Scheme detail response ready for schemeCode: {}", schemeCode);
         return responseDto;
