@@ -134,7 +134,7 @@ public class Partner {
     private Boolean emailVerified;
 
     @Column(name = "GST_number_verified")
-    private Boolean GSTNumberVerified;
+    private Boolean gstNumberVerified;
 
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)

@@ -155,6 +155,11 @@ public class VendorServiceImpl implements VendorService {
     }
 
     public void updateEntityFromDto(VendorsDTO dto, Vendors entity) {
+
+        Products product = productsRepository.findById(dto.getProductId())
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + dto.getProductId()));
+
+        entity.setProduct(product);
         entity.setVendorName(dto.getVendorName());
         entity.setVendorCode(dto.getVendorCode());
         entity.setActive(dto.getActive());

@@ -127,7 +127,7 @@ public class Retailer {
     private String businessNumber;
 
     @Column(name = "GST_number_verified")
-    private Boolean GSTNumberVerified;
+    private Boolean gstNumberVerified;
 
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
