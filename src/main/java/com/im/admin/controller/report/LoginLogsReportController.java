@@ -41,14 +41,8 @@ public class LoginLogsReportController {
                 startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size
         );
 
-        if (data.isEmpty()) {
-            Map<String, Object> responseMap = new HashMap<>();
-            responseMap.put("statusCode", 200);
-            responseMap.put("message", "No records found");
-            return ResponseEntity.ok(responseMap);
-        }
-
-        return ResponseEntity.ok(new CommonResponse(200, "Success", data));
+        String message = data.isEmpty() ? "No records found" : "Success";
+        return ResponseEntity.ok(new CommonResponse<>(200, message, data));
     }
 
 
@@ -67,13 +61,11 @@ public class LoginLogsReportController {
             @RequestParam(defaultValue = "10") int size
     ) {
         ByteArrayResource resource = loginLogsReportService.exportLogsToCSV(
-                startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
+                startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size
+        );
 
         if (resource == null) {
-            Map<String, Object> responseMap = new HashMap<>();
-            responseMap.put("statusCode", 200);
-            responseMap.put("message", "No records found");
-            return ResponseEntity.ok(responseMap);
+            return ResponseEntity.ok(new CommonResponse<>(200, "No records found", null));
         }
 
         return ResponseEntity.ok()
