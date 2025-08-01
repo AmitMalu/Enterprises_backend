@@ -2,6 +2,7 @@ package com.im.admin.entities;
 
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -25,9 +26,10 @@ import java.time.LocalDateTime;
 @Table(name = "retailer_agents")
 public class RetailerAgent {
 
-    @Id
-    @Column(name = "agent_id", nullable = false)
-    private String agentId;
+     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY) //
+    @Column(name = "agent_id")
+    private Long agentId;
 
     @Column(name = "parent_account", nullable = false)
     private String parentAccount;
@@ -74,7 +76,7 @@ public class RetailerAgent {
             @AttributeOverride(name = "state", column = @Column(name = "main_state")),
             @AttributeOverride(name = "zipCode", column = @Column(name = "main_zip_code"))
     })
-    private Address address;
+    private Address add;
 
 //    @Embedded
 //    @AttributeOverrides({
@@ -88,6 +90,7 @@ public class RetailerAgent {
 //    })
 //    private Address outletAddress;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bank_details_id", referencedColumnName = "id")
     private BanksDetailss bankDetails;
@@ -151,31 +154,39 @@ public class RetailerAgent {
     @Column(name = "created_by_ip_address", nullable = false, updatable = false)
     private String createdByIPAddress;
 
+    @Column(name = " role_id")
+    private String  role_id;
+
+    @Column(name = "sub_role_id")
+    private  String subRoleId;
+
     @PrePersist
     public void prePersistDefaults() {
-        if (this.address != null) {
-            if (this.address.getOutletName() == null) {
-                this.address.setOutletName("N/A");
+        if (this.add != null) {
+            if (this.add.getOutletName() == null) {
+                this.add.setOutletName("N/A");
             }
-            if (this.address.getCompanyType() == null) {
-                this.address.setCompanyType("N/A");
+            if (this.add.getCompanyType() == null) {
+                this.add.setCompanyType("N/A");
             }
-            if (this.address.getCompanyName() == null) {
-                this.address.setCompanyName("N/A");
+            if (this.add.getCompanyName() == null) {
+                this.add.setCompanyName("N/A");
             }
-            if (this.address.getAddress() == null) {
-                this.address.setAddress("N/A");
+            if (this.add.getAddress() == null) {
+                this.add.setAddress("N/A");
             }
-            if (this.address.getCity() == null) {
-                this.address.setCity("N/A");
+            if (this.add.getCity() == null) {
+                this.add.setCity("N/A");
             }
-            if (this.address.getState() == null) {
-                this.address.setState("N/A");
+            if (this.add.getState() == null) {
+                this.add.setState("N/A");
             }
-            if (this.address.getZipCode() == null) {
-                this.address.setZipCode("N/A");
+            if (this.add.getZipCode() == null) {
+                this.add.setZipCode("N/A");
             }
         }
+
+
 
 //        if (this.outletAddress != null) {
 //            if (this.outletAddress.getOutletName() == null) {
