@@ -5,6 +5,9 @@ import com.im.admin.repositories.VendorReqResRepository;
 import com.im.admin.service.reports.VendorLogsReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -20,15 +23,13 @@ public class VendorLogsReportServiceImpl implements VendorLogsReportService {
     private VendorReqResRepository vendorLogsRepo;
 
     @Override
-    public List<VendorLogsResponseDTO> getFilteredVendorLogs(LocalDate start, LocalDate end,
+    public Page<VendorLogsResponseDTO> getFilteredVendorLogs(LocalDate start, LocalDate end,
                                                              String vendorId, String requestText, String responseText,
                                                              String ip, Integer srNo,
                                                              LocalDate requestDateTime, LocalDate responseDateTime,
                                                              int page, int size) {
 
-        List<Object[]> rows = vendorLogsRepo.getVendorLogsBetweenDates(
-                start.atStartOfDay(), end.atTime(23, 59, 59)
-        );
+        List<Object[]> rows = vendorLogsRepo.getVendorLogsBetweenDates(start.atStartOfDay(), end.atTime(23, 59, 59));
 
         List<VendorLogsResponseDTO> filtered = rows.stream().map(row -> {
                     VendorLogsResponseDTO dto = new VendorLogsResponseDTO();
@@ -55,12 +56,12 @@ public class VendorLogsReportServiceImpl implements VendorLogsReportService {
                 .filter(r -> responseDateTime == null || (r.getResponseDateTime() != null && r.getResponseDateTime().toLocalDate().equals(responseDateTime)))
                 .collect(Collectors.toList());
 
-        // Apply manual pagination
+        int total = filtered.size();
         int fromIndex = page * size;
-        int toIndex = Math.min(fromIndex + size, filtered.size());
-        if (fromIndex >= filtered.size()) return List.of(); // return empty list if out of bounds
+        int toIndex = Math.min(fromIndex + size, total);
+        List<VendorLogsResponseDTO> paginated = fromIndex >= total ? List.of() : filtered.subList(fromIndex, toIndex);
 
-        return filtered.subList(fromIndex, toIndex);
+        return new PageImpl<>(paginated, PageRequest.of(page, size), total);
     }
 
     @Override
@@ -70,8 +71,7 @@ public class VendorLogsReportServiceImpl implements VendorLogsReportService {
                                                    LocalDate requestDateTime, LocalDate responseDateTime,
                                                    int page, int size) {
 
-        List<VendorLogsResponseDTO> logs = getFilteredVendorLogs(start, end, vendorId, requestText, responseText, ip, srNo, requestDateTime, responseDateTime, page, size);
-
+        Page<VendorLogsResponseDTO> logs = getFilteredVendorLogs(start, end, vendorId, requestText, responseText, ip, srNo, requestDateTime, responseDateTime, page, size);
         if (logs.isEmpty()) return null;
 
         StringBuilder csv = new StringBuilder("SrNo,VendorId,Request,Response,IP,RequestDateTime,ResponseDateTime\n");
@@ -87,5 +87,4 @@ public class VendorLogsReportServiceImpl implements VendorLogsReportService {
 
         return new ByteArrayResource(csv.toString().getBytes(StandardCharsets.UTF_8));
     }
-
 }
