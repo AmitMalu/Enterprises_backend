@@ -1,6 +1,7 @@
 package com.im.admin.controller.report;
 
 import com.im.admin.dto.AuditLogsResponseDTO;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.AuditLogsReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
@@ -11,18 +12,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @RestController
-@RequestMapping("/api/report")
+@RequestMapping("/api/audit-logs-report")
 public class AuditLogsReportController {
 
     @Autowired
     private AuditLogsReportService service;
 
-    @PostMapping("/audit-logs-json")
+    @PostMapping("/json")
     public ResponseEntity<?> getAuditLogsJson(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,
@@ -31,21 +29,16 @@ public class AuditLogsReportController {
             @RequestParam(value = "response", required = false) String response,
             @RequestParam(value = "ipAddress", required = false) String ipAddress,
             @RequestParam(value = "requestDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate requestDateTime,
-            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime
+            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        List<AuditLogsResponseDTO> data = service.getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime);
-
-        if (data.isEmpty()) {
-            Map<String, Object> responseMap = new HashMap<>();
-            responseMap.put("statusCode", 200);
-            responseMap.put("message", "No records found");
-            return ResponseEntity.ok(responseMap);
-        }
-
-        return ResponseEntity.ok(data);
+        var data = service.getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
+        String message = data.isEmpty() ? "No records found" : "Success";
+        return ResponseEntity.ok(new CommonResponse<>(200, message, data));
     }
 
-    @PostMapping("/logs-excel")
+    @PostMapping("/excel")
     public ResponseEntity<?> downloadAuditLogsCSV(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,
@@ -54,15 +47,14 @@ public class AuditLogsReportController {
             @RequestParam(value = "response", required = false) String response,
             @RequestParam(value = "ipAddress", required = false) String ipAddress,
             @RequestParam(value = "requestDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate requestDateTime,
-            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime
+            @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        ByteArrayResource resource = service.exportLogsToCSV(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime);
+        ByteArrayResource resource = service.exportLogsToCSV(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
 
         if (resource == null) {
-            Map<String, Object> responseMap = new HashMap<>();
-            responseMap.put("statusCode", 200);
-            responseMap.put("message", "No records found");
-            return ResponseEntity.ok(responseMap);
+            return ResponseEntity.ok(new CommonResponse<>(200, "No records found", null));
         }
 
         return ResponseEntity.ok()
