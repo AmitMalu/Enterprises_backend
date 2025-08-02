@@ -5,6 +5,9 @@ import com.im.admin.repositories.HierarchyLogsRepository;
 import com.im.admin.service.reports.HierarchyLogsReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -12,7 +15,6 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
-
 @Service
 public class HierarchyLogsReportServiceImpl implements HierarchyLogsReportService {
 
@@ -20,7 +22,7 @@ public class HierarchyLogsReportServiceImpl implements HierarchyLogsReportServic
     private HierarchyLogsRepository hierarchyLogsRepository;
 
     @Override
-    public List<HierarchyLogsResponseDTO> getFilteredLogs(LocalDate start, LocalDate end,
+    public Page<HierarchyLogsResponseDTO> getFilteredLogs(LocalDate start, LocalDate end,
                                                           Integer srNo, String request, String response,
                                                           String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
                                                           int page, int size) {
@@ -50,12 +52,12 @@ public class HierarchyLogsReportServiceImpl implements HierarchyLogsReportServic
                 .filter(r -> responseDateTime == null || (r.getResponseDateTime() != null && r.getResponseDateTime().toLocalDate().equals(responseDateTime)))
                 .collect(Collectors.toList());
 
-        // Manual pagination
-        int fromIndex = page * size;
-        int toIndex = Math.min(fromIndex + size, filtered.size());
-        if (fromIndex >= filtered.size()) return List.of();
+        int total = filtered.size();
+        int fromIndex = Math.min(page * size, total);
+        int toIndex = Math.min(fromIndex + size, total);
+        List<HierarchyLogsResponseDTO> paginatedList = filtered.subList(fromIndex, toIndex);
 
-        return filtered.subList(fromIndex, toIndex);
+        return new PageImpl<>(paginatedList, PageRequest.of(page, size), total);
     }
 
     @Override
@@ -64,7 +66,9 @@ public class HierarchyLogsReportServiceImpl implements HierarchyLogsReportServic
                                              String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
                                              int page, int size) {
 
-        List<HierarchyLogsResponseDTO> logs = getFilteredLogs(start, end, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
+        Page<HierarchyLogsResponseDTO> logs = getFilteredLogs(
+                start, end, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size
+        );
 
         if (logs.isEmpty()) return null;
 
@@ -83,3 +87,4 @@ public class HierarchyLogsReportServiceImpl implements HierarchyLogsReportServic
         return new ByteArrayResource(csv.toString().getBytes(StandardCharsets.UTF_8));
     }
 }
+

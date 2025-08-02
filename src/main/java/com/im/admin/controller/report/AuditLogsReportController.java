@@ -16,13 +16,13 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/report/audit")
+@RequestMapping("/api/report")
 public class AuditLogsReportController {
 
     @Autowired
     private AuditLogsReportService service;
 
-    @PostMapping("/logs-json")
+    @PostMapping("/audit-logs-json")
     public ResponseEntity<?> getAuditLogsJson(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,
