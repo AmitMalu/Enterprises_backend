@@ -64,6 +64,9 @@ public class AuthController {
     @Autowired
     private SubProductsRepository subProductsRepository;
 
+    @Autowired
+    private AdminRepository adminRepository;
+
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
@@ -239,11 +242,13 @@ public class AuthController {
             }
 
             if ("IM".equals(currentType) || "AD".equals(currentType)) {
-                // For IM/Admin, expect URL to contain specific domain
-                return requestUrl.contains("https://uat.decipay.in/");
+                Optional<Admin> adminOpt = adminRepository.findById(currentId);
+                if (adminOpt.isPresent()) {
+                    Admin admin = adminOpt.get();
+                    return requestUrl.equals(admin.getLoginURL());
+                }
             }
 
-            // Move to parent
             Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
             if (parentOpt.isEmpty()) break;
 
