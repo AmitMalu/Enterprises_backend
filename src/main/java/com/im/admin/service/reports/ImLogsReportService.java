@@ -2,22 +2,23 @@ package com.im.admin.service.reports;
 
 import com.im.admin.dto.ImLogsResponseDTO;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.Page;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
 
 public interface ImLogsReportService {
 
-    List<ImLogsResponseDTO> getFilteredLogs(
+    Page<ImLogsResponseDTO> getFilteredLogs(
             LocalDate startDate, LocalDate endDate,
             Integer srNo, String request, String response,
-            String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime
+            String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
+            int page, int size
     );
 
     ByteArrayResource exportLogsToCSV(
             LocalDate startDate, LocalDate endDate,
             Integer srNo, String request, String response,
-            String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime
+            String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
+            int page, int size
     );
 }

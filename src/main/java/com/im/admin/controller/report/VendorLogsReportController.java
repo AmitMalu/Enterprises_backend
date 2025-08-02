@@ -1,6 +1,7 @@
 package com.im.admin.controller.report;
 
 import com.im.admin.dto.VendorLogsResponseDTO;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.VendorLogsReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
@@ -11,18 +12,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @RestController
-@RequestMapping("/api/report")
+@RequestMapping("/api/vendor-logs-report")
 public class VendorLogsReportController {
 
     @Autowired
     private VendorLogsReportService vendorLogsReportService;
 
-    @PostMapping("/vendor-logs-json")
+    @PostMapping("/json")
     public ResponseEntity<?> getVendorLogsJson(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,
@@ -35,23 +33,13 @@ public class VendorLogsReportController {
             @RequestParam(value = "responseDateTime", required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate responseDateTime,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
-
     ) {
-        List<VendorLogsResponseDTO> data = vendorLogsReportService.getFilteredVendorLogs(
-                startDate, endDate, vendorId, request, response, ip,srNo, requestDateTime, responseDateTime,page,size
-        );
-
-        if (data.isEmpty()) {
-            Map<String, Object> res = new HashMap<>();
-            res.put("statusCode", 200);
-            res.put("message", "No records found");
-            return ResponseEntity.ok(res);
-        }
-
-        return ResponseEntity.ok(data);
+        var result = vendorLogsReportService.getFilteredVendorLogs(startDate, endDate, vendorId, request, response, ip, srNo, requestDateTime, responseDateTime, page, size);
+        String message = result.isEmpty() ? "No records found" : "Success";
+        return ResponseEntity.ok(new CommonResponse<>(200, message, result));
     }
 
-    @PostMapping("/vendor-logs-excel")
+    @PostMapping("/excel")
     public ResponseEntity<?> downloadVendorLogsCSV(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,
@@ -66,14 +54,11 @@ public class VendorLogsReportController {
             @RequestParam(defaultValue = "10") int size
     ) {
         ByteArrayResource resource = vendorLogsReportService.exportVendorLogsToCSV(
-                startDate, endDate, vendorId, request, response, ip,srNo, requestDateTime, responseDateTime,page,size
+                startDate, endDate, vendorId, request, response, ip, srNo, requestDateTime, responseDateTime, page, size
         );
 
         if (resource == null) {
-            Map<String, Object> res = new HashMap<>();
-            res.put("statusCode", 200);
-            res.put("message", "No records found");
-            return ResponseEntity.ok(res);
+            return ResponseEntity.ok(new CommonResponse<>(200, "No records found", null));
         }
 
         return ResponseEntity.ok()

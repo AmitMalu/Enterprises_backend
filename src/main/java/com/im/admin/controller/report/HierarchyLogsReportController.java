@@ -17,13 +17,13 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/report")
+@RequestMapping("/api/hierarchy-logs-report")
 public class HierarchyLogsReportController {
 
     @Autowired
     private HierarchyLogsReportService hierarchyLogsReportService;
 
-    @PostMapping("/hierarchy-logs-json")
+    @PostMapping("/json")
     public ResponseEntity<?> getHierarchyLogsJson(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,
@@ -44,7 +44,7 @@ public class HierarchyLogsReportController {
         return ResponseEntity.ok(new CommonResponse<>(200, message, data));
     }
 
-    @PostMapping("/hierarchy-logs-excel")
+    @PostMapping("/excel")
     public ResponseEntity<?> downloadHierarchyLogsCSV(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,

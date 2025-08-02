@@ -5,6 +5,9 @@ import com.im.admin.repositories.AuditLogsRepository;
 import com.im.admin.service.reports.AuditLogsReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -20,14 +23,14 @@ public class AuditLogsReportServiceImpl implements AuditLogsReportService {
     private AuditLogsRepository auditLogsRepository;
 
     @Override
-    public List<AuditLogsResponseDTO> getFilteredLogs(LocalDate startDate, LocalDate endDate,
+    public Page<AuditLogsResponseDTO> getFilteredLogs(LocalDate startDate, LocalDate endDate,
                                                       Integer srNo, String request, String response,
-                                                      String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime) {
+                                                      String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
+                                                      int page, int size) {
 
-        List<Object[]> rows = auditLogsRepository.getAuditLogsBetweenDates(
-                startDate.atStartOfDay(), endDate.atTime(23, 59, 59));
+        List<Object[]> rows = auditLogsRepository.getAuditLogsBetweenDates(startDate.atStartOfDay(), endDate.atTime(23, 59, 59));
 
-        return rows.stream().map(row -> {
+        List<AuditLogsResponseDTO> filtered = rows.stream().map(row -> {
                     AuditLogsResponseDTO dto = new AuditLogsResponseDTO();
                     dto.setSrNo((Integer) row[0]);
                     dto.setRequest((String) row[1]);
@@ -49,14 +52,23 @@ public class AuditLogsReportServiceImpl implements AuditLogsReportService {
                 .filter(r -> requestDateTime == null || (r.getRequestDateTime() != null && r.getRequestDateTime().toLocalDate().equals(requestDateTime)))
                 .filter(r -> responseDateTime == null || (r.getResponseDateTime() != null && r.getResponseDateTime().toLocalDate().equals(responseDateTime)))
                 .collect(Collectors.toList());
+
+        int total = filtered.size();
+        int fromIndex = Math.min(page * size, total);
+        int toIndex = Math.min(fromIndex + size, total);
+        List<AuditLogsResponseDTO> paginatedList = filtered.subList(fromIndex, toIndex);
+
+        return new PageImpl<>(paginatedList, PageRequest.of(page, size), total);
     }
 
     @Override
     public ByteArrayResource exportLogsToCSV(LocalDate startDate, LocalDate endDate,
                                              Integer srNo, String request, String response,
-                                             String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime) {
+                                             String ipAddress, LocalDate requestDateTime, LocalDate responseDateTime,
+                                             int page, int size) {
 
-        List<AuditLogsResponseDTO> logs = getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime);
+        Page<AuditLogsResponseDTO> logs = getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
+
         if (logs.isEmpty()) return null;
 
         StringBuilder csv = new StringBuilder();

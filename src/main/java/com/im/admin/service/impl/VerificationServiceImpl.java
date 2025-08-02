@@ -1,5 +1,7 @@
 package com.im.admin.service.impl;
 
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.dto.*;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
@@ -8,6 +10,7 @@ import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.VerificationService;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -49,56 +53,74 @@ public class VerificationServiceImpl implements VerificationService {
     private VendorCredentialsRepository vendorCredentialsRepository;
 
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Override
     @Transactional
     public ResponseEntity<?> validateAadhaar(String aadhaarNumber) {
         try {
-            // 1. Find SubProduct by Title
+            // 1. Get required objects
             SubProducts subProduct = subProductsRepository
                     .findBySubProductTitle("Aadhar Verification")
                     .orElseThrow(() -> new RuntimeException("SubProduct not found for Aadhar Verification"));
 
-
-            // 2. Find VendorRouting by subProductId
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
             Vendors vendor = getVendors(vendorRouting);
 
-            // 3. Get credentials for this vendor
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-            // 4. Prepare headers with token
+            // 2. Set headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization","Bearer " +  credentials.getToken()); // use generated token
+            headers.set("Authorization", "Bearer " + credentials.getToken());
 
-            // 5. Build request body
+            // 3. Prepare request
             Map<String, String> body = new HashMap<>();
             body.put("id_number", aadhaarNumber);
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
-
-            // 6. Build final endpoint URL (baseUrlUat + Aadhaar path)
             String url = credentials.getBaseUrlUat() + "/v1/aadhaar-validation/aadhaar-validation";
 
-
-            // 7. Call the API
+            // 4. Call API
             ResponseEntity<AadhaarValidationResponse> response = restTemplate.postForEntity(
                     url,
                     requestEntity,
                     AadhaarValidationResponse.class
             );
 
-            log.info("Aadhaar validation response: {}", response.getBody());
-            return ResponseEntity.ok(response.getBody());
+            AadhaarValidationResponse responseBody = response.getBody();
+            String remarks = responseBody.getData() != null ? responseBody.getData().getRemarks() : null;
+            String message = remarks != null ? remarks : "Aadhaar validation successful";
+
+            return ResponseEntity.ok(CommonResponse.success(responseBody, message));
+
+        } catch (HttpClientErrorException e) {
+            try {
+                AadhaarValidationResponse errorBody = objectMapper.readValue(
+                        e.getResponseBodyAsString(),
+                        AadhaarValidationResponse.class
+                );
+
+                String remarks = errorBody.getData() != null ? errorBody.getData().getRemarks() : null;
+                String message = remarks != null ? remarks : "Aadhaar validation failed";
+
+                return ResponseEntity.ok(CommonResponse.success(errorBody, message));
+
+            } catch (Exception parseEx) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(CommonResponse.error(400, "Aadhaar validation failed and response could not be parsed."));
+            }
 
         } catch (Exception e) {
-            log.error("Error validating Aadhaar: ", e);
+            log.error("Unexpected error: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Aadhaar validation failed: " + e.getMessage());
+                    .body(CommonResponse.error(500, "Aadhaar validation failed: " + e.getMessage()));
         }
     }
+
 
     private static Vendors getVendors(VendorRouting vendorRouting) {
         Vendors vendor = null;
@@ -148,54 +170,65 @@ public class VerificationServiceImpl implements VerificationService {
         }
     }
 
+
     @Override
     @Transactional
-    public ResponseEntity<?> validatepan(String PanNumber) {
+    public ResponseEntity<?> validatepan(String panNumber) {
         try {
-            // 1. Find SubProduct by Title
+            // Step 1: Get all required dependencies
             SubProducts subProduct = subProductsRepository
                     .findBySubProductTitle("Aadhar Verification")
-                    .orElseThrow(() -> new RuntimeException("SubProduct not found for Aadhar Verification"));
+                    .orElseThrow(() -> new RuntimeException("SubProduct not found for Pan Verification"));
 
-
-            // 2. Find VendorRouting by subProductId
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
             Vendors vendor = getVendors(vendorRouting);
 
-            // 3. Get credentials for this vendor
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-            // 4. Prepare headers with token
+            // Step 2: Prepare request
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization","Bearer " +  credentials.getToken()); // use generated token
+            headers.set("Authorization", "Bearer " + credentials.getToken());
 
-            // 5. Build request body
             Map<String, String> body = new HashMap<>();
-            body.put("id_number", PanNumber);
+            body.put("id_number", panNumber);
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
-
-            // 6. Build final endpoint URL (baseUrlUat + Aadhaar path)
             String url = credentials.getBaseUrlUat() + "/v1/pan/pan";
 
-
-            // 7. Call the API
+            // Step 3: Call API
             ResponseEntity<PanValidationResponse> response = restTemplate.postForEntity(
                     url,
                     requestEntity,
                     PanValidationResponse.class
             );
 
-            log.info("Pan validation response: {}", response.getBody());
-            return ResponseEntity.ok(response.getBody());
+            PanValidationResponse responseBody = response.getBody();
+            String message = responseBody.getMessage() != null && !responseBody.getMessage().isEmpty()
+                    ? responseBody.getMessage()
+                    : "PAN validation successful";
+
+            return ResponseEntity.ok(CommonResponse.success(responseBody, message));
+
+        } catch (HttpClientErrorException e) {
+            try {
+                PanValidationResponse errorBody = objectMapper.readValue(
+                        e.getResponseBodyAsString(),
+                        PanValidationResponse.class
+                );
+                String message = errorBody.getMessage() != null ? errorBody.getMessage() : "PAN validation failed";
+                return ResponseEntity.ok(CommonResponse.success(errorBody, message));
+            } catch (Exception ex) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(CommonResponse.error(400, "PAN validation failed and response could not be parsed."));
+            }
 
         } catch (Exception e) {
-            log.error("Error validating Pan: ", e);
+            log.error("Unexpected error during PAN validation: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Pan validation failed: " + e.getMessage());
+                    .body(CommonResponse.error(500, "PAN validation failed: " + e.getMessage()));
         }
     }
 
@@ -208,7 +241,6 @@ public class VerificationServiceImpl implements VerificationService {
             SubProducts subProduct = subProductsRepository
                     .findBySubProductTitle("Aadhar Verification")
                     .orElseThrow(() -> new RuntimeException("SubProduct not found for Aadhar Verification"));
-
 
             // 2. Find VendorRouting by subProductId
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
@@ -224,33 +256,51 @@ public class VerificationServiceImpl implements VerificationService {
             headers.set("Authorization", "Bearer " + credentials.getToken());
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            // 5. Build request body
+            // 5. Prepare request body
             Map<String, String> body = new HashMap<>();
             body.put("email", email);
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
-
-            // 6. Build final endpoint URL (baseUrlUat + Aadhaar path)
             String url = credentials.getBaseUrlUat() + "/v1/employment/email-check";
 
-
-            // 7. Call the API
+            // 6. Call API
             ResponseEntity<EmailValidationResponse> response = restTemplate.postForEntity(
                     url,
                     requestEntity,
                     EmailValidationResponse.class
             );
 
-            log.info("Pan validation response: {}", response.getBody());
-            return ResponseEntity.ok(response.getBody());
+            EmailValidationResponse responseBody = response.getBody();
+            String message = responseBody.getData() != null && responseBody.getData().getStatus() != null
+                    ? responseBody.getData().getStatus()
+                    : "Email validation successful";
+
+            return ResponseEntity.ok(CommonResponse.success(responseBody, message));
+
+        } catch (HttpClientErrorException e) {
+            try {
+                EmailValidationResponse errorBody = objectMapper.readValue(
+                        e.getResponseBodyAsString(),
+                        EmailValidationResponse.class
+                );
+
+                String message = errorBody.getData() != null && errorBody.getData().getStatus() != null
+                        ? errorBody.getData().getStatus()
+                        : "Email validation failed";
+
+                return ResponseEntity.ok(CommonResponse.success(errorBody, message));
+
+            } catch (Exception parseEx) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(CommonResponse.error(400, "Email validation failed and response could not be parsed."));
+            }
 
         } catch (Exception e) {
-            log.error("Error validating Email: ", e);
+            log.error("Unexpected error: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Email validation failed: " + e.getMessage());
+                    .body(CommonResponse.error(500, "Email validation failed: " + e.getMessage()));
         }
     }
-
 
     @Override
     @Transactional
@@ -261,7 +311,6 @@ public class VerificationServiceImpl implements VerificationService {
                     .findBySubProductTitle("Aadhar Verification")
                     .orElseThrow(() -> new RuntimeException("SubProduct not found for Aadhar Verification"));
 
-
             // 2. Find VendorRouting by subProductId
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
             Vendors vendor = getVendors(vendorRouting);
@@ -271,39 +320,51 @@ public class VerificationServiceImpl implements VerificationService {
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-            // 4. Prepare headers with token
+            // 4. Set headers
             HttpHeaders headers = new HttpHeaders();
-//            headers.set("Authorization","Bearer" +  credentials.getToken()); // use generated token
             headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + credentials.getToken());
 
-            // 5. Build request body
+            // 5. Prepare request
             Map<String, String> body = new HashMap<>();
             body.put("id_number", voterid);
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
-
-            // 6. Build final endpoint URL (baseUrlUat + Aadhaar path)
             String url = credentials.getBaseUrlUat() + "/v1/voter-id/voter-id";
 
-
-            // 7. Call the API
+            // 6. Call API
             ResponseEntity<VoterIdValidationResponse> response = restTemplate.postForEntity(
                     url,
                     requestEntity,
                     VoterIdValidationResponse.class
             );
 
-            log.info("VoterId validation response: {}", response.getBody());
-            return ResponseEntity.ok(response.getBody());
+            VoterIdValidationResponse responseBody = response.getBody();
+            String message = responseBody.getMessage() != null ? responseBody.getMessage() : "Voter ID validation successful";
+
+            return ResponseEntity.ok(CommonResponse.success(responseBody, message));
+
+        } catch (HttpClientErrorException e) {
+            try {
+                VoterIdValidationResponse errorBody = objectMapper.readValue(
+                        e.getResponseBodyAsString(),
+                        VoterIdValidationResponse.class
+                );
+
+                String message = errorBody.getMessage() != null ? errorBody.getMessage() : "Voter ID validation failed";
+                return ResponseEntity.ok(CommonResponse.success(errorBody, message));
+
+            } catch (Exception parseEx) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(CommonResponse.error(400, "Voter ID validation failed and response could not be parsed."));
+            }
 
         } catch (Exception e) {
-            log.error("Error validating VoterId: ", e);
+            log.error("Unexpected error: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("VoterId validation failed: " + e.getMessage());
+                    .body(CommonResponse.error(500, "Voter ID validation failed: " + e.getMessage()));
         }
     }
-
-
 
     @Override
     @Transactional
@@ -314,7 +375,6 @@ public class VerificationServiceImpl implements VerificationService {
                     .findBySubProductTitle("Aadhar Verification")
                     .orElseThrow(() -> new RuntimeException("SubProduct not found for Aadhar Verification"));
 
-
             // 2. Find VendorRouting by subProductId
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
             Vendors vendor = getVendors(vendorRouting);
@@ -327,7 +387,7 @@ public class VerificationServiceImpl implements VerificationService {
             // 4. Prepare headers with token
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization","Bearer " +  credentials.getToken()); // use generated token
+            headers.set("Authorization", "Bearer " + credentials.getToken());
 
             // 5. Build request body
             Map<String, String> body = new HashMap<>();
@@ -335,9 +395,8 @@ public class VerificationServiceImpl implements VerificationService {
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
 
-            // 6. Build final endpoint URL (baseUrlUat + Aadhaar path)
+            // 6. Build final endpoint URL
             String url = credentials.getBaseUrlUat() + "/v1/pan/aadhaar-pan-link-check";
-
 
             // 7. Call the API
             ResponseEntity<AadhaarPanLinkResponse> response = restTemplate.postForEntity(
@@ -346,15 +405,38 @@ public class VerificationServiceImpl implements VerificationService {
                     AadhaarPanLinkResponse.class
             );
 
-            log.info("Aadhaar validation response: {}", response.getBody());
-            return ResponseEntity.ok(response.getBody());
+            AadhaarPanLinkResponse responseBody = response.getBody();
 
+            String message = responseBody.getData() != null && responseBody.getData().getReason() != null
+                    ? responseBody.getData().getReason()
+                    : "Aadhaar PAN link check successful";
+
+            return ResponseEntity.ok(CommonResponse.success(responseBody, message));
+
+        } catch (HttpClientErrorException e) {
+            try {
+                AadhaarPanLinkResponse errorBody = objectMapper.readValue(
+                        e.getResponseBodyAsString(),
+                        AadhaarPanLinkResponse.class
+                );
+
+                String message = errorBody.getData() != null && errorBody.getData().getReason() != null
+                        ? errorBody.getData().getReason()
+                        : "Aadhaar PAN link check failed";
+
+                return ResponseEntity.ok(CommonResponse.success(errorBody, message));
+
+            } catch (Exception parseEx) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(CommonResponse.error(400, "PAN link check failed and response could not be parsed."));
+            }
         } catch (Exception e) {
-            log.error("Error validating Aadhaar: ", e);
+            log.error("Unexpected error: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Aadhaar validation failed: " + e.getMessage());
+                    .body(CommonResponse.error(500, "PAN link check failed: " + e.getMessage()));
         }
     }
+
 
 
 
