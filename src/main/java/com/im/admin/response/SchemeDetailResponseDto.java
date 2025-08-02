@@ -16,5 +16,6 @@ public class SchemeDetailResponseDto {
     private String schemeName;
     private Boolean isActive;
     private double tdsRate;
+    private String productName;
     private List<OperatorWithSlabsDto> operators;
 }

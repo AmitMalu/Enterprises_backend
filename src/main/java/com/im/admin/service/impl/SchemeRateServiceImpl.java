@@ -263,6 +263,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         responseDto.setOperators(operatorDtos);
         responseDto.setIsActive(scheme.getIsActive());
         responseDto.setTdsRate(product.getTds());
+        responseDto.setProductName(product.getName());
 
         log.info("Scheme detail response ready for schemeCode: {}", schemeCode);
         return responseDto;
@@ -309,6 +310,10 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         double result = value * factor;
         log.trace("Multiplying value: {} with factor: {} = {}", value, factor, result);
         return result;
+    }
+
+    private boolean doubleEquals(double a, double b) {
+        return Math.abs(roundToThreeDecimalPlaces(a) - roundToThreeDecimalPlaces(b)) < 0.001;
     }
 
     @Override
@@ -521,41 +526,19 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         return dto;
     }
 
-    private void validateGrossMatch(
-            double gross,
-            Double im,
-            Double enterprise,
-            Double whitelabel,
-            Double superDistributor,
-            Double partner,
-            Double distributor,
-            Double retailer,
-            String errorReference
-    ) {
-        double imVal = im == null ? 0.0 : im;
-        double enterpriseVal = enterprise == null ? 0.0 : enterprise;
-        double whitelabelVal = whitelabel == null ? 0.0 : whitelabel;
-        double superDistVal = superDistributor == null ? 0.0 : superDistributor;
-        double partnerVal = partner == null ? 0.0 : partner;
-        double distributorVal = distributor == null ? 0.0 : distributor;
-        double retailerVal = retailer == null ? 0.0 : retailer;
+    private void validateGrossMatch(double gross, double im, double enterprise, double whitelabel,
+                                    double superDistributor, double partner, double distributor,
+                                    double retailer, String slabLabel) {
 
-        double total = imVal + enterpriseVal + whitelabelVal + superDistVal + partnerVal + distributorVal + retailerVal;
+        double sum = im + enterprise + whitelabel + superDistributor + partner + distributor + retailer;
 
-        // Round both values to 2 decimal places (or as required)
-        BigDecimal roundedGross = BigDecimal.valueOf(gross).setScale(2, RoundingMode.FLOOR);
-        BigDecimal roundedTotal = BigDecimal.valueOf(total).setScale(2, RoundingMode.FLOOR);
-
-        log.debug("Validating gross for {}: gross={}, total share sum={}", errorReference, gross, total);
-
-        if (!Objects.equals(roundedGross, roundedTotal)) {
-            log.error("Gross mismatch in {}: Expected gross={}, Found total={}", errorReference, gross, total);
-            throw new IllegalArgumentException(
-                    "Error in " + errorReference + ": Sum of all shares must be equal to Gross. Expected: "
-                            + gross + ", Found: " + total
-            );
+        if (!doubleEquals(gross, sum)) {
+            throw new RuntimeException(String.format(
+                    "Error in %s: Sum of all shares must be equal to Gross. Expected: %.3f, Found: %.3f",
+                    slabLabel, gross, sum));
         }
     }
+
 
 
 }
