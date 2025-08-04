@@ -18,13 +18,13 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/login-logs-report")
+@RequestMapping("/api/report")
 public class LoginLogsReportController {
 
     @Autowired
     private LoginLogsReportService loginLogsReportService;
 
-    @PostMapping("/json")
+    @PostMapping("/login-logs-json")
     public ResponseEntity<?> getLoginLogsJson(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,
@@ -47,7 +47,7 @@ public class LoginLogsReportController {
 
 
 
-    @PostMapping("/excel")
+    @PostMapping("/login-excel")
     public ResponseEntity<?> downloadLoginLogsCSV(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,

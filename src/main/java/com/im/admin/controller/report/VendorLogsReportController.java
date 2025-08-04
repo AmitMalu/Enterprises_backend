@@ -14,13 +14,13 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/api/vendor-logs-report")
+@RequestMapping("/api/report")
 public class VendorLogsReportController {
 
     @Autowired
     private VendorLogsReportService vendorLogsReportService;
 
-    @PostMapping("/json")
+    @PostMapping("/vendor-logs-json")
     public ResponseEntity<?> getVendorLogsJson(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,
@@ -39,7 +39,7 @@ public class VendorLogsReportController {
         return ResponseEntity.ok(new CommonResponse<>(200, message, result));
     }
 
-    @PostMapping("/excel")
+    @PostMapping("/vendor-excel")
     public ResponseEntity<?> downloadVendorLogsCSV(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,
