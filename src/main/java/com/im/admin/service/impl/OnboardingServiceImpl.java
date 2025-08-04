@@ -65,6 +65,9 @@ public class OnboardingServiceImpl implements OnboardingService {
     @Autowired
     private AsyncPendingFetcher asyncPendingFetcher;
 
+    @Autowired
+    private ImSubRoleRepository imSubRoleRepository;
+
     @Override
     @Transactional(readOnly = true)
     public Page<GenericPendingRecordDto> getAllRecordsByStatus(String status, int page, int size) {
@@ -239,6 +242,20 @@ public class OnboardingServiceImpl implements OnboardingService {
         user.setEditedBy("ADMIN");
         user.setEditedDate(LocalDate.now());
         user.setEditedTime(LocalTime.now());
+
+        // Only for RT, set hardcoded role_id and save subRoleId in ImSubRole
+        if ("RT".equalsIgnoreCase(hierarchyType)) {
+            user.setRole_id("11111");
+            String subRoleIdStr = "2.1,2.2,2.3,2.4,3.1,3.2,3.3,3.4,4.1,4.2,4.3,5.1,5.2,5.3,5.4,5.5,5.6,5.7,5.8";
+
+            //  Save subRoleId to ImSubRole table
+            ImSubRole imSubRole = new ImSubRole();
+            imSubRole.setMobileNumber(mobileNo);
+            imSubRole.setSubRoleId(subRoleIdStr);
+            imSubRoleRepository.save(imSubRole);
+        }
+
+
         userDetailsRepository.save(user);
 
         log.info("User created for hierarchy: " + hierarchyType + ", mobile: " + mobileNo);
