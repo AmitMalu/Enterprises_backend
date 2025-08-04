@@ -15,13 +15,13 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/api/callback-logs-report")
+@RequestMapping("/api/report")
 public class CallbackEventLogReportController {
 
     @Autowired
     private CallbackEventLogReportService service;
 
-    @PostMapping("/json")
+    @PostMapping("/callback-logs-json")
     public ResponseEntity<?> getCallbackLogsJson(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,
@@ -39,7 +39,7 @@ public class CallbackEventLogReportController {
         return ResponseEntity.ok(new CommonResponse<>(200, message, data));
     }
 
-    @PostMapping("/excel")
+    @PostMapping("/call-excel")
     public ResponseEntity<?> downloadCallbackLogsCSV(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,

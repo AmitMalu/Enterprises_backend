@@ -110,14 +110,14 @@ public class VerificationServiceImpl implements VerificationService {
                 return ResponseEntity.ok(CommonResponse.success(errorBody, message));
 
             } catch (Exception parseEx) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(CommonResponse.error(400, "Aadhaar validation failed and response could not be parsed."));
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(CommonResponse.error(200, "Aadhaar validation failed and response could not be parsed."));
             }
 
         } catch (Exception e) {
             log.error("Unexpected error: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResponse.error(500, "Aadhaar validation failed: " + e.getMessage()));
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(CommonResponse.error(200, "Aadhaar validation failed: " + e.getMessage()));
         }
     }
 
@@ -221,14 +221,14 @@ public class VerificationServiceImpl implements VerificationService {
                 String message = errorBody.getMessage() != null ? errorBody.getMessage() : "PAN validation failed";
                 return ResponseEntity.ok(CommonResponse.success(errorBody, message));
             } catch (Exception ex) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(CommonResponse.error(400, "PAN validation failed and response could not be parsed."));
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(CommonResponse.error(200, "PAN validation failed and response could not be parsed."));
             }
 
         } catch (Exception e) {
             log.error("Unexpected error during PAN validation: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResponse.error(500, "PAN validation failed: " + e.getMessage()));
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(CommonResponse.error(200, "PAN validation failed: " + e.getMessage()));
         }
     }
 
@@ -291,17 +291,16 @@ public class VerificationServiceImpl implements VerificationService {
                 return ResponseEntity.ok(CommonResponse.success(errorBody, message));
 
             } catch (Exception parseEx) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(CommonResponse.error(400, "Email validation failed and response could not be parsed."));
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(CommonResponse.error(200, "Email validation failed and response could not be parsed."));
             }
 
         } catch (Exception e) {
             log.error("Unexpected error: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResponse.error(500, "Email validation failed: " + e.getMessage()));
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(CommonResponse.error(200, "Email validation failed: " + e.getMessage()));
         }
     }
-
     @Override
     @Transactional
     public ResponseEntity<?> validateVoterid(String voterid) {
@@ -427,13 +426,13 @@ public class VerificationServiceImpl implements VerificationService {
                 return ResponseEntity.ok(CommonResponse.success(errorBody, message));
 
             } catch (Exception parseEx) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(CommonResponse.error(400, "PAN link check failed and response could not be parsed."));
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(CommonResponse.error(200, "PAN link check failed and response could not be parsed."));
             }
         } catch (Exception e) {
             log.error("Unexpected error: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResponse.error(500, "PAN link check failed: " + e.getMessage()));
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(CommonResponse.error(200, "PAN link check failed: " + e.getMessage()));
         }
     }
 

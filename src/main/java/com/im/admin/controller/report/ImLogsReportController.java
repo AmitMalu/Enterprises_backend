@@ -14,13 +14,13 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/api/im-logs-report")
+@RequestMapping("/api/report")
 public class ImLogsReportController {
 
     @Autowired
     private ImLogsReportService imLogsReportService;
 
-    @PostMapping("/json")
+    @PostMapping("/im-logs-json")
     public ResponseEntity<?> getLogsJson(
             @RequestParam("startDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate startDate,
             @RequestParam("endDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate endDate,

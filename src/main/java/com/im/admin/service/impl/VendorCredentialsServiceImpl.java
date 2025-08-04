@@ -66,6 +66,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         existing.setBaseUrlProd(dto.getBaseUrlProd());
         existing.setTokenUrlUat(dto.getTokenUrlUat());
         existing.setTokenUrlProd(dto.getTokenUrlProd());
+        existing.setToken(dto.getToken());
         existing.setClientId(dto.getClientId());
         existing.setClientSecret(dto.getClientSecret());
         existing.setSaltKey(dto.getSaltKey());
@@ -139,6 +140,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
             dto.setBaseUrlProd(entity.getBaseUrlProd());
             dto.setTokenUrlUat(entity.getTokenUrlUat());
             dto.setTokenUrlProd(entity.getTokenUrlProd());
+            dto.setToken(entity.getToken());
             dto.setIsActive(entity.getIsActive());
             dto.setUserField1(entity.getUserField1());
             dto.setUserField2(entity.getUserField2());
@@ -189,6 +191,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         entity.setVendor(vendor);
         entity.setProduct(product);
 
+        entity.setToken(dto.getToken());
         entity.setBaseUrlUat(dto.getBaseUrlUat());
         entity.setBaseUrlProd(dto.getBaseUrlProd());
         entity.setTokenUrlUat(dto.getTokenUrlUat());
@@ -218,6 +221,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         dto.setId(entity.getId());
         dto.setBaseUrlUat(entity.getBaseUrlUat());
         dto.setBaseUrlProd(entity.getBaseUrlProd());
+        dto.setToken(entity.getToken());
         dto.setTokenUrlUat(entity.getTokenUrlUat());
         dto.setTokenUrlProd(entity.getTokenUrlProd());
         dto.setClientId(entity.getClientId());
