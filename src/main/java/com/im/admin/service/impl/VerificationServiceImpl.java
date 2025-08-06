@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.*;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -52,6 +54,9 @@ public class VerificationServiceImpl implements VerificationService {
     @Autowired
     private VendorCredentialsRepository vendorCredentialsRepository;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -59,6 +64,11 @@ public class VerificationServiceImpl implements VerificationService {
     @Override
     @Transactional
     public ResponseEntity<?> validateAadhaar(String aadhaarNumber) {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
         try {
             // 1. Get required objects
             SubProducts subProduct = subProductsRepository
@@ -67,6 +77,7 @@ public class VerificationServiceImpl implements VerificationService {
 
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
             Vendors vendor = getVendors(vendorRouting);
+            vendorId = vendor.getId(); //  store vendor ID for logging
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
@@ -80,6 +91,7 @@ public class VerificationServiceImpl implements VerificationService {
             // 3. Prepare request
             Map<String, String> body = new HashMap<>();
             body.put("id_number", aadhaarNumber);
+            requestJson = objectMapper.writeValueAsString(body); // 👈 store request JSON
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
             String url = credentials.getBaseUrlUat() + "/v1/aadhaar-validation/aadhaar-validation";
@@ -92,6 +104,11 @@ public class VerificationServiceImpl implements VerificationService {
             );
 
             AadhaarValidationResponse responseBody = response.getBody();
+            responseJson = objectMapper.writeValueAsString(responseBody); // 👈 store response JSON
+
+            // 5. Save logs
+            commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
+
             String remarks = responseBody.getData() != null ? responseBody.getData().getRemarks() : null;
             String message = remarks != null ? remarks : "Aadhaar validation successful";
 
@@ -103,6 +120,10 @@ public class VerificationServiceImpl implements VerificationService {
                         e.getResponseBodyAsString(),
                         AadhaarValidationResponse.class
                 );
+                responseJson = objectMapper.writeValueAsString(errorBody); // 👈 error response JSON
+
+                // Save logs
+                commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
 
                 String remarks = errorBody.getData() != null ? errorBody.getData().getRemarks() : null;
                 String message = remarks != null ? remarks : "Aadhaar validation failed";
@@ -116,10 +137,15 @@ public class VerificationServiceImpl implements VerificationService {
 
         } catch (Exception e) {
             log.error("Unexpected error: ", e);
+
+            // Optional: log generic exception too if needed
+            commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), e.getMessage(), null);
+
             return ResponseEntity.status(HttpStatus.OK)
                     .body(CommonResponse.error(200, "Aadhaar validation failed: " + e.getMessage()));
         }
     }
+
 
 
     private static Vendors getVendors(VendorRouting vendorRouting) {
@@ -174,6 +200,11 @@ public class VerificationServiceImpl implements VerificationService {
     @Override
     @Transactional
     public ResponseEntity<?> validatepan(String panNumber) {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
         try {
             // Step 1: Get all required dependencies
             SubProducts subProduct = subProductsRepository
@@ -182,6 +213,7 @@ public class VerificationServiceImpl implements VerificationService {
 
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
             Vendors vendor = getVendors(vendorRouting);
+            vendorId = vendor.getId(); // For logs
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
@@ -194,6 +226,7 @@ public class VerificationServiceImpl implements VerificationService {
 
             Map<String, String> body = new HashMap<>();
             body.put("id_number", panNumber);
+            requestJson = objectMapper.writeValueAsString(body); // For logs
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
             String url = credentials.getBaseUrlUat() + "/v1/pan/pan";
@@ -206,6 +239,11 @@ public class VerificationServiceImpl implements VerificationService {
             );
 
             PanValidationResponse responseBody = response.getBody();
+            responseJson = objectMapper.writeValueAsString(responseBody); // For logs
+
+            // Save logs
+            commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
+
             String message = responseBody.getMessage() != null && !responseBody.getMessage().isEmpty()
                     ? responseBody.getMessage()
                     : "PAN validation successful";
@@ -218,8 +256,14 @@ public class VerificationServiceImpl implements VerificationService {
                         e.getResponseBodyAsString(),
                         PanValidationResponse.class
                 );
+                responseJson = objectMapper.writeValueAsString(errorBody); // For logs
+
+                // Save logs
+                commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
+
                 String message = errorBody.getMessage() != null ? errorBody.getMessage() : "PAN validation failed";
                 return ResponseEntity.ok(CommonResponse.success(errorBody, message));
+
             } catch (Exception ex) {
                 return ResponseEntity.status(HttpStatus.OK)
                         .body(CommonResponse.error(200, "PAN validation failed and response could not be parsed."));
@@ -227,10 +271,15 @@ public class VerificationServiceImpl implements VerificationService {
 
         } catch (Exception e) {
             log.error("Unexpected error during PAN validation: ", e);
+
+            // Save generic exception logs
+            commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), e.getMessage(), null);
+
             return ResponseEntity.status(HttpStatus.OK)
                     .body(CommonResponse.error(200, "PAN validation failed: " + e.getMessage()));
         }
     }
+
 
 
     @Override
@@ -368,6 +417,11 @@ public class VerificationServiceImpl implements VerificationService {
     @Override
     @Transactional
     public ResponseEntity<?> AdharPanLink(String aadhaarNumber) {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
         try {
             // 1. Find SubProduct by Title
             SubProducts subProduct = subProductsRepository
@@ -377,6 +431,7 @@ public class VerificationServiceImpl implements VerificationService {
             // 2. Find VendorRouting by subProductId
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
             Vendors vendor = getVendors(vendorRouting);
+            vendorId = vendor.getId(); // log vendor ID
 
             // 3. Get credentials for this vendor
             VendorCredentials credentials = vendorCredentialsRepository
@@ -391,6 +446,7 @@ public class VerificationServiceImpl implements VerificationService {
             // 5. Build request body
             Map<String, String> body = new HashMap<>();
             body.put("aadhaar_number", aadhaarNumber);
+            requestJson = objectMapper.writeValueAsString(body); // log request
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
 
@@ -405,6 +461,10 @@ public class VerificationServiceImpl implements VerificationService {
             );
 
             AadhaarPanLinkResponse responseBody = response.getBody();
+            responseJson = objectMapper.writeValueAsString(responseBody); // log response
+
+            // 8. Save vendor logs
+            commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
 
             String message = responseBody.getData() != null && responseBody.getData().getReason() != null
                     ? responseBody.getData().getReason()
@@ -418,6 +478,10 @@ public class VerificationServiceImpl implements VerificationService {
                         e.getResponseBodyAsString(),
                         AadhaarPanLinkResponse.class
                 );
+                responseJson = objectMapper.writeValueAsString(errorBody); // log error response
+
+                // Save logs in case of error
+                commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
 
                 String message = errorBody.getData() != null && errorBody.getData().getReason() != null
                         ? errorBody.getData().getReason()
@@ -431,6 +495,10 @@ public class VerificationServiceImpl implements VerificationService {
             }
         } catch (Exception e) {
             log.error("Unexpected error: ", e);
+
+            // Save generic error logs
+            commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), e.getMessage(), null);
+
             return ResponseEntity.status(HttpStatus.OK)
                     .body(CommonResponse.error(200, "PAN link check failed: " + e.getMessage()));
         }
