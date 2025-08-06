@@ -392,6 +392,17 @@ public class AuthController {
                 responseMap.put("role", hierarchyCode);
             }
 
+            else if ("RA".equalsIgnoreCase(hierarchyCode)) {
+                responseMap.put("role_id", user.getRole_id());
+
+                ImSubRole subRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                if (subRole != null) {
+                    responseMap.put("sub_role_id", subRole.getSubRoleId());
+                }
+
+                responseMap.put("role", "RA");
+            }
+
             responseMap.put("role", hierarchyCode);
             try {
                 responseJson = objectMapper.writeValueAsString(
