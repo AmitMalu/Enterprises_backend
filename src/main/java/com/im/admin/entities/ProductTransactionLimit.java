@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import jakarta.persistence.*;
@@ -28,11 +29,13 @@ public class ProductTransactionLimit {
     private WalletType walletType;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @JoinColumn(name = "product_id", referencedColumnName = "id")
     private Products product;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subProduct_id", referencedColumnName = "id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private SubProducts subProduct;
 
     @Column(name = "payment_currency")
@@ -42,19 +45,34 @@ public class ProductTransactionLimit {
     private Boolean isAllowPerDayCardLimit;
 
     @Column(name = "per_day_transaction_limit")
-    private Integer PerDayTransactionLimit;
+    private String PerDayTransactionLimit;
 
     @Column(name = "is_allow_monthly_card_limit")
     private Boolean isAllowMonthlyCardLimit;
 
     @Column(name = "monthly_transaction_limit")
-    private Integer MonthlyTransactionLimit;
+    private String MonthlyTransactionLimit;
 
     @Column(name = "check_amount_pattern")
     private Boolean checkAmountPattern;
 
     @Column(name = "max_amount")
     private BigDecimal maxAmount;
+
+    @Column(name = "blocked")
+    private Boolean blocked;
+
+    @Column(name = "created_on")
+    private LocalDateTime createdOn;
+
+    @Column(name = "created_by")
+    private String createdBy;
+
+    @Column(name = "edited_on")
+    private LocalDateTime editedOn;
+
+    @Column(name = "edited_by")
+    private String editedBy;
 
 }
 

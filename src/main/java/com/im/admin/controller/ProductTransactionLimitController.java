@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.ProductLimitResponseDto;
 import com.im.admin.dto.ProductTransactionLimitDTO;
 import com.im.admin.entities.ProductTransactionLimit;
 import com.im.admin.response.CommonResponse;
@@ -22,24 +23,24 @@ public class ProductTransactionLimitController {
     private ProductTransactionLimitService service;
 
     @PostMapping("/save")
-    public ResponseEntity<CommonResponse<ProductTransactionLimit>> save(@RequestBody ProductTransactionLimitDTO dto) {
+    public ResponseEntity<CommonResponse<ProductLimitResponseDto>> save(@RequestBody ProductTransactionLimitDTO dto) {
         return ResponseEntity.ok(service.save(dto));
     }
 
     @PutMapping("/update/{id}")
-    public ResponseEntity<CommonResponse<ProductTransactionLimit>> update(
+    public ResponseEntity<CommonResponse<ProductLimitResponseDto>> update(
             @PathVariable Long id,
             @RequestBody ProductTransactionLimitDTO dto) {
         return ResponseEntity.ok(service.update(id, dto));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommonResponse<ProductTransactionLimit>> getById(@PathVariable Long id) {
+    public ResponseEntity<CommonResponse<ProductLimitResponseDto>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(service.getById(id));
     }
 
     @GetMapping("/get-all")
-    public ResponseEntity<CommonResponse<Page<ProductTransactionLimit>>> getAllPaged(
+    public ResponseEntity<CommonResponse<Page<ProductLimitResponseDto>>> getAllPaged(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(service.getAll(page, size));
