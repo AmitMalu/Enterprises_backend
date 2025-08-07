@@ -8,6 +8,7 @@ import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
+import jakarta.persistence.Query;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -368,8 +369,9 @@ public class CommonMethods {
     }
 
 
-    private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount, BigDecimal beforeBalance,
-                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service) {
+    private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount,
+                                   BigDecimal beforeBalance, BigDecimal afterBalance, String actionOnBalanceAmount,
+                                   String tranxId, String service) {
 
         String hierarchyType = extractHierarchyType(hierarchyId);
         String transactionTableName = getTransactionTable(hierarchyType, walletType);
@@ -379,24 +381,31 @@ public class CommonMethods {
                 transactionTableName, service, amount, hierarchyId, beforeBalance, afterBalance);
 
         String sql = "INSERT INTO " + transactionTableName +
-                " (" + columnName + "  ,service, amount, date_of_transaction, time_of_transaction, " +
+                " (" + columnName + ",service, amount, date_of_transaction, time_of_transaction, " +
                 "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status) " +
                 "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                 ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus)";
 
-        entityManager.createNativeQuery(sql)
-                .setParameter("hierarchyId", hierarchyId)
-                .setParameter("service", service)
-                .setParameter("amount", amount)
-                .setParameter("dateOfTransaction", new Date())
-                .setParameter("timeOfTransaction", new Time(System.currentTimeMillis()))
-                .setParameter("beforeTransactionBalance", beforeBalance)
-                .setParameter("afterTransactionBalance", afterBalance)
-                .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
-                .setParameter("finalBalance", afterBalance)
-                .setParameter("tranxId", tranxId)
-                .setParameter("tranStatus", tranStatus)
-                .executeUpdate();
+        try {
+            Query query = entityManager.createNativeQuery(sql)
+                    .setParameter("hierarchyId", hierarchyId)
+                    .setParameter("service", service)
+                    .setParameter("amount", amount)
+                    .setParameter("dateOfTransaction", LocalDate.now()) // use LocalDate
+                    .setParameter("timeOfTransaction", LocalTime.now()) // use LocalTime
+                    .setParameter("beforeTransactionBalance", beforeBalance)
+                    .setParameter("afterTransactionBalance", afterBalance)
+                    .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
+                    .setParameter("finalBalance", afterBalance)
+                    .setParameter("tranxId", tranxId)
+                    .setParameter("tranStatus", tranStatus);
+
+            query.executeUpdate();
+
+        } catch (Exception e) {
+            log.error("Error inserting transaction: {}", e.getMessage(), e);
+            throw new RuntimeException("Transaction insert failed", e);
+        }
     }
 
     public static Vendors getVendors(VendorRouting vendorRouting) {
