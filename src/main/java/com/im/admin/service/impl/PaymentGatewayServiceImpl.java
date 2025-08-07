@@ -530,10 +530,10 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         query.setParameter("in_card_bin_no", request.getCardBinNo());
         query.setParameter("in_card_holder_mobile", request.getCardHolderMobileNumber());
         query.setParameter("transaction_amount", request.getAmount());
-        query.setParameter("daily_limit", limit.getDailyTransactionLimit());
+        query.setParameter("daily_limit", limit.getMaxAmount());
         query.setParameter("monthly_limit", limit.getMonthlyTransactionLimit());
-        query.setParameter("yearly_limit", limit.getYearlyTransactionLimit());
-        query.setParameter("daily_amt_limit", limit.getMaxPerTransactionAmt());
+        query.setParameter("yearly_limit", limit.getMaxAmount());
+        query.setParameter("daily_amt_limit", limit.getMaxAmount());
 
         query.execute();
 

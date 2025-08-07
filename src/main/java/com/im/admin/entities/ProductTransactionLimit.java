@@ -31,7 +31,7 @@ public class ProductTransactionLimit {
     @JoinColumn(name = "product_id", referencedColumnName = "id")
     private Products product;
 
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subProduct_id", referencedColumnName = "id")
     private SubProducts subProduct;
 
@@ -56,20 +56,5 @@ public class ProductTransactionLimit {
     @Column(name = "max_amount")
     private BigDecimal maxAmount;
 
-    // Daily limit
-    @Column(name = "daily_transaction_limit", nullable = false)
-    private Integer dailyTransactionLimit;
-
-    // Monthly limit
-    @Column(name = "monthly_transaction_limit", nullable = false)
-    private Integer monthlyTransactionLimit;
-
-    // Yearly limit
-    @Column(name = "yearly_transaction_limit", nullable = false)
-    private Integer yearlyTransactionLimit;
-
-    // Max amount allowed per transaction
-    @Column(name = "max_per_transaction_amt", nullable = false, precision = 15, scale = 2)
-    private BigDecimal maxPerTransactionAmt;
 }
 
