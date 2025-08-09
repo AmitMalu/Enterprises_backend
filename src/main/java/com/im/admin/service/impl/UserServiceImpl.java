@@ -1,14 +1,16 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.StatusWiseUserFullDto;
+import com.im.admin.dto.UserDetailsResponseDTO;
+import com.im.admin.dto.ViewUserResponseDto;
 import com.im.admin.entities.UserDetails;
 import com.im.admin.repositories.*;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PaginatedResponse;
 import com.im.admin.response.UserSearchResponseDto;
 import com.im.admin.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -52,24 +54,49 @@ public class UserServiceImpl implements UserService {
     private SuperAdminRepository superAdminRepository;
 
     @Override
-    public String updateUserBlockStatus(String hierarchyId, boolean block) {
-        List<UserDetails> userList = userDetailsRepository.findByHierarchyId(hierarchyId);
+    public CommonResponse<List<UserDetailsResponseDTO>> updateUserBlockStatus(String idOrMobile, boolean block) {
+        List<UserDetails> userList = userDetailsRepository.findByHierarchyIdOrMobileNumber(idOrMobile);
 
         if (userList.isEmpty()) {
-            throw new RuntimeException("User with hierarchyId " + hierarchyId + " not found.");
+            throw new RuntimeException("User with hierarchyId or mobile number " + idOrMobile + " not found.");
         }
 
         for (UserDetails user : userList) {
             user.setIsBlocked(block);
             user.setEditedDate(LocalDate.now());
             user.setEditedTime(LocalTime.now());
-//            user.setEditedBy("Admin"); // You can set dynamic value as per context
         }
 
         userDetailsRepository.saveAll(userList);
 
-        return block ? "User blocked successfully." : "User unblocked successfully.";
+        // Convert entity list to DTO list
+        List<UserDetailsResponseDTO> dtoList = userList.stream().map(user -> {
+            UserDetailsResponseDTO dto = new UserDetailsResponseDTO();
+            dto.setMobileNumber(user.getMobileNumber());
+            dto.setHierarchyId(user.getHierarchyId());
+            dto.setHierarchyCode(user.getHierarchyCode());
+            dto.setLoginUserName(user.getLoginUserName());
+            dto.setUserLoginStatus(user.getUserLoginStatus());
+            dto.setLastLoginDate(user.getLastLoginDate());
+            dto.setLastLoginTime(user.getLastLoginTime());
+            dto.setUserStatus(user.getUserStatus());
+            dto.setEmailId(user.getEmailId());
+            dto.setCreatedDate(user.getCreatedDate());
+            dto.setCreatedTime(user.getCreatedTime());
+            dto.setCreatedBy(user.getCreatedBy());
+            dto.setEditedDate(user.getEditedDate());
+            dto.setEditedTime(user.getEditedTime());
+            dto.setEditedBy(user.getEditedBy());
+            dto.setRoleId(user.getRole_id());
+            dto.setIsBlocked(user.getIsBlocked());
+            return dto;
+        }).toList();
+
+        String message = block ? "User blocked successfully." : "User unblocked successfully.";
+        return CommonResponse.success(dtoList, message);
     }
+
+
 
     @Override
     public List<StatusWiseUserFullDto> getUsersByStatus(String status) {
@@ -208,6 +235,78 @@ public class UserServiceImpl implements UserService {
             return dto;
         });
     }
+
+
+    @Override
+    public Page<ViewUserResponseDto> getAllUsers(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+        Page<UserDetails> usersPage = userDetailsRepository.findAll(pageable);
+
+        // Convert entity page -> DTO list
+        List<ViewUserResponseDto> dtoList = usersPage.stream().map(user -> {
+            ViewUserResponseDto dto = new ViewUserResponseDto();
+            dto.setMobileNumber(user.getMobileNumber());
+            dto.setHierarchyId(user.getHierarchyId());
+            dto.setHierarchyCode(user.getHierarchyCode());
+            dto.setLoginUserName(user.getLoginUserName());
+            dto.setUserLoginStatus(user.getUserLoginStatus());
+            dto.setLastLoginDate(user.getLastLoginDate());
+            dto.setLastLoginTime(user.getLastLoginTime());
+            dto.setUserStatus(user.getUserStatus());
+            dto.setEmailId(user.getEmailId());
+            dto.setCreatedDate(user.getCreatedDate());
+            dto.setCreatedTime(user.getCreatedTime());
+            dto.setCreatedBy(user.getCreatedBy());
+            dto.setEditedDate(user.getEditedDate());
+            dto.setEditedTime(user.getEditedTime());
+            dto.setEditedBy(user.getEditedBy());
+            dto.setRoleId(user.getRole_id());
+            dto.setIsBlocked(user.getIsBlocked());
+
+            String type = extractHierarchyType(user.getHierarchyId());
+            switch (type) {
+                case "RT" -> retailerRepository.findById(user.getHierarchyId()).ifPresent(rt -> {
+                    dto.setCity(rt.getAddress().getCity());
+                    dto.setState(rt.getAddress().getState());
+                    dto.setZipCode(rt.getAddress().getZipCode());
+                });
+                case "DT" -> distributorRepository.findById(user.getHierarchyId()).ifPresent(dt -> {
+                    dto.setCity(dt.getAddress().getCity());
+                    dto.setState(dt.getAddress().getState());
+                    dto.setZipCode(dt.getAddress().getZipCode());
+                });
+                case "PT" -> partnerRepository.findById(user.getHierarchyId()).ifPresent(pt -> {
+                    dto.setCity(pt.getAddress().getCity());
+                    dto.setState(pt.getAddress().getState());
+                    dto.setZipCode(pt.getAddress().getZipCode());
+                });
+                case "SD" -> superDistributorRepository.findById(user.getHierarchyId()).ifPresent(sd -> {
+                    dto.setCity(sd.getAddress().getCity());
+                    dto.setState(sd.getAddress().getState());
+                    dto.setZipCode(sd.getAddress().getZipCode());
+                });
+                case "WL" -> whiteLabelRepository.findById(user.getHierarchyId()).ifPresent(wl -> {
+                    dto.setCity(wl.getAddress().getCity());
+                    dto.setState(wl.getAddress().getState());
+                    dto.setZipCode(wl.getAddress().getZipCode());
+                });
+                case "ET" -> enterprisesRepository.findById(user.getHierarchyId()).ifPresent(et -> {
+                    dto.setCity(et.getAddress().getCity());
+                    dto.setState(et.getAddress().getState());
+                    dto.setZipCode(et.getAddress().getZipCode());
+                });
+            }
+            return dto;
+        }).toList();
+
+        // Return Page<ViewUserResponseDto> using PageImpl
+        return new PageImpl<>(dtoList, pageable, usersPage.getTotalElements());
+    }
+
+    private String extractHierarchyType(String hierarchyId) {
+        return hierarchyId.split("-")[1];
+    }
+
 
 
 }
