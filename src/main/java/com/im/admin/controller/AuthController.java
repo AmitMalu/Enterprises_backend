@@ -392,7 +392,7 @@ public class AuthController {
                 responseMap.put("role", hierarchyCode);
             }
 
-            else if ("RA".equalsIgnoreCase(hierarchyCode)) {
+            else if ("RA".equalsIgnoreCase(hierarchyCode) || "AU".equalsIgnoreCase(hierarchyCode)) {
                 responseMap.put("role_id", user.getRole_id());
 
                 ImSubRole subRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());

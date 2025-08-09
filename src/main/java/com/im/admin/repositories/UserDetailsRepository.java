@@ -40,5 +40,9 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
     @Query("SELECT u.hierarchyId FROM UserDetails u WHERE u.hierarchyCode = :code")
     List<String> findHierarchyIdsByHierarchyCode(@Param("code") String code);
 
+    @Query("SELECT u FROM UserDetails u WHERE u.hierarchyId = :value OR u.mobileNumber = :value")
+    List<UserDetails> findByHierarchyIdOrMobileNumber(@Param("value") String value);
+
+
 
 }
