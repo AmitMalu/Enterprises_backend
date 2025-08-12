@@ -19,6 +19,7 @@ public interface AdminRepository extends JpaRepository<Admin, String> {
     @Query("SELECT a.name FROM Admin a WHERE a.id = :hierarchyId")
     String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
 
+//    List<Admin> findByParentAccount(String fromId);
 
 
 //    List<Admin> findByParentAccountContaining(String parentType);

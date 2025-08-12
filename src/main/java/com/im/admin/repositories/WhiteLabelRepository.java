@@ -32,6 +32,7 @@ public interface WhiteLabelRepository extends JpaRepository<WhiteLabels, String>
     @Query("SELECT w.name FROM WhiteLabels w WHERE w.whiteLabelId = :hierarchyId")
     String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
 
+    List<WhiteLabels> findByParentAccount(String fromId);
 }
 
 

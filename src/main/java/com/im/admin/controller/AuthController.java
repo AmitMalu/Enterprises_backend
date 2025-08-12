@@ -392,7 +392,7 @@ public class AuthController {
                 responseMap.put("role", hierarchyCode);
             }
 
-            else if ("RA".equalsIgnoreCase(hierarchyCode)) {
+            else if ("RU".equalsIgnoreCase(hierarchyCode)) {
                 responseMap.put("role_id", user.getRole_id());
 
                 ImSubRole subRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
@@ -401,7 +401,14 @@ public class AuthController {
                 }
 
                 responseMap.put("role", "RA");
+
+            } else if ("AU".equalsIgnoreCase(hierarchyCode)) {
+                // AU logic: send permissions
+                responseMap.put("permissions", user.getPermission()); // Assuming it's a List<String> in UserDetails
+                responseMap.put("role", "AU");
             }
+
+
 
             responseMap.put("role", hierarchyCode);
             try {

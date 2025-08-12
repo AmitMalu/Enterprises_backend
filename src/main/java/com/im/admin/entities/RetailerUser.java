@@ -23,21 +23,20 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "retailer_agents")
-public class RetailerAgent {
+@Table(name = "retailer_users")
+public class RetailerUser {
 
-     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) //
-    @Column(name = "agent_id")
-    private Long agentId;
+    @Id
+    @Column(name = "retaileruser_id", nullable = false)
+    private String retailerUserId;
 
     @Column(name = "parent_account", nullable = false)
     private String parentAccount;
 
-//    @Column(name = "abbreviation", length = 3)
-//    @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
-//    @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
-//    private String abbreviation;
+    @Column(name = "abbreviation", length = 3)
+    @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
+    @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
+    private String abbreviation;
 
 //    @NotBlank(message = "Title is mandatory")
 //    private String title;

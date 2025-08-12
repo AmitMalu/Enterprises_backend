@@ -11,5 +11,6 @@ public interface SuperAdminRepository extends JpaRepository<SuperAdmin, String> 
     List<SuperAdmin> findByStatusIgnoreCase(String status);
 
 
+//    List<SuperAdmin> findByParentAccount(String fromId);
 }
 

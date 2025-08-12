@@ -28,7 +28,7 @@ public interface EnterprisesRepository extends JpaRepository<Enterprises, String
     String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
 
 
-
+    List<Enterprises> findByParentAccount(String fromId);
 }
 
 

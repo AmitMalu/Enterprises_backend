@@ -1,6 +1,8 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.StatusWiseUserFullDto;
+import com.im.admin.dto.UserDetailsResponseDTO;
+import com.im.admin.dto.ViewUserResponseDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PaginatedResponse;
 import com.im.admin.response.UserSearchResponseDto;
@@ -22,15 +24,14 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @PutMapping("/{hierarchyId}/block-status")
+    @PutMapping("/{idOrMobile}/block-status")
     public ResponseEntity<CommonResponse> updateBlockStatus(
-            @PathVariable String hierarchyId,
-            @RequestParam boolean block  // true = block(1), false = unblock(0)
+            @PathVariable String idOrMobile,
+            @RequestParam boolean block   // true = block(1), false = unblock(0)
     ) {
-        String message = userService.updateUserBlockStatus(hierarchyId, block);
-
-        return ResponseEntity.ok(CommonResponse.success(null, message));
+        return ResponseEntity.ok(userService.updateUserBlockStatus(idOrMobile, block));
     }
+
 
     @GetMapping("/status/{status}")
     public ResponseEntity<CommonResponse<List<StatusWiseUserFullDto>>> getUsersByStatus(@PathVariable String status) {
@@ -55,7 +56,15 @@ public class UserController {
         return ResponseEntity.ok(CommonResponse.success(result, "Retailer search successful"));
     }
 
-
-
+    @GetMapping
+    public ResponseEntity<CommonResponse<Page<ViewUserResponseDto>>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Page<ViewUserResponseDto> resultPage = userService.getAllUsers(page, size);
+        return ResponseEntity.ok(
+                new CommonResponse<>(200, "All users fetched successfully", resultPage)
+        );
+    }
 
 }
