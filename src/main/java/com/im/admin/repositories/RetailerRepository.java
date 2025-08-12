@@ -24,6 +24,7 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
     @Query("SELECT r.name FROM Retailer r WHERE r.retailerId = :hierarchyId")
     String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
 
+    List<Retailer> findByParentAccount(String fromId);
 
 
 

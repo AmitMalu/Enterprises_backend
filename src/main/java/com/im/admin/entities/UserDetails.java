@@ -104,4 +104,8 @@ public class UserDetails {
     @Column(name = "is_blocked")
     private Boolean isBlocked;
 
+    @Column(name = "permission")
+    private String permission;
+
+
 }

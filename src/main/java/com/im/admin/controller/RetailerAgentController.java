@@ -1,6 +1,6 @@
 package com.im.admin.controller;
 
-import com.im.admin.entities.RetailerAgent;
+import com.im.admin.entities.RetailerUser;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.RetailerAgentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,10 +19,10 @@ public class RetailerAgentController {
     private RetailerAgentService retailerAgentService;
 
     @PostMapping("/create-agent")
-    public ResponseEntity<CommonResponse<RetailerAgent>> createAgent(@RequestBody RetailerAgent agentRequest) {
-        RetailerAgent savedAgent = retailerAgentService.createAgent(agentRequest);
+    public ResponseEntity<CommonResponse<RetailerUser>> createAgent(@RequestBody RetailerUser retailerUser) {
+        RetailerUser savedAgent = retailerAgentService.createAgent(retailerUser);
 
-        CommonResponse<RetailerAgent> response = new CommonResponse<>();
+        CommonResponse<RetailerUser> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.CREATED.value());
         response.setMessage("Retailer Agent created successfully");
         response.setData(savedAgent);

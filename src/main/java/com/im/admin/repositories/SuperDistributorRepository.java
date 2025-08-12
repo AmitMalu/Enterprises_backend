@@ -27,6 +27,6 @@ public interface SuperDistributorRepository extends JpaRepository<SuperDistribut
     String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
 
 
-
+    List<SuperDistributor> findByParentAccount(String fromId);
 }
 

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+
 import java.util.List;
 import java.util.Optional;
 
@@ -43,6 +44,7 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
     @Query("SELECT u FROM UserDetails u WHERE u.hierarchyId = :value OR u.mobileNumber = :value")
     List<UserDetails> findByHierarchyIdOrMobileNumber(@Param("value") String value);
 
+    Optional<UserDetails> findByLoginUserName(String loginUserName);
 
 
 }

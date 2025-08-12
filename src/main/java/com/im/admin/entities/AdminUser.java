@@ -14,6 +14,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -87,11 +88,8 @@ public class AdminUser {
     @Column(name = "created_by_ip_address", nullable = false, updatable = false)
     private String createdByIPAddress;
 
-    @Column(name = " role_id")
-    private String role_id;
-
-    @Column(name = "sub_role_id")
-    private String subRoleId;
+    @Column(name = "permission")
+    private String permission;
 
     @PrePersist
     public void prePersistDefaults() {

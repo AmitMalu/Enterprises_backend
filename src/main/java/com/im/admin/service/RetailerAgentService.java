@@ -1,8 +1,8 @@
 package com.im.admin.service;
 
-import com.im.admin.entities.RetailerAgent;
+import com.im.admin.entities.RetailerUser;
 
 public interface RetailerAgentService {
-    RetailerAgent createAgent(RetailerAgent agentRequest);
+    RetailerUser createAgent(RetailerUser retailerUser);
 
 }

@@ -28,5 +28,6 @@ public interface PartnerRepository extends JpaRepository<Partner, String> {
     String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
 
 
+    List<Partner> findByParentAccount(String fromId);
 }
 
