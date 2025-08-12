@@ -3,21 +3,21 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.dto.*;
-import com.im.admin.entities.SubProducts;
-import com.im.admin.entities.VendorCredentials;
-import com.im.admin.entities.VendorRouting;
+import com.im.admin.entities.*;
+import com.im.admin.entities.enums.SlabType;
 import com.im.admin.entities.enums.WalletType;
+import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
-import com.im.admin.repositories.SubProductsRepository;
-import com.im.admin.repositories.VendorCredentialsRepository;
-import com.im.admin.repositories.VendorRoutingRepository;
+import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.BBPSService;
+import com.im.admin.util.BBPSRelatedTransactions;
 import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
@@ -45,6 +45,21 @@ public class BBPSServiceImpl implements BBPSService {
 
     @Autowired
     private CommonMethods commonMethods;
+
+    @Autowired
+    private BbpsProviderListRepository bbpsProviderListRepository;
+
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
+
+    @Autowired
+    private BBPSRelatedTransactions bbpsRelatedTransactions;
+
+    @Autowired
+    private SchemeRepository schemeRepository;
+
+    @Autowired
+    private ProductsRepository productsRepository;
 
     @Override
     public CommonResponse<List<ProviderListResponseDTO.ProviderDTO>> getProviderList(ProviderListRequestDTO requestDTO) {
@@ -160,6 +175,7 @@ public class BBPSServiceImpl implements BBPSService {
 
 
     @Override
+    @Transactional
     public CommonResponse<BillRechargeResponseDTO> processRecharge(BillRechargeRequestDTO request) {
         try {
             Optional<SubProducts> subProducts = subProductsRepository.findById(request.getSubProductId());
@@ -204,8 +220,45 @@ public class BBPSServiceImpl implements BBPSService {
 
             HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(formParams, headers);
 
+            String retailerId = request.getRetailerId();
+            Double amount = request.getAmount().doubleValue();
+
+            Optional<BbpsProviderList> optionalProvider = bbpsProviderListRepository.findByVendorId(request.getProvider());
+
+            BbpsProviderList bbpsProviderRecord = optionalProvider.get();
+
+            String operator = bbpsProviderRecord.getOperator();
+            // Fetch scheme rate (variable slab example)
+            Optional<SchemeRate> schemeRateOpt = schemeRateRepository.findVariableSlabByOperatorAndAmount(operator, amount);
+            SchemeRate schemeRate = schemeRateOpt.orElseThrow(() -> new RuntimeException("SchemeRate not found for operator: " + operator));
+
+            // Find scheme using scheme code
+            Scheme scheme = schemeRepository.findBySchemeCode(schemeRate.getSchemeCode())
+                    .orElseThrow(() -> new RuntimeException("Scheme Not Found for schemeCode: " + schemeRate.getSchemeCode()));
+
+            // Extract productId from schemeCombinationHashCode
+            String hashCode = scheme.getSchemeCombinationHashCode();
+            if (hashCode == null || hashCode.isEmpty()) {
+                throw new RuntimeException("Scheme combination hash code is missing for scheme: " + scheme.getSchemeCode());
+            }
+            String productIdStr = hashCode.split("-")[0]; // First index before first dash
+            Long productId = Long.valueOf(productIdStr);
+
+            // Fetch product and get GST
+            Products product = productsRepository.findById(Short.valueOf(String.valueOf(productId)))
+                    .orElseThrow(() -> new RuntimeException("Product not found for productId: " + productId));
+            String gstValue = String.valueOf(product.getSgst());
+            String tdsValue = String.valueOf(product.getTds());
+
+            BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "SUCCESS", baseTransactionId, operator, subProducts.get().getSubProductTitle());
+
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
-            commonMethods.updateWallet(walletAmountTable, request.getRetailerId(), walletType, request.getAmount(), "Debit", "TXN" + baseTransactionId, "PENDING", "DEBIT");
+            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", "TXN" + baseTransactionId, "SUCCESS", "DEBIT");
+            bbpsRelatedTransactions.processCharges(bbpsTranactionRequestDto, walletAmountTable);
+
+//            } else {
+//                schemeRateOpt = schemeRateRepository.findFixedSlabByOperatorAndAmount(operator, amount);
+//            }
 
             ResponseEntity<BillRechargeResponseDTO> response = restTemplate.exchange(
                     credentials.getBaseUrlUat() + "/v3/bill-recharge",
@@ -220,13 +273,24 @@ public class BBPSServiceImpl implements BBPSService {
                 return CommonResponse.error(500, "Null response from external API");
             }
 
-            if (apiResponse.getStatusId() == 1 || apiResponse.getStatusId() == 24 || "SUCCESS".equalsIgnoreCase(apiResponse.getStatus())) {
+            apiResponse.setStatus("SUCCESS");
+            if (apiResponse.getStatusId() == 1 || "SUCCESS".equalsIgnoreCase(apiResponse.getStatus())) {
+
+                //if (product.getIsCommissions()) {
+                    bbpsRelatedTransactions.processCommission(bbpsTranactionRequestDto);
+                //}
                 return CommonResponse.success(apiResponse, "Transaction Successful");
             } else if (apiResponse.getStatusId() == 2 || "FAILURE".equalsIgnoreCase(apiResponse.getStatus())) {
+
+
+                //reverseTransactionOnFailure();
+
                 return CommonResponse.success(apiResponse, "Transaction is Fail");
-            }else if (apiResponse.getStatusId() == 3 || "PENDING".equalsIgnoreCase(apiResponse.getStatus())) {
+            } else if (apiResponse.getStatusId() == 3 || "PENDING".equalsIgnoreCase(apiResponse.getStatus())) {
                 return CommonResponse.success(apiResponse, "Transaction is Pending");
-            } else if (apiResponse.getStatusId() == 34 || "ACCEPTED".equalsIgnoreCase(apiResponse.getStatus())){
+            } else if (apiResponse.getStatusId() == 34 || "ACCEPTED".equalsIgnoreCase(apiResponse.getStatus())) {
+                return CommonResponse.success(apiResponse, "Transaction is Accepted");
+            } else if (apiResponse.getStatusId() == 24 || "SUCCESSFULLY SUBMITTED".equalsIgnoreCase(apiResponse.getStatus())) {
                 return CommonResponse.success(apiResponse, "Transaction is Accepted");
             } else {
                 return CommonResponse.error(401, apiResponse.getMessage());
@@ -236,6 +300,5 @@ public class BBPSServiceImpl implements BBPSService {
             return CommonResponse.error(500, "Error: " + ex.getMessage());
         }
     }
-
 
 }

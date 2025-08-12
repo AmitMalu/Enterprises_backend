@@ -26,6 +26,9 @@ public class WhiteLabelPostpaidTransactionDetails {
     @Column(name = "white_label_id")
     private String whitelabelId;
 
+    @Column(name = "hierarchy_id")
+    private String hierarchyId;
+
     @Column(name = "date_of_transaction")
     private LocalDate dateOfTransaction;
 

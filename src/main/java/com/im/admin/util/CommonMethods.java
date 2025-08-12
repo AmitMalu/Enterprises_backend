@@ -1,6 +1,8 @@
 package com.im.admin.util;
 
 import com.im.admin.dto.AbstractWalletAmountTable;
+import com.im.admin.dto.BillRechargeResponseDTO;
+import com.im.admin.entities.SchemeRate;
 import com.im.admin.entities.TransactionSequence;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.entities.enums.WalletType;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Time;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -100,12 +103,12 @@ public class CommonMethods {
         String query = "SELECT MAX(" + idColumn + ") FROM " + tableName;
         String maxId = jdbcTemplate.queryForObject(query, String.class);
 
-        if(maxId == null) {
+        if (maxId == null) {
             return "01";
         }
 
         int nextId = Integer.parseInt(maxId) + 1;
-        if(nextId > 99) {
+        if (nextId > 99) {
             throw new IllegalStateException("ID limit reached. Cannot exceed 99.");
         }
 
@@ -132,7 +135,7 @@ public class CommonMethods {
         String timestamp = new SimpleDateFormat("yyMMddHHmmss").format(new Date());
         long sequence = transactionSequenceRepository.save(new TransactionSequence()).getId();
 
-        if(sequence == 99999) {
+        if (sequence == 99999) {
             jdbcTemplate.execute("TRUNCATE TABLE transaction_sequence");
         }
 
@@ -255,7 +258,7 @@ public class CommonMethods {
         if (type == WalletType.PREPAID) {
             return retailerPrepaidAmountRepository.findByRetailerId_RetailerId(retailerId)
                     .orElseThrow(() -> new RuntimeException("Retailer Prepaid wallet not found: " + retailerId));
-        } else if (type== WalletType.POSTPAID) {
+        } else if (type == WalletType.POSTPAID) {
             return retailerPostpaidAmountRepository.findByRetailerId_RetailerId(retailerId)
                     .orElseThrow(() -> new RuntimeException("Retailer Postpaid wallet not found: " + retailerId));
         }
@@ -341,7 +344,7 @@ public class CommonMethods {
     }
 
     public <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-                                                                    String tranxType, String baseTransactionId, String tranStatus, String service) {
+                                                                   String tranxType, String baseTransactionId, String tranStatus, String service) {
 
         String actionOnBalance;
 
@@ -355,7 +358,7 @@ public class CommonMethods {
         } else {
             wallet.setTotalCash(wallet.getTotalCash().subtract(amount));
             wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(amount));
-            actionOnBalance = "Deduct Funds - " +  walletType.name();
+            actionOnBalance = "Deduct Funds - " + walletType.name();
         }
 
         wallet.setLastUpdatedAmount(amount);
@@ -422,6 +425,55 @@ public class CommonMethods {
         }
 
         throw new RuntimeException("No active vendor found for this subProductId");
+    }
+
+    public BigDecimal calculateCommissionAmount(double rate, BigDecimal transactionAmount, String rateType) {
+        BigDecimal commissionRate = BigDecimal.valueOf(rate);
+        BigDecimal commission;
+
+        if ("PERCENTAGE".equalsIgnoreCase(rateType)) {
+            commission = transactionAmount.multiply(commissionRate);
+        } else {
+            commission = commissionRate;
+        }
+
+        // Cap commission to max of transaction amount
+        if (commission.compareTo(transactionAmount) > 0) {
+            commission = transactionAmount;
+        }
+
+        return commission.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public double getCommissionRateByType(String hierarchyType, SchemeRate schemeRate) {
+        return switch (hierarchyType) {
+            case "AD" -> schemeRate.getIm();
+            case "ET" -> schemeRate.getEnterprise();
+            case "WL" -> schemeRate.getWhitelabel();
+            case "SD" -> schemeRate.getSuperDistributor();
+            case "PT" -> schemeRate.getPartner();
+            case "DT" -> schemeRate.getDistributor();
+            case "RT" -> schemeRate.getRetailer();
+            default -> 0.0;
+        };
+    }
+
+    public Optional<String> getAdminHierarchyId(String startHierarchyId) {
+        String currentId = startHierarchyId;
+
+        while (currentId != null && !currentId.isEmpty()) {
+            String type = extractHierarchyType(currentId);
+            if ("AD".equals(type)) return Optional.of(currentId);
+
+            Optional<String> parentOpt = findParentHierarchy(currentId);
+            if (parentOpt.isPresent()) {
+                currentId = parentOpt.get();
+            } else {
+                break;
+            }
+        }
+
+        return Optional.empty(); // Admin not found
     }
 
 }
