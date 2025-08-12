@@ -28,6 +28,6 @@ public interface DistributorRepository extends JpaRepository<Distributor, String
     String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
 
 
-
+    List<Distributor> findByParentAccount(String fromId);
 }
 

@@ -63,6 +63,7 @@ public class IdGenerator {
             case "Partner" -> abbreviation + "-PT-";
             case "Distributor" -> abbreviation + "-DT-";
             case "Retailer" -> abbreviation + "-RT-";
+            case "RetailerUser" -> abbreviation + "-RU-";
             default -> throw new IllegalArgumentException("Invalid entity type: " + entityType);
         };
 
