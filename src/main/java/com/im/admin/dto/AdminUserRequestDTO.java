@@ -1,9 +1,11 @@
 package com.im.admin.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.persistence.Column;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -15,6 +17,14 @@ public class AdminUserRequestDTO {
 
     @NotBlank(message = "Parent account is required")
     private String parentAccount;
+
+    private String adminrUserId;
+
+    @Column(name = "abbreviation", length = 3)
+    @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
+    @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
+    private String abbreviation;
+
 
     @NotBlank(message = "Name is mandatory")
     private String name;

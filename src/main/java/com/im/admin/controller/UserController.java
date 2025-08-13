@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.BlockStatusRequest;
 import com.im.admin.dto.StatusWiseUserFullDto;
 import com.im.admin.dto.UserDetailsResponseDTO;
 import com.im.admin.dto.ViewUserResponseDto;
@@ -24,13 +25,16 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @PutMapping("/{idOrMobile}/block-status")
+    //api/user/true/90988
+
+    @PutMapping("/block/{idOrMobile}")
     public ResponseEntity<CommonResponse> updateBlockStatus(
             @PathVariable String idOrMobile,
-            @RequestParam boolean block   // true = block(1), false = unblock(0)
+            @RequestBody BlockStatusRequest request
     ) {
-        return ResponseEntity.ok(userService.updateUserBlockStatus(idOrMobile, block));
+        return ResponseEntity.ok(userService.updateUserBlockStatus(idOrMobile, request.isBlock()));
     }
+
 
 
     @GetMapping("/status/{status}")
@@ -59,12 +63,15 @@ public class UserController {
     @GetMapping
     public ResponseEntity<CommonResponse<Page<ViewUserResponseDto>>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword
     ) {
-        Page<ViewUserResponseDto> resultPage = userService.getAllUsers(page, size);
+        Page<ViewUserResponseDto> resultPage = userService.getAllUsers(page, size, keyword);
         return ResponseEntity.ok(
                 new CommonResponse<>(200, "All users fetched successfully", resultPage)
         );
     }
+
+
 
 }

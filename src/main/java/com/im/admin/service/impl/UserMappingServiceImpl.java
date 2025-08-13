@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.HierarchyUpdateDTO;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.service.UserMappingService;
@@ -56,60 +57,201 @@ public class UserMappingServiceImpl implements UserMappingService {
     /**
      * RT level – usually no child, but keeping for completeness
      */
-    private List<Retailer> updateRetailers(String fromId, String toId) {
-        List<Retailer> list = retailerRepo.findByParentAccount(fromId);
+    private List<HierarchyUpdateDTO> updateRetailers(String fromId, String toId) {
+        List<Retailer> list = retailerRepo.findByParentAccountContainingIgnoreCase(fromId);
         if (list.isEmpty()) throw new RuntimeException("No retailers found under " + fromId);
         list.forEach(r -> r.setParentAccount(toId));
-        return retailerRepo.saveAll(list);
+        List<Retailer> retailers = retailerRepo.saveAll(list);
+
+        return retailers.stream()
+                .map(r -> new HierarchyUpdateDTO(
+                        r.getRetailerId(),    // id
+                        r.getParentAccount(), // parentAccount
+                        r.getName(),          // name
+                        r.getMobileNumber()   // mobileNumber
+                ))
+                .toList();
+
     }
 
     /**
      * DT → RT mapping
      */
-    private List<Retailer> updateDistributors(String fromId, String toId) {
-        List<Retailer> list = retailerRepo.findByParentAccount(fromId);
+    private List<HierarchyUpdateDTO> updateDistributors(String fromId, String toId) {
+        List<Retailer> list = retailerRepo.findByParentAccountContainingIgnoreCase(fromId);
         if (list.isEmpty()) throw new RuntimeException("No retailers found under distributor " + fromId);
         list.forEach(r -> r.setParentAccount(toId));
-        return retailerRepo.saveAll(list);
+        List<Retailer> saved  = retailerRepo.saveAll(list);
+
+        return saved.stream()
+                .map(r -> new HierarchyUpdateDTO(
+                        r.getRetailerId(),    // id
+                        r.getParentAccount(), // parentAccount
+                        r.getName(),          // name
+                        r.getMobileNumber()   // mobileNumber
+                ))
+                .toList();
     }
 
     /**
      * PT → DT mapping
      */
-    private List<Distributor> updatePartners(String fromId, String toId) {
-        List<Distributor> list = distributorRepo.findByParentAccount(fromId);
+    private List<HierarchyUpdateDTO> updatePartners(String fromId, String toId) {
+        List<Distributor> list = distributorRepo.findByParentAccountContainingIgnoreCase(fromId);
         if (list.isEmpty()) throw new RuntimeException("No distributors found under partner " + fromId);
         list.forEach(d -> d.setParentAccount(toId));
-        return distributorRepo.saveAll(list);
+        List<Distributor> saveddistributors = distributorRepo.saveAll(list);
+
+        return saveddistributors.stream()
+                .map(d -> new HierarchyUpdateDTO(
+                        d.getDistributorId(),
+                        d.getParentAccount(),
+                        d.getName(),
+                        d.getMobileNumber()
+                ))
+                .toList();
+
     }
 
     /**
      * SD → PT mapping
      */
-    private List<Partner> updateSuperDistributors(String fromId, String toId) {
-        List<Partner> list = partnerRepo.findByParentAccount(fromId);
+    private List<HierarchyUpdateDTO> updateSuperDistributors(String fromId, String toId) {
+        List<Partner> list = partnerRepo.findByParentAccountContainingIgnoreCase(fromId);
         if (list.isEmpty()) throw new RuntimeException("No partners found under super distributor " + fromId);
         list.forEach(p -> p.setParentAccount(toId));
-        return partnerRepo.saveAll(list);
+        List<Partner> savedpartners = partnerRepo.saveAll(list);
+
+        return savedpartners.stream()
+                .map(p -> new HierarchyUpdateDTO(
+                        p.getPartnerId(),
+                        p.getParentAccount(),
+                        p.getName(),
+                        p.getMobileNumber()
+                ))
+                .toList();
+
     }
 
     /**
      * WL → SD mapping
      */
-    private List<SuperDistributor> updateWhitelabels(String fromId, String toId) {
-        List<SuperDistributor> list = superDistRepo.findByParentAccount(fromId);
+    private List<HierarchyUpdateDTO> updateWhitelabels(String fromId, String toId) {
+        List<SuperDistributor> list = superDistRepo.findByParentAccountContainingIgnoreCase(fromId);
         if (list.isEmpty()) throw new RuntimeException("No super distributors found under whitelabel " + fromId);
         list.forEach(sd -> sd.setParentAccount(toId));
-        return superDistRepo.saveAll(list);
+        List<SuperDistributor> savedsuperDistributors = superDistRepo.saveAll(list);
+
+        return savedsuperDistributors.stream()
+                .map(s -> new HierarchyUpdateDTO(
+                        s.getSuperDistributorId(),
+                        s.getParentAccount(),
+                        s.getName(),
+                        s.getMobileNumber()
+                ))
+                .toList();
+
     }
 
     /**
      * ET → WL mapping
      */
-    private List<WhiteLabels> updateEnterprises(String fromId, String toId) {
-        List<WhiteLabels> list = whitelabelRepo.findByParentAccount(fromId);
+    private List<HierarchyUpdateDTO> updateEnterprises(String fromId, String toId) {
+        List<WhiteLabels> list = whitelabelRepo.findByParentAccountContainingIgnoreCase(fromId);
         if (list.isEmpty()) throw new RuntimeException("No whitelabels found under enterprise " + fromId);
         list.forEach(wl -> wl.setParentAccount(toId));
-        return whitelabelRepo.saveAll(list);
+        List<WhiteLabels> savedwhiteLabels = whitelabelRepo.saveAll(list);
+
+        return savedwhiteLabels.stream()
+                .map(w -> new HierarchyUpdateDTO(
+                        w.getWhiteLabelId(),
+                        w.getParentAccount(),
+                        w.getName(),
+                        w.getMobileNumber()
+                ))
+                .toList();
     }
+
+
+    @Override
+    public HierarchyUpdateDTO remapSingleUser(String userId, String newParentId) {
+        String type = commonMethods.extractHierarchyType(userId);
+
+        return switch (type) {
+            case "RT" -> updateSingleRetailer(userId, newParentId);
+            case "DT" -> updateSingleDistributor(userId, newParentId);
+            case "PT" -> updateSinglePartner(userId, newParentId);
+            case "SD" -> updateSingleSuperDistributor(userId, newParentId);
+            case "WL" -> updateSingleWhiteLabel(userId, newParentId);
+            case "ET" -> updateSingleEnterprise(userId, newParentId);
+            default -> throw new RuntimeException("Invalid hierarchy type for ID: " + userId);
+        };
+    }
+
+    /**
+     * RT → change parent distributor
+     */
+    private HierarchyUpdateDTO updateSingleRetailer(String retailerId, String newParentDistributorId) {
+        Retailer retailer = retailerRepo.findById(retailerId)
+                .orElseThrow(() -> new RuntimeException("Retailer not found with ID: " + retailerId));
+        retailer.setParentAccount(newParentDistributorId);
+        Retailer saved = retailerRepo.save(retailer);
+        return new HierarchyUpdateDTO(saved.getRetailerId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
+    }
+
+    /**
+     * DT → change parent partner
+     */
+    private HierarchyUpdateDTO updateSingleDistributor(String distributorId, String newParentPartnerId) {
+        Distributor distributor = distributorRepo.findById(distributorId)
+                .orElseThrow(() -> new RuntimeException("Distributor not found with ID: " + distributorId));
+        distributor.setParentAccount(newParentPartnerId);
+        Distributor saved = distributorRepo.save(distributor);
+        return new HierarchyUpdateDTO(saved.getDistributorId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
+    }
+
+    /**
+     * PT → change parent super distributor
+     */
+    private HierarchyUpdateDTO updateSinglePartner(String partnerId, String newParentSuperDistributorId) {
+        Partner partner = partnerRepo.findById(partnerId)
+                .orElseThrow(() -> new RuntimeException("Partner not found with ID: " + partnerId));
+        partner.setParentAccount(newParentSuperDistributorId);
+        Partner saved = partnerRepo.save(partner);
+        return new HierarchyUpdateDTO(saved.getPartnerId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
+    }
+
+    /**
+     * SD → change parent whitelabel
+     */
+    private HierarchyUpdateDTO updateSingleSuperDistributor(String sdId, String newParentWhiteLabelId) {
+        SuperDistributor sd = superDistRepo.findById(sdId)
+                .orElseThrow(() -> new RuntimeException("Super Distributor not found with ID: " + sdId));
+        sd.setParentAccount(newParentWhiteLabelId);
+        SuperDistributor saved = superDistRepo.save(sd);
+        return new HierarchyUpdateDTO(saved.getSuperDistributorId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
+    }
+
+    /**
+     * WL → change parent enterprise
+     */
+    private HierarchyUpdateDTO updateSingleWhiteLabel(String wlId, String newParentEnterpriseId) {
+        WhiteLabels wl = whitelabelRepo.findById(wlId)
+                .orElseThrow(() -> new RuntimeException("WhiteLabel not found with ID: " + wlId));
+        wl.setParentAccount(newParentEnterpriseId);
+        WhiteLabels saved = whitelabelRepo.save(wl);
+        return new HierarchyUpdateDTO(saved.getWhiteLabelId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
+    }
+
+    /**
+     * ET → (Top level, maybe admin change)
+     */
+    private HierarchyUpdateDTO updateSingleEnterprise(String enterpriseId, String newParentAdminId) {
+        Enterprises et = enterprisesRepo.findById(enterpriseId)
+                .orElseThrow(() -> new RuntimeException("Enterprise not found with ID: " + enterpriseId));
+        et.setParentAccount(newParentAdminId);
+        Enterprises saved = enterprisesRepo.save(et);
+        return new HierarchyUpdateDTO(saved.getEnterpriseId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
+    }
+
 }

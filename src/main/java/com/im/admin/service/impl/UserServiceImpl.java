@@ -238,70 +238,77 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
-    public Page<ViewUserResponseDto> getAllUsers(int page, int size) {
+    public Page<ViewUserResponseDto> getAllUsers(int page, int size, String keyword) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
         Page<UserDetails> usersPage = userDetailsRepository.findAll(pageable);
 
-        // Convert entity page -> DTO list
-        List<ViewUserResponseDto> dtoList = usersPage.stream().map(user -> {
-            ViewUserResponseDto dto = new ViewUserResponseDto();
-            dto.setMobileNumber(user.getMobileNumber());
-            dto.setHierarchyId(user.getHierarchyId());
-            dto.setHierarchyCode(user.getHierarchyCode());
-            dto.setLoginUserName(user.getLoginUserName());
-            dto.setUserLoginStatus(user.getUserLoginStatus());
-            dto.setLastLoginDate(user.getLastLoginDate());
-            dto.setLastLoginTime(user.getLastLoginTime());
-            dto.setUserStatus(user.getUserStatus());
-            dto.setEmailId(user.getEmailId());
-            dto.setCreatedDate(user.getCreatedDate());
-            dto.setCreatedTime(user.getCreatedTime());
-            dto.setCreatedBy(user.getCreatedBy());
-            dto.setEditedDate(user.getEditedDate());
-            dto.setEditedTime(user.getEditedTime());
-            dto.setEditedBy(user.getEditedBy());
-            dto.setRoleId(user.getRole_id());
-            dto.setIsBlocked(user.getIsBlocked());
+        List<ViewUserResponseDto> dtoList = usersPage.stream()
+                .map(user -> {
+                    ViewUserResponseDto dto = new ViewUserResponseDto();
+                    dto.setMobileNumber(user.getMobileNumber());
+                    dto.setHierarchyId(user.getHierarchyId());
+                    dto.setHierarchyCode(user.getHierarchyCode());
+                    dto.setLoginUserName(user.getLoginUserName());
+                    dto.setUserLoginStatus(user.getUserLoginStatus());
+                    dto.setLastLoginDate(user.getLastLoginDate());
+                    dto.setLastLoginTime(user.getLastLoginTime());
+                    dto.setUserStatus(user.getUserStatus());
+                    dto.setEmailId(user.getEmailId());
+                    dto.setCreatedDate(user.getCreatedDate());
+                    dto.setCreatedTime(user.getCreatedTime());
+                    dto.setCreatedBy(user.getCreatedBy());
+                    dto.setEditedDate(user.getEditedDate());
+                    dto.setEditedTime(user.getEditedTime());
+                    dto.setEditedBy(user.getEditedBy());
+                    dto.setRoleId(user.getRole_id());
+                    dto.setIsBlocked(user.getIsBlocked());
 
-            String type = extractHierarchyType(user.getHierarchyId());
-            switch (type) {
-                case "RT" -> retailerRepository.findById(user.getHierarchyId()).ifPresent(rt -> {
-                    dto.setCity(rt.getAddress().getCity());
-                    dto.setState(rt.getAddress().getState());
-                    dto.setZipCode(rt.getAddress().getZipCode());
-                });
-                case "DT" -> distributorRepository.findById(user.getHierarchyId()).ifPresent(dt -> {
-                    dto.setCity(dt.getAddress().getCity());
-                    dto.setState(dt.getAddress().getState());
-                    dto.setZipCode(dt.getAddress().getZipCode());
-                });
-                case "PT" -> partnerRepository.findById(user.getHierarchyId()).ifPresent(pt -> {
-                    dto.setCity(pt.getAddress().getCity());
-                    dto.setState(pt.getAddress().getState());
-                    dto.setZipCode(pt.getAddress().getZipCode());
-                });
-                case "SD" -> superDistributorRepository.findById(user.getHierarchyId()).ifPresent(sd -> {
-                    dto.setCity(sd.getAddress().getCity());
-                    dto.setState(sd.getAddress().getState());
-                    dto.setZipCode(sd.getAddress().getZipCode());
-                });
-                case "WL" -> whiteLabelRepository.findById(user.getHierarchyId()).ifPresent(wl -> {
-                    dto.setCity(wl.getAddress().getCity());
-                    dto.setState(wl.getAddress().getState());
-                    dto.setZipCode(wl.getAddress().getZipCode());
-                });
-                case "ET" -> enterprisesRepository.findById(user.getHierarchyId()).ifPresent(et -> {
-                    dto.setCity(et.getAddress().getCity());
-                    dto.setState(et.getAddress().getState());
-                    dto.setZipCode(et.getAddress().getZipCode());
-                });
-            }
-            return dto;
-        }).toList();
+                    String type = extractHierarchyType(user.getHierarchyId());
+                    switch (type) {
+                        case "RT" -> retailerRepository.findById(user.getHierarchyId()).ifPresent(rt -> {
+                            dto.setCity(rt.getAddress().getCity());
+                            dto.setState(rt.getAddress().getState());
+                            dto.setZipCode(rt.getAddress().getZipCode());
+                        });
+                        case "DT" -> distributorRepository.findById(user.getHierarchyId()).ifPresent(dt -> {
+                            dto.setCity(dt.getAddress().getCity());
+                            dto.setState(dt.getAddress().getState());
+                            dto.setZipCode(dt.getAddress().getZipCode());
+                        });
+                        case "PT" -> partnerRepository.findById(user.getHierarchyId()).ifPresent(pt -> {
+                            dto.setCity(pt.getAddress().getCity());
+                            dto.setState(pt.getAddress().getState());
+                            dto.setZipCode(pt.getAddress().getZipCode());
+                        });
+                        case "SD" -> superDistributorRepository.findById(user.getHierarchyId()).ifPresent(sd -> {
+                            dto.setCity(sd.getAddress().getCity());
+                            dto.setState(sd.getAddress().getState());
+                            dto.setZipCode(sd.getAddress().getZipCode());
+                        });
+                        case "WL" -> whiteLabelRepository.findById(user.getHierarchyId()).ifPresent(wl -> {
+                            dto.setCity(wl.getAddress().getCity());
+                            dto.setState(wl.getAddress().getState());
+                            dto.setZipCode(wl.getAddress().getZipCode());
+                        });
+                        case "ET" -> enterprisesRepository.findById(user.getHierarchyId()).ifPresent(et -> {
+                            dto.setCity(et.getAddress().getCity());
+                            dto.setState(et.getAddress().getState());
+                            dto.setZipCode(et.getAddress().getZipCode());
+                        });
+                    }
+                    return dto;
+                })
+                .filter(dto -> keyword == null || keyword.isEmpty()
+                        || (dto.getMobileNumber() != null && dto.getMobileNumber().contains(keyword))
+                        || (dto.getHierarchyId() != null
+                        && dto.getHierarchyId().toLowerCase().contains(keyword.toLowerCase()))
+                )
+                .toList();
 
-        // Return Page<ViewUserResponseDto> using PageImpl
         return new PageImpl<>(dtoList, pageable, usersPage.getTotalElements());
     }
+
+
 
     private String extractHierarchyType(String hierarchyId) {
         return hierarchyId.split("-")[1];
