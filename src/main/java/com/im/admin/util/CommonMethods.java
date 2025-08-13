@@ -27,6 +27,8 @@ import java.util.Optional;
 @Slf4j
 public class CommonMethods {
     @Autowired
+    private RetailerUserRepository retailerUserRepository;
+    @Autowired
     private EnterprisesPostpaidAmountRepository enterprisesPostpaidAmountRepository;
 
     @Autowired
@@ -168,6 +170,7 @@ public class CommonMethods {
             case "PT" -> "partner";
             case "DT" -> "distributor";
             case "RT" -> "retailer";
+            case "RU" -> "retailer_user";
             default -> throw new IllegalArgumentException("Invalid hierarchy type: " + hierarchyType);
         };
     }
@@ -217,6 +220,7 @@ public class CommonMethods {
             case "PT" -> partnerRepository.findById(hierarchyId);
             case "DT" -> distributorRepository.findById(hierarchyId);
             case "RT" -> retailerRepository.findById(hierarchyId);
+            case "RU" -> retailerUserRepository.findById(hierarchyId);
             default -> Optional.empty();
         };
 

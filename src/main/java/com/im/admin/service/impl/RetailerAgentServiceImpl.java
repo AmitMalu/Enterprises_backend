@@ -55,7 +55,7 @@ public class RetailerAgentServiceImpl implements RetailerAgentService {
 
 
         String folder = "RetailerUser";
-        retailerUser.setRetailerUserId(idGenerator.generateHierarchyEntityId(folder, retailerUser.getAbbreviation()));
+        retailerUser.setRetailerUserId(idGenerator.generateHierarchyEntityId(folder, "RT"));
 
         String retailerId = retailerUser.getParentAccount();
 
@@ -78,7 +78,7 @@ public class RetailerAgentServiceImpl implements RetailerAgentService {
         // 5. Save UserDetails for login
         UserDetails user = new UserDetails();
         user.setMobileNumber(saveRetailerUser.getMobileNumber());
-        user.setHierarchyId(saveRetailerUser.getRetailerUserId());  // same as parentAccount
+        user.setHierarchyId(saveRetailerUser.getRetailerUserId());
         user.setHierarchyCode("RU");   // or "RT" or anything meaningful
         user.setLoginUserName(saveRetailerUser.getUsername());
         user.setLoginPassword(saveRetailerUser.getPassword());

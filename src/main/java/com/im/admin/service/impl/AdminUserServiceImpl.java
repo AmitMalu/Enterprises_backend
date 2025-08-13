@@ -8,6 +8,7 @@ import com.im.admin.repositories.AdminUserRepository;
 import com.im.admin.repositories.ImSubRoleRepository;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.service.AdminUserService;
+import com.im.admin.util.IdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.transaction.annotation.Transactional;
 
 
 @Service
@@ -22,6 +24,9 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Autowired
     private AdminRepository adminRepository;
+
+    @Autowired
+    private IdGenerator idGenerator;
 
     @Autowired
     private AdminUserRepository adminUserRepository;
@@ -33,7 +38,30 @@ public class AdminUserServiceImpl implements AdminUserService {
     private ImSubRoleRepository imSubRoleRepository;
 
     @Override
+    @Transactional
     public AdminUser createAdminUser(AdminUserRequestDTO dto) {
+
+        String parentAccount = dto.getParentAccount();
+
+        if (parentAccount == null || !parentAccount.contains("-")) {
+            throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+        }
+
+        // Extract prefix from parentAccount
+        String abbreviation = parentAccount.split("-")[0];
+
+        // Optionally validate abbreviation format
+        if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+            throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+        }
+
+        dto.setAbbreviation(abbreviation);
+
+
+        String folder = "AdminUser";
+        dto.setAdminrUserId(idGenerator.generateHierarchyEntityId(folder,"AD"));
+
+
         String adminId = dto.getParentAccount();
 
         // Validate parent admin
@@ -45,6 +73,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         // Map DTO to entity
         AdminUser adminUser = new AdminUser();
+        adminUser.setAdminrUserId(dto.getAdminrUserId());
         adminUser.setParentAccount(dto.getParentAccount());
         adminUser.setName(dto.getName());
         adminUser.setMobileNumber(dto.getMobileNumber());
@@ -63,7 +92,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         // Save UserDetails for login
         UserDetails user = new UserDetails();
         user.setMobileNumber(savedAdmin.getMobileNumber());
-        user.setHierarchyId(adminId);
+        user.setHierarchyId(savedAdmin.getAdminrUserId());
         user.setHierarchyCode("AU");
         user.setLoginUserName(savedAdmin.getUsername());
         user.setLoginPassword(savedAdmin.getPassword());

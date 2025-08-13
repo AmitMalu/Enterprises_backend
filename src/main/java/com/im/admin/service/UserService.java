@@ -18,5 +18,5 @@ public interface UserService {
 
     Page<UserSearchResponseDto> searchActiveRetailers(String keyword, Pageable pageable);
 
-    Page<ViewUserResponseDto> getAllUsers(int page, int size);
+    Page<ViewUserResponseDto> getAllUsers(int page, int size, String keyword);
 }
