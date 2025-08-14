@@ -5,8 +5,11 @@ import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.service.UserMappingService;
 import com.im.admin.util.CommonMethods;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -173,20 +176,30 @@ public class UserMappingServiceImpl implements UserMappingService {
     }
 
 
+    @Transactional
     @Override
-    public HierarchyUpdateDTO remapSingleUser(String userId, String newParentId) {
-        String type = commonMethods.extractHierarchyType(userId);
+    public List<HierarchyUpdateDTO> remapMultipleUsers(List<String> userIds, String newParentId) {
+        List<HierarchyUpdateDTO> result = new ArrayList<>();
 
-        return switch (type) {
-            case "RT" -> updateSingleRetailer(userId, newParentId);
-            case "DT" -> updateSingleDistributor(userId, newParentId);
-            case "PT" -> updateSinglePartner(userId, newParentId);
-            case "SD" -> updateSingleSuperDistributor(userId, newParentId);
-            case "WL" -> updateSingleWhiteLabel(userId, newParentId);
-            case "ET" -> updateSingleEnterprise(userId, newParentId);
-            default -> throw new RuntimeException("Invalid hierarchy type for ID: " + userId);
-        };
+        for (String userId : userIds) {
+            String type = commonMethods.extractHierarchyType(userId);
+
+            HierarchyUpdateDTO updated = switch (type) {
+                case "RT" -> updateSingleRetailer(userId, newParentId);
+                case "DT" -> updateSingleDistributor(userId, newParentId);
+                case "PT" -> updateSinglePartner(userId, newParentId);
+                case "SD" -> updateSingleSuperDistributor(userId, newParentId);
+                case "WL" -> updateSingleWhiteLabel(userId, newParentId);
+                case "ET" -> updateSingleEnterprise(userId, newParentId);
+                default -> throw new RuntimeException("Invalid hierarchy type for ID: " + userId);
+            };
+
+            result.add(updated);
+        }
+
+        return result;
     }
+
 
     /**
      * RT → change parent distributor
@@ -253,5 +266,44 @@ public class UserMappingServiceImpl implements UserMappingService {
         Enterprises saved = enterprisesRepo.save(et);
         return new HierarchyUpdateDTO(saved.getEnterpriseId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
+
+
+    @Override
+    public List<HierarchyUpdateDTO> getUsersByType(String userType) {
+        return switch (userType) {
+            case "RT" -> retailerRepo.findAll()
+                    .stream()
+                    .map(r -> new HierarchyUpdateDTO(r.getRetailerId(), r.getParentAccount(), r.getName(), r.getMobileNumber()))
+                    .toList();
+
+            case "DT" -> distributorRepo.findAll()
+                    .stream()
+                    .map(d -> new HierarchyUpdateDTO(d.getDistributorId(), d.getParentAccount(), d.getName(), d.getMobileNumber()))
+                    .toList();
+
+            case "PT" -> partnerRepo.findAll()
+                    .stream()
+                    .map(p -> new HierarchyUpdateDTO(p.getPartnerId(), p.getParentAccount(), p.getName(), p.getMobileNumber()))
+                    .toList();
+
+            case "SD" -> superDistRepo.findAll()
+                    .stream()
+                    .map(sd -> new HierarchyUpdateDTO(sd.getSuperDistributorId(), sd.getParentAccount(), sd.getName(), sd.getMobileNumber()))
+                    .toList();
+
+            case "WL" -> whitelabelRepo.findAll()
+                    .stream()
+                    .map(wl -> new HierarchyUpdateDTO(wl.getWhiteLabelId(), wl.getParentAccount(), wl.getName(), wl.getMobileNumber()))
+                    .toList();
+
+            case "ET" -> enterprisesRepo.findAll()
+                    .stream()
+                    .map(et -> new HierarchyUpdateDTO(et.getEnterpriseId(), et.getParentAccount(), et.getName(), et.getMobileNumber()))
+                    .toList();
+
+            default -> throw new RuntimeException("Invalid userType: " + userType);
+        };
+    }
+
 
 }

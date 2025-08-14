@@ -7,6 +7,7 @@ import java.util.List;
 public interface UserMappingService {
     List<?> remapUsers( String fromId, String toId);
 
-    HierarchyUpdateDTO remapSingleUser(String userId, String newParentId);
+    List<HierarchyUpdateDTO>  remapMultipleUsers(List<String> userId, String newParentId);
 
+    List<HierarchyUpdateDTO> getUsersByType(String upperCase);
 }

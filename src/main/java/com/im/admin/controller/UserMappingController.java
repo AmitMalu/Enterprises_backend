@@ -1,14 +1,12 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.HierarchyUpdateDTO;
+import com.im.admin.dto.RemapRequestDTO;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.UserMappingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -19,7 +17,7 @@ public class UserMappingController {
     @Autowired
     private UserMappingService userMappingService;
 
-    @PostMapping("/remap")
+    @PostMapping("/remap-bulk")
     public ResponseEntity<CommonResponse> remapUsers(
             @RequestParam String fromId,
             @RequestParam String toId) {
@@ -28,15 +26,24 @@ public class UserMappingController {
         return ResponseEntity.ok(new CommonResponse(200, "Mapped successfully", updatedUsers));
     }
 
-    @PostMapping("/remap-single")
-    public ResponseEntity<CommonResponse> remapSingleUser(
-            @RequestParam String userId,
-            @RequestParam String newParentId) {
+    @PostMapping("/remap")
+    public ResponseEntity<CommonResponse> remapMultipleUsers(@RequestBody RemapRequestDTO request) {
 
-        HierarchyUpdateDTO updatedUser = userMappingService.remapSingleUser(userId, newParentId);
-        return ResponseEntity.ok(new CommonResponse(200, "User mapped successfully", updatedUser));
+        List<HierarchyUpdateDTO> updatedUsers =
+                userMappingService.remapMultipleUsers(request.getUserIds(), request.getNewParentId());
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "Users mapped successfully", updatedUsers)
+        );
     }
 
+    @GetMapping("/users")
+    public ResponseEntity<CommonResponse> getUsersByType(@RequestParam String userType) {
+        List<HierarchyUpdateDTO> users = userMappingService.getUsersByType(userType.toUpperCase());
 
+        return ResponseEntity.ok(
+                new CommonResponse(200, "Users fetched successfully", users)
+        );
+    }
 
 }
