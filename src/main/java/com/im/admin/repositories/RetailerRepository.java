@@ -26,6 +26,8 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
 
     List<Retailer> findByParentAccount(String fromId);
 
+    List<Retailer> findByParentAccountContainingIgnoreCase(String parentAccount);
+
 
 
     //boolean existsByAbbreviation(String abbrivation);

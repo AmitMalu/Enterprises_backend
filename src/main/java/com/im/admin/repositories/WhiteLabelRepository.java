@@ -33,6 +33,9 @@ public interface WhiteLabelRepository extends JpaRepository<WhiteLabels, String>
     String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
 
     List<WhiteLabels> findByParentAccount(String fromId);
+
+    List<WhiteLabels> findByParentAccountContainingIgnoreCase(String fromId);
+
 }
 
 

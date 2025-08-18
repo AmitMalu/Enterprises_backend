@@ -29,5 +29,8 @@ public interface DistributorRepository extends JpaRepository<Distributor, String
 
 
     List<Distributor> findByParentAccount(String fromId);
+
+    List<Distributor> findByParentAccountContainingIgnoreCase(String fromId);
+
 }
 
