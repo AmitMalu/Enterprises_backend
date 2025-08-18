@@ -9,19 +9,19 @@ import com.im.admin.repositories.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Time;
+import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.*;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
 
 
 @Component
@@ -49,6 +49,8 @@ public class BBPSRelatedTransactions {
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    private DataSource dataSource;
 
     public void processCharges(BbpsTranactionRequestDto dto, AbstractWalletAmountTable wallet) {
 
@@ -353,34 +355,11 @@ public class BBPSRelatedTransactions {
         return prefix.trim() + baseId.trim();
     }
 
-    public void updateTransactionForBBPS(BillRechargeResponseDTO apiResponse, String status, String hierarchyId, String walletType, String txnId) {
-        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
-        String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
-        String columnName = getHierarchyColumnName(hierarchyType);
-
-        log.info("Updating transaction in table: {} | Hierarchy ID: {} | Transaction ID: {}", transactionTableName, hierarchyId, txnId);
-
-        String sql = "UPDATE " + transactionTableName +
-                " SET tran_status = :tranStatus, " +
-                "updated_date_of_transaction = :updatedDate, " +
-                "update_time_of_transaction = :updatedTime" +
-                "WHERE " + columnName + " = :hierarchyId AND transaction_id = :tranxId";
-
-        Query query = entityManager.createNativeQuery(sql);
-        query.setParameter("tranStatus", status);
-        query.setParameter("updatedDate", LocalDate.now());
-        query.setParameter("updatedTime", LocalTime.now());
-        query.setParameter("hierarchyId", hierarchyId);
-        query.setParameter("tranxId", txnId);
-
-        int updatedRows = query.executeUpdate();
-
-        log.info("Number of rows updated: {}", updatedRows);
-    }
-
     public void processCommission(BbpsTranactionRequestDto bbpsTranactionRequestDto) {
-        //BigDecimal tdsRate = new BigDecimal(bbpsTranactionRequestDto.getTds());
 
+
+        BbpsTranactionRequestDto request = new BbpsTranactionRequestDto();
+        request.setVendorResponse("SUCCESS");
         // 1. Commission to Retailer
         if (bbpsTranactionRequestDto.getSchemeRate().getRetailer() > 0) {
             BigDecimal retailerCommission = commonMethods.calculateCommissionAmount(
@@ -472,7 +451,7 @@ public class BBPSRelatedTransactions {
                                                  BigDecimal commissionAmount, BbpsTranactionRequestDto request) {
 
         log.info("Processing commission for {} | Hierarchy ID: {} | Amount (Incl. TDS): {} | Wallet Type: {} | TDS Rate: {}",
-                hierarchyType, request.getHierarchyId(), commissionAmount, request.getWalletType(), request.getTds());
+                hierarchyType, hierarchyId, commissionAmount, request.getWalletType(), request.getTds());
 
         String walletType = request.getWalletType();
         BigDecimal tdsRate = new BigDecimal(request.getTds());
@@ -481,19 +460,19 @@ public class BBPSRelatedTransactions {
         if ("IM".equals(hierarchyType) || "AD".equals(hierarchyType)) {
             log.info("{} hierarchy detected. Crediting full commission without TDS or mirror.", hierarchyType);
 
-            String transactionTable = commonMethods.getTransactionTable(hierarchyType, request.getWalletType());
-            String amountTable = commonMethods.getAmountTable(hierarchyType, request.getWalletType());
+            String transactionTable = commonMethods.getTransactionTable(hierarchyType, walletType);
+            String amountTable = commonMethods.getAmountTable(hierarchyType, walletType);
 
-            BigDecimal beforeBalance = commonMethods.getCurrentBalance(request.getHierarchyId(), request.getWalletType());
+            BigDecimal beforeBalance = commonMethods.getCurrentBalance(hierarchyId, walletType);
             BigDecimal afterBalance = beforeBalance.add(commissionAmount);
             String txnId = buildTransactionId("COM", request.getTransactionId());
 
             insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
-                    "Commission credited (Direct IM/AD)", request.getHierarchyId(), request.getWalletType(),
+                    "Commission credited (Direct IM/AD)", hierarchyId, walletType,
                     beforeBalance, afterBalance,
-                    "Add Funds (Commission) - " + request.getWalletType().toUpperCase(), txnId, request.getVendorResponse(), request);
+                    "Add Funds (Commission) - " + request.getWalletType().toUpperCase(), txnId, "SUCCESS", request);
 
-            updateAmountTable(hierarchyType, request.getHierarchyId(), amountTable, commissionAmount);
+            updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
 
             return; // Stop further processing (no TDS or mirror)
         }
@@ -752,43 +731,322 @@ public class BBPSRelatedTransactions {
         }
     }
 
-//    public void reverseTransactionSet(String baseTransactionId) {
-//        // Find all related transactions: TXN, CHG, GST
-//        List<Transactions> txns = transactionRepository.findByTransactionIdEndingWith(baseTransactionId);
-//
-//        for (Transactions txn : txns) {
-//            // Reverse credit/debit
-//            String reversedType = txn.getType().equalsIgnoreCase("DEBIT") ? "CREDIT" : "DEBIT";
-//
-//            // Create reversal transaction ID
-//            String originalPrefix = txn.getTransactionId().substring(0, 3); // TXN / CHG / GST
-//            String reversalId = "REV" + txn.getTransactionId();
-//
-//            // Reverse wallet change
-//            AbstractWalletAmountTable wallet = commonMethods.getWalletByType(txn.getWalletType(), txn.getHierarchyId());
-//            if ("CREDIT".equalsIgnoreCase(reversedType)) {
-//                wallet.setAvailableBalance(wallet.getAvailableBalance().add(txn.getAmount()));
-//            } else {
-//                wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(txn.getAmount()));
-//            }
-//            walletRepository.save(wallet);
-//
-//            // Insert reversal transaction record
-//            Transactions reversalTxn = new Transactions();
-//            reversalTxn.setTransactionId(reversalId);
-//            reversalTxn.setBaseTransactionId(txn.getBaseTransactionId());
-//            reversalTxn.setWalletType(txn.getWalletType());
-//            reversalTxn.setHierarchyId(txn.getHierarchyId());
-//            reversalTxn.setType(reversedType);
-//            reversalTxn.setStatus("FAILURE");
-//            reversalTxn.setAmount(txn.getAmount());
-//            reversalTxn.setRemarks("Reversal of " + txn.getTransactionId());
-//            reversalTxn.setCreatedDate(LocalDate.now());
-//            reversalTxn.setCreatedTime(LocalTime.now());
-//
-//            transactionRepository.save(reversalTxn);
-//        }
-//    }
+    public List<Map<String, Object>> getTransactions(String hierarchyId, String walletType, String baseTransactionId) {
+        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
+        String tableName = commonMethods.getTransactionTable(hierarchyType, walletType);
+
+        String sql = "SELECT * FROM " + tableName +
+                " WHERE transaction_id LIKE CONCAT('%', :baseTransactionId) " +
+                " ORDER BY time_of_transaction ASC";
+
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("baseTransactionId", baseTransactionId);
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> results = query.getResultList();
+
+        // Get column names from ResultSet metadata instead of SessionFactory (simpler)
+        List<Map<String, Object>> transactions = new ArrayList<>();
+        List<String> columnNames = getColumnNames(tableName); // You'll need a helper
+
+        for (Object[] row : results) {
+            Map<String, Object> map = new HashMap<>();
+            for (int i = 0; i < columnNames.size(); i++) {
+                map.put(columnNames.get(i), row[i]);
+            }
+            transactions.add(map);
+        }
+        return transactions;
+    }
+
+    private List<String> getColumnNames(String tableName) {
+        List<String> columnNames = new ArrayList<>();
+
+        String query = "SELECT * FROM " + tableName + " LIMIT 1";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+
+            ResultSetMetaData metaData = rs.getMetaData();
+            int columnCount = metaData.getColumnCount();
+
+            for (int i = 1; i <= columnCount; i++) {
+                columnNames.add(metaData.getColumnName(i));
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error fetching column names for table: " + tableName, e);
+        }
+
+        return columnNames;
+    }
+
+
+    @Transactional
+    public void updateTransactionStatus(String retailerId, String walletType, String baseTransactionId) {
+        // Step 1: Update retailer transactions
+        updateHierarchyTransactionsStatus(retailerId, walletType, baseTransactionId);
+
+        // Step 2: Find topmost parent and reverse their transactions
+        Optional<String> currentParent = commonMethods.findParentHierarchy(retailerId);
+
+        while (currentParent.isPresent()) {
+            String parentId = currentParent.get();
+            String parentType = commonMethods.extractHierarchyType(parentId);
+
+            // Check for Admin
+            if ("AD".equalsIgnoreCase(parentType)) {
+                updateHierarchyTransactionsStatus(parentId, walletType, baseTransactionId);
+                break;
+            }
+
+            // Check for WhiteLabel with isAdmin = true
+            if ("WL".equalsIgnoreCase(parentType)) {
+                boolean isAdminWL = whiteLabelsRepository.findById(parentId)
+                        .map(wl -> wl.getIsAdmin() != null && wl.getIsAdmin())
+                        .orElse(false);
+
+                if (isAdminWL) {
+                    updateHierarchyTransactionsStatus(parentId, walletType, baseTransactionId);
+                    break;
+                }
+            }
+
+            // Reverse parent transactions
+            updateHierarchyTransactionsStatus(parentId, walletType, baseTransactionId);
+
+            // Move one level up
+            currentParent = commonMethods.findParentHierarchy(parentId);
+        }
+    }
+
+    private void updateHierarchyTransactionsStatus(String hierarchyId, String walletType, String baseTransactionId) {
+        // Step 1: Determine transaction table
+        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
+        String tableName = commonMethods.getTransactionTable(hierarchyType, walletType);
+
+        // Step 2: Fetch transactions for this hierarchy and baseTransactionId
+        List<Map<String, Object>> transactions = getTransactions(hierarchyId, walletType, baseTransactionId);
+
+        for (Map<String, Object> txn : transactions) {
+            String status = txn.get("tran_status") != null ? txn.get("tran_status").toString() : "";
+
+            if ("PENDING".equalsIgnoreCase(status)) {
+                String transactionId = txn.get("transaction_id").toString();
+
+                // Step 3: Update status to SUCCESS
+                String updateSql = "UPDATE " + tableName +
+                        " SET tran_status = :txnStatus " +
+                        "WHERE transaction_id = :transactionId";
+
+                entityManager.createNativeQuery(updateSql)
+                        .setParameter("txnStatus", "SUCCESS")
+                        .setParameter("transactionId", transactionId)
+                        .executeUpdate();
+            }
+        }
+    }
+
+    @Transactional
+    public void reverseTransactionsAndUpdateWallet(String retailerId, String walletType, String baseTransactionId) {
+        // Step 1: Reverse retailer transactions
+        reverseSingleHierarchyTransactions(retailerId, walletType, baseTransactionId);
+
+        // Step 2: Find topmost parent and reverse their transactions
+        Optional<String> currentParent = commonMethods.findParentHierarchy(retailerId);
+
+        while (currentParent.isPresent()) {
+            String parentId = currentParent.get();
+            String parentType = commonMethods.extractHierarchyType(parentId);
+
+            // Check for Admin
+            if ("AD".equalsIgnoreCase(parentType)) {
+                reverseAdminOrWLAdminTransactions(parentId, walletType, baseTransactionId);
+                break;
+            }
+
+            // Check for WhiteLabel with isAdmin = true
+            if ("WL".equalsIgnoreCase(parentType)) {
+                boolean isAdminWL = whiteLabelsRepository.findById(parentId)
+                        .map(wl -> wl.getIsAdmin() != null && wl.getIsAdmin())
+                        .orElse(false);
+
+                if (isAdminWL) {
+                    reverseAdminOrWLAdminTransactions(parentId, walletType, baseTransactionId);
+                    break;
+                }
+            }
+
+            // Reverse parent transactions
+            reverseSingleHierarchyTransactions(parentId, walletType, baseTransactionId);
+
+            // Move one level up
+            currentParent = commonMethods.findParentHierarchy(parentId);
+        }
+    }
+
+
+    private void reverseSingleHierarchyTransactions(String hierarchyId, String walletType, String baseTransactionId) {
+        // Step 1: Determine transaction table
+        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
+        String tableName = commonMethods.getTransactionTable(hierarchyType, walletType);
+
+        // Step 2: Fetch transactions
+        List<Map<String, Object>> transactions = getTransactions(hierarchyId, walletType, baseTransactionId);
+
+        for (Map<String, Object> txn : transactions) {
+            String originalTxnId = txn.get("transaction_id").toString();
+            BigDecimal amount = new BigDecimal(txn.get("amount").toString());
+
+            String service = txn.get("service") != null ? txn.get("service").toString() : "";
+            String remarks = txn.get("remarks") != null ? txn.get("remarks").toString() : "";
+            String operatorName = txn.get("operator_name") != null ? txn.get("operator_name").toString() : "";
+            String subProductName = txn.get("sub_product_name") != null ? txn.get("sub_product_name").toString() : "";
+            String actionOnBalanceAmount = txn.get("action_on_balance_amount") != null
+                    ? txn.get("action_on_balance_amount").toString()
+                    : "";
+
+            // Step 3: Reverse type
+            String reversedTxnId = "REV" + originalTxnId;
+            String reversedType = service.equalsIgnoreCase("Credit") ? "Debit" : "Credit";
+
+            // Step 4: Reverse "action_on_balance_amount"
+            String reversedActionOnBalance;
+            if (actionOnBalanceAmount.toLowerCase().contains("deduct")) {
+                reversedActionOnBalance = actionOnBalanceAmount.replaceFirst("(?i)Deduct", "Add");
+            } else if (actionOnBalanceAmount.toLowerCase().contains("add")) {
+                reversedActionOnBalance = actionOnBalanceAmount.replaceFirst("(?i)Add", "Deduct");
+            } else {
+                reversedActionOnBalance = actionOnBalanceAmount;
+            }
+
+            // Step 5: Wallet update
+            AbstractWalletAmountTable wallet = commonMethods.getWalletByType(walletType, hierarchyId);
+            BigDecimal walletBalBefore = wallet.getAvailableBalance();
+            BigDecimal walletBalAfter;
+
+            if (reversedType.equalsIgnoreCase("Credit")) {
+                walletBalAfter = walletBalBefore.add(amount);
+                wallet.setAvailableBalance(walletBalAfter);
+            } else {
+                walletBalAfter = walletBalBefore.subtract(amount);
+                wallet.setAvailableBalance(walletBalAfter);
+            }
+
+            String hierarchyColumnName = getHierarchyColumnName(hierarchyType);
+
+            // Step 6: Insert reversal
+            String insertSql = "INSERT INTO " + tableName + " (" +
+                    hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
+                    "bal_before_tran, bal_after_tran, final_balance, transaction_type, transaction_id, tran_status, " +
+                    "operator_name, sub_product_name, action_on_balance_amount) " +
+                    "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
+                    ":balBefore, :balAfter, :balAfter, :txnType, :txnId, :txnStatus, :operatorName, :subProductName, :actionOnBalance)";
+
+            entityManager.createNativeQuery(insertSql)
+                    .setParameter("hierarchyId", hierarchyId)
+                    .setParameter("service", service)
+                    .setParameter("amount", amount)
+                    .setParameter("remarks", "Reversal of " + originalTxnId + " | " + remarks)
+                    .setParameter("dateOfTransaction", new java.sql.Date(System.currentTimeMillis()))
+                    .setParameter("timeOfTransaction", new java.sql.Time(System.currentTimeMillis()))
+                    .setParameter("balBefore", walletBalBefore)
+                    .setParameter("balAfter", walletBalAfter)
+                    .setParameter("txnType", reversedType)
+                    .setParameter("txnId", reversedTxnId)
+                    .setParameter("txnStatus", "FAILURE")
+                    .setParameter("operatorName", operatorName)
+                    .setParameter("subProductName", subProductName)
+                    .setParameter("actionOnBalance", reversedActionOnBalance)
+                    .executeUpdate();
+
+            // Step 7: Save wallet changes
+            entityManager.merge(wallet);
+        }
+    }
+
+
+    private void reverseAdminOrWLAdminTransactions(String hierarchyId, String walletType, String baseTransactionId) {
+        // Step 1: Determine transaction table
+        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
+        String tableName = commonMethods.getTransactionTable(hierarchyType, walletType);
+
+        // Step 2: Fetch transactions
+        List<Map<String, Object>> transactions = getTransactions(hierarchyId, walletType, baseTransactionId);
+
+        for (Map<String, Object> txn : transactions) {
+            String originalTxnId = txn.get("transaction_id").toString();
+            BigDecimal amount = new BigDecimal(txn.get("amount").toString());
+
+            String service = txn.get("service") != null ? txn.get("service").toString() : "";
+            String remarks = txn.get("remarks") != null ? txn.get("remarks").toString() : "";
+            String operatorName = txn.get("operator_name") != null ? txn.get("operator_name").toString() : "";
+            String subProductName = txn.get("sub_product_name") != null ? txn.get("sub_product_name").toString() : "";
+            String actionOnBalanceAmount = txn.get("action_on_balance_amount") != null
+                    ? txn.get("action_on_balance_amount").toString()
+                    : "";
+
+            // Step 3: Reverse type
+            String reversedTxnId = "REV" + originalTxnId;
+            String reversedType = service.equalsIgnoreCase("Credit") ? "Debit" : "Credit";
+
+            // Step 4: Reverse "action_on_balance_amount"
+            String reversedActionOnBalance;
+            if (actionOnBalanceAmount.toLowerCase().contains("deduct")) {
+                reversedActionOnBalance = actionOnBalanceAmount.replaceFirst("(?i)Deduct", "Add");
+            } else if (actionOnBalanceAmount.toLowerCase().contains("add")) {
+                reversedActionOnBalance = actionOnBalanceAmount.replaceFirst("(?i)Add", "Deduct");
+            } else {
+                reversedActionOnBalance = actionOnBalanceAmount;
+            }
+
+            // Step 5: Wallet update
+            AbstractWalletAmountTable wallet = commonMethods.getWalletByType(walletType, hierarchyId);
+            BigDecimal walletBalBefore = wallet.getAvailableBalance();
+            BigDecimal walletBalAfter;
+
+            if (reversedType.equalsIgnoreCase("Credit")) {
+                walletBalAfter = walletBalBefore.add(amount);
+                wallet.setAvailableBalance(walletBalAfter);
+            } else {
+                walletBalAfter = walletBalBefore.subtract(amount);
+                wallet.setAvailableBalance(walletBalAfter);
+            }
+
+            String hierarchyColumnName = getHierarchyColumnName(hierarchyType);
+
+            // Step 6: Insert reversal
+            String insertSql = "INSERT INTO " + tableName + " (" +
+                    hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
+                    "bal_before_tran, bal_after_tran, final_balance, transaction_id, tran_status, " +
+                    "operator_name, sub_product_name, action_on_balance_amount) " +
+                    "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
+                    ":balBefore, :balAfter, :balAfter, :txnId, :txnStatus, :operatorName, :subProductName, :actionOnBalance)";
+
+            entityManager.createNativeQuery(insertSql)
+                    .setParameter("hierarchyId", hierarchyId)
+                    .setParameter("service", service)
+                    .setParameter("amount", amount)
+                    .setParameter("remarks", "Reversal of " + originalTxnId + " | " + remarks)
+                    .setParameter("dateOfTransaction", new java.sql.Date(System.currentTimeMillis()))
+                    .setParameter("timeOfTransaction", new java.sql.Time(System.currentTimeMillis()))
+                    .setParameter("balBefore", walletBalBefore)
+                    .setParameter("balAfter", walletBalAfter)
+                    .setParameter("txnId", reversedTxnId)
+                    .setParameter("txnStatus", "FAILURE")
+                    .setParameter("operatorName", operatorName)
+                    .setParameter("subProductName", subProductName)
+                    .setParameter("actionOnBalance", reversedActionOnBalance)
+                    .executeUpdate();
+
+            // Step 7: Save wallet changes
+            entityManager.merge(wallet);
+        }
+    }
+
+
 
 
 }
