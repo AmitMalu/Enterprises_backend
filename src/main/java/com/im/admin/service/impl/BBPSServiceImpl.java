@@ -241,7 +241,7 @@ public class BBPSServiceImpl implements BBPSService {
             if (hashCode == null || hashCode.isEmpty()) {
                 throw new RuntimeException("Scheme combination hash code is missing for scheme: " + scheme.getSchemeCode());
             }
-            String productIdStr = hashCode.split("-")[0]; // First index before first dash
+            String productIdStr = hashCode.split("-")[0];
             Long productId = Long.valueOf(productIdStr);
 
             // Fetch product and get GST
@@ -250,51 +250,107 @@ public class BBPSServiceImpl implements BBPSService {
             String gstValue = String.valueOf(product.getSgst());
             String tdsValue = String.valueOf(product.getTds());
 
-            BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "SUCCESS", baseTransactionId, operator, subProducts.get().getSubProductTitle());
+            BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "PENDING", baseTransactionId, operator, subProducts.get().getSubProductTitle());
 
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
-            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", "TXN" + baseTransactionId, "SUCCESS", "DEBIT");
+            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT");
             bbpsRelatedTransactions.processCharges(bbpsTranactionRequestDto, walletAmountTable);
 
-//            } else {
-//                schemeRateOpt = schemeRateRepository.findFixedSlabByOperatorAndAmount(operator, amount);
+//            ResponseEntity<BillRechargeResponseDTO> response = restTemplate.exchange(
+//                    credentials.getBaseUrlUat() + "/v3/bill-recharge",
+//                    HttpMethod.POST,
+//                    entity,
+//                    BillRechargeResponseDTO.class
+//            );
+//
+//            BillRechargeResponseDTO apiResponse = response.getBody();
+//
+//            if (apiResponse == null) {
+//                return CommonResponse.error(500, "Null response from external API");
 //            }
 
-            ResponseEntity<BillRechargeResponseDTO> response = restTemplate.exchange(
-                    credentials.getBaseUrlUat() + "/v3/bill-recharge",
-                    HttpMethod.POST,
-                    entity,
-                    BillRechargeResponseDTO.class
-            );
+            BillRechargeResponseDTO apiResponse = new BillRechargeResponseDTO();
+//            apiResponse.setStatus("SUCCESS");
+//            apiResponse.setStatusId(1);
 
-            BillRechargeResponseDTO apiResponse = response.getBody();
+            apiResponse.setStatus("FAILURE");
+            apiResponse.setStatusId(2);
 
-            if (apiResponse == null) {
-                return CommonResponse.error(500, "Null response from external API");
-            }
-
-            apiResponse.setStatus("SUCCESS");
             if (apiResponse.getStatusId() == 1 || "SUCCESS".equalsIgnoreCase(apiResponse.getStatus())) {
-
-                //if (product.getIsCommissions()) {
-                    bbpsRelatedTransactions.processCommission(bbpsTranactionRequestDto);
-                //}
+                bbpsRelatedTransactions.updateTransactionStatus(retailerId, walletType.name(), baseTransactionId);
+                bbpsRelatedTransactions.processCommission(bbpsTranactionRequestDto);
                 return CommonResponse.success(apiResponse, "Transaction Successful");
+
             } else if (apiResponse.getStatusId() == 2 || "FAILURE".equalsIgnoreCase(apiResponse.getStatus())) {
-
-
-                //reverseTransactionOnFailure();
-
+                bbpsRelatedTransactions.reverseTransactionsAndUpdateWallet(retailerId, walletType.name(), baseTransactionId);
                 return CommonResponse.success(apiResponse, "Transaction is Fail");
-            } else if (apiResponse.getStatusId() == 3 || "PENDING".equalsIgnoreCase(apiResponse.getStatus())) {
+
+            } else if (
+                    (apiResponse.getStatusId() == 3 || "PENDING".equalsIgnoreCase(apiResponse.getStatus())) ||
+                            (apiResponse.getStatusId() == 34 || "ACCEPTED".equalsIgnoreCase(apiResponse.getStatus())) ||
+                            (apiResponse.getStatusId() == 24 || "SUCCESSFULLY SUBMITTED".equalsIgnoreCase(apiResponse.getStatus()))
+            ) {
+                int maxRetries = 3;
+                boolean successFound = false;
+
+                for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                    log.info("Pending detected. Attempt {}/{} to check vendor status...", attempt, maxRetries);
+
+                    // Build form parameters
+                    MultiValueMap<String, String> requestParams = new LinkedMultiValueMap<>();
+                    requestParams.add("api_token", credentials.getToken());
+                    requestParams.add("userId", String.valueOf(credentials.getUsername()));
+                    requestParams.add("secretKey", credentials.getClientSecret());
+                    requestParams.add("clientId", request.getClientId());
+
+                    HttpHeaders header = new HttpHeaders();
+                    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+                    HttpEntity<MultiValueMap<String, String>> entitys = new HttpEntity<>(requestParams, header);
+
+                    ResponseEntity<BillRechargeResponseDTO> response = restTemplate.exchange(
+                            credentials.getBaseUrlUat() + "/v3/check-status",
+                            HttpMethod.POST,
+                            entity,
+                            BillRechargeResponseDTO.class
+                    );
+
+                    BillRechargeResponseDTO vendorResponse = response.getBody();
+
+                    if (vendorResponse == null) {
+                        return CommonResponse.error(500, "Null response from external API");
+                    }
+
+                    if ("SUCCESS".equalsIgnoreCase(vendorResponse.getStatus()) || vendorResponse.getStatusId() == 1) {
+
+                        log.info("Vendor reported SUCCESS on attempt {}", attempt);
+
+                        bbpsRelatedTransactions.updateTransactionStatus(retailerId, walletType.name(), baseTransactionId);
+                        bbpsRelatedTransactions.processCommission(bbpsTranactionRequestDto);
+
+                        successFound = true;
+                        break;
+                    }
+
+                    // Wait before retrying
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+
+                if (!successFound) {
+                    log.info("Transaction still pending after {} attempts. Leaving for cron job to handle.", maxRetries);
+                }
+
                 return CommonResponse.success(apiResponse, "Transaction is Pending");
-            } else if (apiResponse.getStatusId() == 34 || "ACCEPTED".equalsIgnoreCase(apiResponse.getStatus())) {
-                return CommonResponse.success(apiResponse, "Transaction is Accepted");
-            } else if (apiResponse.getStatusId() == 24 || "SUCCESSFULLY SUBMITTED".equalsIgnoreCase(apiResponse.getStatus())) {
-                return CommonResponse.success(apiResponse, "Transaction is Accepted");
+
             } else {
                 return CommonResponse.error(401, apiResponse.getMessage());
             }
+
 
         } catch (Exception ex) {
             return CommonResponse.error(500, "Error: " + ex.getMessage());
