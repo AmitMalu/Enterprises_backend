@@ -63,7 +63,9 @@ public class PayoutController {
 
     @PostMapping("/callback")
     public ResponseEntity<String> payoutCallback(@RequestBody Map<String, Object> payload) {
+        log.info("Received callback request with payload: {}", payload);
         String response = payoutService.handlePayoutCallback(payload);
+        log.info("Callback response: {}", response);
         return ResponseEntity.ok(response);
     }
 

@@ -232,16 +232,16 @@ public class PayoutServiceImpl implements PayoutService {
 
     @Override
     public String handlePayoutCallback(Map<String, Object> payload) {
-        log.info("Received payout callback: {}", payload);
+        log.info("Processing payout callback: {}", payload);
 
-        // Sample processing logic
         String code = (String) payload.get("code");
         String orderId = (String) payload.get("order_id");
         String status = (String) payload.get("status");
 
-        log.info("Payout Callback - OrderID: {}, Status: {}, Code: {}", orderId, status, code);
+        log.info("Extracted Data - OrderID: {}, Status: {}, Code: {}", orderId, status, code);
 
         // Save or update your transaction record here
+        log.debug("Transaction record update logic would go here");
 
         return "Callback received";
     }
