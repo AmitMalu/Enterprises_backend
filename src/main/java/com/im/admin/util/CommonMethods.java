@@ -101,47 +101,86 @@ public class CommonMethods {
     private TransactionSequenceRepository transactionSequenceRepository;
 
     public String generateNextIdForTables(String tableName, String idColumn) {
+        log.debug("Generating next ID for table.");
 
-        String query = "SELECT MAX(" + idColumn + ") FROM " + tableName;
-        String maxId = jdbcTemplate.queryForObject(query, String.class);
+        try {
+            String query = "SELECT MAX(" + idColumn + ") FROM " + tableName;
+            log.trace("Executing query to fetch max ID."); // Avoid logging actual query in production
 
-        if (maxId == null) {
-            return "01";
+            String maxId = jdbcTemplate.queryForObject(query, String.class);
+
+            if (maxId == null) {
+                log.info("No existing ID found. Starting from default.");
+                return "01";
+            }
+
+            int nextId = Integer.parseInt(maxId) + 1;
+
+            if (nextId > 99) {
+                log.error("ID generation failed: limit exceeded.");
+                throw new IllegalStateException("ID limit reached.");
+            }
+
+            String formattedId = String.format("%02d", nextId);
+            log.debug("Generated next ID successfully.");
+            return formattedId;
+
+        } catch (NumberFormatException e) {
+            log.error("Failed to parse max ID value.", e);
+            throw new IllegalStateException("Invalid ID format in database.");
+        } catch (Exception e) {
+            log.error("Unexpected error during ID generation.", e);
+            throw new RuntimeException("Failed to generate next ID.");
         }
-
-        int nextId = Integer.parseInt(maxId) + 1;
-        if (nextId > 99) {
-            throw new IllegalStateException("ID limit reached. Cannot exceed 99.");
-        }
-
-        return String.format("%02d", nextId); // Format as "01", "02", ..., "99"
-
     }
 
     public String generateNextSequentialId(String lastId) {
+        log.debug("Generating next sequential ID.");
 
-        if (lastId == null) {
-            return "001";
+        try {
+            if (lastId == null) {
+                log.info("No previous ID found. Starting from default.");
+                return "001";
+            }
+
+            int nextId = Integer.parseInt(lastId) + 1;
+
+            if (nextId > 999) {
+                log.warn("Sequential ID limit reached.");
+                return null;
+            }
+
+            String formattedId = String.format("%03d", nextId);
+            log.debug("Generated sequential ID successfully.");
+            return formattedId;
+
+        } catch (NumberFormatException e) {
+            log.error("Invalid format for last ID: {}", lastId);
+            throw new IllegalArgumentException("Last ID is not a valid number.");
         }
-
-        int nextId = Integer.parseInt(lastId) + 1;
-
-        if (nextId > 999) {
-            return null;
-        }
-
-        return String.format("%03d", nextId);
     }
 
     public String generateBaseTransactionId() {
         String timestamp = new SimpleDateFormat("yyMMddHHmmss").format(new Date());
-        long sequence = transactionSequenceRepository.save(new TransactionSequence()).getId();
+        log.debug("Generating base transaction ID with timestamp: {}", timestamp);
 
-        if (sequence == 99999) {
-            jdbcTemplate.execute("TRUNCATE TABLE transaction_sequence");
+        try {
+            long sequence = transactionSequenceRepository.save(new TransactionSequence()).getId();
+            log.debug("Retrieved sequence number for transaction ID.");
+
+            if (sequence == 99999) {
+                log.warn("Sequence limit reached. Resetting transaction sequence table.");
+                jdbcTemplate.execute("TRUNCATE TABLE transaction_sequence");
+            }
+
+            String transactionId = timestamp + String.format("%05d", sequence);
+            log.info("Generated base transaction ID.");
+            return transactionId;
+
+        } catch (Exception e) {
+            log.error("Error generating base transaction ID.", e);
+            throw new RuntimeException("Failed to generate transaction ID.");
         }
-
-        return timestamp + String.format("%05d", sequence);
     }
 
     private int getNextTransactionSequence() {
@@ -150,21 +189,59 @@ public class CommonMethods {
     }
 
     public String getAmountTable(String hierarchyType, String walletType) {
-        String entityName = getEntityName(hierarchyType);
-        return entityName + (walletType.equalsIgnoreCase("PREPAID") ? "_prepaid_amount" : "_postpaid_amount");
+        log.debug("Resolving amount table for hierarchyType and walletType.");
+
+        try {
+            String entityName = getEntityName(hierarchyType);
+            String suffix = walletType.equalsIgnoreCase("PREPAID") ? "_prepaid_amount" : "_postpaid_amount";
+            String tableName = entityName + suffix;
+
+            log.info("Resolved amount table name.");
+            return tableName;
+
+        } catch (Exception e) {
+            log.error("Error resolving amount table.", e);
+            throw new RuntimeException("Failed to determine amount table.");
+        }
     }
 
     public String extractHierarchyType(String hierarchyId) {
+        log.debug("Extracting hierarchy type from ID.");
+
+        if (hierarchyId == null || hierarchyId.isEmpty()) {
+            log.warn("Hierarchy ID is null or empty.");
+            return "UNKNOWN";
+        }
+
         String[] parts = hierarchyId.split("-");
-        return (parts.length >= 2) ? parts[1] : "UNKNOWN";
+        String type = (parts.length >= 2) ? parts[1] : "UNKNOWN";
+
+        log.info("Extracted hierarchy type.");
+        return type;
     }
 
     public String getTransactionTable(String hierarchyType, String walletType) {
-        String entityName = getEntityName(hierarchyType);
-        return entityName + (walletType.equalsIgnoreCase("PREPAID") ? "_prepaid_transaction_details" : "_postpaid_transaction_details");
+        log.debug("Resolving transaction table name based on hierarchy and wallet type.");
+
+        try {
+            String entityName = getEntityName(hierarchyType);
+            String suffix = walletType.equalsIgnoreCase("PREPAID")
+                    ? "_prepaid_transaction_details"
+                    : "_postpaid_transaction_details";
+
+            String tableName = entityName + suffix;
+            log.info("Transaction table resolved successfully.");
+            return tableName;
+
+        } catch (Exception e) {
+            log.error("Failed to resolve transaction table.", e);
+            throw new RuntimeException("Unable to determine transaction table.");
+        }
     }
 
     public String getEntityName(String hierarchyType) {
+        log.debug("Mapping hierarchy type to entity name.");
+
         return switch (hierarchyType) {
             case "AD" -> "admin";
             case "ET" -> "enterprises";
@@ -174,27 +251,44 @@ public class CommonMethods {
             case "DT" -> "distributor";
             case "RT" -> "retailer";
             case "RU" -> "retailer_user";
-            default -> throw new IllegalArgumentException("Invalid hierarchy type: " + hierarchyType);
+            default -> {
+                log.warn("Unrecognized hierarchy type encountered.");
+                throw new IllegalArgumentException("Invalid hierarchy type provided.");
+            }
         };
     }
 
     public BigDecimal getCurrentBalance(String hierarchyId, String walletType) {
-        String amountTable = getAmountTable(extractHierarchyType(hierarchyId), walletType);
-        String columnName = getHierarchyColumnName(extractHierarchyType(hierarchyId));
-
-        String sql = "SELECT available_balance FROM " + amountTable + " WHERE " + columnName + " = :hierarchyId";
+        log.debug("Initiating balance retrieval for wallet type.");
 
         try {
-            return (BigDecimal) entityManager.createNativeQuery(sql)
+            String hierarchyType = extractHierarchyType(hierarchyId);
+            String amountTable = getAmountTable(hierarchyType, walletType);
+            String columnName = getHierarchyColumnName(hierarchyType);
+
+            log.trace("Preparing SQL query for balance lookup.");
+
+            String sql = "SELECT available_balance FROM " + amountTable + " WHERE " + columnName + " = :hierarchyId";
+
+            BigDecimal balance = (BigDecimal) entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
                     .getSingleResult();
+
+            log.info("Balance retrieved successfully.");
+            return balance;
+
         } catch (NoResultException e) {
-            log.warn("No balance record found for Hierarchy ID: {} in table: {}", hierarchyId, amountTable);
-            return BigDecimal.ZERO; // Default balance if no record exists
+            log.warn("No balance record found for provided hierarchy.");
+            return BigDecimal.ZERO;
+        } catch (Exception e) {
+            log.error("Error occurred while retrieving balance.", e);
+            throw new RuntimeException("Unable to fetch current balance.");
         }
     }
 
     public String getHierarchyColumnName(String hierarchyType) {
+        log.debug("Resolving column name for hierarchy type.");
+
         return switch (hierarchyType) {
             case "ET" -> "enterprises_id";
             case "PT" -> "partner_id";
@@ -203,16 +297,21 @@ public class CommonMethods {
             case "SD" -> "super_distributor_id";
             case "WL" -> "white_label_id";
             case "AD" -> "admin_id";
-            default -> throw new IllegalArgumentException("Invalid hierarchy type: " + hierarchyType);
+            default -> {
+                log.warn("Invalid hierarchy type encountered.");
+                throw new IllegalArgumentException("Unsupported hierarchy type.");
+            }
         };
     }
 
     public Optional<String> findParentHierarchy(String hierarchyId) {
-        String hierarchyType = extractHierarchyType(hierarchyId);
+        log.debug("Initiating parent hierarchy lookup.");
 
-        // Stop processing if the hierarchy is "Admin"
+        String hierarchyType = extractHierarchyType(hierarchyId);
+        log.debug("Extracted hierarchy type: {}", hierarchyType);
+
         if ("AD".equals(hierarchyType)) {
-            log.info("Reached Admin level. No further processing.");
+            log.info("Hierarchy type is Admin. No parent exists.");
             return Optional.empty();
         }
 
@@ -224,8 +323,15 @@ public class CommonMethods {
             case "DT" -> distributorRepository.findById(hierarchyId);
             case "RT" -> retailerRepository.findById(hierarchyId);
             case "RU" -> retailerUserRepository.findById(hierarchyId);
-            default -> Optional.empty();
+            default -> {
+                log.warn("Unrecognized hierarchy type. Cannot resolve parent.");
+                yield Optional.empty();
+            }
         };
+
+        if (entity.isEmpty()) {
+            log.warn("No entity found for hierarchy ID.");
+        }
 
         return entity.map(this::extractParentAccount);
     }
@@ -234,15 +340,24 @@ public class CommonMethods {
         try {
             Field parentField = entity.getClass().getDeclaredField("parentAccount");
             parentField.setAccessible(true);
-            return (String) parentField.get(entity);
+            String parentAccount = (String) parentField.get(entity);
+            log.debug("Parent account extracted successfully.");
+            return parentAccount;
+        } catch (NoSuchFieldException e) {
+            log.error("Entity class does not contain 'parentAccount' field: {}", entity.getClass().getSimpleName());
+        } catch (IllegalAccessException e) {
+            log.error("Access denied while retrieving parent account from entity: {}", entity.getClass().getSimpleName());
         } catch (Exception e) {
-            log.error("Error extracting parent account from entity: {}", entity.getClass().getSimpleName(), e);
-            return null;
+            log.error("Unexpected error during parent account extraction.", e);
         }
+        return null;
     }
 
     public AbstractWalletAmountTable getWalletByType(String walletType, String hierarchyId) {
-        String hierarchyType = extractHierarchyType(hierarchyId); // e.g. "RT", "DT", "PT", "SD", "WL", "ET", "AD", etc.
+        log.debug("Resolving wallet by type for hierarchy.");
+
+        String hierarchyType = extractHierarchyType(hierarchyId);
+        log.debug("Extracted hierarchy type: {}", hierarchyType);
 
         return switch (hierarchyType) {
             case "RT" -> getRetailerWallet(walletType, hierarchyId);
@@ -252,154 +367,342 @@ public class CommonMethods {
             case "WL" -> getWhiteLabelWallet(walletType, hierarchyId);
             case "ET" -> getEnterprisesWallet(walletType, hierarchyId);
             case "AD", "IM" -> getAdminWallet(walletType, hierarchyId);
-            default -> throw new IllegalArgumentException("Unsupported hierarchy for wallet: " + hierarchyId);
+            default -> {
+                log.warn("Unsupported hierarchy type encountered.");
+                throw new IllegalArgumentException("Unsupported hierarchy type for wallet resolution.");
+            }
         };
     }
 
     private AbstractWalletAmountTable getRetailerWallet(String walletType, String retailerId) {
-        WalletType type = WalletType.valueOf(walletType.toUpperCase()); // Convert to enum safely
+        log.debug("Fetching retailer wallet for type.");
 
-        if (type == WalletType.PREPAID) {
-            return retailerPrepaidAmountRepository.findByRetailerId_RetailerId(retailerId)
-                    .orElseThrow(() -> new RuntimeException("Retailer Prepaid wallet not found: " + retailerId));
-        } else if (type == WalletType.POSTPAID) {
-            return retailerPostpaidAmountRepository.findByRetailerId_RetailerId(retailerId)
-                    .orElseThrow(() -> new RuntimeException("Retailer Postpaid wallet not found: " + retailerId));
+        WalletType type;
+        try {
+            type = WalletType.valueOf(walletType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid wallet type provided for retailer.");
+            throw new IllegalArgumentException("Unsupported wallet type.");
         }
-        throw new IllegalArgumentException("Invalid wallet type for Retailer: " + walletType);
+
+        try {
+            if (type == WalletType.PREPAID) {
+                return retailerPrepaidAmountRepository.findByRetailerId_RetailerId(retailerId)
+                        .orElseThrow(() -> {
+                            log.warn("Retailer prepaid wallet not found.");
+                            return new RuntimeException("Retailer prepaid wallet unavailable.");
+                        });
+            } else if (type == WalletType.POSTPAID) {
+                return retailerPostpaidAmountRepository.findByRetailerId_RetailerId(retailerId)
+                        .orElseThrow(() -> {
+                            log.warn("Retailer postpaid wallet not found.");
+                            return new RuntimeException("Retailer postpaid wallet unavailable.");
+                        });
+            } else {
+                log.error("Unhandled wallet type for retailer.");
+                throw new IllegalArgumentException("Invalid wallet type for retailer.");
+            }
+        } catch (Exception e) {
+            log.error("Error retrieving retailer wallet.", e);
+            throw new RuntimeException("Failed to retrieve retailer wallet.");
+        }
     }
 
     private AbstractWalletAmountTable getDistributorWallet(String walletType, String distributorId) {
-        WalletType type = WalletType.valueOf(walletType.toUpperCase()); // Convert to enum safely
+        log.debug("Fetching distributor wallet for type.");
 
-        if (type == WalletType.PREPAID) {
-            return distributorPrepaidAmountRepository.findByDistributorId_DistributorId(distributorId)
-                    .orElseThrow(() -> new RuntimeException("Distributor Prepaid wallet not found: " + distributorId));
-        } else if (type == WalletType.POSTPAID) {
-            return distributorPostpaidAmountRepository.findByDistributorId_DistributorId(distributorId)
-                    .orElseThrow(() -> new RuntimeException("Distributor Postpaid wallet not found: " + distributorId));
+        WalletType type;
+        try {
+            type = WalletType.valueOf(walletType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid wallet type provided for distributor.");
+            throw new IllegalArgumentException("Unsupported wallet type.");
         }
-        throw new IllegalArgumentException("Invalid wallet type for Distributor: " + walletType);
+
+        try {
+            if (type == WalletType.PREPAID) {
+                return distributorPrepaidAmountRepository.findByDistributorId_DistributorId(distributorId)
+                        .orElseThrow(() -> {
+                            log.warn("Distributor prepaid wallet not found.");
+                            return new RuntimeException("Distributor prepaid wallet unavailable.");
+                        });
+            } else if (type == WalletType.POSTPAID) {
+                return distributorPostpaidAmountRepository.findByDistributorId_DistributorId(distributorId)
+                        .orElseThrow(() -> {
+                            log.warn("Distributor postpaid wallet not found.");
+                            return new RuntimeException("Distributor postpaid wallet unavailable.");
+                        });
+            } else {
+                log.error("Unhandled wallet type for distributor.");
+                throw new IllegalArgumentException("Invalid wallet type for distributor.");
+            }
+        } catch (Exception e) {
+            log.error("Error retrieving distributor wallet.", e);
+            throw new RuntimeException("Failed to retrieve distributor wallet.");
+        }
     }
 
     private AbstractWalletAmountTable getPartnerWallet(String walletType, String partnerId) {
-        WalletType type = WalletType.valueOf(walletType.toUpperCase()); // Convert to enum safely
+        log.debug("Fetching partner wallet for type.");
 
-        if (type == WalletType.PREPAID) {
-            return partnerPrepaidAmountRepository.findByPartnerId_PartnerId(partnerId)
-                    .orElseThrow(() -> new RuntimeException("Partner Prepaid wallet not found: " + partnerId));
-        } else if (type == WalletType.POSTPAID) {
-            return partnerPostpaidAmountRepository.findByPartnerId_PartnerId(partnerId)
-                    .orElseThrow(() -> new RuntimeException("Partner Postpaid wallet not found: " + partnerId));
+        WalletType type;
+        try {
+            type = WalletType.valueOf(walletType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid wallet type provided for partner.");
+            throw new IllegalArgumentException("Unsupported wallet type.");
         }
-        throw new IllegalArgumentException("Invalid wallet type for Partner: " + walletType);
+
+        try {
+            if (type == WalletType.PREPAID) {
+                return partnerPrepaidAmountRepository.findByPartnerId_PartnerId(partnerId)
+                        .orElseThrow(() -> {
+                            log.warn("Partner prepaid wallet not found.");
+                            return new RuntimeException("Partner prepaid wallet unavailable.");
+                        });
+            } else if (type == WalletType.POSTPAID) {
+                return partnerPostpaidAmountRepository.findByPartnerId_PartnerId(partnerId)
+                        .orElseThrow(() -> {
+                            log.warn("Partner postpaid wallet not found.");
+                            return new RuntimeException("Partner postpaid wallet unavailable.");
+                        });
+            } else {
+                log.error("Unhandled wallet type for partner.");
+                throw new IllegalArgumentException("Invalid wallet type for partner.");
+            }
+        } catch (Exception e) {
+            log.error("Error retrieving partner wallet.", e);
+            throw new RuntimeException("Failed to retrieve partner wallet.");
+        }
     }
 
     private AbstractWalletAmountTable getSuperDistributorWallet(String walletType, String superDistributorId) {
-        WalletType type = WalletType.valueOf(walletType.toUpperCase()); // Convert to enum safely
+        log.debug("Fetching super distributor wallet for type.");
 
-        if (type == WalletType.PREPAID) {
-            return superDistributorPrepaidAmountRepository.findBySuperDistributorId_SuperDistributorId(superDistributorId)
-                    .orElseThrow(() -> new RuntimeException("Super Distributor Prepaid wallet not found: " + superDistributorId));
-        } else if (type == WalletType.POSTPAID) {
-            return superDistributorPostpaidAmountRepository.findBySuperDistributorId_SuperDistributorId(superDistributorId)
-                    .orElseThrow(() -> new RuntimeException("Super Distributor Postpaid wallet not found: " + superDistributorId));
+        WalletType type;
+        try {
+            type = WalletType.valueOf(walletType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid wallet type provided for super distributor.");
+            throw new IllegalArgumentException("Unsupported wallet type.");
         }
-        throw new IllegalArgumentException("Invalid wallet type for Super Distributor: " + walletType);
+
+        try {
+            if (type == WalletType.PREPAID) {
+                return superDistributorPrepaidAmountRepository.findBySuperDistributorId_SuperDistributorId(superDistributorId)
+                        .orElseThrow(() -> {
+                            log.warn("Super distributor prepaid wallet not found.");
+                            return new RuntimeException("Super distributor prepaid wallet unavailable.");
+                        });
+            } else if (type == WalletType.POSTPAID) {
+                return superDistributorPostpaidAmountRepository.findBySuperDistributorId_SuperDistributorId(superDistributorId)
+                        .orElseThrow(() -> {
+                            log.warn("Super distributor postpaid wallet not found.");
+                            return new RuntimeException("Super distributor postpaid wallet unavailable.");
+                        });
+            } else {
+                log.error("Unhandled wallet type for super distributor.");
+                throw new IllegalArgumentException("Invalid wallet type for super distributor.");
+            }
+        } catch (Exception e) {
+            log.error("Error retrieving super distributor wallet.", e);
+            throw new RuntimeException("Failed to retrieve super distributor wallet.");
+        }
     }
 
     private AbstractWalletAmountTable getWhiteLabelWallet(String walletType, String whiteLabelId) {
-        WalletType type = WalletType.valueOf(walletType.toUpperCase()); // Convert to enum safely
+        log.debug("Fetching white label wallet for type.");
 
-        if (type == WalletType.PREPAID) {
-            return whiteLabelPrepaidAmountRepository.findByWhiteLabelId_WhiteLabelId(whiteLabelId)
-                    .orElseThrow(() -> new RuntimeException("WhiteLabel Prepaid wallet not found: " + whiteLabelId));
-        } else if (type == WalletType.POSTPAID) {
-            return whiteLabelPostpaidAmountRepository.findByWhiteLabelId_WhiteLabelId(whiteLabelId)
-                    .orElseThrow(() -> new RuntimeException("WhiteLabel Postpaid wallet not found: " + whiteLabelId));
+        WalletType type;
+        try {
+            type = WalletType.valueOf(walletType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid wallet type provided for white label.");
+            throw new IllegalArgumentException("Unsupported wallet type.");
         }
-        throw new IllegalArgumentException("Invalid wallet type for WhiteLabel: " + walletType);
+
+        try {
+            if (type == WalletType.PREPAID) {
+                return whiteLabelPrepaidAmountRepository.findByWhiteLabelId_WhiteLabelId(whiteLabelId)
+                        .orElseThrow(() -> {
+                            log.warn("White label prepaid wallet not found.");
+                            return new RuntimeException("White label prepaid wallet unavailable.");
+                        });
+            } else if (type == WalletType.POSTPAID) {
+                return whiteLabelPostpaidAmountRepository.findByWhiteLabelId_WhiteLabelId(whiteLabelId)
+                        .orElseThrow(() -> {
+                            log.warn("White label postpaid wallet not found.");
+                            return new RuntimeException("White label postpaid wallet unavailable.");
+                        });
+            } else {
+                log.error("Unhandled wallet type for white label.");
+                throw new IllegalArgumentException("Invalid wallet type for white label.");
+            }
+        } catch (Exception e) {
+            log.error("Error retrieving white label wallet.", e);
+            throw new RuntimeException("Failed to retrieve white label wallet.");
+        }
     }
 
     private AbstractWalletAmountTable getEnterprisesWallet(String walletType, String enterprisesId) {
-        WalletType type = WalletType.valueOf(walletType.toUpperCase()); // Convert to enum safely
+        log.debug("Fetching enterprises wallet for type.");
 
-        if (type == WalletType.PREPAID) {
-            return enterprisesPrepaidAmountRepository.findByEnterprise_EnterpriseId(enterprisesId)
-                    .orElseThrow(() -> new RuntimeException("Enterprises Prepaid wallet not found: " + enterprisesId));
-        } else if (type == WalletType.POSTPAID) {
-            return enterprisesPostpaidAmountRepository.findByEnterprise_EnterpriseId(enterprisesId)
-                    .orElseThrow(() -> new RuntimeException("Enterprises Postpaid wallet not found: " + enterprisesId));
+        WalletType type;
+        try {
+            type = WalletType.valueOf(walletType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid wallet type provided for enterprises.");
+            throw new IllegalArgumentException("Unsupported wallet type.");
         }
-        throw new IllegalArgumentException("Invalid wallet type for Enterprises: " + walletType);
+
+        try {
+            if (type == WalletType.PREPAID) {
+                return enterprisesPrepaidAmountRepository.findByEnterprise_EnterpriseId(enterprisesId)
+                        .orElseThrow(() -> {
+                            log.warn("Enterprises prepaid wallet not found.");
+                            return new RuntimeException("Enterprises prepaid wallet unavailable.");
+                        });
+            } else if (type == WalletType.POSTPAID) {
+                return enterprisesPostpaidAmountRepository.findByEnterprise_EnterpriseId(enterprisesId)
+                        .orElseThrow(() -> {
+                            log.warn("Enterprises postpaid wallet not found.");
+                            return new RuntimeException("Enterprises postpaid wallet unavailable.");
+                        });
+            } else {
+                log.error("Unhandled wallet type for enterprises.");
+                throw new IllegalArgumentException("Invalid wallet type for enterprises.");
+            }
+        } catch (Exception e) {
+            log.error("Error retrieving enterprises wallet.", e);
+            throw new RuntimeException("Failed to retrieve enterprises wallet.");
+        }
     }
 
     private AbstractWalletAmountTable getAdminWallet(String walletType, String adminId) {
-        WalletType type = WalletType.valueOf(walletType.toUpperCase()); // Convert to enum safely
+        log.debug("Fetching admin wallet for type.");
 
-        if (type == WalletType.PREPAID) {
-            return adminPrepaidAmountRepository.findByAdminId_Id(adminId)
-                    .orElseThrow(() -> new RuntimeException("Admin Prepaid wallet not found: " + adminId));
-        } else if (type == WalletType.POSTPAID) {
-            return adminPostpaidAmountRepository.findByAdminId_Id(adminId)
-                    .orElseThrow(() -> new RuntimeException("Admin Postpaid wallet not found: " + adminId));
+        WalletType type;
+        try {
+            type = WalletType.valueOf(walletType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid wallet type provided for admin.");
+            throw new IllegalArgumentException("Unsupported wallet type.");
         }
-        throw new IllegalArgumentException("Invalid wallet type for Admin: " + walletType);
-    }
-
-    public <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-                                                                   String tranxType, String baseTransactionId, String tranStatus, String service) {
-
-        String actionOnBalance;
-
-        // *** Credit or Debit Operation ***
-        BigDecimal balanceBefore = wallet.getAvailableBalance();
-
-        if (tranxType.equalsIgnoreCase("credit")) {
-            wallet.setTotalCash(wallet.getTotalCash().add(amount));
-            wallet.setAvailableBalance(wallet.getAvailableBalance().add(amount));
-            actionOnBalance = "Add Funds - " + walletType.name();
-        } else {
-            wallet.setTotalCash(wallet.getTotalCash().subtract(amount));
-            wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(amount));
-            actionOnBalance = "Deduct Funds - " + walletType.name();
-        }
-
-        wallet.setLastUpdatedAmount(amount);
-        wallet.setLastUpdatedDate(LocalDate.now());
-        wallet.setLastUpdatedTime(LocalTime.now());
-
-        // Insert transaction
-        insertTransaction(walletType.name(), hierarchyId, tranStatus, amount, balanceBefore,
-                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service);
-
-    }
-
-
-    private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount,
-                                   BigDecimal beforeBalance, BigDecimal afterBalance, String actionOnBalanceAmount,
-                                   String tranxId, String service) {
-
-        String hierarchyType = extractHierarchyType(hierarchyId);
-        String transactionTableName = getTransactionTable(hierarchyType, walletType);
-        String columnName = getHierarchyColumnName(hierarchyType);
-
-        log.info("Inserting into {} | Type: {} | Amount: {} | Hierarchy ID: {} | Before Balance: {} | After Balance: {}",
-                transactionTableName, service, amount, hierarchyId, beforeBalance, afterBalance);
-
-        String sql = "INSERT INTO " + transactionTableName +
-                " (" + columnName + ",service, amount, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status) " +
-                "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus)";
 
         try {
+            if (type == WalletType.PREPAID) {
+                return adminPrepaidAmountRepository.findByAdminId_Id(adminId)
+                        .orElseThrow(() -> {
+                            log.warn("Admin prepaid wallet not found.");
+                            return new RuntimeException("Admin prepaid wallet unavailable.");
+                        });
+            } else if (type == WalletType.POSTPAID) {
+                return adminPostpaidAmountRepository.findByAdminId_Id(adminId)
+                        .orElseThrow(() -> {
+                            log.warn("Admin postpaid wallet not found.");
+                            return new RuntimeException("Admin postpaid wallet unavailable.");
+                        });
+            } else {
+                log.error("Unhandled wallet type for admin.");
+                throw new IllegalArgumentException("Invalid wallet type for admin.");
+            }
+        } catch (Exception e) {
+            log.error("Error retrieving admin wallet.", e);
+            throw new RuntimeException("Failed to retrieve admin wallet.");
+        }
+    }
+
+    public <T extends AbstractWalletAmountTable> void updateWallet(
+            T wallet,
+            String hierarchyId,
+            WalletType walletType,
+            BigDecimal amount,
+            String tranxType,
+            String baseTransactionId,
+            String tranStatus,
+            String service) {
+
+        log.debug("Starting wallet update process for transaction type: {}, wallet type: {}", tranxType, walletType);
+
+        String actionOnBalance;
+        BigDecimal balanceBefore = wallet.getAvailableBalance();
+
+        try {
+            if ("credit".equalsIgnoreCase(tranxType)) {
+                wallet.setTotalCash(wallet.getTotalCash().add(amount));
+                wallet.setAvailableBalance(wallet.getAvailableBalance().add(amount));
+                actionOnBalance = "Add Funds - " + walletType.name();
+                log.info("Credited amount to wallet.");
+            } else if ("debit".equalsIgnoreCase(tranxType)) {
+                wallet.setTotalCash(wallet.getTotalCash().subtract(amount));
+                wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(amount));
+                actionOnBalance = "Deduct Funds - " + walletType.name();
+                log.info("Debited amount from wallet.");
+            } else {
+                log.warn("Invalid transaction type provided: {}", tranxType);
+                throw new IllegalArgumentException("Unsupported transaction type.");
+            }
+
+            wallet.setLastUpdatedAmount(amount);
+            wallet.setLastUpdatedDate(LocalDate.now());
+            wallet.setLastUpdatedTime(LocalTime.now());
+
+            log.debug("Wallet balances updated. Inserting transaction record.");
+
+            insertTransaction(
+                    walletType.name(),
+                    hierarchyId,
+                    tranStatus,
+                    amount,
+                    balanceBefore,
+                    wallet.getAvailableBalance(),
+                    actionOnBalance,
+                    "TXN" + baseTransactionId,
+                    service
+            );
+
+            log.info("Transaction record inserted successfully.");
+
+        } catch (Exception e) {
+            log.error("Error during wallet update operation.", e);
+            throw new RuntimeException("Failed to update wallet.");
+        }
+    }
+
+
+    private void insertTransaction(
+            String walletType,
+            String hierarchyId,
+            String tranStatus,
+            BigDecimal amount,
+            BigDecimal beforeBalance,
+            BigDecimal afterBalance,
+            String actionOnBalanceAmount,
+            String tranxId,
+            String service) {
+
+        log.debug("Preparing to insert transaction record.");
+
+        try {
+            String hierarchyType = extractHierarchyType(hierarchyId);
+            String transactionTableName = getTransactionTable(hierarchyType, walletType);
+            String columnName = getHierarchyColumnName(hierarchyType);
+
+            log.info("Transaction details: Type={}, Amount={}, Status={}, Service={}",
+                    service, amount, tranStatus, walletType);
+
+            String sql = "INSERT INTO " + transactionTableName +
+                    " (" + columnName + ", service, amount, date_of_transaction, time_of_transaction, " +
+                    "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status) " +
+                    "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
+                    ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus)";
+
             Query query = entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
                     .setParameter("service", service)
                     .setParameter("amount", amount)
-                    .setParameter("dateOfTransaction", LocalDate.now()) // use LocalDate
-                    .setParameter("timeOfTransaction", LocalTime.now()) // use LocalTime
+                    .setParameter("dateOfTransaction", LocalDate.now())
+                    .setParameter("timeOfTransaction", LocalTime.now())
                     .setParameter("beforeTransactionBalance", beforeBalance)
                     .setParameter("afterTransactionBalance", afterBalance)
                     .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
@@ -408,49 +711,65 @@ public class CommonMethods {
                     .setParameter("tranStatus", tranStatus);
 
             query.executeUpdate();
+            log.info("Transaction inserted successfully for ID: {}", tranxId);
 
         } catch (Exception e) {
-            log.error("Error inserting transaction: {}", e.getMessage(), e);
+            log.error("Failed to insert transaction record.", e);
             throw new RuntimeException("Transaction insert failed", e);
         }
     }
 
     public static Vendors getVendors(VendorRouting vendorRouting) {
         if (vendorRouting == null) {
-            throw new IllegalArgumentException("vendorRouting is null");
+            log.warn("Vendor routing input is null. Cannot proceed with vendor selection.");
+            throw new IllegalArgumentException("Invalid vendor routing configuration.");
         }
 
+        log.debug("Evaluating vendor routing priorities for active vendor selection.");
+
         if (vendorRouting.getRoutingPriority1() != null && vendorRouting.getRoutingPriority1().getActive()) {
+            log.info("Selected vendor from priority 1.");
             return vendorRouting.getRoutingPriority1();
         } else if (vendorRouting.getRoutingPriority2() != null && vendorRouting.getRoutingPriority2().getActive()) {
+            log.info("Selected vendor from priority 2.");
             return vendorRouting.getRoutingPriority2();
         } else if (vendorRouting.getRoutingPriority3() != null && vendorRouting.getRoutingPriority3().getActive()) {
+            log.info("Selected vendor from priority 3.");
             return vendorRouting.getRoutingPriority3();
         }
 
-        throw new RuntimeException("No active vendor found for this subProductId");
+        log.error("No active vendor found in any priority slot.");
+        throw new RuntimeException("No active vendor available for the requested configuration.");
     }
 
     public BigDecimal calculateCommissionAmount(double rate, BigDecimal transactionAmount, String rateType) {
+        log.debug("Calculating commission. RateType: {}, Rate: {}", rateType, rate);
+
         BigDecimal commissionRate = BigDecimal.valueOf(rate);
         BigDecimal commission;
 
         if ("PERCENTAGE".equalsIgnoreCase(rateType)) {
             commission = transactionAmount.multiply(commissionRate);
+            log.debug("Commission calculated as percentage.");
         } else {
             commission = commissionRate;
+            log.debug("Commission calculated as fixed amount.");
         }
 
-        // Cap commission to max of transaction amount
         if (commission.compareTo(transactionAmount) > 0) {
+            log.warn("Commission exceeds transaction amount. Capping to transaction amount.");
             commission = transactionAmount;
         }
 
-        return commission.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal finalCommission = commission.setScale(2, RoundingMode.HALF_UP);
+        log.info("Final commission amount: {}", finalCommission);
+        return finalCommission;
     }
 
     public double getCommissionRateByType(String hierarchyType, SchemeRate schemeRate) {
-        return switch (hierarchyType) {
+        log.debug("Fetching commission rate for hierarchy type: {}", hierarchyType);
+
+        double rate = switch (hierarchyType) {
             case "AD" -> schemeRate.getIm();
             case "ET" -> schemeRate.getEnterprise();
             case "WL" -> schemeRate.getWhitelabel();
@@ -458,26 +777,40 @@ public class CommonMethods {
             case "PT" -> schemeRate.getPartner();
             case "DT" -> schemeRate.getDistributor();
             case "RT" -> schemeRate.getRetailer();
-            default -> 0.0;
+            default -> {
+                log.warn("Unknown hierarchy type: {}", hierarchyType);
+                yield 0.0;
+            }
         };
+
+        log.info("Commission rate resolved: {}", rate);
+        return rate;
     }
 
     public Optional<String> getAdminHierarchyId(String startHierarchyId) {
+        log.debug("Searching for Admin hierarchy starting from: {}", startHierarchyId);
+
         String currentId = startHierarchyId;
 
         while (currentId != null && !currentId.isEmpty()) {
             String type = extractHierarchyType(currentId);
-            if ("AD".equals(type)) return Optional.of(currentId);
+            log.trace("Current hierarchy type: {}", type);
+
+            if ("AD".equals(type)) {
+                log.info("Admin hierarchy found.");
+                return Optional.of(currentId);
+            }
 
             Optional<String> parentOpt = findParentHierarchy(currentId);
             if (parentOpt.isPresent()) {
                 currentId = parentOpt.get();
             } else {
+                log.info("No further parent found. Admin hierarchy not reachable.");
                 break;
             }
         }
 
-        return Optional.empty(); // Admin not found
+        return Optional.empty();
     }
 
 }
