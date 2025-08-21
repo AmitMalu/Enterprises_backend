@@ -233,63 +233,57 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     @Override
     @Transactional
     public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req) {
+        log.info("Received createOrder request: {}", req);
+
         try {
-            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId((req.getSubProductId()));
+            log.debug("Fetching vendor routing for subProductId: {}", req.getSubProductId());
+            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+
+            log.debug("Extracting vendor from routing info");
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
+            log.debug("Fetching credentials for vendorId: {}, productId: {}", vendor.getId(), vendor.getProduct().getId());
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
+            log.debug("Credentials retrieved: clientId={}, baseUrl={}", credentials.getClientId(), credentials.getBaseUrlUat());
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
             headers.set("client_id", credentials.getClientId());
-            headers.set("token", generateTokenAsPerVendor(credentials));
+            String token = generateTokenAsPerVendor(credentials);
+            headers.set("token", token);
+            log.debug("Headers prepared: {}", headers);
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("callbackurl", req.getCallbackUrl());
             String baseTransactionId = commonMethods.generateBaseTransactionId();
-            body.add("order_id", "ORD" + baseTransactionId);
+            String orderId = "ORD" + baseTransactionId;
+            body.add("order_id", orderId);
             body.add("amount", String.valueOf(req.getAmount()));
 
             if (req.getMerchantRef() != null) {
                 body.add("merc_unq_ref", req.getMerchantRef());
             }
 
+            log.info("Final request body: {}", body);
+
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-            log.info("CreateOrder Request: headers={}, body={}", headers, body);
+            String url = credentials.getBaseUrlUat() + "/order";
+            log.info("Sending POST request to URL: {}", url);
 
-            String url = credentials.getBaseUrlUat();
-            ResponseEntity<String> response = restTemplate.postForEntity(url + "/order", requestEntity, String.class);
-
-            log.info("Create order response: {}", response.getBody());
+            ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
+            log.info("Received response: status={}, body={}", response.getStatusCode(), response.getBody());
 
             return ResponseEntity.status(response.getStatusCode())
                     .body(CommonResponse.success(response.getBody(), "Order created successfully"));
 
         } catch (Exception e) {
-            log.error("Error while creating order: ", e);
+            log.error("Error while creating order for request: {}", req, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResponse.failure("Order creation failed: " + e.getMessage()));
         }
-    }
-
-
-    private static Vendors getVendors(VendorRouting vendorRouting) {
-        Vendors vendor = null;
-
-        if (vendorRouting.getRoutingPriority1() != null && vendorRouting.getRoutingPriority1().getActive()) {
-            vendor = vendorRouting.getRoutingPriority1();
-        } else if (vendorRouting.getRoutingPriority2() != null && vendorRouting.getRoutingPriority2().getActive()) {
-            vendor = vendorRouting.getRoutingPriority2();
-        } else if (vendorRouting.getRoutingPriority3() != null && vendorRouting.getRoutingPriority3().getActive()) {
-            vendor = vendorRouting.getRoutingPriority3();
-        }
-
-        if (vendor == null) {
-            throw new RuntimeException("No active vendor found for this subProductId");
-        }
-        return vendor;
     }
 
     @Override

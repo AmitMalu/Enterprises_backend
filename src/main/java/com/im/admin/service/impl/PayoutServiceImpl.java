@@ -152,27 +152,22 @@ public class PayoutServiceImpl implements PayoutService {
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-            // Prepare request
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON); // <-- fix here
+            headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("token", generateTokenForPayout(credentials));
-            headers.set("client_id", credentials.getClientId());
 
             Map<String, Object> payout = new LinkedHashMap<>();
-            payout.put("beneficiaryAccountNumber", sendPayoutRequest.getAccountNumber());
-            payout.put("beneficiaryIfscCode", sendPayoutRequest.getIfscCode());
-            payout.put("amount", sendPayoutRequest.getAmount().toPlainString());
-            payout.put("orderId", "TXN" + baseTransactionId);
-            payout.put("beneficiaryName", sendPayoutRequest.getBeneficiaryName());
-            payout.put("paymentMode", sendPayoutRequest.getPaymentMode());
-            payout.put("callbackurl", sendPayoutRequest.getCallbackurl());
+            payout.put("account_number", String.valueOf(sendPayoutRequest.getAccountNumber()));  // "026291800001191"
+            payout.put("ifsc_code", String.valueOf(sendPayoutRequest.getIfscCode()));            // "YESB0000001"
+            payout.put("amount", String.format("%.2f", sendPayoutRequest.getAmount()));          // "11.00"
+            payout.put("order_id", "TXN" + baseTransactionId);                                   // "TXN25082012270100272"
+            payout.put("beneficiary_name", String.valueOf(sendPayoutRequest.getBeneficiaryName()));
+            payout.put("payment_mode", String.valueOf(sendPayoutRequest.getPaymentMode()));      // "IMPS"
 
-            List<Map<String, Object>> requestBody = Collections.singletonList(payout); // JSON array with one object
-
-            HttpEntity<List<Map<String, Object>>> requestEntity = new HttpEntity<>(requestBody, headers);
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payout, headers);
 
             String url = credentials.getBaseUrlUat() + "/payment";
-            log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, headers, requestBody);
+            log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, headers, payout);
 
             ResponseEntity<PayoutResponseDto> response = restTemplate.exchange(
                     url,
@@ -181,9 +176,10 @@ public class PayoutServiceImpl implements PayoutService {
                     PayoutResponseDto.class
             );
 
-
             PayoutResponseDto payoutResponse = response.getBody();
-            log.info("RunPaisa payout response: {}", payoutResponse);
+            assert payoutResponse != null;
+            log.info("RunPaisa payout response: {}", payoutResponse.getMessage());
+
 
             if (payoutResponse != null && "ACCEPTED".equalsIgnoreCase(payoutResponse.getStatus())) {
                 return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
@@ -232,16 +228,16 @@ public class PayoutServiceImpl implements PayoutService {
 
     @Override
     public String handlePayoutCallback(Map<String, Object> payload) {
-        log.info("Received payout callback: {}", payload);
+        log.info("Processing payout callback: {}", payload);
 
-        // Sample processing logic
         String code = (String) payload.get("code");
         String orderId = (String) payload.get("order_id");
         String status = (String) payload.get("status");
 
-        log.info("Payout Callback - OrderID: {}, Status: {}, Code: {}", orderId, status, code);
+        log.info("Extracted Data - OrderID: {}, Status: {}, Code: {}", orderId, status, code);
 
         // Save or update your transaction record here
+        log.debug("Transaction record update logic would go here");
 
         return "Callback received";
     }
