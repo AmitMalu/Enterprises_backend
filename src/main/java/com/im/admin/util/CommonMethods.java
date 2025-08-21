@@ -5,6 +5,9 @@ import com.im.admin.dto.BillRechargeResponseDTO;
 import com.im.admin.entities.SchemeRate;
 import com.im.admin.entities.TransactionSequence;
 import com.im.admin.entities.VendorRouting;
+import com.im.admin.entities.enums.ServiceType;
+import com.im.admin.entities.enums.Status;
+import com.im.admin.entities.enums.TransactionType;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
@@ -811,6 +814,34 @@ public class CommonMethods {
         }
 
         return Optional.empty();
+    }
+
+    public <T extends AbstractWalletAmountTable> void performWalletUpdate(
+            T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
+            TransactionType type, String baseTxnId, String service, String remarks) {
+
+        BigDecimal beforeBalance = wallet.getAvailableBalance();
+        BigDecimal afterBalance;
+
+        if (type == TransactionType.CREDIT) {
+            wallet.setTotalCash(wallet.getTotalCash().add(amount));
+            wallet.setAvailableBalance(beforeBalance.add(amount));
+        } else {
+            wallet.setTotalCash(wallet.getTotalCash().subtract(amount));
+            wallet.setAvailableBalance(beforeBalance.subtract(amount));
+        }
+
+        wallet.setLastUpdatedAmount(amount);
+        wallet.setLastUpdatedDate(LocalDate.now());
+        wallet.setLastUpdatedTime(LocalTime.now());
+
+        String action = (type == TransactionType.CREDIT ? "Add" : "Deduct") + " Funds - " + walletType.name();
+
+        insertTransaction(
+                walletType.name(), hierarchyId, Status.SUCCESS.name(), amount,
+                beforeBalance, wallet.getAvailableBalance(), action,
+                baseTxnId, type.name()
+        );
     }
 
 }
