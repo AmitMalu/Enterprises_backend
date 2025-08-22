@@ -17,7 +17,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
     Optional<RetailerPrepaidTransactionDetails> findByTransactionId(String transactionId);
 
     @Query("SELECT r FROM RetailerPrepaidTransactionDetails r " +
-            "WHERE r.tranStatus = 'SETTLEMENT PENDING' " +
+            "WHERE (:tranStatus IS NULL OR :tranStatus = '' OR r.tranStatus = :tranStatus) " +
             "AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate) " +
             "AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate) " +
             "AND r.subProductName = :subProductName " +
@@ -27,6 +27,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
             @Param("toDate") LocalDate toDate,
             @Param("subProductName") String subProductName,
             @Param("vendorName") String vendorName,
+            @Param("tranStatus") String tranStatus,
             Pageable pageable
     );
 

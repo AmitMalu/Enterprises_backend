@@ -13,16 +13,17 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @NoArgsConstructor
 public class RetailerTransactionResponseDto {
+
     private Integer id;
-    private LocalDate updatedDateOfTransaction;
-    private String retailerId;
+    private LocalDate updatedAt;
+    private String userId;
     private String mobileNo;
     private String schemeName;
     private BigDecimal amount;
-    private String tranStatus;
-    private String transactionType;
+    private String txStatus;
+    private String txType;
     private String remarks;
-    private String transactionId;
+    private String txId;
     private String medium;
     private String subProductName;
 
