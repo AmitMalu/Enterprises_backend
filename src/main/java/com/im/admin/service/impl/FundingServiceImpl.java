@@ -36,9 +36,11 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -159,7 +161,7 @@ public class FundingServiceImpl implements FundingService {
              Workbook workbook = new XSSFWorkbook(is)) {
 
             Sheet sheet = workbook.getSheetAt(0);
-            List<Future<BulkFundResponse>> futures = new ArrayList<>();
+            List<CompletableFuture<BulkFundResponse>> futures = new ArrayList<>();
 
             // Skip header row
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -177,20 +179,21 @@ public class FundingServiceImpl implements FundingService {
                 int rowNum = i + 1; // keep track of Excel row for error message
 
                 // Submit async task
-                futures.add(executorService.submit(() -> processSingleRow(dto, rowNum)));
+                CompletableFuture<BulkFundResponse> future =
+                        CompletableFuture.supplyAsync(() -> processSingleRow(dto, rowNum), executorService)
+                                .exceptionally(ex -> {
+                                    BulkFundResponse failed = new BulkFundResponse();
+                                    failed.setStatus("FAILED");
+                                    failed.setMessage("Row " + rowNum + ": " + ex.getMessage());
+                                    return failed;
+                                });
+
+                futures.add(future);
             }
 
-            // Collect results
-            for (Future<BulkFundResponse> future : futures) {
-                try {
-                    responses.add(future.get()); // blocks until task completes
-                } catch (Exception e) {
-                    BulkFundResponse failed = new BulkFundResponse();
-                    failed.setStatus("FAILED");
-                    failed.setMessage("Unexpected error: " + e.getMessage());
-                    responses.add(failed);
-                }
-            }
+            responses = futures.stream()
+                    .map(CompletableFuture::join)
+                    .collect(Collectors.toList());
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to process Excel file: " + e.getMessage(), e);
