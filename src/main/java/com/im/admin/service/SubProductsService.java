@@ -26,7 +26,7 @@ public interface SubProductsService {
 
     SubProductsResponseDTO getSubProductById(String id);
 
-    List<SubProductDropdownResponseDto> getActiveSubProductsByProductId(Short productId);
+    List<SubProductDropdownResponseDto> getActiveSubProductsByProductId(Short productId,Boolean isSettlement);
 
     List<SubProductDropdownResponseDto> getSubProductDropdown();
 

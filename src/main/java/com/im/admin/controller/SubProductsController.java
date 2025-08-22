@@ -104,9 +104,11 @@ public class SubProductsController {
 
     @GetMapping("/dropdown/{productId}")
     public ResponseEntity<CommonResponse<List<SubProductDropdownResponseDto>>> getActiveSubProducts(
-            @PathVariable("productId") Short productId) {
+            @PathVariable("productId") Short productId,
+            @RequestParam(required = false) Boolean isSettlement) {
 
-        List<SubProductDropdownResponseDto> subProducts = subProductsService.getActiveSubProductsByProductId(productId);
+        List<SubProductDropdownResponseDto> subProducts =
+                subProductsService.getActiveSubProductsByProductId(productId, isSettlement);
 
         CommonResponse<List<SubProductDropdownResponseDto>> response = new CommonResponse<>(
                 200,
@@ -116,6 +118,7 @@ public class SubProductsController {
 
         return ResponseEntity.ok(response);
     }
+
 
     @GetMapping("/dropdown")
     public ResponseEntity<CommonResponse<List<SubProductDropdownResponseDto>>> getSubProductDropdown() {

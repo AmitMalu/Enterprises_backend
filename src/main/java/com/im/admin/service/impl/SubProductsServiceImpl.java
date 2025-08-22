@@ -158,20 +158,30 @@ public class SubProductsServiceImpl implements SubProductsService {
 
 
     @Override
-    public List<SubProductDropdownResponseDto> getActiveSubProductsByProductId(Short productId) {
-        log.info("Fetching sub-products for productId: {}", productId);
+    public List<SubProductDropdownResponseDto> getActiveSubProductsByProductId(
+            Short productId, Boolean isSettlement) {
+        log.info("Fetching sub-products for productId: {}, isSettlement: {}", productId, isSettlement);
 
         try {
-            List<SubProducts> subProducts = subProductsRepository.findByProductIdAndIsActiveTrue(productId);
+            List<SubProducts> subProducts;
 
-            log.info("Found {} active sub-products for productId: {}", subProducts.size(), productId);
+            if (isSettlement == null) {
+                subProducts = subProductsRepository.findByProductIdAndIsActiveTrue(productId);
+            } else {
+                subProducts = subProductsRepository.findByProductIdAndIsActiveTrueAndIsSettlement(productId, isSettlement);
+            }
+            log.info("Found {} sub-products for productId: {}, isSettlement: {}",
+                    subProducts.size(), productId, isSettlement);
 
             return subProducts.stream()
-                    .map(subProduct -> new SubProductDropdownResponseDto(subProduct.getId(), subProduct.getSubProductTitle(), subProduct.getSubProductCode()))
+                    .map(subProduct -> new SubProductDropdownResponseDto(
+                            subProduct.getId(),
+                            subProduct.getSubProductTitle(),
+                            subProduct.getSubProductCode()))
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
-            log.error("Error while fetching sub-products for productId: {}", productId, e);
+            log.error("Error while fetching sub-products for productId: {}, isSettlement: {}", productId, isSettlement, e);
             throw new RuntimeException("Error fetching sub-products", e);
         }
     }
