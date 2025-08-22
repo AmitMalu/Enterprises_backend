@@ -15,4 +15,5 @@ public class SettlementPendingRequestDto {
     private LocalDate toDate;        // filter end date
     private String subProductId;
     private String vendorId;
+    private String tranStatus;
 }
