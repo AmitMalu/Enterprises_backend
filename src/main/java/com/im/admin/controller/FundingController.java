@@ -31,8 +31,6 @@ public class FundingController {
         return ResponseEntity.ok(CommonResponse.success(result, "Transaction processed successfully"));
     }
 
-
-
     @GetMapping("/bulk-credit-debit/sample")
     public void downloadSampleFile(HttpServletResponse response) throws IOException {
         fundingService.downloadSampleFile(response);
@@ -52,7 +50,7 @@ public class FundingController {
         }
     }
 
-    @PostMapping("/settlement-pending")
+    @PostMapping("/settlement")
     public ResponseEntity<CommonResponse> getSettlementPending(
             @RequestBody SettlementPendingRequestDto request,
             @RequestParam(defaultValue = "0") int page,

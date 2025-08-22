@@ -26,7 +26,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -40,7 +42,7 @@ import java.util.concurrent.Future;
 
 @Service
 @Slf4j
-public class FundingServiceImpl  implements FundingService {
+public class FundingServiceImpl implements FundingService {
 
     @Autowired
     private CommonMethods commonMethods;
@@ -57,6 +59,8 @@ public class FundingServiceImpl  implements FundingService {
     @Autowired
     private VendorRepository vendorRepository;
 
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Transactional
     public String fundsCreditDebit(FundCreditDebitDto dto) {
@@ -144,7 +148,6 @@ public class FundingServiceImpl  implements FundingService {
     }
 
     @Override
-    @Transactional
     public List<BulkFundResponse> processBulkFile(MultipartFile file) {
         List<BulkFundResponse> responses = new ArrayList<>();
 
@@ -163,12 +166,13 @@ public class FundingServiceImpl  implements FundingService {
                 Row row = sheet.getRow(i);
 
                 FundCreditDebitDto dto = new FundCreditDebitDto();
-                dto.setUserAccountId(row.getCell(0).getStringCellValue());
-                dto.setWalletType(row.getCell(1).getStringCellValue());
-                dto.setFundingType(row.getCell(2).getStringCellValue());
+                dto.setFundingType(row.getCell(0).getStringCellValue());
+                dto.setUserAccountId(row.getCell(1).getStringCellValue());
+                dto.setWalletType(row.getCell(2).getStringCellValue());
                 dto.setAmount(row.getCell(3).getNumericCellValue());
                 dto.setConfirmAmount(row.getCell(4).getNumericCellValue());
-                dto.setRemarks(row.getCell(5).getStringCellValue());
+                dto.setNarrationType(row.getCell(5).getStringCellValue());
+                dto.setRemarks(row.getCell(6).getStringCellValue());
 
                 int rowNum = i + 1; // keep track of Excel row for error message
 
@@ -208,9 +212,13 @@ public class FundingServiceImpl  implements FundingService {
         response.setAmount(BigDecimal.valueOf(dto.getAmount()));
 
         try {
-            String result = fundsCreditDebit(dto);
-            response.setStatus("SUCCESS");
-            response.setMessage(result);
+            TransactionTemplate template = new TransactionTemplate(transactionManager);
+            template.execute(status -> {
+                String result = fundsCreditDebit(dto); // now runs inside a TX
+                response.setStatus("SUCCESS");
+                response.setMessage(result);
+                return null;
+            });
         } catch (Exception e) {
             response.setStatus("FAILED");
             response.setMessage("Row " + rowNum + ": " + e.getMessage());
@@ -247,6 +255,7 @@ public class FundingServiceImpl  implements FundingService {
                     request.getToDate(),
                     subProductName,
                     vendorName,
+                    request.getTranStatus(),
                     pageable
             ).map(txn -> new RetailerTransactionResponseDto(
                     txn.getId(),
@@ -269,6 +278,7 @@ public class FundingServiceImpl  implements FundingService {
                     request.getToDate(),
                     subProductName,
                     vendorName,
+                    request.getTranStatus(),
                     pageable
             ).map(txn -> new RetailerTransactionResponseDto(
                     txn.getId(),
