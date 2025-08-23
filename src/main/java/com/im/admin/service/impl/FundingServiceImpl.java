@@ -168,9 +168,9 @@ public class FundingServiceImpl implements FundingService {
                 Row row = sheet.getRow(i);
 
                 FundCreditDebitDto dto = new FundCreditDebitDto();
-                dto.setFundingType(row.getCell(0).getStringCellValue());
-                dto.setUserAccountId(row.getCell(1).getStringCellValue());
-                dto.setWalletType(row.getCell(2).getStringCellValue());
+                dto.setFundingType(row.getCell(0).getStringCellValue().trim());
+                dto.setUserAccountId(row.getCell(1).getStringCellValue().trim());
+                dto.setWalletType(row.getCell(2).getStringCellValue().trim());
                 dto.setAmount(row.getCell(3).getNumericCellValue());
                 dto.setConfirmAmount(row.getCell(4).getNumericCellValue());
                 dto.setNarrationType(row.getCell(5).getStringCellValue());
@@ -210,6 +210,7 @@ public class FundingServiceImpl implements FundingService {
     private BulkFundResponse processSingleRow(FundCreditDebitDto dto, int rowNum) {
         BulkFundResponse response = new BulkFundResponse();
         response.setUserAccountId(dto.getUserAccountId());
+        response.setConfirmAmount(BigDecimal.valueOf(dto.getConfirmAmount()));
         response.setWalletType(dto.getWalletType());
         response.setFundingType(dto.getFundingType());
         response.setAmount(BigDecimal.valueOf(dto.getAmount()));

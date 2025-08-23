@@ -37,18 +37,27 @@ public class FundingController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadBulkFile(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<CommonResponse<List<BulkFundResponse>>> uploadBulkFile(
+            @RequestParam("file") MultipartFile file) {
+
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body("File is required.");
+            return ResponseEntity.badRequest().body(
+                    new CommonResponse<>(400, "File is required.", null)
+            );
         }
 
         try {
             List<BulkFundResponse> responses = fundingService.processBulkFile(file);
-            return ResponseEntity.ok(responses);
+            return ResponseEntity.ok(
+                    new CommonResponse<>(200, "Bulk file processed successfully", responses)
+            );
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error while processing file: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    new CommonResponse<>(500, "Error while processing file: " + e.getMessage(), null)
+            );
         }
     }
+
 
     @PostMapping("/settlement")
     public ResponseEntity<CommonResponse> getSettlementPending(
