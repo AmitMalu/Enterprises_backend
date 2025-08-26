@@ -3,6 +3,7 @@ package com.im.admin.controller.report;
 import com.im.admin.dto.LoginLogsResponseDTO;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.LoginLogsReportService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Page;
@@ -17,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/report")
 public class LoginLogsReportController {
@@ -37,14 +39,18 @@ public class LoginLogsReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
+        log.info("Received request to fetch Login logs: startDate={}, endDate={}, srNo={}, ipAddress={}",
+                startDate, endDate, srNo, ipAddress);
+
         Page<LoginLogsResponseDTO> data = loginLogsReportService.getFilteredLogs(
                 startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size
         );
 
+        log.info("Login logs fetched | Records count: {}", data.getTotalElements());
+
         String message = data.isEmpty() ? "No records found" : "Success";
         return ResponseEntity.ok(new CommonResponse<>(200, message, data));
     }
-
 
 
     @PostMapping("/login-excel")
@@ -60,13 +66,19 @@ public class LoginLogsReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
+        log.info("Received request to download Login logs CSV: startDate={}, endDate={}, srNo={}, ipAddress={}",
+                startDate, endDate, srNo, ipAddress);
+
         ByteArrayResource resource = loginLogsReportService.exportLogsToCSV(
                 startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size
         );
 
         if (resource == null) {
+            log.info("No Login log records found for CSV export");
             return ResponseEntity.ok(new CommonResponse<>(200, "No records found", null));
         }
+
+        log.info("Login logs CSV generated successfully, size: {} bytes", resource.contentLength());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=LoginLogsReport.csv")

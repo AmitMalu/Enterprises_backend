@@ -3,6 +3,7 @@ package com.im.admin.controller.report;
 import com.im.admin.dto.HierarchyLogsResponseDTO;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.HierarchyLogsReportService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -16,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/report")
 public class HierarchyLogsReportController {
@@ -36,9 +38,14 @@ public class HierarchyLogsReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
+        log.info("Received request to fetch hierarchy logs: startDate={}, endDate={}, srNo={}, ipAddress={}",
+                startDate, endDate, srNo, ipAddress);
+
         Page<HierarchyLogsResponseDTO> data = hierarchyLogsReportService.getFilteredLogs(
                 startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size
         );
+
+        log.info("Hierarchy logs fetched | Records count: {}", data.getTotalElements());
 
         String message = data.isEmpty() ? "No records found" : "Success";
         return ResponseEntity.ok(new CommonResponse<>(200, message, data));
@@ -57,13 +64,19 @@ public class HierarchyLogsReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
+        log.info("Received request to download hierarchy logs CSV: startDate={}, endDate={}, srNo={}, ipAddress={}",
+                startDate, endDate, srNo, ipAddress);
+
         ByteArrayResource resource = hierarchyLogsReportService.exportLogsToCSV(
                 startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size
         );
 
         if (resource == null) {
+            log.info("No hierarchy log records found for CSV export");
             return ResponseEntity.ok(new CommonResponse<>(200, "No records found", null));
         }
+
+        log.info("Hierarchy logs CSV generated successfully, size: {} bytes", resource.contentLength());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=HierarchyLogsReport.csv")

@@ -27,13 +27,17 @@ public class NetworkTransactionReportController {
     @Autowired
     private NetworkTransactionReportService networkTransactionReportService;
 
-
     @PostMapping("/view")
     public ResponseEntity<CommonResponse<Page<NetworkTransactionReportResponse>>> viewNetworkTransactions(
             @RequestBody NetworkTransactionReportRequest request) {
 
+        log.info("Received request to view NetworkTransaction report: {}", request);
+
         CommonResponse<Page<NetworkTransactionReportResponse>> response =
                 networkTransactionReportService.viewNetworkTransactions(request);
+
+        log.info("Fetched NetworkTransaction report | Total records: {}",
+                response.getData() != null ? response.getData().getTotalElements() : 0);
 
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
@@ -45,6 +49,8 @@ public class NetworkTransactionReportController {
     public ResponseEntity<Resource> downloadMyTransactionReport(
             @RequestBody NetworkTransactionReportRequest request,
             @RequestParam("format") String format) throws IOException {
+
+        log.info("Received request to download NetworkTransaction report | format={}", format);
 
         ByteArrayInputStream fileStream;
         String filename;
@@ -60,6 +66,7 @@ public class NetworkTransactionReportController {
             filename = "network_transaction_report.csv";
             mediaType = MediaType.parseMediaType("text/csv");
         } else {
+            log.warn("Invalid format provided for NetworkTransaction report download: {}", format);
             return ResponseEntity.badRequest()
                     .header("X-Status-Message", "Invalid format provided (use 'excel' or 'csv')")
                     .body(null);
@@ -67,12 +74,12 @@ public class NetworkTransactionReportController {
 
         InputStreamResource resource = new InputStreamResource(fileStream);
 
+        log.info("NetworkTransaction report generated successfully | format={}, filename={}", format, filename);
+
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
                 .header("X-Status-Message", successMessage)
                 .contentType(mediaType)
                 .body(resource);
     }
-
-
 }
