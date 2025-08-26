@@ -10,6 +10,7 @@ import com.im.admin.service.impl.PhoneNumberValidationService;
 import com.im.admin.util.JsonUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/distributors")
 @RequiredArgsConstructor
@@ -40,10 +42,14 @@ public class DistributorController {
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
 
+        log.info("API Call: createDistributor with data: {}", distributorJson);
+
         Distributor distributor = JsonUtil.parseJson(distributorJson, Distributor.class);
 
         Distributor savedDistributor = distributorService.createDistributor(
                 distributor, aadhaarCardFrontImage, aadhaarCardBackImage, panCardImage, shopImage, businessProofImage);
+
+        log.info("Distributor created successfully: {}", savedDistributor);
 
         CommonResponse<Distributor> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
@@ -64,6 +70,8 @@ public class DistributorController {
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
 
+        log.info("API Call: updateDistributor for id: {} with data: {}", id, distributorJson);
+
         Distributor distributor = JsonUtil.parseJson(distributorJson, Distributor.class);
 
         Distributor updatedDistributor = distributorService.updateDistributor(
@@ -76,24 +84,33 @@ public class DistributorController {
                 businessProofImage
         );
 
+        log.info("Distributor updated successfully: {}", updatedDistributor);
+
         return ResponseEntity.ok(updatedDistributor);
     }
 
     @GetMapping
     public ResponseEntity<List<Distributor>> getAllDistributors() {
-        return ResponseEntity.ok(distributorService.getAllDistributors());
+        log.info("API Call: getAllDistributors");
+        List<Distributor> distributors = distributorService.getAllDistributors();
+        log.info("Fetched {} distributors", distributors.size());
+        return ResponseEntity.ok(distributors);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Distributor> getDistributorById(@PathVariable String id) {
-        return ResponseEntity.ok(distributorService.getDistributorById(id));
+        log.info("API Call: getDistributorById for id: {}", id);
+        Distributor distributor = distributorService.getDistributorById(id);
+        log.info("Distributor fetched: {}", distributor);
+        return ResponseEntity.ok(distributor);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteDistributor(@PathVariable String id) {
+        log.info("API Call: deleteDistributor for id: {}", id);
         distributorService.deleteDistributor(id);
+        log.info("Distributor deleted successfully: {}", id);
         return ResponseEntity.ok("Distributor deleted successfully." + id);
+    }
 }
-}
-
 

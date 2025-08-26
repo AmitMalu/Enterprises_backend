@@ -70,24 +70,33 @@ public class PayoutController {
     }
 
     @PostMapping("/save-beneficiary")
-    public ResponseEntity<CommonResponse<BeneficiaryBankAccount>> save(@RequestBody BeneficiaryBankAccountDTO dto) {
-        return ResponseEntity.ok(payoutService.saveBeneficiary(dto));
+    public ResponseEntity<CommonResponse<BeneficiaryBankAccount>> saveBeneficiary(@RequestBody BeneficiaryBankAccountDTO dto) {
+        log.info("Received request to save beneficiary: {}", dto);
+        CommonResponse<BeneficiaryBankAccount> response = payoutService.saveBeneficiary(dto);
+        log.info("Beneficiary saved successfully: {}", response.getData());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/all")
-    public ResponseEntity<CommonResponse<Page<BeneficiaryBankAccount>>> getAll(
+    public ResponseEntity<CommonResponse<Page<BeneficiaryBankAccount>>> getAllBeneficiaries(
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
+        log.info("Fetching all beneficiaries with search: {}, page: {}, size: {}", search, page, size);
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(payoutService.getAllFiltered(search, pageable));
+        CommonResponse<Page<BeneficiaryBankAccount>> response = payoutService.getAllFiltered(search, pageable);
+        log.info("Fetched {} beneficiaries", response.getData().getTotalElements());
+        return ResponseEntity.ok(response);
     }
-
 
     @DeleteMapping("/delete-beneficiaries")
-    public ResponseEntity<CommonResponse<String>> deleteMultiple(@RequestBody List<Long> ids) {
-        return ResponseEntity.ok(payoutService.deleteMultipleBeneficiaries(ids));
+    public ResponseEntity<CommonResponse<String>> deleteBeneficiaries(@RequestBody List<Long> ids) {
+        log.info("Deleting beneficiaries with IDs: {}", ids);
+        CommonResponse<String> response = payoutService.deleteMultipleBeneficiaries(ids);
+        log.info("Deleted beneficiaries response: {}", response.getMessage());
+        return ResponseEntity.ok(response);
     }
+
 
 }

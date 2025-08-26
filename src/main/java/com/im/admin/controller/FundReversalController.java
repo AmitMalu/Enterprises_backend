@@ -18,9 +18,10 @@ public class FundReversalController {
 
     @PostMapping("/check-balance")
     public ResponseEntity<String> checkHierarchyWalletBalance(@RequestBody CheckBalanceRequestDto checkBalanceRequestDto) {
+        log.info("API Call: checkHierarchyWalletBalance for hierarchyId: {}", checkBalanceRequestDto.getHierarchyId());
         String message = fundReversalService.checkBalance(checkBalanceRequestDto);
+        log.info("Balance check result for hierarchyId {}: {}", checkBalanceRequestDto.getHierarchyId(), message);
         return ResponseEntity.ok(message);
-
     }
 
     @PostMapping
@@ -31,7 +32,9 @@ public class FundReversalController {
 
     @PostMapping("/fund-reversal/resend-otp/{id}")
     public ResponseEntity<String> resendOtp(@PathVariable Long id) {
+        log.info("API Call: resendOtp for fundReversalId: {}", id);
         String result = fundReversalService.resendOtpById(id);
+        log.info("OTP resent for fundReversalId {}: {}", id, result);
         return ResponseEntity.ok(result);
     }
 }

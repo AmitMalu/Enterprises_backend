@@ -20,9 +20,11 @@ public class CommonController {
 
     @GetMapping("/balance/{hierarchyId}")
     public ResponseEntity<WalletBalanceResponseDto> fetchWalletBalance(@PathVariable("hierarchyId") String hierarchyId) {
+        log.info("API Call: Fetch Wallet Balance for hierarchyId: {}", hierarchyId);
         WalletBalanceResponseDto response = commonService.fetchWalletBalance(hierarchyId);
         return ResponseEntity.ok(response);
     }
+
 
 
 }

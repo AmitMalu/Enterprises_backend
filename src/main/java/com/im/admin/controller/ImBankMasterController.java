@@ -6,6 +6,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.response.ImBankDropdownResponse;
 import com.im.admin.response.ImBankMasterResponseDTO;
 import com.im.admin.service.ImBankMasterService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/im-bank")
 public class ImBankMasterController {
@@ -22,19 +24,28 @@ public class ImBankMasterController {
 
     @PostMapping
     public ResponseEntity<CommonResponse<ImBankMasterResponseDTO>> create(@RequestBody ImBankMasterRequestDTO dto) {
-        return ResponseEntity.ok(service.create(dto));
+        log.info("API Call: create ImBankMaster with request: {}", dto);
+        CommonResponse<ImBankMasterResponseDTO> response = service.create(dto);
+        log.info("ImBankMaster created successfully");
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<CommonResponse<ImBankMasterResponseDTO>> update(
             @PathVariable Long id,
             @RequestBody ImBankMasterRequestDTO dto) {
-        return ResponseEntity.ok(service.update(id, dto));
+        log.info("API Call: update ImBankMaster with id: {} and request: {}", id, dto);
+        CommonResponse<ImBankMasterResponseDTO> response = service.update(id, dto);
+        log.info("ImBankMaster updated successfully for id: {}", id);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse<ImBankMasterResponseDTO>> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
+        log.info("API Call: getById ImBankMaster for id: {}", id);
+        CommonResponse<ImBankMasterResponseDTO> response = service.getById(id);
+        log.info("Fetched ImBankMaster successfully for id: {}", id);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping
@@ -50,14 +61,22 @@ public class ImBankMasterController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return ResponseEntity.ok(service.getAll(bankName, accountNumber, ifscCode, charges,
-                chargesType, isActive, isBlocked, createdBy, page, size));
+        log.info("API Call: getAll ImBankMaster with filters bankName: {}, accountNumber: {}, ifscCode: {}, charges: {}, chargesType: {}, isActive: {}, isBlocked: {}, createdBy: {}, page: {}, size: {}",
+                bankName, accountNumber, ifscCode, charges, chargesType, isActive, isBlocked, createdBy, page, size);
+        CommonResponse<Page<ImBankMaster>> response = service.getAll(bankName, accountNumber, ifscCode, charges,
+                chargesType, isActive, isBlocked, createdBy, page, size);
+        log.info("Fetched ImBankMaster list successfully");
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/dropdown")
     public ResponseEntity<CommonResponse<List<ImBankDropdownResponse>>> getBankDropdown() {
-        return ResponseEntity.ok(service.getDropdown());
+        log.info("API Call: getBankDropdown");
+        CommonResponse<List<ImBankDropdownResponse>> response = service.getDropdown();
+        log.info("Fetched ImBank dropdown successfully");
+        return ResponseEntity.ok(response);
     }
+
 
 }
 
