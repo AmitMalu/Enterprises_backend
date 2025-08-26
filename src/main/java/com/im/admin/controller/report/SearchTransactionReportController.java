@@ -35,12 +35,17 @@ public class SearchTransactionReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
+        log.info("Received request to search transaction | transactionId={}, hierarchyId={}, page={}, size={}",
+                transactionId, hierarchyId, page, size);
+
         String userType = (hierarchyId == null) ? "AD" : commonMethods.extractHierarchyType(hierarchyId);
 
         if ("AD".equalsIgnoreCase(userType) && hierarchyId != null) {
+            log.warn("Admin provided hierarchyId which is not allowed | hierarchyId={}", hierarchyId);
             return ResponseEntity.badRequest().body(
                     new CommonResponse<>(400, "Admin must not provide hierarchyId", null));
         } else if (!"AD".equalsIgnoreCase(userType) && (hierarchyId == null || hierarchyId.isBlank())) {
+            log.warn("Non-admin user did not provide required hierarchyId");
             return ResponseEntity.badRequest().body(
                     new CommonResponse<>(400, "hierarchyId is required for non-admin users", null));
         }
@@ -52,21 +57,27 @@ public class SearchTransactionReportController {
                     searchTransactionReportService.searchTransactionById(transactionId, hierarchyId, pageable);
 
             if (result.isEmpty()) {
+                log.info("No transactions found for transactionId={}, hierarchyId={}", transactionId, hierarchyId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new CommonResponse<>(
                                 404,
                                 "No transaction found",
                                 new PageImpl<>(new ArrayList<>(), pageable, 0)
                         ));
-
             }
+
+            log.info("Transactions fetched successfully | transactionId={}, hierarchyId={}, totalRecords={}",
+                    transactionId, hierarchyId, result.getTotalElements());
 
             return ResponseEntity.ok(new CommonResponse<>(200, "Transaction(s) fetched successfully", result));
 
         } catch (IllegalAccessException ex) {
+            log.error("Access forbidden while searching transaction | transactionId={}, hierarchyId={}, error={}",
+                    transactionId, hierarchyId, ex.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new CommonResponse<>(403, ex.getMessage(), new PageImpl<>(new ArrayList<>(), pageable, 0)));
         }
     }
+
 
 }

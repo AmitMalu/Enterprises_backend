@@ -3,6 +3,7 @@ package com.im.admin.controller.report;
 import com.im.admin.dto.ImLogsResponseDTO;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.ImLogsReportService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/report")
 public class ImLogsReportController {
@@ -33,7 +35,13 @@ public class ImLogsReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
+        log.info("Received request to fetch IM logs: startDate={}, endDate={}, srNo={}, ipAddress={}",
+                startDate, endDate, srNo, ipAddress);
+
         var data = imLogsReportService.getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
+
+        log.info("IM logs fetched | Records count: {}");
+
         String message = data.isEmpty() ? "No records found" : "Success";
         return ResponseEntity.ok(new CommonResponse<>(200, message, data));
     }
@@ -51,10 +59,17 @@ public class ImLogsReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
+        log.info("Received request to download IM logs CSV: startDate={}, endDate={}, srNo={}, ipAddress={}",
+                startDate, endDate, srNo, ipAddress);
+
         ByteArrayResource resource = imLogsReportService.exportLogsToCSV(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
+
         if (resource == null) {
+            log.info("No IM log records found for CSV export");
             return ResponseEntity.ok(new CommonResponse<>(200, "No records found", null));
         }
+
+        log.info("IM logs CSV generated successfully, size: {} bytes", resource.contentLength());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=ImLogsReport.csv")
@@ -62,4 +77,5 @@ public class ImLogsReportController {
                 .contentLength(resource.contentLength())
                 .body(resource);
     }
+
 }
