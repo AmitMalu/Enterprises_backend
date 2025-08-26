@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.im.admin.dto.ChildUserDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DropdownManagerService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("api/dropdown-manager")
 public class DropdownManagerController {
@@ -35,6 +37,9 @@ public class DropdownManagerController {
             @RequestParam(required = false) String network,
             @RequestParam(required = false) String createdOn
     ) {
+        log.info("API Call: getFilteredChildUsers for hierarchyId: {} with filters - userId: {}, parentAccount: {}, abbreviation: {}, title: {}, name: {}, mobileNumber: {}, emailId: {}, dob: {}, status: {}, isBlocked: {}, network: {}, createdOn: {}",
+                hierarchyId, userId, parentAccount, abbreviation, title, name, mobileNumber, emailId, dob, status, isBlocked, network, createdOn);
+
         Page<ChildUserDto> result = dropdownManagerService.getChildUsers(
                 hierarchyId, page, size, userId, parentAccount, abbreviation, title,
                 name, mobileNumber, emailId, dob, status, isBlocked, network, createdOn
@@ -49,12 +54,12 @@ public class DropdownManagerController {
             message = filtersApplied
                     ? "No child users found matching the given filters."
                     : "No APPROVED child users found. Some users may still be in PENDING status.";
+            log.info(message);
         } else {
             message = "Fetched child users successfully";
+            log.info("Fetched {} child users for hierarchyId: {}", result.getTotalElements(), hierarchyId);
         }
 
         return ResponseEntity.ok(new CommonResponse<>(200, message, result));
     }
-
-
 }

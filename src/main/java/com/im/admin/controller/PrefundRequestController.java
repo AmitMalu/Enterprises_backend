@@ -42,15 +42,19 @@ public class PrefundRequestController {
             @RequestPart("data") @Valid String rawData,
             @RequestPart("imageFile") MultipartFile imageFile) {
         try {
-            log.info("Entering Wallet Load Request method");
+            log.info("Entering Wallet Load Request method with data: {}", rawData);
 
             ObjectMapper mapper = new ObjectMapper();
             PrefundRequestDto dto = mapper.readValue(rawData, PrefundRequestDto.class);
+
             CommonResponse<PrefundRequest> response = prefundRequestService.saveWalletLoadRequest(dto, imageFile);
+            log.info("Wallet Load Request submitted successfully for mobileNumber: {}", dto.getMobileNumber());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
+            log.error("Validation failed for Wallet Load Request: {}", e.getMessage());
             return ResponseEntity.badRequest().body(new CommonResponse<>(400, e.getMessage(), null));
         } catch (Exception e) {
+            log.error("Failed to submit Wallet Load Request", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new CommonResponse<>(500, "Failed to submit request: " + e.getMessage(), null));
         }
@@ -60,7 +64,6 @@ public class PrefundRequestController {
     public ResponseEntity<CommonResponse<Page<PrefundRequest>>> getAllRequests(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-
             @RequestParam(required = false) Long id,
             @RequestParam(required = false) String hierarchyId,
             @RequestParam(required = false) String mobileNumber,
@@ -80,6 +83,7 @@ public class PrefundRequestController {
             @RequestParam(required = false) String remarks,
             @RequestParam(required = false) String depositType
     ) {
+        log.info("Fetching all Prefund Requests with filters - mobileNumber: {}, status: {}", mobileNumber, status);
         Page<PrefundRequest> pagedResult = prefundRequestService.getAllPrefundRequests(
                 page, size, id, hierarchyId, mobileNumber, depositAmount, status,
                 depositDate, createDateTime, bankHolderName, bankAccountName,
@@ -88,12 +92,12 @@ public class PrefundRequestController {
         );
 
         CommonResponse<Page<PrefundRequest>> response = new CommonResponse<>(
-                200, " prefund requests fetched successfully", pagedResult
+                200, "Prefund requests fetched successfully", pagedResult
         );
 
+        log.info("Fetched {} Prefund Requests", pagedResult.getTotalElements());
         return ResponseEntity.ok(response);
     }
-
 
     @PostMapping("/action")
     public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto) {
@@ -103,23 +107,26 @@ public class PrefundRequestController {
 
     @GetMapping("/image/{filename}")
     public ResponseEntity<Resource> getImage(@PathVariable String filename) throws IOException {
+        log.info("Fetching image for filename: {}", filename);
         Path filePath = Paths.get("uploads/wallet-images").resolve(filename);
         Resource resource = new UrlResource(filePath.toUri());
         if (resource.exists() || resource.isReadable()) {
+            log.info("Image found: {}", filename);
             return ResponseEntity.ok()
                     .contentType(MediaType.IMAGE_JPEG) // or detect dynamically
                     .body(resource);
         } else {
+            log.error("Image not found: {}", filename);
             throw new FileNotFoundException("Image not found: " + filename);
         }
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse<PrefundRequest>> getPrefundRequestById(@PathVariable Long id) {
+        log.info("Fetching Prefund Request by ID: {}", id);
         CommonResponse<PrefundRequest> response = prefundRequestService.getById(id);
+        log.info("Fetched Prefund Request with ID: {}", id);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
-
-
 }
 

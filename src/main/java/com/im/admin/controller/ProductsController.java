@@ -56,6 +56,7 @@ public class ProductsController {
     public ResponseEntity<Void> deleteProduct(@PathVariable Short id) {
         log.info("Received request to delete product with ID: {}", id);
         productsService.deleteProduct(id);
+        log.info("Product deleted successfully with ID: {}", id);
         return ResponseEntity.noContent().build();
     }
 
@@ -112,6 +113,7 @@ public class ProductsController {
 
     @GetMapping("/dropdown/active")
     public ResponseEntity<CommonResponse<List<ProductDropdownResponseDto>>> getAllActiveProducts() {
+        log.info("Fetching all active products for dropdown");
         List<ProductDropdownResponseDto> products = productsService.getAllActiveProducts();
 
         CommonResponse<List<ProductDropdownResponseDto>> response = new CommonResponse<>(

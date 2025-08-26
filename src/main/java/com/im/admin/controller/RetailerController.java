@@ -47,14 +47,16 @@ public class RetailerController {
             @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
+        log.info("Received request to create Retailer: {}", retailerJson);
 
         Retailer retailer = JsonUtil.parseJson(retailerJson, Retailer.class);
-
         Retailer savedRetailer = retailerService.createRetailer(
                 retailer, aadhaarCardFrontImage, aadhaarCardBackImage, panCardImage, shopImage, businessProofImage);
 
+        log.info("Retailer created successfully with ID: {}", savedRetailer.getId());
+
         CommonResponse<Retailer> response = new CommonResponse<>();
-        response.setStatusCode(HttpStatus.OK.value());
+        response.setStatusCode(HttpStatus.CREATED.value());
         response.setMessage("Retailer created successfully");
         response.setData(savedRetailer);
 
@@ -71,9 +73,10 @@ public class RetailerController {
             @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
+        log.info("Received request to update Retailer with ID: {}", id);
+        log.debug("Update payload: {}", retailerJson);
 
         Retailer retailer = JsonUtil.parseJson(retailerJson, Retailer.class);
-
         Retailer updatedRetailer = retailerService.updateRetailer(
                 id,
                 retailer,
@@ -84,13 +87,15 @@ public class RetailerController {
                 businessProofImage
         );
 
+        log.info("Retailer updated successfully with ID: {}", id);
         return ResponseEntity.ok(updatedRetailer);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteRetailer(@PathVariable String id) {
-        log.info("Received request to delete retailer with ID: {}", id);
+        log.info("Received request to delete Retailer with ID: {}", id);
         retailerService.deleteRetailer(id);
+        log.info("Retailer deleted successfully with ID: {}", id);
         return ResponseEntity.ok("Retailer deleted successfully");
     }
 
@@ -101,16 +106,17 @@ public class RetailerController {
             @RequestParam(defaultValue = "createdOn") String sortBy,
             @RequestParam(defaultValue = "desc") String direction
     ) {
+        log.info("Received request to fetch all Retailers - page: {}, size: {}, sortBy: {}, direction: {}",
+                page, size, sortBy, direction);
         try {
-            Sort sort = direction.equalsIgnoreCase("asc") ?
-                    Sort.by(sortBy).ascending() :
-                    Sort.by(sortBy).descending();
-
+            Sort sort = direction.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
             Pageable pageable = PageRequest.of(page, size, sort);
             Page<RetailerResponseDTO> retailerPage = retailerService.getAllRetailers(pageable);
 
+            log.info("Fetched {} retailers", retailerPage.getTotalElements());
             return ResponseEntity.ok(CommonResponse.success(retailerPage, "Retailers fetched successfully"));
         } catch (Exception ex) {
+            log.error("Error fetching retailers: ", ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResponse.failure("Something went wrong while fetching retailers"));
         }
@@ -118,18 +124,21 @@ public class RetailerController {
 
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse<RetailerResponseDTO>> getRetailerById(@PathVariable String id) {
+        log.info("Received request to fetch Retailer with ID: {}", id);
         try {
             RetailerResponseDTO responseDto = retailerService.getRetailerById(id);
+            log.info("Retailer fetched successfully with ID: {}", id);
             return ResponseEntity.ok(CommonResponse.success(responseDto, "Retailer data fetched successfully"));
         } catch (EntityNotFoundException e) {
+            log.warn("Retailer not found with ID: {}", id);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(CommonResponse.failure("Retailer not found"));
         } catch (Exception ex) {
+            log.error("Error fetching Retailer with ID {}: ", id, ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResponse.failure("Something went wrong"));
         }
     }
-
 }
 
 

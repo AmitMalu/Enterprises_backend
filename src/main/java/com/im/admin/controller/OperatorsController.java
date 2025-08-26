@@ -34,6 +34,7 @@ public class OperatorsController {
     public ResponseEntity<CommonResponse<Operators>> createOperator(@Valid @RequestBody Operators operator) {
         log.info("Received request to create operator: {}", operator);
         Operators savedOperator = operatorsService.saveOperator(operator);
+        log.info("Operator created successfully with ID: {}", savedOperator.getId());
         CommonResponse<Operators> response = new CommonResponse<>(
                 HttpStatus.CREATED.value(),
                 "Operator created successfully",
@@ -48,6 +49,7 @@ public class OperatorsController {
             @Valid @RequestBody Operators operator) {
         log.info("Received request to update operator with ID: {}", id);
         Operators updatedOperator = operatorsService.updateOperator(id, operator);
+        log.info("Operator updated successfully with ID: {}", id);
         CommonResponse<Operators> response = new CommonResponse<>(
                 HttpStatus.OK.value(),
                 "Operator updated successfully",
@@ -56,11 +58,11 @@ public class OperatorsController {
         return ResponseEntity.ok(response);
     }
 
-
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteOperator(@PathVariable String id) {
         log.info("Received request to delete operator with ID: {}", id);
         operatorsService.deleteOperator(id);
+        log.info("Operator deleted successfully with ID: {}", id);
         return ResponseEntity.ok("Operator deleted successfully.");
     }
 
@@ -68,6 +70,7 @@ public class OperatorsController {
     public ResponseEntity<CommonResponse<Operators>> getOperatorById(@PathVariable String id) {
         log.info("Received request to fetch operator with ID: {}", id);
         Operators operator = operatorsService.getOperatorById(id);
+        log.info("Fetched operator successfully with ID: {}", id);
         return ResponseEntity.ok(
                 new CommonResponse<>(HttpStatus.OK.value(), "Operator fetched successfully", operator)
         );
@@ -77,7 +80,6 @@ public class OperatorsController {
     public ResponseEntity<CommonResponse<Page<Operators>>> getAllOperators(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-
             @RequestParam(required = false) List<String> id,
             @RequestParam(required = false) String operatorCategory,
             @RequestParam(required = false) String operatorCode,
@@ -95,6 +97,8 @@ public class OperatorsController {
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createdOn,
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate editedOn
     ) {
+        log.info("Fetching operators with filters - page: {}, size: {}, operatorCategory: {}, operatorCode: {}",
+                page, size, operatorCategory, operatorCode);
         Pageable pageable = PageRequest.of(page, size);
 
         Page<Operators> operatorsPage = operatorsService.getAllOperators(
@@ -103,6 +107,7 @@ public class OperatorsController {
                 subProductId, cardBinNo, isActive, createdBy, editedBy, createdOn, editedOn
         );
 
+        log.info("Fetched {} operators", operatorsPage.getTotalElements());
         CommonResponse<Page<Operators>> response = new CommonResponse<>(
                 200, "Operators fetched successfully", operatorsPage
         );
@@ -110,13 +115,13 @@ public class OperatorsController {
         return ResponseEntity.ok(response);
     }
 
-
-
     @GetMapping("/active/{subProductId}")
     public ResponseEntity<CommonResponse<List<OperatorDropdownResponseDTO>>> getActiveOperators(
             @PathVariable String subProductId) {
 
+        log.info("Fetching active operators for subProductId: {}", subProductId);
         if (subProductId == null || subProductId.isBlank()) {
+            log.warn("subProductId is missing or blank");
             return ResponseEntity.badRequest().body(
                     new CommonResponse<>(400, "subProductId is required", null)
             );
@@ -125,11 +130,13 @@ public class OperatorsController {
         List<OperatorDropdownResponseDTO> operators = operatorsService.getActiveOperatorsBySubProductId(subProductId);
 
         if (operators.isEmpty()) {
+            log.warn("No active operators found for subProductId: {}", subProductId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     new CommonResponse<>(404, "No active operators found for subProductId: " + subProductId, null)
             );
         }
 
+        log.info("Fetched {} active operators for subProductId: {}", operators.size(), subProductId);
         return ResponseEntity.ok(
                 new CommonResponse<>(200, "Active operators fetched successfully", operators)
         );
@@ -137,7 +144,9 @@ public class OperatorsController {
 
     @GetMapping("/active")
     public ResponseEntity<CommonResponse<List<OperatorDropdownResponseDTO>>> getActiveOperators() {
+        log.info("Fetching all active operators");
         List<OperatorDropdownResponseDTO> operators = operatorsService.getActiveOperators();
+        log.info("Fetched {} active operators", operators.size());
         CommonResponse<List<OperatorDropdownResponseDTO>> response = new CommonResponse<>(
                 200,
                 "Active operators fetched successfully",
@@ -145,7 +154,5 @@ public class OperatorsController {
         );
         return ResponseEntity.ok(response);
     }
-
-
 }
 

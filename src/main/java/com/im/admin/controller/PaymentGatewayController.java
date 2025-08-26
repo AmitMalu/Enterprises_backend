@@ -37,34 +37,43 @@ public class PaymentGatewayController {
     public ResponseEntity<CommonResponse<String>> validateTransaction(
             @RequestBody PgTransactionRequestDto request) {
 
+        log.info("Received request to validate transaction: {}", request);
         CommonResponse<String> response = paymentGatewayService.validateTransaction(request);
+        log.info("Transaction validation response: {}", response);
         return new ResponseEntity<>(response, HttpStatus.valueOf(response.getStatusCode()));
     }
 
     @GetMapping("/generate-token")
     public ResponseEntity<String> generateToken() {
-        log.info("******* generateToken at {} started *******", currentDateTimeDate);
+        log.info("******* generateToken started *******");
         String token = paymentGatewayService.generateToken();
-        log.info("******* generateToken at {} ends *******", currentDateTimeDate);
+        log.info("******* generateToken ends ******* token: {}", token);
         return new ResponseEntity<>(token, HttpStatus.OK);
     }
 
     @PostMapping("/create-order")
     @Transactional
     public ResponseEntity<CommonResponse<String>> createOrder(@RequestBody CreateOrderRequest request) {
-        return paymentGatewayService.createOrder(request);
+        log.info("Received request to create order: {}", request);
+        ResponseEntity<CommonResponse<String>> response = paymentGatewayService.createOrder(request);
+        log.info("Order creation response: {}", response.getBody());
+        return response;
     }
+
 
     @PostMapping("/order-status")
     @Transactional
     public ResponseEntity<?> orderStatus(@RequestParam("orderId") String orderId) {
-        return paymentGatewayService.orderStatus(orderId);
+        log.info("Received request for order status, orderId: {}", orderId);
+        ResponseEntity<?> response = paymentGatewayService.orderStatus(orderId);
+        log.info("Order status response: {}", response);
+        return response;
     }
 
     @PostMapping("/payment/callback")
     public ResponseEntity<String> handleCallback(@RequestBody Map<String, String> payload,
                                                  HttpServletRequest request) throws JsonProcessingException {
-        log.info("Received callback request from IP: {}", request.getRemoteAddr());
+        log.info("Received callback request from IP: {}, payload: {}", request.getRemoteAddr(), payload);
         String result = paymentGatewayService.handleCallback(payload, request);
         log.info("Callback response sent: {}", result);
         return ResponseEntity.ok(result);
@@ -74,10 +83,10 @@ public class PaymentGatewayController {
     public ResponseEntity<CommonResponse<RetailerCommissionResponseDTO>> fetchCardBinNo(
             @RequestBody PaymentGatewayCardBinRequestDTO paymentGatewayCardBinRequestDTO) {
 
+        log.info("Received request to fetch card bin no: {}", paymentGatewayCardBinRequestDTO);
         CommonResponse<RetailerCommissionResponseDTO> response =
                 paymentGatewayService.fetchRetailerCommission(paymentGatewayCardBinRequestDTO);
-
+        log.info("Card bin no fetch response: {}", response);
         return ResponseEntity.ok(response);
     }
-
 }
