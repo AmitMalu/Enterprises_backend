@@ -5,14 +5,17 @@ import com.im.admin.dto.UserConfigurationResponseDto;
 import com.im.admin.entities.UserConfiguration;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.UserConfigurationService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
+@Slf4j
 @RequestMapping("/api/user-config")
 public class UserConfigurationController {
     @Autowired
@@ -20,15 +23,33 @@ public class UserConfigurationController {
 
     @PostMapping
     public ResponseEntity<CommonResponse> addUserConfig(@RequestBody UserConfigurationRequestDto dto) {
-        List<UserConfiguration> userConfigurations = userConfigurationService.addUserConfiguration(dto);
-        return ResponseEntity.ok(new CommonResponse(201, "userConfigurations created successfully", userConfigurations));
-    }
+        log.info("Received request to create user configuration for userId: {}", dto.getUserId());
 
+        try {
+            List<UserConfiguration> userConfigurations = userConfigurationService.addUserConfiguration(dto);
+            log.info("User configuration created successfully for userId: {}. Total entries: {}",
+                    dto.getUserId(), userConfigurations.size());
+            return ResponseEntity.ok(new CommonResponse<>(201, "userConfigurations created successfully", userConfigurations));
+        } catch (Exception e) {
+            log.error("Error creating user configuration for userId: {}", dto.getUserId(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Failed to create user configuration", null));
+        }
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse> getUserConfigById(@PathVariable Integer id) {
-        UserConfiguration config = userConfigurationService.getUserConfigurationById(id);
-        return ResponseEntity.ok(new CommonResponse(200, "Fetched successfully", config));
+        log.info("Fetching user configuration by ID: {}", id);
+
+        try {
+            UserConfiguration config = userConfigurationService.getUserConfigurationById(id);
+            log.info("User configuration fetched successfully for ID: {}", id);
+            return ResponseEntity.ok(new CommonResponse<>(200, "Fetched successfully", config));
+        } catch (Exception e) {
+            log.error("Error fetching user configuration for ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Failed to fetch user configuration", null));
+        }
     }
 
     @PutMapping("/{id}")
@@ -36,10 +57,18 @@ public class UserConfigurationController {
             @PathVariable Integer id,
             @RequestBody UserConfigurationRequestDto dto) {
 
-        UserConfiguration updatedConfig = userConfigurationService.updateUserConfiguration(id, dto);
-        return ResponseEntity.ok(new CommonResponse<>(200, "User configuration updated successfully", updatedConfig));
-    }
+        log.info("Updating user configuration for ID: {}", id);
 
+        try {
+            UserConfiguration updatedConfig = userConfigurationService.updateUserConfiguration(id, dto);
+            log.info("User configuration updated successfully for ID: {}", id);
+            return ResponseEntity.ok(new CommonResponse<>(200, "User configuration updated successfully", updatedConfig));
+        } catch (Exception e) {
+            log.error("Error updating user configuration for ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Failed to update user configuration", null));
+        }
+    }
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<UserConfiguration>>> getAllUserConfigurations(
@@ -55,14 +84,20 @@ public class UserConfigurationController {
             @RequestParam(required = false) Integer menuId,
             @RequestParam(required = false) Integer subMenuId
     ) {
-        Page<UserConfiguration> result = userConfigurationService.getAllUserConfigurations(
-                page, size, userId, fullName, email, mobile, state, userRole, parentAccount, menuId, subMenuId
-        );
-        return ResponseEntity.ok(new CommonResponse<>(200, "Success", result));
+        log.info("Fetching user configurations with filters - page: {}, size: {}, userId: {}, fullName: {}, email: {}",
+                page, size, userId, fullName, email);
+
+        try {
+            Page<UserConfiguration> result = userConfigurationService.getAllUserConfigurations(
+                    page, size, userId, fullName, email, mobile, state, userRole, parentAccount, menuId, subMenuId
+            );
+            log.info("Fetched {} user configurations", result.getTotalElements());
+            return ResponseEntity.ok(new CommonResponse<>(200, "Success", result));
+        } catch (Exception e) {
+            log.error("Error fetching user configurations", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Failed to fetch user configurations", null));
+        }
     }
-
-
-
-
 
 }
