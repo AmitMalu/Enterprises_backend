@@ -67,177 +67,151 @@ public class AuthController {
     @Autowired
     private AdminRepository adminRepository;
 
-
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
-
-        LocalDateTime requestTime = LocalDateTime.now(); // capture request time
-        String requestJson = "";
-        String responseJson = "";
-
-        try {
-            requestJson = objectMapper.writeValueAsString(loginRequestDto);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = serializeRequest(loginRequestDto);
         String username = loginRequestDto.getUserName();
-        Optional<UserDetails> optionalUser = userDetailsRepository.findByMobileNumber(username);
 
-        if (optionalUser.isEmpty()) {
-            optionalUser = userDetailsRepository.findByEmailId(username);
-        }
+        log.info("Login attempt started for username: {}", username);
 
+        Optional<UserDetails> optionalUser = findUserByUsername(username);
         if (optionalUser.isEmpty()) {
-            CommonResponse<?> response = new CommonResponse<>(401, "Invalid credentials: user not found", null);
-            try {
-                responseJson = objectMapper.writeValueAsString(response);
-                commonFunctions.saveLoginLogs( requestJson, requestTime, responseJson,LocalDateTime.now(),null);            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return ResponseEntity.ok(response);
+            log.warn("User not found for username: {}", username);
+            return buildErrorResponse(requestJson, requestTime, 401, "Invalid credentials: user not found");
         }
 
         UserDetails user = optionalUser.get();
+        log.debug("User found: ID={}, Status={}, Hierarchy={}", user.getHierarchyId(), user.getUserStatus(), user.getHierarchyId());
 
         if (!isUrlValidForUserHierarchy(user.getHierarchyId(), loginRequestDto.getUrl())) {
-            CommonResponse<?> response = new CommonResponse<>(401, "Invalid login domain for this user", null);
-            try {
-                responseJson = objectMapper.writeValueAsString(response);
-                commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return ResponseEntity.ok(response);
+            log.warn("Invalid login domain for user ID: {}", user.getHierarchyId());
+            return buildErrorResponse(requestJson, requestTime, 401, "Invalid login domain for this user");
         }
 
-
         if (isUserLocked(user)) {
-            CommonResponse<?> response = new CommonResponse<>(403, "Account is locked due to multiple failed attempts. Try again later.", null);
-            try {
-                responseJson = objectMapper.writeValueAsString(response);
-                commonFunctions.saveLoginLogs( requestJson, requestTime, responseJson,LocalDateTime.now(),null);            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return ResponseEntity.ok(response);
+            log.warn("User account locked due to failed attempts: ID={}", user.getHierarchyId());
+            return buildErrorResponse(requestJson, requestTime, 403, "Account is locked due to multiple failed attempts. Try again later.");
         }
 
         if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
-            CommonResponse<?> response = new CommonResponse<>(403, "User account is not active. Please contact support.", null);
-            try {
-                responseJson = objectMapper.writeValueAsString(response);
-                commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return ResponseEntity.ok(response);
+            log.warn("User account is not active: ID={}", user.getHierarchyId());
+            return buildErrorResponse(requestJson, requestTime, 403, "User account is not active. Please contact support.");
         }
 
         if (Boolean.TRUE.equals(user.getIsBlocked())) {
-            CommonResponse<?> response = new CommonResponse<>(403, "User is blocked. Please contact support.", null);
-            try {
-                responseJson = objectMapper.writeValueAsString(response);
-                commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return ResponseEntity.ok(response);
+            log.warn("User is blocked: ID={}", user.getHierarchyId());
+            return buildErrorResponse(requestJson, requestTime, 403, "User is blocked. Please contact support.");
         }
 
-        // Step 1: Try encrypted match
-        if (!passwordEncoder.matches(loginRequestDto.getPassword(), user.getLoginPassword())) {
+        return handlePasswordValidation(user, loginRequestDto.getPassword(), requestJson, requestTime);
+    }
 
-            // Step 2: If encrypted check fails, try plain-text match (fallback)
-            if (loginRequestDto.getPassword().equals(user.getLoginPassword())) {
+    private Optional<UserDetails> findUserByUsername(String username) {
+        Optional<UserDetails> user = userDetailsRepository.findByMobileNumber(username);
+        return user.isPresent() ? user : userDetailsRepository.findByEmailId(username);
+    }
 
-                // Successful login (via plain-text match)
-                user.setFailedAttempts(0);
-                user.setLockTime(null);
+    private String serializeRequest(Object request) {
+        try {
+            return objectMapper.writeValueAsString(request);
+        } catch (Exception e) {
+            log.error("Failed to serialize request", e);
+            return "{}";
+        }
+    }
 
-                String otp = OtpUtil.generateOtp();
-                user.setOtp(otp);
-                user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
+    private ResponseEntity<?> buildErrorResponse(String requestJson, LocalDateTime requestTime, int status, String message) {
+        CommonResponse<?> response = new CommonResponse<>(status, message, null);
+        logLoginAttempt(requestJson, requestTime, response);
+        return ResponseEntity.status(status).body(response);
+    }
 
-                userDetailsRepository.save(user);
+    private void logLoginAttempt(String requestJson, LocalDateTime requestTime, CommonResponse<?> response) {
+        try {
+            String responseJson = objectMapper.writeValueAsString(response);
+            commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+            log.info("Login log saved for status {}: {}", response.getStatusCode(), response.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to save login log", e);
+        }
+    }
 
-                Map<String, String> otpData = new HashMap<>();
-                otpData.put("otp", otp);
+    private ResponseEntity<?> handlePasswordValidation(UserDetails user, String inputPassword, String requestJson, LocalDateTime requestTime) {
+        boolean passwordMatches = passwordEncoder.matches(inputPassword, user.getLoginPassword());
+        boolean fallbackMatches = inputPassword.equals(user.getLoginPassword());
 
-                CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData);
-                try {
-                    responseJson = objectMapper.writeValueAsString(response);
-                    commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                return ResponseEntity.ok(response);
+        if (!passwordMatches && !fallbackMatches) {
+            log.warn("Password mismatch for user ID: {}", user.getHierarchyId());
+            return handleFailedAttempt(user, requestJson, requestTime);
+        }
 
-            } else {
-                // Password mismatch - increment failed attempts
-                int attempts = user.getFailedAttempts() != null ? user.getFailedAttempts() : 0;
-                attempts += 1;
-                user.setFailedAttempts(attempts);
+        resetFailedAttempts(user);
+        String otp = generateOtpForUser(user);
 
-                if (attempts >= 5) {
-                    user.setLockTime(LocalDateTime.now());
-                }
+        Map<String, String> otpData = Map.of("otp", otp);
+        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData);
+        logLoginAttempt(requestJson, requestTime, response);
+        log.info("OTP sent successfully for user ID: {}", user.getHierarchyId());
+        return ResponseEntity.ok(response);
+    }
 
-                userDetailsRepository.save(user);
+    private ResponseEntity<?> handleFailedAttempt(UserDetails user, String requestJson, LocalDateTime requestTime) {
+        int attempts = Optional.ofNullable(user.getFailedAttempts()).orElse(0) + 1;
+        user.setFailedAttempts(attempts);
 
-                String message = attempts >= 5 ?
-                        "Account locked due to 5 failed attempts. Try again in 5 minutes." :
-                        "Invalid credentials. Attempt " + attempts + " of 5.";
-
-                CommonResponse<?> response = new CommonResponse<>(401, message, null);
-                try {
-                    responseJson = objectMapper.writeValueAsString(response);
-                    commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
-                return ResponseEntity.ok(response);
-            }
-
+        if (attempts >= 5) {
+            user.setLockTime(LocalDateTime.now());
+            log.warn("User account locked after {} failed attempts: ID={}", attempts, user.getHierarchyId());
         } else {
-            // Successful login via encoded match
-            user.setFailedAttempts(0);
-            user.setLockTime(null);
-
-            String otp = OtpUtil.generateOtp();
-            user.setOtp(otp);
-            user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
-
-            userDetailsRepository.save(user);
-
-            Map<String, String> otpData = new HashMap<>();
-            otpData.put("otp", otp);
-
-            CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData);
-            try {
-                responseJson = objectMapper.writeValueAsString(response);
-                commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return ResponseEntity.ok(response);
+            log.warn("Failed login attempt {} for user ID: {}", attempts, user.getHierarchyId());
         }
+
+        userDetailsRepository.save(user);
+
+        String message = attempts >= 5 ?
+                "Account locked due to 5 failed attempts. Try again in 5 minutes." :
+                "Invalid credentials. Attempt " + attempts + " of 5.";
+
+        return buildErrorResponse(requestJson, requestTime, 401, message);
+    }
+
+    private void resetFailedAttempts(UserDetails user) {
+        user.setFailedAttempts(0);
+        user.setLockTime(null);
+        log.debug("Resetting failed attempts for user ID: {}", user.getHierarchyId());
+    }
+
+    private String generateOtpForUser(UserDetails user) {
+        String otp = OtpUtil.generateOtp();
+        user.setOtp(otp);
+        user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
+        userDetailsRepository.save(user);
+        log.info("OTP generated for user ID: {}", user.getHierarchyId());
+        return otp;
     }
 
     public boolean isUrlValidForUserHierarchy(String hierarchyId, String requestUrl) {
         String currentId = hierarchyId;
+        log.info("Validating URL '{}' for hierarchy ID '{}'", requestUrl, hierarchyId);
 
         while (true) {
             String currentType = commonMethods.extractHierarchyType(currentId);
+            log.debug("Current hierarchy ID: {}, Type: {}", currentId, currentType);
 
             if ("WL".equals(currentType)) {
                 Optional<WhiteLabels> wlOpt = whiteLabelRepository.findById(currentId);
                 if (wlOpt.isPresent()) {
                     WhiteLabels wl = wlOpt.get();
+                    log.debug("WhiteLabel found: ID={}, isAdmin={}, domainURL={}", currentId, wl.getIsAdmin(), wl.getDomainURL());
+
                     if (Boolean.TRUE.equals(wl.getIsAdmin())) {
-                        String expectedUrl = wl.getDomainURL();
-                        return requestUrl.contains(expectedUrl);
+                        boolean match = requestUrl.contains(wl.getDomainURL());
+                        log.info("URL match for WhiteLabel admin: {}", match);
+                        return match;
                     }
+                } else {
+                    log.warn("WhiteLabel not found for ID: {}", currentId);
                 }
             }
 
@@ -245,25 +219,39 @@ public class AuthController {
                 Optional<Admin> adminOpt = adminRepository.findById(currentId);
                 if (adminOpt.isPresent()) {
                     Admin admin = adminOpt.get();
-                    return requestUrl.equals(admin.getLoginURL());
+                    boolean match = requestUrl.equals(admin.getLoginURL());
+                    log.info("URL match for Admin/IM: {}", match);
+                    return match;
+                } else {
+                    log.warn("Admin not found for ID: {}", currentId);
                 }
             }
 
             Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
-            if (parentOpt.isEmpty()) break;
+            if (parentOpt.isEmpty()) {
+                log.info("No parent found for hierarchy ID: {}. URL validation failed.", currentId);
+                break;
+            }
 
             currentId = parentOpt.get();
+            log.debug("Traversing to parent hierarchy ID: {}", currentId);
         }
 
+        log.info("URL '{}' is not valid for hierarchy ID '{}'", requestUrl, hierarchyId);
         return false;
     }
 
-
     private boolean isUserLocked(UserDetails user) {
-        if (user.getLockTime() == null) return false;
+        if (user.getLockTime() == null) {
+            log.debug("User ID {} is not locked (no lockTime set)", user.getHierarchyId());
+            return false;
+        }
 
         LocalDateTime now = LocalDateTime.now();
-        return now.isBefore(user.getLockTime().plusMinutes(5));
+        boolean locked = now.isBefore(user.getLockTime().plusMinutes(5));
+
+        log.info("User ID {} lock status: {} (locked until {})", user.getHierarchyId(), locked, user.getLockTime().plusMinutes(5));
+        return locked;
     }
 
     @PostMapping("/verify-otp")
@@ -273,35 +261,35 @@ public class AuthController {
         String requestJson = "username=" + loginRequestDto.getUserName() + "&otp=" + loginRequestDto.getOtp();
         String responseJson = "";
 
-        Optional<UserDetails> optionalUser;
+        log.info("OTP verification attempt for username: {}", loginRequestDto.getUserName());
 
-        if (loginRequestDto.getUserName().matches("\\d{10}")) {
-            optionalUser = userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName());
-        } else {
-            optionalUser = userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
-        }
+        Optional<UserDetails> optionalUser = loginRequestDto.getUserName().matches("\\d{10}")
+                ? userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName())
+                : userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
 
         if (optionalUser.isEmpty()) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(404, "User not found", null));
+            log.warn("User not found for username: {}", loginRequestDto.getUserName());
+            return ResponseEntity.ok(new CommonResponse<>(404, "User not found", null));
         }
 
         UserDetails user = optionalUser.get();
 
         if (user.getOtp() == null || user.getOtpExpiryTime() == null) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(400, "No OTP generated for this user", null));
+            log.warn("No OTP generated for user ID: {}", user.getHierarchyId());
+            return ResponseEntity.ok(new CommonResponse<>(400, "No OTP generated for this user", null));
         }
 
         if (LocalTime.now().isAfter(user.getOtpExpiryTime())) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(400, "OTP expired", null));
+            log.warn("OTP expired for user ID: {}", user.getHierarchyId());
+            return ResponseEntity.ok(new CommonResponse<>(400, "OTP expired", null));
         }
 
         if (!user.getOtp().equals(loginRequestDto.getOtp())) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(400, "Invalid OTP", null));
+            log.warn("Invalid OTP entered for user ID: {}", user.getHierarchyId());
+            return ResponseEntity.ok(new CommonResponse<>(400, "Invalid OTP", null));
         }
+
+        log.info("OTP verified successfully for user ID: {}", user.getHierarchyId());
 
         ResponseEntity<?> responseEntity = aesController.generateToken(loginRequestDto.getUserName());
         if (responseEntity.getStatusCode() == HttpStatus.OK) {
@@ -312,123 +300,121 @@ public class AuthController {
             user.setOtp(null);
             user.setOtpExpiryTime(null);
             userDetailsRepository.save(user);
+
             Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("token", token);
             responseMap.put("hierarchyId", user.getHierarchyId());
             responseMap.put("mobileNumber", user.getMobileNumber());
-            responseMap.put("emailId",user.getEmailId());
+            responseMap.put("emailId", user.getEmailId());
 
             String hierarchyCode = user.getHierarchyCode();
+            log.debug("Resolving role for hierarchyCode: {}", hierarchyCode);
 
-            if ("AD".equalsIgnoreCase(hierarchyCode)) {
-                responseMap.put("role_id", user.getRole_id());
-
-                ImSubRole subRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
-                if (subRole != null) {
-                    responseMap.put("sub_role_id", subRole.getSubRoleId());
-                    responseMap.put("role", hierarchyCode);
-                }
-
-            } else if ("WL".equalsIgnoreCase(hierarchyCode)) {
-                WhiteLabels whiteLabel = whiteLabelRepository.findByMobileNumber(user.getMobileNumber());
-
-                if (whiteLabel != null && Boolean.TRUE.equals(whiteLabel.getIsAdmin())) {
+            switch (hierarchyCode.toUpperCase()) {
+                case "AD":
                     responseMap.put("role_id", user.getRole_id());
+                    ImSubRole adSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                    if (adSubRole != null) {
+                        responseMap.put("sub_role_id", adSubRole.getSubRoleId());
+                        responseMap.put("role", hierarchyCode);
+                    }
+                    break;
 
-                    ImSubRole subRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
-                    if (subRole != null) {
-                        responseMap.put("sub_role_id", subRole.getSubRoleId());
+                case "WL":
+                    WhiteLabels whiteLabel = whiteLabelRepository.findByMobileNumber(user.getMobileNumber());
+                    if (whiteLabel != null && Boolean.TRUE.equals(whiteLabel.getIsAdmin())) {
+                        responseMap.put("role_id", user.getRole_id());
+                        ImSubRole wlSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                        if (wlSubRole != null) {
+                            responseMap.put("sub_role_id", wlSubRole.getSubRoleId());
+                        }
+                        responseMap.put("role", "WL-AD");
+                    } else {
+                        responseMap.put("role", "WL");
+                    }
+                    break;
+
+                case "RT":
+                    List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
+                    Map<String, List<Map<String, String>>> productSubMap = new LinkedHashMap<>();
+                    Map<String, String> productIdToName = new HashMap<>();
+
+                    for (SchemeAllocation sa : schemes) {
+                        Optional<Products> productOpt = productsRepository.findByProductCode(sa.getProductCode());
+                        Optional<SubProducts> subProductOpt = subProductsRepository.findBySubProductCode(sa.getSubProductCode());
+
+                        if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
+                            log.warn("Skipping scheme due to missing mapping for productCode={} or subProductCode={}",
+                                    sa.getProductCode(), sa.getSubProductCode());
+                            continue;
+                        }
+
+                        String productId = String.valueOf(productOpt.get().getId());
+                        String productName = productOpt.get().getName();
+                        String subProductId = String.valueOf(subProductOpt.get().getId());
+                        String subProductName = subProductOpt.get().getSubProductTitle();
+
+                        productIdToName.putIfAbsent(productId, productName);
+
+                        Map<String, String> subProductMap = new HashMap<>();
+                        subProductMap.put("subProductId", subProductId);
+                        subProductMap.put("subProductName", subProductName);
+                        subProductMap.put("schemeCode", sa.getSchemeCode());
+
+                        productSubMap.computeIfAbsent(productId, k -> new ArrayList<>()).add(subProductMap);
                     }
 
-                    responseMap.put("role", "WL-AD"); // Treat as WL Admin
-                } else {
-                    responseMap.put("role", "WL"); // Normal WhiteLabel user
-                }
-            }
-
-            if ("RT".equalsIgnoreCase(hierarchyCode)) {
-                List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
-
-                Map<String, List<Map<String, String>>> productSubMap = new LinkedHashMap<>();
-                Map<String, String> productIdToName = new HashMap<>();
-
-                for (SchemeAllocation sa : schemes) {
-                    Optional<Products> productOpt = productsRepository.findByProductCode(sa.getProductCode());
-                    Optional<SubProducts> subProductOpt = subProductsRepository.findBySubProductCode(sa.getSubProductCode());
-
-                    if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
-                        log.warn("Skipping scheme due to missing mapping for productCode={} or subProductCode={}", sa.getProductCode(), sa.getSubProductCode());
-                        continue;
+                    List<Map<String, Object>> productList = new ArrayList<>();
+                    for (Map.Entry<String, List<Map<String, String>>> entry : productSubMap.entrySet()) {
+                        Map<String, Object> product = new HashMap<>();
+                        product.put("productId", entry.getKey());
+                        product.put("productName", productIdToName.get(entry.getKey()));
+                        product.put("subProducts", entry.getValue());
+                        productList.add(product);
                     }
 
-                    String productId = String.valueOf(productOpt.get().getId());
-                    String productName = productOpt.get().getName();
+                    responseMap.put("products", productList);
+                    responseMap.put("role", hierarchyCode);
+                    break;
 
-                    String subProductId = String.valueOf(subProductOpt.get().getId());
-                    String subProductName = subProductOpt.get().getSubProductTitle();
+                case "RU":
+                    responseMap.put("role_id", user.getRole_id());
+                    ImSubRole ruSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                    if (ruSubRole != null) {
+                        responseMap.put("sub_role_id", ruSubRole.getSubRoleId());
+                    }
+                    responseMap.put("role", "RA");
+                    break;
 
-                    // Save product name once
-                    productIdToName.putIfAbsent(productId, productName);
+                case "AU":
+                    responseMap.put("permissions", user.getPermission());
+                    responseMap.put("role", "AU");
+                    break;
 
-                    Map<String, String> subProductMap = new HashMap<>();
-                    subProductMap.put("subProductId", subProductId);
-                    subProductMap.put("subProductName", subProductName);
-                    subProductMap.put("schemeCode", sa.getSchemeCode());
-
-                    productSubMap.computeIfAbsent(productId, k -> new ArrayList<>()).add(subProductMap);
-                }
-
-                List<Map<String, Object>> productList = new ArrayList<>();
-
-                for (Map.Entry<String, List<Map<String, String>>> entry : productSubMap.entrySet()) {
-                    Map<String, Object> product = new HashMap<>();
-                    product.put("productId", entry.getKey());
-                    product.put("productName", productIdToName.get(entry.getKey()));
-                    product.put("subProducts", entry.getValue());
-                    productList.add(product);
-                }
-
-                responseMap.put("products", productList);
-                responseMap.put("role", hierarchyCode);
+                default:
+                    responseMap.put("role", hierarchyCode);
+                    break;
             }
 
-            else if ("RU".equalsIgnoreCase(hierarchyCode)) {
-                responseMap.put("role_id", user.getRole_id());
-
-                ImSubRole subRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
-                if (subRole != null) {
-                    responseMap.put("sub_role_id", subRole.getSubRoleId());
-                }
-
-                responseMap.put("role", "RA");
-
-            } else if ("AU".equalsIgnoreCase(hierarchyCode)) {
-                // AU logic: send permissions
-                responseMap.put("permissions", user.getPermission()); // Assuming it's a List<String> in UserDetails
-                responseMap.put("role", "AU");
-            }
-
-
-
-            responseMap.put("role", hierarchyCode);
             try {
                 responseJson = objectMapper.writeValueAsString(
                         new CommonResponse<>(200, "OTP verified successfully", responseMap)
                 );
-
                 commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+                log.info("OTP verification log saved for user ID: {}", user.getHierarchyId());
             } catch (JsonProcessingException e) {
-                e.printStackTrace(); // Optional: replace with logger
+                log.error("Error logging OTP verification for user ID: {}", user.getHierarchyId(), e);
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(new CommonResponse<>(500, "Error logging OTP verification", null));
             }
 
+            log.info("OTP verification completed successfully for user ID: {}", user.getHierarchyId());
             return ResponseEntity.ok(new CommonResponse<>(200, "OTP verified successfully", responseMap));
-
-        } else {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error generating token: " + responseEntity.getBody());
         }
+
+        log.error("Token generation failed for username: {}", loginRequestDto.getUserName());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error generating token: " + responseEntity.getBody());
     }
 
 
@@ -439,63 +425,67 @@ public class AuthController {
         String requestJson = "username=" + loginRequestDto.getUserName() + "&otp=" + loginRequestDto.getOtp();
         String responseJson = "";
 
+        log.info("Forgot-password OTP verification attempt for username: {}", loginRequestDto.getUserName());
+
         try {
             boolean isVerified = authService.verifyOTP(loginRequestDto);
             CommonResponse<?> commonResponse;
 
             if (isVerified) {
+                log.info("OTP verified successfully for username: {}", loginRequestDto.getUserName());
                 commonResponse = new CommonResponse<>(200, "OTP verified successfully", null);
             } else {
+                log.warn("OTP verification failed for username: {}", loginRequestDto.getUserName());
                 commonResponse = new CommonResponse<>(401, "OTP verification failed", null);
             }
 
-            // Convert response object to JSON
             responseJson = objectMapper.writeValueAsString(commonResponse);
-            // Save login log
             commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+            log.debug("Login log saved for username: {}", loginRequestDto.getUserName());
 
             return ResponseEntity.status(commonResponse.getStatusCode()).body(commonResponse);
 
         } catch (RuntimeException | JsonProcessingException ex) {
-            ex.printStackTrace(); // Optionally log it properly
+            log.error("Error during OTP verification for username: {}", loginRequestDto.getUserName(), ex);
+
             CommonResponse<?> errorResponse = new CommonResponse<>(500, ex.getMessage(), null);
             try {
                 responseJson = objectMapper.writeValueAsString(errorResponse);
             } catch (JsonProcessingException e) {
-                e.printStackTrace();
+                log.error("Failed to serialize error response for username: {}", loginRequestDto.getUserName(), e);
             }
+
             commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), ex.getMessage());
+            log.debug("Error log saved for username: {}", loginRequestDto.getUserName());
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
-
-
     @PostMapping("/resend-otp")
-    public ResponseEntity<?> resendOtp(@RequestBody LoginRequestDto  loginRequestDto) {
+    public ResponseEntity<?> resendOtp(@RequestBody LoginRequestDto loginRequestDto) {
 
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = "username=" + loginRequestDto.getUserName();
         String responseJson = "";
 
-        Optional<UserDetails> optionalUser;
+        log.info("OTP resend request received for username: {}", loginRequestDto.getUserName());
 
-        if (loginRequestDto.getUserName().matches("\\d{10}")) {
-            optionalUser = userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName());
-        } else {
-            optionalUser = userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
-        }
+        Optional<UserDetails> optionalUser = loginRequestDto.getUserName().matches("\\d{10}")
+                ? userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName())
+                : userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
 
         if (optionalUser.isEmpty()) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(404, "User not found", null));
+            log.warn("User not found for username: {}", loginRequestDto.getUserName());
+            return ResponseEntity.ok(new CommonResponse<>(404, "User not found", null));
         }
 
         UserDetails user = optionalUser.get();
+        log.debug("User found: ID={}, Status={}", user.getHierarchyId(), user.getUserStatus());
 
         if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(403, "User account is not active", null));
+            log.warn("User account is not active: ID={}", user.getHierarchyId());
+            return ResponseEntity.ok(new CommonResponse<>(403, "User account is not active", null));
         }
 
         String newOtp = OtpUtil.generateOtp();
@@ -503,29 +493,34 @@ public class AuthController {
         user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
         userDetailsRepository.save(user);
 
+        log.info("New OTP generated and saved for user ID: {}", user.getHierarchyId());
+
         // Hook: Send OTP via SMS or Email
         if (loginRequestDto.getUserName().matches("\\d{10}")) {
+            log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
             // smsService.sendOtp(user.getMobileNumber(), newOtp);
         } else {
+            log.debug("Sending OTP via Email to email ID: {}", user.getEmailId());
             // emailService.sendOtp(user.getEmail(), newOtp);
         }
 
         Map<String, String> otpData = new HashMap<>();
-        otpData.put("otp", newOtp);  // remove in production if you don’t want to expose OTP
-        
+        otpData.put("otp", newOtp); // ⚠️ Consider removing this in production
+
         CommonResponse<Map<String, String>> commonResponse =
                 new CommonResponse<>(200, "OTP resent successfully", otpData);
 
         try {
             responseJson = objectMapper.writeValueAsString(commonResponse);
-
             commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+            log.info("OTP resend log saved for user ID: {}", user.getHierarchyId());
         } catch (JsonProcessingException e) {
-            // Optional: log the exception
-            e.printStackTrace();
+            log.error("Error serializing OTP resend response for user ID: {}", user.getHierarchyId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new CommonResponse<>(500, "Internal error during logging", null));
         }
+
+        log.info("OTP resend completed successfully for user ID: {}", user.getHierarchyId());
         return ResponseEntity.ok(commonResponse);
     }
 
@@ -534,50 +529,57 @@ public class AuthController {
     public ResponseEntity<?> setPassword(@RequestBody LoginRequestDto loginRequestDto) {
 
         LocalDateTime requestTime = LocalDateTime.now();
-        String requestJson = "username=" + loginRequestDto.getUserName() + "&newPassword=" + loginRequestDto.getNewPassword() + "&reEnteredPassword=" + loginRequestDto.getReEnteredPassword();
+        String requestJson = "username=" + loginRequestDto.getUserName() +
+                "&newPassword=" + loginRequestDto.getNewPassword() +
+                "&reEnteredPassword=" + loginRequestDto.getReEnteredPassword();
         String responseJson = "";
 
+        log.info("Password reset request received for username: {}", loginRequestDto.getUserName());
+
         if (!loginRequestDto.getNewPassword().equals(loginRequestDto.getReEnteredPassword())) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(400, "New password and confirm password do not match", null));
+            log.warn("Password mismatch for username: {}", loginRequestDto.getUserName());
+            return ResponseEntity.ok(new CommonResponse<>(400, "New password and confirm password do not match", null));
         }
 
         if (loginRequestDto.getNewPassword().length() < 8) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(400, "Password must be at least 8 characters long", null));
+            log.warn("Password too short for username: {}", loginRequestDto.getUserName());
+            return ResponseEntity.ok(new CommonResponse<>(400, "Password must be at least 8 characters long", null));
         }
 
-        Optional<UserDetails> optionalUser;
-        if (loginRequestDto.getUserName().matches("\\d{10}")) {
-            optionalUser = userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName());
-        } else {
-            optionalUser = userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
-        }
+        Optional<UserDetails> optionalUser = loginRequestDto.getUserName().matches("\\d{10}")
+                ? userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName())
+                : userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
 
         if (optionalUser.isEmpty()) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(404, "User not found", null));
+            log.warn("User not found for username: {}", loginRequestDto.getUserName());
+            return ResponseEntity.ok(new CommonResponse<>(404, "User not found", null));
         }
 
         UserDetails user = optionalUser.get();
+        log.debug("User found: ID={}, Status={}", user.getHierarchyId(), user.getUserStatus());
 
         if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(403, "User account is not active", null));
+            log.warn("Inactive user attempted password reset: ID={}", user.getHierarchyId());
+            return ResponseEntity.ok(new CommonResponse<>(403, "User account is not active", null));
         }
 
         String hashedPassword = passwordEncoder.encode(loginRequestDto.getNewPassword());
         user.setLoginPassword(hashedPassword);
         userDetailsRepository.save(user);
 
+        log.info("Password updated successfully for user ID: {}", user.getHierarchyId());
+
         CommonResponse<?> response = new CommonResponse<>(200, "Password updated successfully", null);
         try {
             responseJson = objectMapper.writeValueAsString(response);
+            log.debug("Password update response serialized for user ID: {}", user.getHierarchyId());
         } catch (JsonProcessingException e) {
+            log.error("Error serializing password update response for user ID: {}", user.getHierarchyId(), e);
             responseJson = "{\"statusCode\":200,\"message\":\"Password updated successfully\",\"data\":null}";
         }
 
         commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+        log.info("Password reset log saved for user ID: {}", user.getHierarchyId());
 
         return ResponseEntity.ok(response);
     }
@@ -589,23 +591,23 @@ public class AuthController {
         String requestJson = "username=" + loginRequestDto.getUserName();
         String responseJson = "";
 
-        Optional<UserDetails> optionalUser;
-        if (loginRequestDto.getUserName().matches("\\d{10}")) {
-            optionalUser = userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName());
-        } else {
-            optionalUser = userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
-        }
+        log.info("Forgot password request received for username: {}", loginRequestDto.getUserName());
+
+        Optional<UserDetails> optionalUser = loginRequestDto.getUserName().matches("\\d{10}")
+                ? userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName())
+                : userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
 
         if (optionalUser.isEmpty()) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(404, "User not found", null));
+            log.warn("User not found for username: {}", loginRequestDto.getUserName());
+            return ResponseEntity.ok(new CommonResponse<>(404, "User not found", null));
         }
 
         UserDetails user = optionalUser.get();
+        log.debug("User found: ID={}, Status={}", user.getHierarchyId(), user.getUserStatus());
 
         if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
-            return ResponseEntity.ok()
-                    .body(new CommonResponse<>(403, "User account is not active", null));
+            log.warn("Inactive user attempted password recovery: ID={}", user.getHierarchyId());
+            return ResponseEntity.ok(new CommonResponse<>(403, "User account is not active", null));
         }
 
         String otp = OtpUtil.generateOtp();
@@ -613,22 +615,34 @@ public class AuthController {
         user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
         userDetailsRepository.save(user);
 
+        log.info("OTP generated and saved for user ID: {}", user.getHierarchyId());
+
         // Optional: Hook for sending OTP
-        // smsService.sendOtp(user.getMobileNumber(), otp);
-        // emailService.sendOtp(user.getEmail(), otp);
+        if (loginRequestDto.getUserName().matches("\\d{10}")) {
+            log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
+            // smsService.sendOtp(user.getMobileNumber(), otp);
+        } else {
+            log.debug("Sending OTP via Email to email ID: {}", user.getEmailId());
+            // emailService.sendOtp(user.getEmail(), otp);
+        }
 
         Map<String, String> data = new HashMap<>();
         data.put("message", "OTP has been sent to your registered mobile number");
-        data.put("OTP",otp);
+        data.put("OTP", otp); // ⚠️ Consider removing this in production
 
         CommonResponse<Map<String, String>> commonResponse = new CommonResponse<>(200, "OTP generated successfully", data);
+
         try {
             responseJson = objectMapper.writeValueAsString(commonResponse);
+            log.debug("OTP response serialized for user ID: {}", user.getHierarchyId());
         } catch (JsonProcessingException e) {
+            log.error("Error serializing OTP response for user ID: {}", user.getHierarchyId(), e);
             responseJson = "{\"statusCode\":200,\"message\":\"OTP generated successfully\",\"data\":{\"message\":\"OTP has been sent to your registered mobile number\"}}";
         }
 
         commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+        log.info("Forgot password log saved for user ID: {}", user.getHierarchyId());
+
         return ResponseEntity.ok(commonResponse);
     }
 
@@ -638,27 +652,38 @@ public class AuthController {
         String requestJson = "";
         String responseJson = "";
 
+        log.info("Password change request received for username: {}", request.getUserName());
+
         try {
             requestJson = objectMapper.writeValueAsString(request);
+            log.debug("Request payload: {}", requestJson);
 
-            CommonResponse<?> response = authService.changePassword(request);  // updated to return response
+            CommonResponse<?> response = authService.changePassword(request);
             responseJson = objectMapper.writeValueAsString(response);
+
+            log.info("Password change response for username {}: {}", request.getUserName(), response.getMessage());
             commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+            log.debug("Password change log saved for username: {}", request.getUserName());
+
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException | JsonProcessingException ex) {
-            ex.printStackTrace();
+            log.error("Error during password change for username: {}", request.getUserName(), ex);
+
             CommonResponse<?> error = new CommonResponse<>(500, ex.getMessage(), null);
             try {
                 responseJson = objectMapper.writeValueAsString(error);
             } catch (JsonProcessingException e) {
-                e.printStackTrace();
+                log.error("Failed to serialize error response for username: {}", request.getUserName(), e);
+                responseJson = "{\"statusCode\":500,\"message\":\"Internal error\",\"data\":null}";
             }
+
             commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), ex.getMessage());
+            log.debug("Error log saved for username: {}", request.getUserName());
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
-
 
     @PostMapping("/add")
     public String addData(@RequestParam String id) {

@@ -33,17 +33,19 @@ public class VendorController {
 
     @PostMapping
     public ResponseEntity<CommonResponse<Vendors>> createVendor(@RequestBody @Valid VendorsDTO dto) {
+        log.info("Received request to create vendor: {}", dto);
         Vendors savedVendor = vendorsService.saveVendor(dto);
+        log.debug("Vendor created successfully: {}", savedVendor);
         return ResponseEntity.ok(CommonResponse.success(savedVendor, "Vendor saved successfully"));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse<VendorsDTO>> getVendorById(@PathVariable String id) {
+        log.info("Fetching vendor by ID: {}", id);
         VendorsDTO dto = vendorsService.getVendorById(id);
+        log.debug("Vendor fetched successfully: {}", dto);
         return ResponseEntity.ok(CommonResponse.success(dto, "Vendor fetched successfully"));
     }
-
-
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<VendorsDTO>>> getAllVendors(
@@ -67,6 +69,9 @@ public class VendorController {
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createdOn,
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate editedOn
     ) {
+        log.info("Fetching vendors with filters - page: {}, size: {}, vendorName: {}, vendorCode: {}, productId: {}, subProductId: {}, isActive: {}",
+                page, size, vendorName, vendorCode, productId, subProductId, isActive);
+
         Pageable pageable = PageRequest.of(page, size);
         Page<VendorsDTO> dtoPage = vendorsService.getAllVendors(
                 pageable, id, vendorName, vendorCode, productId, productCode,
@@ -74,24 +79,29 @@ public class VendorController {
                 bankType, website, logo, parameter, createdBy, editedBy, createdOn, editedOn
         );
 
+        log.debug("Fetched {} vendors", dtoPage.getTotalElements());
         return ResponseEntity.ok(CommonResponse.success(dtoPage, "Vendors fetched successfully"));
     }
-
 
     @PutMapping("/{id}")
     public ResponseEntity<CommonResponse<Vendors>> updateVendor(
             @PathVariable String id,
             @RequestBody @Valid VendorsDTO vendorDto) {
 
-        Vendors updatedVendor = vendorsService.updateVendor(id, vendorDto);
-        return ResponseEntity.ok(
-                CommonResponse.success(updatedVendor, "Vendor updated successfully"));
-    }
+        log.info("Updating vendor with ID: {}", id);
+        log.debug("Update payload: {}", vendorDto);
 
+        Vendors updatedVendor = vendorsService.updateVendor(id, vendorDto);
+        log.debug("Vendor updated: {}", updatedVendor);
+
+        return ResponseEntity.ok(CommonResponse.success(updatedVendor, "Vendor updated successfully"));
+    }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVendor(@PathVariable String id) {
+        log.info("Deleting vendor with ID: {}", id);
         vendorsService.deleteVendor(id);
+        log.info("Vendor deleted successfully: {}", id);
         return ResponseEntity.noContent().build();
     }
 
@@ -109,21 +119,25 @@ public class VendorController {
                     .body(CommonResponse.error(404, "No active vendors found for the given productId."));
         }
 
+        log.debug("Fetched {} active vendors for productId: {}", vendorList.size(), productId);
         return ResponseEntity.ok(CommonResponse.success(vendorList, "Active vendors fetched successfully"));
     }
 
     @GetMapping("/active")
     public ResponseEntity<CommonResponse<List<VendorActiveResponseDto>>> getActiveVendorsOnly() {
+        log.info("Fetching all active vendors");
+
         List<VendorActiveResponseDto> result = vendorsService.getAllActiveVendors();
 
         if (result.isEmpty()) {
+            log.warn("No active vendors found");
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(CommonResponse.error(404, "No active vendors found"));
         }
 
+        log.debug("Fetched {} active vendors", result.size());
         return ResponseEntity.ok(CommonResponse.success(result, "Active vendors fetched successfully"));
     }
-
 
 }
 
