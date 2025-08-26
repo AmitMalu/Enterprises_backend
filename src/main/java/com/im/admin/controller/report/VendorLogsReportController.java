@@ -81,5 +81,4 @@ public class VendorLogsReportController {
                 .contentLength(resource.contentLength())
                 .body(resource);
     }
-
 }
