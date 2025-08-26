@@ -4,6 +4,7 @@ import com.im.admin.dto.AdminUserRequestDTO;
 import com.im.admin.entities.AdminUser;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AdminUserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/admin-user")
 public class AdminUserController {
@@ -19,8 +21,11 @@ public class AdminUserController {
     private AdminUserService adminUserService;
 
     @PostMapping("/create")
-    public ResponseEntity<CommonResponse<AdminUser>> createAgent(@RequestBody  AdminUserRequestDTO dto) {
+    public ResponseEntity<CommonResponse<AdminUser>> createAgent(@RequestBody AdminUserRequestDTO dto) {
+        log.info("Creating admin user with data: {}", dto);
+
         AdminUser savedAdminUser = adminUserService.createAdminUser(dto);
+        log.debug("Created admin user: {}", savedAdminUser);
 
         CommonResponse<AdminUser> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.CREATED.value());
@@ -35,7 +40,10 @@ public class AdminUserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
+        log.info("Fetching admin users - page: {}, size: {}", page, size);
+
         Page<AdminUser> adminUsers = adminUserService.getAllAdminUsers(page, size);
+        log.debug("Fetched admin users: {}", adminUsers.getContent());
 
         CommonResponse<Page<AdminUser>> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
@@ -43,7 +51,7 @@ public class AdminUserController {
         response.setData(adminUsers);
 
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_JSON) // inbuilt content type
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(response);
     }
 
@@ -52,7 +60,11 @@ public class AdminUserController {
             @PathVariable Long id,
             @RequestBody AdminUserRequestDTO dto) {
 
+        log.info("Updating admin user with ID: {}", id);
+        log.debug("Update data: {}", dto);
+
         AdminUser updatedAdminUser = adminUserService.updateAdminUser(id, dto);
+        log.debug("Updated admin user: {}", updatedAdminUser);
 
         CommonResponse<AdminUser> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
@@ -64,11 +76,12 @@ public class AdminUserController {
                 .body(response);
     }
 
-
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse<AdminUser>> getAdminUserById(@PathVariable Long id) {
+        log.info("Fetching admin user with ID: {}", id);
 
         AdminUser adminUser = adminUserService.getAdminUserById(id);
+        log.debug("Fetched admin user: {}", adminUser);
 
         CommonResponse<AdminUser> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
@@ -79,7 +92,5 @@ public class AdminUserController {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(response);
     }
-
-
 
 }

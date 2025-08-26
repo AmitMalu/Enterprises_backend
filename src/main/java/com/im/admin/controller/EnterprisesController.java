@@ -43,10 +43,14 @@ public class EnterprisesController {
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
 
+        log.info("API Call: saveEnterprise with data: {}", enterprisesJson);
+
         Enterprises enterprises = JsonUtil.parseJson(enterprisesJson, Enterprises.class);
 
         Enterprises savedEnterprises = enterprisesService.saveEnterprise(
                 enterprises, aadhaarCardFrontImage, aadhaarCardBackImage, panCardImage, shopImage, businessProofImage);
+
+        log.info("Enterprise saved successfully with ID: {}", savedEnterprises.getId());
 
         CommonResponse<Enterprises> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
@@ -67,6 +71,8 @@ public class EnterprisesController {
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
 
+        log.info("API Call: updateEnterprise with ID: {} and data: {}", id, enterprisesJson);
+
         Enterprises enterprises = JsonUtil.parseJson(enterprisesJson, Enterprises.class);
 
         Enterprises updatedEnterprise = enterprisesService.updateEnterprise(
@@ -79,24 +85,31 @@ public class EnterprisesController {
                 businessProofImage
         );
 
+        log.info("Enterprise updated successfully with ID: {}", id);
+
         return ResponseEntity.ok(updatedEnterprise);
     }
 
     @GetMapping("/getAll")
     public ResponseEntity<List<Enterprises>> getAllEnterprises() {
+        log.info("API Call: getAllEnterprises");
         List<Enterprises> enterprises = enterprisesService.getAllEnterprises();
+        log.info("Fetched {} enterprises", enterprises.size());
         return ResponseEntity.ok(enterprises);
     }
 
     @GetMapping("/getById/{enterpriseId}")
     public ResponseEntity<?> getEnterpriseById(@PathVariable String enterpriseId) {
+        log.info("API Call: getEnterpriseById with ID: {}", enterpriseId);
         Enterprises enterprise = enterprisesService.getEnterpriseById(enterpriseId);
         return ResponseEntity.ok(enterprise);
     }
 
     @DeleteMapping("/delete/{enterpriseId}")
     public ResponseEntity<?> deleteEnterprise(@PathVariable String enterpriseId) {
+        log.info("API Call: deleteEnterprise with ID: {}", enterpriseId);
         enterprisesService.deleteEnterprise(enterpriseId);
+        log.info("Enterprise deleted successfully with ID: {}", enterpriseId);
         return ResponseEntity.ok("Enterprise " + enterpriseId + " deleted successfully.");
     }
 
@@ -106,6 +119,7 @@ public class EnterprisesController {
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getFieldErrors().forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
+        log.warn("Validation errors: {}", errors);
         return ResponseEntity.badRequest().body(errors);
     }
 }

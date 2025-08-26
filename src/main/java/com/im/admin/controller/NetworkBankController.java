@@ -36,18 +36,21 @@ public class NetworkBankController {
             @RequestPart("bankData") BankRequestDto bankRequestDto,
             @RequestPart(value = "logo", required = false) MultipartFile logoFile) {
 
+        log.info("Received request to add new BankMaster: {}", bankRequestDto);
+
         try {
             NetworkBankMaster savedBank = bankService.addBank(bankRequestDto, logoFile);
             CommonResponse<NetworkBankMaster> response = new CommonResponse<>(201, "BankMaster created successfully", savedBank);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (IllegalArgumentException ex) {
+            log.error("Invalid request while adding BankMaster: {}", ex.getMessage());
             CommonResponse<NetworkBankMaster> response = new CommonResponse<>(400, ex.getMessage(), null);
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         } catch (IOException e) {
+            log.error("Logo upload failed: {}", e.getMessage());
             return new ResponseEntity<>(new CommonResponse<>(500, "Logo upload failed", null), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<NetworkBankMaster>>> getAllBanks(
@@ -70,6 +73,8 @@ public class NetworkBankController {
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate editedOn
     ) {
 
+        log.info("Fetching BankMaster list with filters - bankName: {}, bankCode: {}", bankName, bankCode);
+
         Pageable pageable = PageRequest.of(page, size);
         Page<NetworkBankMaster> banks = bankService.getAllBanks(
                 pageable, id, bankCode, bankName, bankBranchName, ifscCode, imps, neft, rtgs,
@@ -84,19 +89,17 @@ public class NetworkBankController {
         return ResponseEntity.ok(response);
     }
 
-
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommonResponse<NetworkBankMaster>> updateBank(
             @PathVariable Long id,
             @RequestPart("bankData") BankRequestDto bankRequestDto,
             @RequestPart(value = "logo", required = false) MultipartFile logoFile) {
 
-        log.info("Received request to update BankMaster with ID: {}", id);
+        log.info("Received request to update BankMaster with ID: {}. Data: {}", id, bankRequestDto);
         NetworkBankMaster updatedBank = bankService.updateBank(id, bankRequestDto, logoFile);
 
         return ResponseEntity.ok(new CommonResponse<>(200, "BankMaster updated successfully", updatedBank));
     }
-
 
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse<NetworkBankMaster>> getBankById(@PathVariable Long id) {
@@ -112,23 +115,25 @@ public class NetworkBankController {
 
     @GetMapping("/dropdown")
     public ResponseEntity<CommonResponse<List<NetworkBankDropdownResponse>>> getBankDropdown() {
+        log.info("Fetching bank dropdown list");
         List<NetworkBankDropdownResponse> list = bankService.getBankDropdownList();
         return ResponseEntity.ok(CommonResponse.success(list, "Bank dropdown data loaded successfully"));
     }
 
     @GetMapping("/details-by-ifsc/{ifscCode}")
     public ResponseEntity<CommonResponse<BankInfoResponse>> getBankDetailsByIfsc(@PathVariable String ifscCode) {
+        log.info("Fetching bank details by IFSC code: {}", ifscCode);
         try {
             BankInfoResponse response = bankService.getBankInfoByIfsc(ifscCode);
             return ResponseEntity.ok(CommonResponse.success(response, "Bank details fetched successfully"));
         } catch (NoSuchElementException ex) {
+            log.error("Bank details not found for IFSC: {}", ifscCode);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(CommonResponse.failure(ex.getMessage()));
         } catch (Exception ex) {
+            log.error("Error fetching bank details for IFSC {}: {}", ifscCode, ex.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResponse.failure("Something went wrong"));
         }
     }
-
-
 }

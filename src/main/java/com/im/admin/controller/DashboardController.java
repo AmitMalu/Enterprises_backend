@@ -22,24 +22,28 @@ public class DashboardController {
 
     @PostMapping("/get")
     public ResponseEntity<DashboardResponseDto> getAdminDashboard() {
-        log.info("Inside getAdminDashboard controller method");
+        log.info("API Call: getAdminDashboard");
         DashboardResponseDto response = dashboardService.getAdminDashboard();
+        log.info("Admin Dashboard fetched successfully: {}", response);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/wallet-balance/{hierarchyId}")
     public ResponseEntity<CommonResponse> getWalletBalances(@PathVariable String hierarchyId) {
-        log.info("Fetching wallet balances for hierarchyId: {}", hierarchyId);
+        log.info("API Call: getWalletBalances for hierarchyId: {}", hierarchyId);
         WalletBalanceResponseDto response = dashboardService.getWalletBalances(hierarchyId);
+        log.info("Wallet Balance fetched: {}", response);
         return ResponseEntity.ok(new CommonResponse(201, "Wallet Balance", response));
     }
 
     @GetMapping("/profile/{hierarchyId}")
     public ResponseEntity<CommonResponse<MyProfileResponseDto>> getUserProfile(@PathVariable String hierarchyId) {
-        log.info("Fetching profile for hierarchyId: {}", hierarchyId);
+        log.info("API Call: getUserProfile for hierarchyId: {}", hierarchyId);
         MyProfileResponseDto profile = dashboardService.getUserProfile(hierarchyId);
+        log.info("Profile fetched successfully: {}", profile);
         return ResponseEntity.ok(new CommonResponse<>(200, "Profile fetched successfully", profile));
     }
+
 
 
 }
