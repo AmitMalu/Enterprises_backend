@@ -10,6 +10,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.response.GetAllSchemeResponse;
 import com.im.admin.service.SchemeService;
 import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
+@Slf4j
 @RequestMapping("/api/scheme")
 public class SchemeController {
 
@@ -30,62 +32,75 @@ public class SchemeController {
 
     @GetMapping("/hierarchy-list")
     public ResponseEntity<CommonResponse> getAllSchemeHierarchySelections() {
+        log.info("Fetching all scheme hierarchy selections");
         List<Map<String, Object>> allSchemeHierarchySelections = schemeService.getAllSchemeHierarchySelections();
-        return ResponseEntity.ok(new CommonResponse(200, "Success", allSchemeHierarchySelections));
+        log.info("Fetched {} hierarchy selections", allSchemeHierarchySelections.size());
+        return ResponseEntity.ok(new CommonResponse<>(200, "Success", allSchemeHierarchySelections));
     }
-//     return ResponseEntity.ok(new CommonResponse(201, result, null));
 
     @GetMapping("/search")
     public ResponseEntity<List<Map<String, Object>>> searchSchemeHierarchy(@RequestParam String keyword) {
-        return ResponseEntity.ok(schemeService.searchSchemeHierarchy(keyword));
+        log.info("Searching scheme hierarchy with keyword: {}", keyword);
+        List<Map<String, Object>> result = schemeService.searchSchemeHierarchy(keyword);
+        log.info("Found {} results for keyword: {}", result.size(), keyword);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/save")
     public ResponseEntity<CommonResponse<Map<String, Object>>> saveScheme(@RequestBody SchemeDTO schemeDTO) {
+        log.info("Saving new scheme: {}", schemeDTO);
         Map<String, Object> data = schemeService.saveScheme(schemeDTO);
-        return ResponseEntity.ok(CommonResponse.created(data,"Scheme saved successfully."));
+        log.info("Scheme saved successfully with data: {}", data);
+        return ResponseEntity.ok(CommonResponse.created(data, "Scheme saved successfully."));
     }
 
     @PutMapping("/update/{schemeId}")
-    public ResponseEntity<CommonResponse<Map<String, Object>>> updateScheme(@PathVariable String schemeId, @RequestBody SchemeDTO schemeDTO) {
+    public ResponseEntity<CommonResponse<Map<String, Object>>> updateScheme(@PathVariable String schemeId,
+                                                                            @RequestBody SchemeDTO schemeDTO) {
+        log.info("Updating scheme with ID: {}", schemeId);
         Map<String, Object> data = schemeService.updateScheme(schemeId, schemeDTO);
-        return ResponseEntity.ok(CommonResponse.success(data,"Scheme updated successfully."));
+        log.info("Scheme updated successfully for ID: {}", schemeId);
+        return ResponseEntity.ok(CommonResponse.success(data, "Scheme updated successfully."));
     }
 
     @GetMapping("/operators/{productCode}/{subProductCode}")
-    public ResponseEntity<OperatorProductResponseDTO> getOperatorListBySubProductCode(@PathVariable("subProductCode") String subProductCode,
-                                                               @PathVariable("productCode") String productCode) {
+    public ResponseEntity<OperatorProductResponseDTO> getOperatorListBySubProductCode(
+            @PathVariable String subProductCode,
+            @PathVariable String productCode) {
+        log.info("Fetching operators for productCode: {}, subProductCode: {}", productCode, subProductCode);
         OperatorProductResponseDTO response = schemeService.getOperatorsAndProduct(productCode, subProductCode);
+        log.info("Operators fetched successfully");
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{operatorCode}")
     public ResponseEntity<List<SchemeRate>> getSchemeRatesByOperatorCode(@PathVariable String operatorCode) {
-        return ResponseEntity.ok(schemeService.getSchemeRatesByOperatorCode(operatorCode));
+        log.info("Fetching scheme rates for operatorCode: {}", operatorCode);
+        List<SchemeRate> rates = schemeService.getSchemeRatesByOperatorCode(operatorCode);
+        log.info("Fetched {} scheme rates for operatorCode: {}", rates.size(), operatorCode);
+        return ResponseEntity.ok(rates);
     }
-
-//    @PostMapping("/routing")
-//    public ResponseEntity<?> vendorRouting(@RequestBody VendorRoutingDto vendorRoutingDto) {
-//        VendorRouting savedVendorRouting = schemeService.saveVendorRouting(vendorRoutingDto);
-//        return ResponseEntity.status(HttpStatus.CREATED).body(savedVendorRouting);
-//    }
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<GetAllSchemeResponse>>> getAllSchemes(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("Fetching all schemes. Page: {}, Size: {}", page, size);
         Pageable pageable = PageRequest.of(page, size);
         Page<GetAllSchemeResponse> schemes = schemeService.getAllSchemes(pageable);
+        log.info("Fetched {} schemes", schemes.getTotalElements());
         return ResponseEntity.ok(new CommonResponse<>(200, "Schemes fetched successfully", schemes));
     }
 
     @GetMapping("/get-by-id/{id}")
     public ResponseEntity<CommonResponse<GetAllSchemeResponse>> getSchemeById(@PathVariable Long id) {
+        log.info("Fetching scheme by ID: {}", id);
         try {
             GetAllSchemeResponse responseDto = schemeService.getSchemeDtoById(id);
+            log.info("Scheme fetched successfully for ID: {}", id);
             return ResponseEntity.ok(CommonResponse.success(responseDto, "Scheme fetched successfully"));
         } catch (EntityNotFoundException e) {
+            log.warn("Scheme not found for ID: {}", id);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(CommonResponse.failure(e.getMessage()));
         }
@@ -94,14 +109,14 @@ public class SchemeController {
     @PutMapping("/{schemeCode}/status")
     public ResponseEntity<CommonResponse<String>> updateSchemeStatus(
             @PathVariable String schemeCode,
-            @RequestParam boolean isActive
-    ) {
+            @RequestParam boolean isActive) {
+        log.info("Updating scheme status for schemeCode: {} to {}", schemeCode, isActive ? "ACTIVE" : "INACTIVE");
         schemeService.updateSchemeStatus(schemeCode, isActive);
+        log.info("Scheme status updated successfully for schemeCode: {}", schemeCode);
         return ResponseEntity.ok(CommonResponse.success(
                 null,
                 "Scheme status updated successfully to " + (isActive ? "ACTIVE" : "INACTIVE")
         ));
     }
-
 
 }

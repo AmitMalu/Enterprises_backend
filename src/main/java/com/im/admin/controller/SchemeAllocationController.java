@@ -9,6 +9,7 @@ import com.im.admin.response.SchemeDropdownListBySubProductResponse;
 import com.im.admin.response.UserSearchResponseDto;
 import com.im.admin.service.SchemeAllocationService;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -21,6 +22,7 @@ import java.util.List;
 
 
 @RestController
+@Slf4j
 @RequestMapping("/api/scheme-allocation")
 public class SchemeAllocationController {
 
@@ -32,7 +34,11 @@ public class SchemeAllocationController {
     public ResponseEntity<CommonResponse<List<SchemeAllocation>>> assignOrUpdateSchemes(
             @RequestBody SchemeAllocationRequestDto request) {
 
+        log.info("Received request to assign or update schemes: {}", request);
+
         List<SchemeAllocation> updatedSchemes = allocationService.assignOrUpdateSchemes(request);
+
+        log.info("Scheme allocation processed successfully. Total updated schemes: {}", updatedSchemes.size());
 
         return ResponseEntity.ok(CommonResponse.success(updatedSchemes, "Scheme allocation processed successfully"));
     }
@@ -40,22 +46,31 @@ public class SchemeAllocationController {
     @PostMapping("/save")
     public ResponseEntity<CommonResponse<String>> saveAllocation(
             @Valid @RequestBody SchemeAllocationRequest request) {
+
+        log.info("Received request to save scheme allocation: {}", request);
+
         CommonResponse<String> response = allocationService.saveSchemeAllocation(request);
+
+        log.info("Scheme allocation save response: {}", response);
+
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
-
 
     @PostMapping("/scheme-dropdown/{subProductName}")
     public ResponseEntity<CommonResponse<List<SchemeDropdownListBySubProductResponse>>> getDropdownList(
             @PathVariable("subProductName") String subProductName) {
 
+        log.info("Fetching scheme dropdown list for sub-product: {}", subProductName);
+
         List<SchemeDropdownListBySubProductResponse> responses =
                 allocationService.getSchemeDropdownListBySubProduct(subProductName);
 
         if (responses.isEmpty()) {
+            log.warn("No schemes found for sub-product: {}", subProductName);
             return ResponseEntity.ok(CommonResponse.success(responses, "No schemes found for sub-product: " + subProductName));
         }
 
+        log.info("Schemes loaded successfully for sub-product: {}", subProductName);
         return ResponseEntity.ok(CommonResponse.success(responses, "Schemes loaded successfully"));
     }
 
@@ -63,8 +78,12 @@ public class SchemeAllocationController {
     public ResponseEntity<CommonResponse<List<RetailerSchemeAllocationResponse>>> getRetailerSchemeAllocation(
             @PathVariable String hierarchyId) {
 
+        log.info("Fetching retailer scheme allocation for hierarchy ID: {}", hierarchyId);
+
         List<RetailerSchemeAllocationResponse> result =
                 allocationService.getAllocatedSchemesForRetailer(hierarchyId);
+
+        log.info("Loaded {} scheme allocations for retailer hierarchy ID: {}", result.size(), hierarchyId);
 
         return ResponseEntity.ok(CommonResponse.success(result, "Scheme allocation data loaded successfully"));
     }
@@ -75,13 +94,18 @@ public class SchemeAllocationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
+        log.info("Searching active retailers with keyword: '{}', page: {}, size: {}", keyword, page, size);
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
 
         Page<UserSearchResponseDto> result = allocationService.searchActiveRetailers(keyword, pageable);
 
         if (result.isEmpty()) {
+            log.warn("No active retailers found for keyword: {}", keyword);
             return ResponseEntity.ok(CommonResponse.success(result, "No active retailers found for keyword: " + keyword));
         }
+
+        log.info("Retailer search successful. Found {} retailers.", result.getTotalElements());
 
         return ResponseEntity.ok(CommonResponse.success(result, "Retailer search successful"));
     }

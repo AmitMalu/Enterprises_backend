@@ -2,10 +2,12 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.EmailValidationRequest;
 import com.im.admin.service.VerificationService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/verification")
 public class VerificationController {
@@ -15,26 +17,41 @@ public class VerificationController {
 
     @PostMapping("/aadhaar-validate")
     public ResponseEntity<?> validateAadhaar(@RequestParam String aadhaarNumber) {
-        return verificationService.validateAadhaar(aadhaarNumber);
+        log.info("Validating Aadhaar number: {}", aadhaarNumber);
+        ResponseEntity<?> response = verificationService.validateAadhaar(aadhaarNumber);
+        log.debug("Aadhaar validation response: {}", response);
+        return response;
     }
 
     @PostMapping("/pan-validate")
     public ResponseEntity<?> validatePan(@RequestParam String panNumber) {
-        return verificationService.validatepan(panNumber);
+        log.info("Validating PAN number: {}", panNumber);
+        ResponseEntity<?> response = verificationService.validatepan(panNumber);
+        log.debug("PAN validation response: {}", response);
+        return response;
     }
 
     @PostMapping("/email-validate")
     public ResponseEntity<?> validateEmail(@RequestBody EmailValidationRequest email) {
-        return verificationService.validateEmail(email.getEmail());
+        log.info("Validating email: {}", email.getEmail());
+        ResponseEntity<?> response = verificationService.validateEmail(email.getEmail());
+        log.debug("Email validation response: {}", response);
+        return response;
     }
 
     @PostMapping("/voterId-validate")
     public ResponseEntity<?> validateVoterid(@RequestParam String voterid) {
-        return verificationService.validateVoterid(voterid);
+        log.info("Validating Voter ID: {}", voterid);
+        ResponseEntity<?> response = verificationService.validateVoterid(voterid);
+        log.debug("Voter ID validation response: {}", response);
+        return response;
     }
 
     @PostMapping("/aadhaar-pan-link")
     public ResponseEntity<?> AdharPanLink(@RequestParam String aadhaarNumber) {
-        return verificationService.AdharPanLink(aadhaarNumber);
+        log.info("Linking Aadhaar with PAN for Aadhaar number: {}", aadhaarNumber);
+        ResponseEntity<?> response = verificationService.AdharPanLink(aadhaarNumber);
+        log.debug("Aadhaar-PAN link response: {}", response);
+        return response;
     }
 }
