@@ -41,7 +41,7 @@ public class AuditLogsReportController {
         var data = service.getFilteredLogs(startDate, endDate, srNo, request, response, ipAddress, requestDateTime, responseDateTime, page, size);
 
         String message = data.isEmpty() ? "No records found" : "Success";
-        log.info("Audit logs JSON fetched, {} records found", data.size());
+        log.info("Audit logs JSON fetched, {} records found");
 
         return ResponseEntity.ok(new CommonResponse<>(200, message, data));
     }

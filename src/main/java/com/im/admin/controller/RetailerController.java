@@ -53,7 +53,7 @@ public class RetailerController {
         Retailer savedRetailer = retailerService.createRetailer(
                 retailer, aadhaarCardFrontImage, aadhaarCardBackImage, panCardImage, shopImage, businessProofImage);
 
-        log.info("Retailer created successfully with ID: {}", savedRetailer.getId());
+        log.info("Retailer created successfully with ID: {}", savedRetailer.getRetailerId());
 
         CommonResponse<Retailer> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.CREATED.value());
