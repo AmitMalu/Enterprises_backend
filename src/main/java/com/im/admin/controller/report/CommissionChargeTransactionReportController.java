@@ -30,7 +30,15 @@ public class CommissionChargeTransactionReportController {
     public ResponseEntity<CommonResponse<Page<CommissionTransactionReportResponse>>> getReport(
             @RequestBody CommissionTransactionReportRequest request) {
 
-        CommonResponse<Page<CommissionTransactionReportResponse>> response = commissionChargeTransactionReportService.getReport(request);
+        log.info("Received request to fetch commission transaction report: {}", request);
+
+        CommonResponse<Page<CommissionTransactionReportResponse>> response =
+                commissionChargeTransactionReportService.getReport(request);
+
+        log.info("Commission report fetched with status: {} | Records count: {}",
+                response.getStatusCode(),
+                response.getData() != null ? response.getData().getTotalElements() : 0);
+
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
@@ -42,6 +50,8 @@ public class CommissionChargeTransactionReportController {
             @RequestBody CommissionTransactionReportRequest request,
             @RequestParam("format") String format) throws IOException {
 
+        log.info("Received request to download commission report: {} | format: {}", request, format);
+
         ByteArrayInputStream fileStream;
         String filename;
         MediaType mediaType;
@@ -51,17 +61,22 @@ public class CommissionChargeTransactionReportController {
             fileStream = commissionChargeTransactionReportService.downloadExcel(request);
             filename = "commission_report.xlsx";
             mediaType = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            log.info("Excel report generated successfully: {}", filename);
         } else if ("csv".equalsIgnoreCase(format)) {
             fileStream = commissionChargeTransactionReportService.downloadCsv(request);
             filename = "commission_report.csv";
             mediaType = MediaType.parseMediaType("text/csv");
+            log.info("CSV report generated successfully: {}", filename);
         } else {
+            log.warn("Invalid format requested for commission report: {}", format);
             return ResponseEntity.badRequest()
                     .header("X-Status-Message", "Invalid format provided (use 'excel' or 'csv')")
                     .body(null);
         }
 
         InputStreamResource resource = new InputStreamResource(fileStream);
+
+        log.info("Returning commission report response: {}", filename);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)

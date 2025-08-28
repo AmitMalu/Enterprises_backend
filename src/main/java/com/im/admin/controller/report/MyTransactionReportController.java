@@ -29,9 +29,16 @@ public class MyTransactionReportController {
     public ResponseEntity<CommonResponse<Page<MyTransactionReportResponse>>> getReport(
             @RequestBody MyTransactionReportRequest request) {
 
+        log.info("Received request to fetch MyTransaction report: {}", request);
+
         CommonResponse<Page<MyTransactionReportResponse>> response = myTransactionReportService.getReport(request);
+
+        log.info("MyTransaction report fetched | Records count: {}",
+                response.getData() != null ? response.getData().getTotalElements() : 0);
+
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
+
 
     @PostMapping(value = "/download-report", produces = {
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -40,6 +47,8 @@ public class MyTransactionReportController {
     public ResponseEntity<Resource> downloadMyTransactionReport(
             @RequestBody MyTransactionReportRequest request,
             @RequestParam("format") String format) throws IOException {
+
+        log.info("Received request to download MyTransaction report | format={}", format);
 
         ByteArrayInputStream fileStream;
         String filename;
@@ -55,6 +64,7 @@ public class MyTransactionReportController {
             filename = "my_transaction_report.csv";
             mediaType = MediaType.parseMediaType("text/csv");
         } else {
+            log.warn("Invalid format provided for MyTransaction report download: {}", format);
             return ResponseEntity.badRequest()
                     .header("X-Status-Message", "Invalid format provided (use 'excel' or 'csv')")
                     .body(null);
@@ -62,10 +72,13 @@ public class MyTransactionReportController {
 
         InputStreamResource resource = new InputStreamResource(fileStream);
 
+        log.info("MyTransaction report generated successfully, format={}, filename={}", format, filename);
+
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
                 .header("X-Status-Message", successMessage)
                 .contentType(mediaType)
+                .contentLength(fileStream.available())
                 .body(resource);
     }
 

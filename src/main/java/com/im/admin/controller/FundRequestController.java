@@ -29,7 +29,7 @@ public class FundRequestController {
     public ResponseEntity<CommonResponse<String>> raiseFundRequest(@RequestBody FundRequestDto fundRequestDto) {
         log.info("API Call: raiseFundRequest with data: {}", fundRequestDto);
         fundRequestService.raiseFundRequest(fundRequestDto);
-        log.info("Fund request raised successfully for: {}", fundRequestDto.getHierarchyId());
+        log.info("Fund request raised successfully for: {}");
         return ResponseEntity.ok(new CommonResponse<>(200, "Fund request raised successfully", null));
     }
 
