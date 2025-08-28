@@ -50,7 +50,7 @@ public class EnterprisesController {
         Enterprises savedEnterprises = enterprisesService.saveEnterprise(
                 enterprises, aadhaarCardFrontImage, aadhaarCardBackImage, panCardImage, shopImage, businessProofImage);
 
-        log.info("Enterprise saved successfully with ID: {}", savedEnterprises.getId());
+        log.info("Enterprise saved successfully with ID: {}", savedEnterprises.getEnterpriseId());
 
         CommonResponse<Enterprises> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
