@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
@@ -17,6 +18,7 @@ import com.im.admin.util.ImageHandlerUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class EnterprisesServiceImpl implements EnterprisesService {
 
     @Autowired
@@ -53,34 +56,39 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
     @Autowired
     private CommonFunctions commonFunctions;
+
     @Autowired
     private ObjectMapper objectMapper;
 
     @Transactional
     @Override
     public Enterprises saveEnterprise(Enterprises enterprises,
-                                         MultipartFile aadhaarCardFrontImage,
-                                         MultipartFile aadhaarCardBackImage,
-                                         MultipartFile panCardImage,
-                                         MultipartFile shopImage,
-                                         MultipartFile businessProofImage) throws IOException {
+                                      MultipartFile aadhaarCardFrontImage,
+                                      MultipartFile aadhaarCardBackImage,
+                                      MultipartFile panCardImage,
+                                      MultipartFile shopImage,
+                                      MultipartFile businessProofImage) throws IOException {
 
-        LocalDateTime RequestDateTime = LocalDateTime.now();
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        log.info("Request to save Enterprise received at {}: {}", requestDateTime, enterprises);
 
-        // Field Validation
+        // ===== Field Validation =====
         Set<ConstraintViolation<Enterprises>> violations = validator.validate(enterprises);
         List<FieldErrorDetailsDTO> errors = violations.stream()
-                .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
+                .map(violation -> new FieldErrorDetailsDTO(
+                        violation.getPropertyPath().toString(),
+                        violation.getMessage()))
                 .collect(Collectors.toList());
 
-        // Phone validation
+        // ===== Phone Validation =====
         try {
             phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNumber());
         } catch (IllegalArgumentException ex) {
+            log.warn("Phone validation failed for enterprise [{}]: {}", enterprises.getName(), ex.getMessage());
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
 
-        // Image validation
+        // ===== Image Validation =====
         Map<String, MultipartFile> imageMap = new HashMap<>();
         imageMap.put("aadhaarCardFrontImage", aadhaarCardFrontImage);
         imageMap.put("aadhaarCardBackImage", aadhaarCardBackImage);
@@ -88,29 +96,30 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         imageMap.put("shopImage", shopImage);
         imageMap.put("businessProofImage", businessProofImage);
 
-
         for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
             if (entry.getValue() == null || entry.getValue().isEmpty()) {
+                log.warn("Missing required image: {}", entry.getKey());
                 errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
             }
         }
 
         if (!errors.isEmpty()) {
+            log.error("Validation failed for Enterprise [{}], Errors: {}", enterprises.getName(), errors);
             throw new CustomValidationException(errors);
         }
 
+        // ===== Abbreviation Handling =====
         String abbreviation = enterprises.getAbbreviation();
         if (abbreviation == null || abbreviation.isBlank()) {
             String parentAccount = enterprises.getParentAccount();
             if (parentAccount == null || !parentAccount.contains("-")) {
+                log.error("Invalid parentAccount format: {}", parentAccount);
                 throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
             }
 
-            // Extract prefix from parentAccount
             abbreviation = parentAccount.split("-")[0];
-
-            // Optionally validate abbreviation format
             if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+                log.error("Derived abbreviation '{}' is invalid", abbreviation);
                 throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
             }
 
@@ -120,15 +129,19 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         String folder = "Enterprises";
         enterprises.setEnterpriseId(idGenerator.generateHierarchyEntityId(folder, enterprises.getAbbreviation()));
 
-        // Upload Images
+        // ===== Image Upload =====
+        log.info("Uploading images for Enterprise [{}]", enterprises.getEnterpriseId());
         imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, enterprises::setAadhaarCardFrontImage);
         imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, enterprises::setAadhaarCardBackImage);
         imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, enterprises::setPanCardImage);
         imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, enterprises::setShopImage);
         imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, enterprises::setBusinessProofImage);
 
+        // ===== Save Enterprise =====
         Enterprises savedEnterprise = enterpriseRepository.save(enterprises);
+        log.info("Enterprise [{}] saved successfully with ID: {}", savedEnterprise.getName(), savedEnterprise.getEnterpriseId());
 
+        // ===== Initialize Amounts =====
         EnterprisesPrepaidAmount prepaid = new EnterprisesPrepaidAmount();
         prepaid.setEnterprise(savedEnterprise);
         prepaidRepository.save(prepaid);
@@ -137,17 +150,23 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         postpaid.setEnterprise(savedEnterprise);
         postpaidRepository.save(postpaid);
 
-        LocalDateTime ResponseDateTime = LocalDateTime.now();
-        String EnterpriseRequest  = objectMapper.writeValueAsString(enterprises);
-        String EnterpriseResponse  = objectMapper.writeValueAsString(savedEnterprise);
+        log.info("Prepaid and Postpaid amounts initialized for Enterprise [{}]", savedEnterprise.getEnterpriseId());
+
+        // ===== Save Logs =====
+        LocalDateTime responseDateTime = LocalDateTime.now();
+        String enterpriseRequest = objectMapper.writeValueAsString(enterprises);
+        String enterpriseResponse = objectMapper.writeValueAsString(savedEnterprise);
 
         commonFunctions.saveHierarchyLogs(
-                RequestDateTime,
-                EnterpriseRequest,
+                requestDateTime,
+                enterpriseRequest,
                 null, // IP address as null
-                ResponseDateTime,
-                EnterpriseResponse
+                responseDateTime,
+                enterpriseResponse
         );
+
+        log.info("Hierarchy logs saved for Enterprise [{}] at {}", savedEnterprise.getEnterpriseId(), responseDateTime);
+
         return savedEnterprise;
     }
 
@@ -162,59 +181,73 @@ public class EnterprisesServiceImpl implements EnterprisesService {
                                         MultipartFile businessProofImage) throws IOException {
 
         LocalDateTime requestDateTime = LocalDateTime.now();
+        log.info("Request received to update Enterprise with ID [{}] at {}: {}", id, requestDateTime, enterprises);
 
         Enterprises existingEnterprises = enterpriseRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Distributor not found"));
+                .orElseThrow(() -> {
+                    log.error("Enterprise not found with ID: {}", id);
+                    return new EntityNotFoundException("Enterprise not found with ID: " + id);
+                });
 
         String enterpriseRequest = objectMapper.writeValueAsString(enterprises);
 
+        // Skip update if identical
         if (existingEnterprises.equals(enterprises)) {
+            log.info("No changes detected for Enterprise [{}]. Skipping update.", id);
             return existingEnterprises;
         }
 
-        // Validate mobile
+        // ===== Mobile Validation =====
         List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
             phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNumber());
         } catch (IllegalArgumentException ex) {
+            log.warn("Mobile validation failed for Enterprise [{}]: {}", id, ex.getMessage());
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
 
         if (!errors.isEmpty()) {
+            log.error("Validation errors for Enterprise [{}]: {}", id, errors);
             throw new CustomValidationException(errors);
         }
 
-        //if (enterprises.getTit != null) existingEnterprises.setTitle(enterprises.getTitle());
-        //if (enterprises.getName() != null) existingEnterprises.setName(enterprises.getName());
+        // ===== Update Fields =====
         if (enterprises.getMobileNumber() != null) existingEnterprises.setMobileNumber(enterprises.getMobileNumber());
         if (enterprises.getAbbreviation() != null) existingEnterprises.setAbbreviation(enterprises.getAbbreviation());
         if (enterprises.getEmailId() != null) existingEnterprises.setEmailId(enterprises.getEmailId());
-        //if (enterprises.getDob() != null) existingEnterprises.setDob(enterprises.getDob());
-        //if (enterprises.getOutletName() != null) existingEnterprises.setOutletName(enterprises.getOutletName());
-        //if (enterprises.getCompetitor() != null) existingEnterprises.setCompetitor(enterprises.getCompetitor());
         if (enterprises.getAddress() != null) existingEnterprises.setAddress(enterprises.getAddress());
         if (enterprises.getOutletAddress() != null) existingEnterprises.setOutletAddress(enterprises.getOutletAddress());
 
-        // Optional image updates
+        log.info("Fields updated for Enterprise [{}]. Proceeding with image uploads if provided.", id);
+
+        // ===== Optional Image Uploads =====
         String folder = "Enterprises";
         if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
             imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingEnterprises::setAadhaarCardFrontImage);
+            log.info("Aadhaar Card Front image updated for Enterprise [{}]", id);
         }
         if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
             imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingEnterprises::setAadhaarCardBackImage);
+            log.info("Aadhaar Card Back image updated for Enterprise [{}]", id);
         }
         if (panCardImage != null && !panCardImage.isEmpty()) {
             imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingEnterprises::setPanCardImage);
+            log.info("PAN Card image updated for Enterprise [{}]", id);
         }
         if (shopImage != null && !shopImage.isEmpty()) {
             imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingEnterprises::setShopImage);
+            log.info("Shop image updated for Enterprise [{}]", id);
         }
         if (businessProofImage != null && !businessProofImage.isEmpty()) {
             imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingEnterprises::setBusinessProofImage);
+            log.info("Business Proof image updated for Enterprise [{}]", id);
         }
 
+        // ===== Save Updated Enterprise =====
         Enterprises updatedEnterprise = enterpriseRepository.save(existingEnterprises);
+        log.info("Enterprise [{}] updated successfully.", updatedEnterprise.getEnterpriseId());
 
+        // ===== Save Hierarchy Logs =====
         LocalDateTime responseDateTime = LocalDateTime.now();
         String enterpriseResponse = objectMapper.writeValueAsString(updatedEnterprise);
 
@@ -226,20 +259,73 @@ public class EnterprisesServiceImpl implements EnterprisesService {
                 enterpriseResponse
         );
 
+        log.info("Hierarchy logs saved for Enterprise [{}] at {}", updatedEnterprise.getEnterpriseId(), responseDateTime);
+
         return updatedEnterprise;
     }
 
-
     @Override
-    public List<Enterprises> getAllEnterprises() {
-        return enterpriseRepository.findAll();
+    public List<Enterprises> getAllEnterprises() throws JsonProcessingException {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String enterpriseRequest = "Fetching all enterprises";
+
+        List<Enterprises> enterprises = null;
+        String enterpriseResponse = null;
+        LocalDateTime responseDateTime = null;
+
+        try {
+            enterprises = enterpriseRepository.findAll();
+            enterpriseResponse = objectMapper.writeValueAsString(enterprises);
+            responseDateTime = LocalDateTime.now();
+
+            return enterprises;
+        } catch (Exception ex) {
+            enterpriseResponse = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            throw ex;
+        } finally {
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    enterpriseRequest,
+                    null, // ipAddress if available
+                    responseDateTime,
+                    enterpriseResponse
+            );
+        }
     }
 
     @Override
-    public Enterprises getEnterpriseById(String enterpriseId) {
-        return enterpriseRepository.findById(enterpriseId)
-                .orElseThrow(() -> new RuntimeException("Enterprise not found with ID: " + enterpriseId));
+    public Enterprises getEnterpriseById(String enterpriseId) throws JsonProcessingException, JsonProcessingException {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String enterpriseRequest = "Fetching enterprise with ID: " + enterpriseId;
+
+        Enterprises enterprise = null;
+        String enterpriseResponse = null;
+        LocalDateTime responseDateTime = null;
+
+        try {
+            enterprise = enterpriseRepository.findById(enterpriseId)
+                    .orElseThrow(() -> new RuntimeException("Enterprise not found with ID: " + enterpriseId));
+
+            enterpriseResponse = objectMapper.writeValueAsString(enterprise);
+            responseDateTime = LocalDateTime.now();
+
+            return enterprise;
+        } catch (Exception ex) {
+            enterpriseResponse = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            throw ex;
+        } finally {
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    enterpriseRequest,
+                    null, // ipAddress if available
+                    responseDateTime,
+                    enterpriseResponse
+            );
+        }
     }
+
 
     @Transactional
     @Override
@@ -252,6 +338,3 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         enterpriseRepository.delete(enterprise);
     }
 }
-
-
-

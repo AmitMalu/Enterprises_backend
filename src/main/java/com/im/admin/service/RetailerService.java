@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Retailer;
 import com.im.admin.response.RetailerResponseDTO;
@@ -19,11 +20,9 @@ public interface RetailerService {
 
     Retailer updateRetailer(String id, Retailer retailer, MultipartFile aadhaarCardFrontImage, MultipartFile aadhaarCardBackImage, MultipartFile panCardImage, MultipartFile shopImage, MultipartFile businessProofImage) throws IOException;
 
-    void deleteRetailer(String retailerId);
+    Page<RetailerResponseDTO> getAllRetailers(Pageable pageable) throws JsonProcessingException;
 
-    Page<RetailerResponseDTO> getAllRetailers(Pageable pageable);
-
-    RetailerResponseDTO getRetailerById(String retailerId);
+    RetailerResponseDTO getRetailerById(String retailerId) throws JsonProcessingException;
 
 
 }

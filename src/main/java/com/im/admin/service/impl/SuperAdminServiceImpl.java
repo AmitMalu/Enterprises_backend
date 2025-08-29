@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.entities.SuperAdmin;
 import com.im.admin.repositories.SuperAdminRepository;
 import com.im.admin.service.SuperAdminService;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,57 +29,170 @@ public class SuperAdminServiceImpl implements SuperAdminService {
     @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+
     @Override
     public SuperAdmin saveSuperAdmin(SuperAdmin superAdmin) {
+        LocalDateTime requestTime = LocalDateTime.now();
+        String request = superAdmin.toString(); // you can use ObjectMapper to save JSON instead
+
+        log.info("Saving SuperAdmin: {}", superAdmin);
+
         phoneNumberValidationService.validatePhoneNumber(superAdmin.getMobileNumber());
 
         superAdmin.setId(idGenerator.generateId("SuperAdmin"));
-        return superAdminRepository.save(superAdmin);
+        SuperAdmin savedSuperAdmin = superAdminRepository.save(superAdmin);
+
+        LocalDateTime responseTime = LocalDateTime.now();
+        String response = savedSuperAdmin.toString();
+
+        // Save Hierarchy Logs
+        commonFunctions.saveHierarchyLogs(
+                requestTime,
+                request,
+                null, // you can capture IP if available
+                responseTime,
+                response
+        );
+
+        log.info("SuperAdmin saved successfully with ID: {}", savedSuperAdmin.getId());
+
+        return savedSuperAdmin;
     }
 
 
-    /**
-     * Retrieves a SuperAdmin by ID.
-     */
     @Override
     public SuperAdmin getSuperAdminById(String id) {
-        return superAdminRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("SuperAdmin not found with ID: " + id));
+        log.info("Fetching SuperAdmin with ID: {}", id);
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestData = "Get SuperAdmin By ID: " + id;
+
+        try {
+            SuperAdmin superAdmin = superAdminRepository.findById(id)
+                    .orElseThrow(() -> {
+                        String errorMsg = "SuperAdmin not found with ID: " + id;
+                        log.error(errorMsg);
+
+                        // Save hierarchy log for failure
+                        commonFunctions.saveHierarchyLogs(requestTime, requestData, null, LocalDateTime.now(), errorMsg);
+                        return new RuntimeException(errorMsg);
+                    });
+
+            log.info("Successfully fetched SuperAdmin with ID: {}", id);
+
+            // Save hierarchy log for success
+            commonFunctions.saveHierarchyLogs(requestTime, requestData, null, LocalDateTime.now(), "SuperAdmin fetched successfully");
+
+            return superAdmin;
+
+        } catch (Exception e) {
+            log.error("Error fetching SuperAdmin with ID: {} - {}", id, e.getMessage(), e);
+
+            // Save hierarchy log for exception
+            commonFunctions.saveHierarchyLogs(requestTime, requestData, null, LocalDateTime.now(), "Error: " + e.getMessage());
+            throw e;
+        }
     }
 
 
-    /**
-     * Retrieves all SuperAdmins with pagination.
-     */
     @Override
     public List<SuperAdmin> getAllSuperAdmins(int page, int size) {
-        Page<SuperAdmin> result = superAdminRepository.findAll(PageRequest.of(page, size));
-        return result.getContent();
+        LocalDateTime requestTime = LocalDateTime.now();
+        String request = "FETCH_ALL SuperAdmins with pagination (page=" + page + ", size=" + size + ")";
+        LocalDateTime responseTime = null;
+        String response = null;
+
+        try {
+            log.info("Fetching all SuperAdmins with page: {}, size: {}", page, size);
+
+            Page<SuperAdmin> result = superAdminRepository.findAll(PageRequest.of(page, size));
+            List<SuperAdmin> superAdmins = result.getContent();
+
+            log.debug("Fetched {} SuperAdmins", superAdmins.size());
+
+            responseTime = LocalDateTime.now();
+            response = "SUCCESS - Fetched " + superAdmins.size() + " SuperAdmins";
+
+            return superAdmins;
+
+        } catch (Exception ex) {
+            responseTime = LocalDateTime.now();
+            response = "ERROR - " + ex.getMessage();
+
+            log.error("Error while fetching SuperAdmins: {}", ex.getMessage(), ex);
+            throw ex; // rethrow so API caller knows failure
+
+        } finally {
+            try {
+                commonFunctions.saveHierarchyLogs(
+                        requestTime,
+                        request,
+                        null,
+                        responseTime,
+                        response
+                );
+            } catch (Exception logEx) {
+                log.error("Failed to save hierarchy logs: {}", logEx.getMessage(), logEx);
+            }
+        }
     }
 
-
-    /**
-     * Updates a SuperAdmin record.
-     */
     @Override
     public SuperAdmin updateSuperAdmin(String id, SuperAdmin updatedSuperAdmin) {
-        Optional<SuperAdmin> existing = superAdminRepository.findById(id);
-        if (existing.isPresent()) {
-            SuperAdmin superAdmin = existing.get();
-            superAdmin.setName(updatedSuperAdmin.getName());
-            superAdmin.setMobileNumber(updatedSuperAdmin.getMobileNumber());
-            superAdmin.setEmailId(updatedSuperAdmin.getEmailId());
-            superAdmin.setUserName(updatedSuperAdmin.getUserName());
-            superAdmin.setPassword(updatedSuperAdmin.getPassword());
-            return superAdminRepository.save(superAdmin);
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestPayload = "UpdateSuperAdmin Request for ID: " + id + " | Payload: " + updatedSuperAdmin.toString();
+        String ipAddress = "127.0.0.1"; // TODO: Fetch dynamically from request context if available
+
+        try {
+            Optional<SuperAdmin> existing = superAdminRepository.findById(id);
+
+            if (existing.isPresent()) {
+                SuperAdmin superAdmin = existing.get();
+                superAdmin.setName(updatedSuperAdmin.getName());
+                superAdmin.setMobileNumber(updatedSuperAdmin.getMobileNumber());
+                superAdmin.setEmailId(updatedSuperAdmin.getEmailId());
+                superAdmin.setUserName(updatedSuperAdmin.getUserName());
+                superAdmin.setPassword(updatedSuperAdmin.getPassword());
+
+                SuperAdmin savedSuperAdmin = superAdminRepository.save(superAdmin);
+
+                commonFunctions.saveHierarchyLogs(
+                        requestTime,
+                        requestPayload,
+                        ipAddress,
+                        LocalDateTime.now(),
+                        "Update successful for ID: " + id + " | Response: " + savedSuperAdmin.toString()
+                );
+
+                return savedSuperAdmin;
+            } else {
+                String errorResponse = "SuperAdmin not found with ID: " + id;
+
+                commonFunctions.saveHierarchyLogs(
+                        requestTime,
+                        requestPayload,
+                        ipAddress,
+                        LocalDateTime.now(),
+                        errorResponse
+                );
+
+                throw new RuntimeException(errorResponse);
+            }
+        } catch (Exception e) {
+            commonFunctions.saveHierarchyLogs(
+                    requestTime,
+                    requestPayload,
+                    ipAddress,
+                    LocalDateTime.now(),
+                    "Error occurred: " + e.getMessage()
+            );
+            throw e;
         }
-        throw new RuntimeException("SuperAdmin not found with ID: " + id);
     }
 
 
-    /**
-     * Deletes a SuperAdmin record.
-     */
     @Override
     public void deleteSuperAdmin(String id) {
         if (superAdminRepository.existsById(id)) {

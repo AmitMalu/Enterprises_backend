@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.entities.Enterprises;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,9 +21,9 @@ public interface EnterprisesService {
                                  MultipartFile aadhaarCardBackImage, MultipartFile panCardImage,
                                  MultipartFile shopImage, MultipartFile businessProofImage) throws IOException;
 
-    List<Enterprises> getAllEnterprises();
+    List<Enterprises> getAllEnterprises() throws JsonProcessingException;
 
-    Enterprises getEnterpriseById(String id);
+    Enterprises getEnterpriseById(String id) throws JsonProcessingException;
 
     void deleteEnterprise(String id);
 }
