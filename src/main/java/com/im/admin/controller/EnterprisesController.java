@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Enterprises;
 import com.im.admin.response.CommonResponse;
@@ -91,7 +92,7 @@ public class EnterprisesController {
     }
 
     @GetMapping("/getAll")
-    public ResponseEntity<List<Enterprises>> getAllEnterprises() {
+    public ResponseEntity<List<Enterprises>> getAllEnterprises() throws JsonProcessingException {
         log.info("API Call: getAllEnterprises");
         List<Enterprises> enterprises = enterprisesService.getAllEnterprises();
         log.info("Fetched {} enterprises", enterprises.size());
@@ -99,7 +100,7 @@ public class EnterprisesController {
     }
 
     @GetMapping("/getById/{enterpriseId}")
-    public ResponseEntity<?> getEnterpriseById(@PathVariable String enterpriseId) {
+    public ResponseEntity<?> getEnterpriseById(@PathVariable String enterpriseId) throws JsonProcessingException {
         log.info("API Call: getEnterpriseById with ID: {}", enterpriseId);
         Enterprises enterprise = enterprisesService.getEnterpriseById(enterpriseId);
         return ResponseEntity.ok(enterprise);
