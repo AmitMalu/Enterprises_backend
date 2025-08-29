@@ -54,6 +54,7 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 
     @Autowired
     private CommonFunctions commonFunctions;
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -61,103 +62,152 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
     @Transactional
     @Override
     public SuperDistributor saveSuperDistributor(SuperDistributor superDistributor,
-                                         MultipartFile aadhaarCardFrontImage,
-                                         MultipartFile aadhaarCardBackImage,
-                                         MultipartFile panCardImage,
-                                         MultipartFile shopImage,
-                                         MultipartFile businessProofImage) throws IOException {
+                                                 MultipartFile aadhaarCardFrontImage,
+                                                 MultipartFile aadhaarCardBackImage,
+                                                 MultipartFile panCardImage,
+                                                 MultipartFile shopImage,
+                                                 MultipartFile businessProofImage) throws IOException {
 
-        LocalDateTime RequestDateTime = LocalDateTime.now();
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String requestPayload = objectMapper.writeValueAsString(superDistributor);
 
-        // Field Validation
-        Set<ConstraintViolation<SuperDistributor>> violations = validator.validate(superDistributor);
-        List<FieldErrorDetailsDTO> errors = violations.stream()
-                .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
-                .collect(Collectors.toList());
+        log.info("Starting saveSuperDistributor for mobile: {}", superDistributor.getMobileNumber());
 
-        // Phone validation
         try {
-            phoneNumberValidationService.validatePhoneNumber(superDistributor.getMobileNumber());
-        } catch (IllegalArgumentException ex) {
-            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-        }
+            // Field Validation
+            Set<ConstraintViolation<SuperDistributor>> violations = validator.validate(superDistributor);
+            List<FieldErrorDetailsDTO> errors = violations.stream()
+                    .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
+                    .collect(Collectors.toList());
 
-        // Image validation
-        Map<String, MultipartFile> imageMap = new HashMap<>();
-        imageMap.put("aadhaarCardFrontImage", aadhaarCardFrontImage);
-        imageMap.put("aadhaarCardBackImage", aadhaarCardBackImage);
-        imageMap.put("panCardImage", panCardImage);
-        imageMap.put("shopImage", shopImage);
-        imageMap.put("businessProofImage", businessProofImage);
-
-        for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
-            if (entry.getValue() == null || entry.getValue().isEmpty()) {
-                errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
+            // Phone validation
+            try {
+                phoneNumberValidationService.validatePhoneNumber(superDistributor.getMobileNumber());
+            } catch (IllegalArgumentException ex) {
+                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
             }
-        }
 
-        if (!errors.isEmpty()) {
-            throw new CustomValidationException(errors);
-        }
+            // Image validation
+            Map<String, MultipartFile> imageMap = new HashMap<>();
+            imageMap.put("aadhaarCardFrontImage", aadhaarCardFrontImage);
+            imageMap.put("aadhaarCardBackImage", aadhaarCardBackImage);
+            imageMap.put("panCardImage", panCardImage);
+            imageMap.put("shopImage", shopImage);
+            imageMap.put("businessProofImage", businessProofImage);
 
-        String parentAccount = superDistributor.getParentAccount();
+            for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
+                if (entry.getValue() == null || entry.getValue().isEmpty()) {
+                    errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
+                }
+            }
 
-        if (parentAccount == null || !parentAccount.contains("-")) {
-            throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
-        }
+            if (!errors.isEmpty()) {
+                log.warn("Validation failed for SuperDistributor: {}", errors);
+                throw new CustomValidationException(errors);
+            }
 
-        // Extract prefix from parentAccount
-        String abbreviation = parentAccount.split("-")[0];
+            String parentAccount = superDistributor.getParentAccount();
 
-        // Optionally validate abbreviation format
-        if (!abbreviation.matches("^[A-Z]{2,3}$")) {
-            throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
-        }
+            if (parentAccount == null || !parentAccount.contains("-")) {
+                throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+            }
 
-        superDistributor.setAbbreviation(abbreviation);
+            // Extract abbreviation
+            String abbreviation = parentAccount.split("-")[0];
+            if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+                throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+            }
+            superDistributor.setAbbreviation(abbreviation);
 
-        String folder = "Super Distributor";
-        superDistributor.setSuperDistributorId(idGenerator.generateHierarchyEntityId(folder, superDistributor.getAbbreviation()));
+            // Generate ID
+            String folder = "Super Distributor";
+            superDistributor.setSuperDistributorId(
+                    idGenerator.generateHierarchyEntityId(folder, superDistributor.getAbbreviation())
+            );
 
-        // Upload Images
-        imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, superDistributor::setAadhaarCardFrontImage);
-        imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, superDistributor::setAadhaarCardBackImage);
-        imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, superDistributor::setPanCardImage);
-        imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, superDistributor::setShopImage);
-        imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, superDistributor::setBusinessProofImage);
+            // Upload Images
+            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, superDistributor::setAadhaarCardFrontImage);
+            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, superDistributor::setAadhaarCardBackImage);
+            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, superDistributor::setPanCardImage);
+            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, superDistributor::setShopImage);
+            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, superDistributor::setBusinessProofImage);
 
-        SuperDistributor savedDistributor = superDistributorRepository.save(superDistributor);
+            // Save SuperDistributor
+            SuperDistributor savedDistributor = superDistributorRepository.save(superDistributor);
+            log.info("SuperDistributor saved successfully with ID: {}", savedDistributor.getSuperDistributorId());
 
+            // Create prepaid/postpaid records
             SuperDistributorPrepaidAmount prepaidAmount = new SuperDistributorPrepaidAmount();
             prepaidAmount.setSuperDistributorId(savedDistributor);
             superDistributorPrepaidAmountRepository.save(prepaidAmount);
-            log.info("Prepaid amount record created for Super Distributor: {}", superDistributor.getSuperDistributorId());
+            log.info("Prepaid amount record created for Super Distributor: {}", savedDistributor.getSuperDistributorId());
 
             SuperDistributorPostpaidAmount postpaidAmount = new SuperDistributorPostpaidAmount();
             postpaidAmount.setSuperDistributorId(savedDistributor);
             superDistributorPostpaidAmountRepository.save(postpaidAmount);
-            log.info("Postpaid amount record created for Super Distributor: {}", superDistributor.getSuperDistributorId());
+            log.info("Postpaid amount record created for Super Distributor: {}", savedDistributor.getSuperDistributorId());
 
-        LocalDateTime ResponseDateTime = LocalDateTime.now();
-        String SuperDistributerRequest  = objectMapper.writeValueAsString(superDistributor);
-        String SuperDistributerResponse  = objectMapper.writeValueAsString(savedDistributor);
+            // Save hierarchy logs
+            LocalDateTime responseDateTime = LocalDateTime.now();
+            String responsePayload = objectMapper.writeValueAsString(savedDistributor);
 
-        commonFunctions.saveHierarchyLogs(
-                RequestDateTime,
-                SuperDistributerRequest,
-                null, // IP address as null
-                ResponseDateTime,
-                SuperDistributerResponse
-        );
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    requestPayload,
+                    null,
+                    responseDateTime,
+                    responsePayload
+            );
 
+            log.info("Hierarchy logs saved for SuperDistributor: {}", savedDistributor.getSuperDistributorId());
             return savedDistributor;
+
+        } catch (Exception e) {
+            LocalDateTime responseDateTime = LocalDateTime.now();
+            log.error("Error occurred while saving SuperDistributor: {}", e.getMessage(), e);
+
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    requestPayload,
+                    null,
+                    responseDateTime,
+                    "Error: " + e.getMessage()
+            );
+
+            throw e;
+        }
     }
 
     @Override
     public SuperDistributor getSuperDistributor(String id) {
-        return superDistributorRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("SuperDistributor not found with id: " + id));
+        LocalDateTime requestTime = LocalDateTime.now();
+        String request = "Fetching SuperDistributor with id: " + id;
+
+        log.info("Request to get SuperDistributor with id: {}", id);
+
+        try {
+            SuperDistributor superDistributor = superDistributorRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("SuperDistributor not found with id: " + id));
+
+            LocalDateTime responseTime = LocalDateTime.now();
+            String response = superDistributor.toString();
+
+            commonFunctions.saveHierarchyLogs(requestTime, request, null, responseTime, response);
+
+            log.info("Successfully fetched SuperDistributor with id: {}", id);
+            return superDistributor;
+
+        } catch (Exception ex) {
+            LocalDateTime responseTime = LocalDateTime.now();
+            String response = "Error: " + ex.getMessage();
+
+            commonFunctions.saveHierarchyLogs(requestTime, request, null, responseTime, response);
+
+            log.error("Failed to fetch SuperDistributor with id: {}", id, ex);
+            throw ex;
+        }
     }
+
 
     @Transactional
     @Override
@@ -170,87 +220,131 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
                                                    MultipartFile businessProofImage) throws IOException {
 
         LocalDateTime requestDateTime = LocalDateTime.now();
+        String requestPayload = objectMapper.writeValueAsString(superDistributor);
 
-        SuperDistributor existingSuperDistributor = superDistributorRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Super Distributor not found"));
+        log.info("Starting updateSuperDistributor for ID: {}", id);
 
-        // Serialize request
-        String superDistributorRequest = objectMapper.writeValueAsString(superDistributor);
-
-        if (existingSuperDistributor.equals(superDistributor)) {
-            return existingSuperDistributor;
-        }
-
-        // Validate mobile
-        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
-            phoneNumberValidationService.validatePhoneNumber(superDistributor.getMobileNumber());
-        } catch (IllegalArgumentException ex) {
-            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+            SuperDistributor existingSuperDistributor = superDistributorRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("Super Distributor not found with ID: " + id));
+
+            if (existingSuperDistributor.equals(superDistributor)) {
+                log.info("No changes detected for SuperDistributor with ID: {}", id);
+                return existingSuperDistributor;
+            }
+
+            // Mobile validation
+            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+            try {
+                phoneNumberValidationService.validatePhoneNumber(superDistributor.getMobileNumber());
+            } catch (IllegalArgumentException ex) {
+                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+            }
+
+            if (!errors.isEmpty()) {
+                log.warn("Validation failed while updating SuperDistributor with ID: {}, Errors: {}", id, errors);
+                throw new CustomValidationException(errors);
+            }
+
+            // Update fields selectively
+            if (superDistributor.getTitle() != null)
+                existingSuperDistributor.setTitle(superDistributor.getTitle());
+            if (superDistributor.getName() != null)
+                existingSuperDistributor.setName(superDistributor.getName());
+            if (superDistributor.getMobileNumber() != null)
+                existingSuperDistributor.setMobileNumber(superDistributor.getMobileNumber());
+            if (superDistributor.getEmailId() != null)
+                existingSuperDistributor.setEmailId(superDistributor.getEmailId());
+            if (superDistributor.getDob() != null)
+                existingSuperDistributor.setDob(superDistributor.getDob());
+            if (superDistributor.getAddress() != null)
+                existingSuperDistributor.setAddress(superDistributor.getAddress());
+            if (superDistributor.getOutletAddress() != null)
+                existingSuperDistributor.setOutletAddress(superDistributor.getOutletAddress());
+
+            // Image updates
+            String folder = "Super Distributor";
+            if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingSuperDistributor::setAadhaarCardFrontImage);
+            }
+            if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingSuperDistributor::setAadhaarCardBackImage);
+            }
+            if (panCardImage != null && !panCardImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingSuperDistributor::setPanCardImage);
+            }
+            if (shopImage != null && !shopImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingSuperDistributor::setShopImage);
+            }
+            if (businessProofImage != null && !businessProofImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingSuperDistributor::setBusinessProofImage);
+            }
+
+            // Save updated distributor
+            SuperDistributor updatedDistributor = superDistributorRepository.save(existingSuperDistributor);
+            log.info("SuperDistributor updated successfully with ID: {}", updatedDistributor.getSuperDistributorId());
+
+            // Save hierarchy logs
+            LocalDateTime responseDateTime = LocalDateTime.now();
+            String responsePayload = objectMapper.writeValueAsString(updatedDistributor);
+
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    requestPayload,
+                    null,
+                    responseDateTime,
+                    responsePayload
+            );
+            log.info("Hierarchy logs saved for updateSuperDistributor with ID: {}", updatedDistributor.getSuperDistributorId());
+
+            return updatedDistributor;
+
+        } catch (Exception e) {
+            LocalDateTime responseDateTime = LocalDateTime.now();
+            log.error("Error updating SuperDistributor with ID: {}. Message: {}", id, e.getMessage(), e);
+
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    requestPayload,
+                    null,
+                    responseDateTime,
+                    "Error: " + e.getMessage()
+            );
+
+            throw e;
         }
-
-        if (!errors.isEmpty()) {
-            throw new CustomValidationException(errors);
-        }
-
-        // Update fields
-        if (superDistributor.getTitle() != null)
-            existingSuperDistributor.setTitle(superDistributor.getTitle());
-        if (superDistributor.getName() != null)
-            existingSuperDistributor.setName(superDistributor.getName());
-        if (superDistributor.getMobileNumber() != null)
-            existingSuperDistributor.setMobileNumber(superDistributor.getMobileNumber());
-        if (superDistributor.getEmailId() != null)
-            existingSuperDistributor.setEmailId(superDistributor.getEmailId());
-        if (superDistributor.getDob() != null)
-            existingSuperDistributor.setDob(superDistributor.getDob());
-        if (superDistributor.getAddress() != null)
-            existingSuperDistributor.setAddress(superDistributor.getAddress());
-        if (superDistributor.getOutletAddress() != null)
-            existingSuperDistributor.setOutletAddress(superDistributor.getOutletAddress());
-
-        // Image updates
-        String folder = "Super Distributor";
-        if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingSuperDistributor::setAadhaarCardFrontImage);
-        }
-        if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingSuperDistributor::setAadhaarCardBackImage);
-        }
-        if (panCardImage != null && !panCardImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingSuperDistributor::setPanCardImage);
-        }
-        if (shopImage != null && !shopImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingSuperDistributor::setShopImage);
-        }
-        if (businessProofImage != null && !businessProofImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingSuperDistributor::setBusinessProofImage);
-        }
-
-        SuperDistributor updatedDistributor = superDistributorRepository.save(existingSuperDistributor);
-
-        LocalDateTime responseDateTime = LocalDateTime.now();
-
-        String superDistributorResponse = objectMapper.writeValueAsString(updatedDistributor);
-
-        // Save logs
-        commonFunctions.saveHierarchyLogs(
-                requestDateTime,
-                superDistributorRequest,
-                null,
-                responseDateTime,
-                superDistributorResponse
-        );
-
-        return updatedDistributor;
     }
-
 
 
     @Override
     public List<SuperDistributor> getAllSuperDistributors() {
-        return superDistributorRepository.findAll();
+        LocalDateTime requestTime = LocalDateTime.now();
+        String request = "Fetch all SuperDistributors";
+
+        try {
+            log.info("Fetching all SuperDistributors at {}", requestTime);
+
+            List<SuperDistributor> superDistributors = superDistributorRepository.findAll();
+
+            LocalDateTime responseTime = LocalDateTime.now();
+            String response = "Fetched " + superDistributors.size() + " SuperDistributors successfully";
+
+            // Save logs
+            commonFunctions.saveHierarchyLogs(requestTime, request, null, responseTime, response);
+
+            return superDistributors;
+        } catch (Exception e) {
+            LocalDateTime responseTime = LocalDateTime.now();
+            String response = "Error fetching SuperDistributors: " + e.getMessage();
+
+            // Save error logs
+            commonFunctions.saveHierarchyLogs(requestTime, request, null, responseTime, response);
+
+            log.error("Error fetching SuperDistributors", e);
+            throw e;
+        }
     }
+
 
     @Transactional
     @Override

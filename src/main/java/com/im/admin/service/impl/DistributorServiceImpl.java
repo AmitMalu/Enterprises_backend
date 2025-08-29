@@ -19,6 +19,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DistributorServiceImpl implements DistributorService {
 
     @Autowired
@@ -59,6 +61,7 @@ public class DistributorServiceImpl implements DistributorService {
 
     @Autowired
     private CommonFunctions commonFunctions;
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -72,94 +75,115 @@ public class DistributorServiceImpl implements DistributorService {
                                          MultipartFile shopImage,
                                          MultipartFile businessProofImage) throws IOException {
 
-        LocalDateTime RequestDateTime = LocalDateTime.now();
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String distributorRequest = null;
+        String distributorResponse = null;
+        LocalDateTime responseDateTime = null;
 
-        // Field Validation
-        Set<ConstraintViolation<Distributor>> violations = validator.validate(distributor);
-        List<FieldErrorDetailsDTO> errors = violations.stream()
-                .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
-                .collect(Collectors.toList());
-
-        // Phone validation
         try {
-            phoneNumberValidationService.validatePhoneNumber(distributor.getMobileNumber());
-        } catch (IllegalArgumentException ex) {
-            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-        }
+            log.info("Starting Distributor creation process for parentAccount: {}", distributor.getParentAccount());
 
-        // Image validation
-        Map<String, MultipartFile> imageMap = new HashMap<>();
-        imageMap.put("aadhaarCardFrontImage", aadhaarCardFrontImage);
-        imageMap.put("aadhaarCardBackImage", aadhaarCardBackImage);
-        imageMap.put("panCardImage", panCardImage);
-        imageMap.put("shopImage", shopImage);
-        imageMap.put("businessProofImage", businessProofImage);
+            // Validate distributor fields
+            Set<ConstraintViolation<Distributor>> violations = validator.validate(distributor);
+            List<FieldErrorDetailsDTO> errors = violations.stream()
+                    .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
+                    .collect(Collectors.toList());
 
-        for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
-            if (entry.getValue() == null || entry.getValue().isEmpty()) {
-                errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
+            // Phone validation
+            try {
+                phoneNumberValidationService.validatePhoneNumber(distributor.getMobileNumber());
+            } catch (IllegalArgumentException ex) {
+                log.error("Phone number validation failed: {}", ex.getMessage());
+                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
             }
+
+            // Image validation
+            Map<String, MultipartFile> imageMap = new HashMap<>();
+            imageMap.put("aadhaarCardFrontImage", aadhaarCardFrontImage);
+            imageMap.put("aadhaarCardBackImage", aadhaarCardBackImage);
+            imageMap.put("panCardImage", panCardImage);
+            imageMap.put("shopImage", shopImage);
+            imageMap.put("businessProofImage", businessProofImage);
+
+            for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
+                if (entry.getValue() == null || entry.getValue().isEmpty()) {
+                    log.warn("Missing required image: {}", entry.getKey());
+                    errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
+                }
+            }
+
+            if (!errors.isEmpty()) {
+                log.error("Validation failed for Distributor: {}", errors);
+                throw new CustomValidationException(errors);
+            }
+
+            // Validate parent account
+            String parentAccount = distributor.getParentAccount();
+            if (parentAccount == null || !parentAccount.contains("-")) {
+                log.error("Invalid parentAccount format: {}", parentAccount);
+                throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+            }
+
+            String abbreviation = parentAccount.split("-")[0];
+            if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+                log.error("Derived abbreviation '{}' is invalid.", abbreviation);
+                throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+            }
+
+            distributor.setAbbreviation(abbreviation);
+            String folder = "Distributor";
+            distributor.setDistributorId(idGenerator.generateHierarchyEntityId(folder, distributor.getAbbreviation()));
+
+            // Serialize request before DB save
+            distributorRequest = objectMapper.writeValueAsString(distributor);
+
+            // Upload images
+            log.info("Uploading distributor images...");
+            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, distributor::setAadhaarCardFrontImage);
+            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, distributor::setAadhaarCardBackImage);
+            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, distributor::setPanCardImage);
+            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, distributor::setShopImage);
+            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, distributor::setBusinessProofImage);
+
+            // Save distributor
+            log.info("Saving Distributor entity...");
+            Distributor savedDistributor = distributorRepository.save(distributor);
+
+            // Initialize wallet balances
+            DistributorPrepaidAmount prepaid = new DistributorPrepaidAmount();
+            prepaid.setDistributorId(savedDistributor);
+            prepaidAmountRepository.save(prepaid);
+
+            DistributorPostpaidAmount postpaid = new DistributorPostpaidAmount();
+            postpaid.setDistributorId(savedDistributor);
+            postpaidAmountRepository.save(postpaid);
+
+            DistributorGullakAmount gullak = new DistributorGullakAmount();
+            gullak.setDistributorId(savedDistributor);
+            gullakAmountRepository.save(gullak);
+
+            log.info("Distributor created successfully with ID: {}", savedDistributor.getDistributorId());
+
+            responseDateTime = LocalDateTime.now();
+            distributorResponse = objectMapper.writeValueAsString(savedDistributor);
+
+            return savedDistributor;
+
+        } catch (Exception ex) {
+            log.error("Error occurred while creating Distributor: {}", ex.getMessage(), ex);
+            distributorResponse = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            throw ex;
+        } finally {
+            log.info("Saving hierarchy logs for Distributor creation...");
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    distributorRequest,
+                    null, // IP address
+                    responseDateTime,
+                    distributorResponse
+            );
         }
-
-        if (!errors.isEmpty()) {
-            throw new CustomValidationException(errors);
-        }
-
-        String parentAccount = distributor.getParentAccount();
-
-        if (parentAccount == null || !parentAccount.contains("-")) {
-            throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
-        }
-
-        // Extract prefix from parentAccount
-        String abbreviation = parentAccount.split("-")[0];
-
-        // Optionally validate abbreviation format
-        if (!abbreviation.matches("^[A-Z]{2,3}$")) {
-            throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
-        }
-
-        distributor.setAbbreviation(abbreviation);
-
-        String folder = "Distributor";
-        distributor.setDistributorId(idGenerator.generateHierarchyEntityId(folder, distributor.getAbbreviation()));
-
-        // Upload Images
-        imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, distributor::setAadhaarCardFrontImage);
-        imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, distributor::setAadhaarCardBackImage);
-        imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, distributor::setPanCardImage);
-        imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, distributor::setShopImage);
-        imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, distributor::setBusinessProofImage);
-
-        // Save distributor and amounts
-        Distributor savedDistributor = distributorRepository.save(distributor);
-
-        DistributorPrepaidAmount prepaid = new DistributorPrepaidAmount();
-        prepaid.setDistributorId(savedDistributor);
-        prepaidAmountRepository.save(prepaid);
-
-        DistributorPostpaidAmount postpaid = new DistributorPostpaidAmount();
-        postpaid.setDistributorId(savedDistributor);
-        postpaidAmountRepository.save(postpaid);
-
-        DistributorGullakAmount gullak = new DistributorGullakAmount();
-        gullak.setDistributorId(savedDistributor);
-        gullakAmountRepository.save(gullak);
-
-        LocalDateTime ResponseDateTime = LocalDateTime.now();
-        String DistributorRequest = objectMapper.writeValueAsString(distributor);
-        String DistributorResponse = objectMapper.writeValueAsString(savedDistributor);
-
-        commonFunctions.saveHierarchyLogs(
-                RequestDateTime,
-                DistributorRequest,
-                null, // IP address as null
-                ResponseDateTime,
-                DistributorResponse
-        );
-
-
-        return savedDistributor;
     }
 
     @Transactional
@@ -173,84 +197,185 @@ public class DistributorServiceImpl implements DistributorService {
                                          MultipartFile businessProofImage) throws IOException {
 
         LocalDateTime requestDateTime = LocalDateTime.now();
+        String distributorRequest = null;
+        String distributorResponse = null;
+        LocalDateTime responseDateTime = null;
 
-        Distributor existingDistributor = distributorRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Distributor not found"));
-
-        // Capture request payload (incoming distributor)
-        String distributorRequest = objectMapper.writeValueAsString(distributor);
-
-        if (existingDistributor.equals(distributor)) {
-            return existingDistributor;
-        }
-
-        // Validate mobile
-        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
-            phoneNumberValidationService.validatePhoneNumber(distributor.getMobileNumber());
-        } catch (IllegalArgumentException ex) {
-            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-        }
+            log.info("Starting update process for Distributor ID: {}", id);
 
-        if (!errors.isEmpty()) {
-            throw new CustomValidationException(errors);
-        }
+            Distributor existingDistributor = distributorRepository.findById(id)
+                    .orElseThrow(() -> {
+                        log.error("Distributor not found with ID: {}", id);
+                        return new EntityNotFoundException("Distributor not found");
+                    });
 
-        // Update non-null fields
-        if (distributor.getTitle() != null) existingDistributor.setTitle(distributor.getTitle());
-        if (distributor.getName() != null) existingDistributor.setName(distributor.getName());
-        if (distributor.getMobileNumber() != null) existingDistributor.setMobileNumber(distributor.getMobileNumber());
-        if (distributor.getEmailId() != null) existingDistributor.setEmailId(distributor.getEmailId());
-        if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
-        if (distributor.getAddress() != null) existingDistributor.setAddress(distributor.getAddress());
-        if (distributor.getOutletAddress() != null) existingDistributor.setOutletAddress(distributor.getOutletAddress());
+            // Capture request payload
+            distributorRequest = objectMapper.writeValueAsString(distributor);
 
-        // Optional image updates
-        String folder = "Distributor";
-        if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingDistributor::setAadhaarCardFrontImage);
-        }
-        if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingDistributor::setAadhaarCardBackImage);
-        }
-        if (panCardImage != null && !panCardImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingDistributor::setPanCardImage);
-        }
-        if (shopImage != null && !shopImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingDistributor::setShopImage);
-        }
-        if (businessProofImage != null && !businessProofImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingDistributor::setBusinessProofImage);
-        }
+            // Check if update is necessary
+            if (existingDistributor.equals(distributor)) {
+                log.info("No changes detected for Distributor ID: {}", id);
+                distributorResponse = objectMapper.writeValueAsString(existingDistributor);
+                return existingDistributor;
+            }
 
-        Distributor updatedDistributor = distributorRepository.save(existingDistributor);
+            // Validate mobile
+            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+            try {
+                phoneNumberValidationService.validatePhoneNumber(distributor.getMobileNumber());
+            } catch (IllegalArgumentException ex) {
+                log.error("Invalid mobile number for Distributor ID {}: {}", id, ex.getMessage());
+                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+            }
 
-        LocalDateTime responseDateTime = LocalDateTime.now();
-        String distributorResponse = objectMapper.writeValueAsString(updatedDistributor);
+            if (!errors.isEmpty()) {
+                log.error("Validation failed for Distributor update. Errors: {}", errors);
+                throw new CustomValidationException(errors);
+            }
 
-        // Save hierarchy logs
-        commonFunctions.saveHierarchyLogs(
-                requestDateTime,
-                distributorRequest,
-                null, // IP Address
-                responseDateTime,
-                distributorResponse
-        );
+            // Update fields if provided
+            if (distributor.getTitle() != null) existingDistributor.setTitle(distributor.getTitle());
+            if (distributor.getName() != null) existingDistributor.setName(distributor.getName());
+            if (distributor.getMobileNumber() != null)
+                existingDistributor.setMobileNumber(distributor.getMobileNumber());
+            if (distributor.getEmailId() != null) existingDistributor.setEmailId(distributor.getEmailId());
+            if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
+            if (distributor.getAddress() != null) existingDistributor.setAddress(distributor.getAddress());
+            if (distributor.getOutletAddress() != null)
+                existingDistributor.setOutletAddress(distributor.getOutletAddress());
 
-        return updatedDistributor;
+            // Optional image updates
+            String folder = "Distributor";
+            if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
+                log.info("Updating Aadhaar Front Image for Distributor ID: {}", id);
+                imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingDistributor::setAadhaarCardFrontImage);
+            }
+            if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
+                log.info("Updating Aadhaar Back Image for Distributor ID: {}", id);
+                imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingDistributor::setAadhaarCardBackImage);
+            }
+            if (panCardImage != null && !panCardImage.isEmpty()) {
+                log.info("Updating PAN Card Image for Distributor ID: {}", id);
+                imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingDistributor::setPanCardImage);
+            }
+            if (shopImage != null && !shopImage.isEmpty()) {
+                log.info("Updating Shop Image for Distributor ID: {}", id);
+                imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingDistributor::setShopImage);
+            }
+            if (businessProofImage != null && !businessProofImage.isEmpty()) {
+                log.info("Updating Business Proof Image for Distributor ID: {}", id);
+                imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingDistributor::setBusinessProofImage);
+            }
+
+            // Save updated distributor
+            Distributor updatedDistributor = distributorRepository.save(existingDistributor);
+            log.info("Distributor updated successfully with ID: {}", updatedDistributor.getDistributorId());
+
+            responseDateTime = LocalDateTime.now();
+            distributorResponse = objectMapper.writeValueAsString(updatedDistributor);
+
+            return updatedDistributor;
+
+        } catch (Exception ex) {
+            log.error("Error while updating Distributor ID {}: {}", id, ex.getMessage(), ex);
+            distributorResponse = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            throw ex;
+        } finally {
+            log.info("Saving hierarchy logs for Distributor update...");
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    distributorRequest,
+                    null, // IP address
+                    responseDateTime,
+                    distributorResponse
+            );
+        }
     }
 
 
     //Get All Distributors
     @Override
     public List<Distributor> getAllDistributors() {
-        return distributorRepository.findAll();
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestPayload = "Fetching all distributors";
+
+        log.info("Request received at {}: {}", requestTime, requestPayload);
+
+        try {
+            List<Distributor> distributors = distributorRepository.findAll();
+            LocalDateTime responseTime = LocalDateTime.now();
+
+            log.info("Fetched {} distributors successfully at {}", distributors.size(), responseTime);
+
+            // Save logs in DB
+            commonFunctions.saveImLogs(
+                    requestPayload,
+                    requestTime,
+                    null,
+                    "Fetched " + distributors.size() + " distributors successfully",
+                    responseTime
+            );
+
+            return distributors;
+        } catch (Exception e) {
+            LocalDateTime responseTime = LocalDateTime.now();
+
+            log.error("Error fetching distributors at {}: {}", responseTime, e.getMessage(), e);
+
+            commonFunctions.saveImLogs(
+                    requestPayload,
+                    requestTime,
+                    null,
+                    "Error fetching distributors: " + e.getMessage(),
+                    responseTime
+            );
+
+            throw e;
+        }
     }
 
     @Override
     public Distributor getDistributorById(String id) {
-        return distributorRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Distributor not found"));
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestPayload = "Fetching distributor with ID: " + id;
+
+        log.info("Request received at {}: {}", requestTime, requestPayload);
+
+        try {
+            Distributor distributor = distributorRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("Distributor not found with ID: " + id));
+
+            LocalDateTime responseTime = LocalDateTime.now();
+
+            log.info("Distributor found with ID {} at {}", distributor.getDistributorId(), responseTime);
+
+            // Save logs in DB
+            commonFunctions.saveImLogs(
+                    requestPayload,
+                    requestTime,
+                    null,
+                    "Distributor found: " + distributor.getDistributorId(),
+                    responseTime
+            );
+
+            return distributor;
+        } catch (EntityNotFoundException e) {
+            LocalDateTime responseTime = LocalDateTime.now();
+
+            log.warn("Distributor not found with ID {} at {}", id, responseTime);
+
+            commonFunctions.saveImLogs(
+                    requestPayload,
+                    requestTime,
+                    null,
+                    "Error: " + e.getMessage(),
+                    responseTime
+            );
+
+            throw e;
+        }
     }
 
     @Transactional

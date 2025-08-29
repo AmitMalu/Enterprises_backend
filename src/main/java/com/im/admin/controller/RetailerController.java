@@ -91,14 +91,6 @@ public class RetailerController {
         return ResponseEntity.ok(updatedRetailer);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteRetailer(@PathVariable String id) {
-        log.info("Received request to delete Retailer with ID: {}", id);
-        retailerService.deleteRetailer(id);
-        log.info("Retailer deleted successfully with ID: {}", id);
-        return ResponseEntity.ok("Retailer deleted successfully");
-    }
-
     @GetMapping
     public ResponseEntity<CommonResponse<Page<RetailerResponseDTO>>> getAllRetailers(
             @RequestParam(defaultValue = "0") int page,

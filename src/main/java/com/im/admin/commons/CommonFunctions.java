@@ -31,8 +31,8 @@ public class CommonFunctions {
     private CallbackEventLogRepository callbackEventLogRepository;
 
 
-    public ImLogs saveImLogs(String request, LocalDateTime imRequestDateTime, String ipAddress, String response,
-                             LocalDateTime imResponseDateTime) {
+    public void saveImLogs(String request, LocalDateTime imRequestDateTime, String ipAddress, String response,
+                           LocalDateTime imResponseDateTime) {
         ImLogs imLogs = new ImLogs();
         imLogs.setRequest(request);
         imLogs.setRequestDateTime(imRequestDateTime);
@@ -40,11 +40,10 @@ public class CommonFunctions {
         imLogs.setResponse(response);
         imLogs.setResponseDateTime(imResponseDateTime);
         imLogs = imLogsRepository.save(imLogs);
-        return imLogs;
     }
 
-    public VendorLogs saveVendorLogs(LocalDateTime vendorRequestDateTime, String request, String vendorId,
-                                     LocalDateTime vendorResponseDateTime, String response, String requestIp) {
+    public void saveVendorLogs(LocalDateTime vendorRequestDateTime, String request, String vendorId,
+                               LocalDateTime vendorResponseDateTime, String response, String requestIp) {
         VendorLogs vendorReqRes = new VendorLogs();
         vendorReqRes.setImVendorId(vendorId);
         vendorReqRes.setRequest(request);
@@ -53,23 +52,21 @@ public class CommonFunctions {
         vendorReqRes.setResponseDateTime(vendorResponseDateTime);
         vendorReqRes.setRequestIp(null);
         vendorReqRes = vendorReqResRepository.save(vendorReqRes);
-        return vendorReqRes;
     }
 
-    public HierarchyLogs saveHierarchyLogs(LocalDateTime HierarchyRequestDateTime, String request, String ipAddress,
-                                           LocalDateTime HierarchyResponseDateTime, String response) {
+    public void saveHierarchyLogs(LocalDateTime HierarchyRequestDateTime, String request, String ipAddress,
+                                  LocalDateTime HierarchyResponseDateTime, String response) {
         HierarchyLogs hierarchyLogs = new HierarchyLogs();
         hierarchyLogs.setRequest(request);
         hierarchyLogs.setRequestDateTime(HierarchyRequestDateTime);
         hierarchyLogs.setResponse(response);
         hierarchyLogs.setResponseDateTime(HierarchyResponseDateTime);
-        hierarchyLogs.setIpAddress(null);
+        hierarchyLogs.setIpAddress(ipAddress);
         hierarchyLogs = hierarchyLogsRepository.save(hierarchyLogs);
-        return hierarchyLogs;
     }
 
-    public LoginLogs saveLoginLogs(String request, LocalDateTime LoginRequestDateTime, String response,
-                                   LocalDateTime LoginResponseDateTime, String requestIp) {
+    public void saveLoginLogs(String request, LocalDateTime LoginRequestDateTime, String response,
+                              LocalDateTime LoginResponseDateTime, String requestIp) {
         LoginLogs loginlogs = new LoginLogs();
         loginlogs.setRequest(request);
         loginlogs.setRequestDateTime(LoginRequestDateTime);
@@ -77,7 +74,6 @@ public class CommonFunctions {
         loginlogs.setResponseDateTime(LoginResponseDateTime);
         loginlogs.setIpAddress(null);
         loginlogs = loginLogsRepository.save(loginlogs);
-        return loginlogs;
     }
 
     public AuditLogs saveAuditLogs(String request, LocalDateTime imRequestDateTime, String ipAddress, String response,
@@ -93,8 +89,8 @@ public class CommonFunctions {
     }
 
 
-    public CallbackEventLog saveCallbackEventLog(String request, LocalDateTime requestDateTime, String ipAddress,
-                                                 String response, LocalDateTime responseDateTime) {
+    public void saveCallbackEventLog(String request, LocalDateTime requestDateTime, String ipAddress,
+                                     String response, LocalDateTime responseDateTime) {
 
         CallbackEventLog callbackEventLog = new CallbackEventLog();
         callbackEventLog.setRequest(request);
@@ -102,8 +98,7 @@ public class CommonFunctions {
         callbackEventLog.setIpAddress(ipAddress);
         callbackEventLog.setResponse(response);
         callbackEventLog.setResponseDateTime(responseDateTime);
-
-        return callbackEventLogRepository.save(callbackEventLog);
+        callbackEventLogRepository.save(callbackEventLog);
     }
 
 }
