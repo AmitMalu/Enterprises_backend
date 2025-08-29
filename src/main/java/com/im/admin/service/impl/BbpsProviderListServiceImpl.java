@@ -34,9 +34,13 @@ public class BbpsProviderListServiceImpl implements BbpsProviderListService {
                     e.setOperator(r.getService_name());
                     e.setSubOperator(r.getProvider_name());
                     e.setVendorId(r.getProvider_id());
+                    log.debug("Mapped raw DTO to entity | service_name={}, provider_name={}, provider_id={}",
+                            r.getService_name(), r.getProvider_name(), r.getProvider_id());
                     return e;
                 })
                 .collect(Collectors.toList());
+
+        log.info("Prepared {} entities for saving", entities.size());
 
         int chunkSize = 100;
         ExecutorService executor = Executors.newFixedThreadPool(5);
@@ -65,6 +69,8 @@ public class BbpsProviderListServiceImpl implements BbpsProviderListService {
         }
 
         executor.shutdown();
+        log.info("All provider data saved successfully | totalRecords={}", entities.size());
         return "All provider data saved successfully";
     }
+
 }
