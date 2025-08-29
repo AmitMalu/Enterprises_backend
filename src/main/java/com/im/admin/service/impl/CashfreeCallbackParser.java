@@ -3,21 +3,27 @@ package com.im.admin.service.impl;
 
 import com.im.admin.response.RunPaisaCallback;
 import com.im.admin.service.VendorCallbackParser;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
+@Slf4j
 @Component
 public class CashfreeCallbackParser implements VendorCallbackParser {
 
     @Override
     public boolean supports(Map<String, String> payload) {
-        return "CASHFREE".equalsIgnoreCase(payload.get("PG_PARTNER"));
+        boolean isSupported = "CASHFREE".equalsIgnoreCase(payload.get("PG_PARTNER"));
+        log.info("Checking if payload is supported: PG_PARTNER={} | supported={}", payload.get("PG_PARTNER"), isSupported);
+        return isSupported;
     }
 
     @Override
     public RunPaisaCallback parse(Map<String, String> payload) {
-        return RunPaisaCallback.builder()
+        log.info("Parsing RunPaisa payload: {}", payload);
+
+        RunPaisaCallback callback = RunPaisaCallback.builder()
                 .orderId(payload.get("orderId"))
                 .status(payload.get("txStatus"))
                 .bankTxnId(payload.get("bankTxnId"))
@@ -25,5 +31,9 @@ public class CashfreeCallbackParser implements VendorCallbackParser {
                 .errorDesc(payload.get("txMsg"))
                 .txnMode(payload.get("paymentMode"))
                 .build();
+
+        log.info("Parsed RunPaisaCallback: {}", callback);
+        return callback;
     }
+
 }

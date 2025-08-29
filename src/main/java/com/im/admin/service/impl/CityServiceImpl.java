@@ -15,6 +15,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.service.CityService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
@@ -38,9 +39,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 
-
-
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CityServiceImpl implements CityService {
@@ -59,23 +58,45 @@ public class CityServiceImpl implements CityService {
 
     @Override
     public CommonResponse<CityResponseDTO> save(CityRequestDTO dto) {
+        log.info("Saving City | DTO: {}", dto);
+
         City city = new City();
         city.setCityName(dto.getCityName());
         city.setCityCode(dto.getCityCode());
         city.setBlocked(dto.getBlocked());
         city.setCreatedBy(dto.getCreatedBy());
 
-        city.setCountry(countryRepository.findById(dto.getCountryId()).orElseThrow(() -> new RuntimeException("Country not found")));
-        city.setState(stateRepository.findById(dto.getStateId()).orElseThrow(() -> new RuntimeException("State not found")));
-        city.setDistrict(districtRepository.findById(dto.getDistrictId()).orElseThrow(() -> new RuntimeException("District not found")));
+        city.setCountry(countryRepository.findById(dto.getCountryId())
+                .orElseThrow(() -> {
+                    log.error("Country not found with ID={}", dto.getCountryId());
+                    return new RuntimeException("Country not found");
+                }));
+        city.setState(stateRepository.findById(dto.getStateId())
+                .orElseThrow(() -> {
+                    log.error("State not found with ID={}", dto.getStateId());
+                    return new RuntimeException("State not found");
+                }));
+        city.setDistrict(districtRepository.findById(dto.getDistrictId())
+                .orElseThrow(() -> {
+                    log.error("District not found with ID={}", dto.getDistrictId());
+                    return new RuntimeException("District not found");
+                }));
 
         cityRepository.save(city);
+        log.info("City saved successfully | ID={}, Name={}", city.getId(), city.getCityName());
+
         return CommonResponse.success(toDTO(city), "City saved successfully");
     }
 
+
     @Override
     public CommonResponse<CityResponseDTO> update(Long id, CityRequestDTO dto) {
-        City city = cityRepository.findById(id).orElseThrow(() -> new RuntimeException("City not found"));
+        log.info("Updating City | ID={}, DTO={}", id, dto);
+
+        City city = cityRepository.findById(id).orElseThrow(() -> {
+            log.error("City not found with ID={}", id);
+            return new RuntimeException("City not found");
+        });
 
         city.setCityName(dto.getCityName());
         city.setCityCode(dto.getCityCode());
@@ -83,23 +104,45 @@ public class CityServiceImpl implements CityService {
         city.setEditedOn(LocalDateTime.now());
         city.setEditedBy(dto.getCreatedBy());
 
-        city.setCountry(countryRepository.findById(dto.getCountryId()).orElseThrow(() -> new RuntimeException("Country not found")));
-        city.setState(stateRepository.findById(dto.getStateId()).orElseThrow(() -> new RuntimeException("State not found")));
-        city.setDistrict(districtRepository.findById(dto.getDistrictId()).orElseThrow(() -> new RuntimeException("District not found")));
+        city.setCountry(countryRepository.findById(dto.getCountryId()).orElseThrow(() -> {
+            log.error("Country not found with ID={}", dto.getCountryId());
+            return new RuntimeException("Country not found");
+        }));
+        city.setState(stateRepository.findById(dto.getStateId()).orElseThrow(() -> {
+            log.error("State not found with ID={}", dto.getStateId());
+            return new RuntimeException("State not found");
+        }));
+        city.setDistrict(districtRepository.findById(dto.getDistrictId()).orElseThrow(() -> {
+            log.error("District not found with ID={}", dto.getDistrictId());
+            return new RuntimeException("District not found");
+        }));
 
         cityRepository.save(city);
+        log.info("City updated successfully | ID={}, Name={}", city.getId(), city.getCityName());
+
         return CommonResponse.success(toDTO(city), "City updated successfully");
     }
 
+
     @Override
     public CommonResponse<CityResponseDTO> getById(Long id) {
-        City city = cityRepository.findById(id).orElseThrow(() -> new RuntimeException("City not found"));
+        log.info("Fetching City by ID={}", id);
+
+        City city = cityRepository.findById(id).orElseThrow(() -> {
+            log.error("City not found with ID={}", id);
+            return new RuntimeException("City not found");
+        });
+
+        log.info("City fetched successfully | ID={}, Name={}", city.getId(), city.getCityName());
         return CommonResponse.success(toDTO(city), "City fetched successfully");
     }
 
     @Override
     public CommonResponse<Page<CityResponseDTO>> getAll(int page, int size,
                                                         String cityName, String cityCode, Boolean blocked, String createdBy, String editedBy) {
+
+        log.info("Fetching Cities | page={}, size={}, cityName={}, cityCode={}, blocked={}, createdBy={}, editedBy={}",
+                page, size, cityName, cityCode, blocked, createdBy, editedBy);
 
         Pageable pageable = PageRequest.of(page, size);
 
@@ -126,19 +169,28 @@ public class CityServiceImpl implements CityService {
         };
 
         Page<City> pageResult = cityRepository.findAll(spec, pageable);
+        log.info("Fetched {} cities", pageResult.getNumberOfElements());
+
         Page<CityResponseDTO> dtoPage = pageResult.map(this::toDTO);
         return CommonResponse.success(dtoPage, "Cities fetched successfully");
     }
 
     @Override
     public List<CityDTO> getCitiesByDistrict(Long districtId) {
+        log.info("Fetching cities for districtId={}", districtId);
+
         List<City> cities = cityRepository.findByDistrict_Id(districtId);
+        log.info("Found {} cities for districtId={}", cities.size(), districtId);
+
         return cities.stream()
                 .map(c -> new CityDTO(c.getId(), c.getCityName()))
                 .collect(Collectors.toList());
     }
 
+
     private CityResponseDTO toDTO(City city) {
+        log.info("Converting City entity to DTO | CityId={}", city.getId());
+
         CityResponseDTO dto = new CityResponseDTO();
         dto.setId(city.getId());
         dto.setCityName(city.getCityName());
@@ -154,11 +206,15 @@ public class CityServiceImpl implements CityService {
         dto.setEditedOn(city.getEditedOn());
         dto.setCreatedBy(city.getEditedBy());
         dto.setEditedBy(city.getEditedBy());
+
+        log.info("Converted City DTO: {}", dto);
         return dto;
     }
 
     @Override
     public ByteArrayResource generateCitySampleTemplate() throws IOException {
+        log.info("Generating sample city Excel template");
+
         List<String> headers = List.of(
                 "City Name",
                 "City Code",
@@ -193,6 +249,7 @@ public class CityServiceImpl implements CityService {
             }
 
             workbook.write(out);
+            log.info("Sample city Excel template generated successfully");
             return new ByteArrayResource(out.toByteArray());
         }
     }
@@ -200,7 +257,10 @@ public class CityServiceImpl implements CityService {
 
     @Override
     public String uploadCitiesFromExcel(MultipartFile file, String uploadedBy) throws IOException {
+        log.info("Uploading cities from Excel file: {} by user: {}", file.getOriginalFilename(), uploadedBy);
+
         if (file.isEmpty() || !file.getOriginalFilename().endsWith(".xlsx")) {
+            log.warn("Invalid file upload attempt: {}", file.getOriginalFilename());
             return "Invalid file. Only .xlsx format supported.";
         }
 
@@ -209,10 +269,14 @@ public class CityServiceImpl implements CityService {
 
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
+            log.info("Processing sheet: {}", sheet.getSheetName());
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
-                if (row == null) continue;
+                if (row == null) {
+                    log.warn("Skipping empty row at index: {}", i);
+                    continue;
+                }
 
                 try {
                     String cityName = getCellString(row, 0);
@@ -223,6 +287,7 @@ public class CityServiceImpl implements CityService {
 
                     if (cityRepository.existsByCityCode(cityCode)) {
                         skipped++;
+                        log.info("Skipped duplicate city code: {} at row {}", cityCode, i + 1);
                         continue;
                     }
 
@@ -246,16 +311,20 @@ public class CityServiceImpl implements CityService {
 
                     cityRepository.save(city);
                     success++;
+                    log.info("Inserted city: {} (Row {})", cityName, i + 1);
 
                 } catch (Exception e) {
                     skipped++;
                     errors.add("Row " + (i + 1) + ": " + e.getMessage());
+                    log.error("Error processing row {}: {}", i + 1, e.getMessage(), e);
                 }
             }
         }
 
-        return "Upload complete. Inserted: " + success + ", Skipped: " + skipped +
+        String resultMessage = "Upload complete. Inserted: " + success + ", Skipped: " + skipped +
                 (errors.isEmpty() ? "" : ". Errors: " + String.join("; ", errors));
+        log.info(resultMessage);
+        return resultMessage;
     }
 
     private String getCellString(Row row, int index) {
@@ -263,7 +332,6 @@ public class CityServiceImpl implements CityService {
         cell.setCellType(CellType.STRING);
         return cell.getStringCellValue().trim();
     }
-
 
 
 }

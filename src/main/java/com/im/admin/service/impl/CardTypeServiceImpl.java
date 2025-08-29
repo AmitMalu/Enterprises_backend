@@ -25,6 +25,7 @@ public class CardTypeServiceImpl implements CardTypeService {
 
     @Override
     public ByteArrayResource generateSampleTemplate() throws IOException {
+        log.info("Generating sample template for card type");
 
         List<String> headers = List.of("Bin No", "Entry", "Network", "Type", "Sub Type", "Issuer Code", "Issuer Name");
         List<String> rowData = List.of("428094", "iin", "Visa", "debit", "consumer", "KKBK", "Kotak Mahindra Bank");
@@ -37,21 +38,26 @@ public class CardTypeServiceImpl implements CardTypeService {
             for (int i = 0; i < headers.size(); i++) {
                 headerRow.createCell(i).setCellValue(headers.get(i));
             }
+            log.info("Header row created: {}", headers);
 
             // Create data row
             Row dataRow = sheet.createRow(1);
             for (int i = 0; i < rowData.size(); i++) {
                 dataRow.createCell(i).setCellValue(rowData.get(i));
             }
+            log.info("Data row created: {}", rowData);
 
             for (int i = 0; i < headers.size(); i++) {
                 sheet.autoSizeColumn(i);
             }
 
             workbook.write(out);
+            log.info("Sample template generated successfully, size={} bytes", out.size());
+
             return new ByteArrayResource(out.toByteArray());
         }
     }
+
 
     public String uploadCardTypes(MultipartFile file) throws IOException {
         if (file.isEmpty() || !file.getOriginalFilename().endsWith(".xlsx")) {

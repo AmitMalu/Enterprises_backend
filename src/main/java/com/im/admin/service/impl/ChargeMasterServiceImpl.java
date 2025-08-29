@@ -58,27 +58,45 @@ public class ChargeMasterServiceImpl implements ChargeMasterService {
     @Override
     public ChargeMaster createChargeMaster(ChargeMaster cm) {
         log.info("Creating ChargeMaster: {}", cm.getName());
+
         if (repository.existsByName(cm.getName())) {
+            log.error("ChargeMaster creation failed. Name already exists: {}", cm.getName());
             throw new RuntimeException("ChargeMaster with this name already exists");
         }
-        cm.setTotalAmount(calculateTotalAmount(cm.getAmount(), cm.getGst()));
-        return repository.save(cm);
+
+        double totalAmount = calculateTotalAmount(cm.getAmount(), cm.getGst());
+        log.info("Calculated total amount: {} (Amount={}, GST={})", totalAmount, cm.getAmount(), cm.getGst());
+        cm.setTotalAmount(totalAmount);
+
+        ChargeMaster saved = repository.save(cm);
+        log.info("ChargeMaster created successfully: ID={}, Name={}", saved.getId(), saved.getName());
+        return saved;
     }
 
     @Override
     public ChargeMaster updateChargeMaster(Long id, ChargeMaster cm) {
-        log.info("Updating ChargeMaster ID: {}", id);
+        log.info("Updating ChargeMaster ID={}", id);
+
         ChargeMaster existing = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("ChargeMaster not found"));
+                .orElseThrow(() -> {
+                    log.error("ChargeMaster not found with ID={}", id);
+                    return new RuntimeException("ChargeMaster not found");
+                });
 
         existing.setName(cm.getName());
         existing.setInterval(cm.getInterval());
         existing.setAmount(cm.getAmount());
         existing.setGst(cm.getGst());
-        existing.setTotalAmount(calculateTotalAmount(cm.getAmount(), cm.getGst()));
 
-        return repository.save(existing);
+        double totalAmount = calculateTotalAmount(cm.getAmount(), cm.getGst());
+        log.info("Updated total amount: {} (Amount={}, GST={})", totalAmount, cm.getAmount(), cm.getGst());
+        existing.setTotalAmount(totalAmount);
+
+        ChargeMaster updated = repository.save(existing);
+        log.info("ChargeMaster updated successfully: ID={}, Name={}", updated.getId(), updated.getName());
+        return updated;
     }
+
 
     @Override
     public void deleteChargeMaster(Long id) {
