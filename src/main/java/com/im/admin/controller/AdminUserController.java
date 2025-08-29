@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.AdminUserRequestDTO;
 import com.im.admin.entities.AdminUser;
 import com.im.admin.response.CommonResponse;
@@ -21,7 +22,7 @@ public class AdminUserController {
     private AdminUserService adminUserService;
 
     @PostMapping("/create")
-    public ResponseEntity<CommonResponse<AdminUser>> createAgent(@RequestBody AdminUserRequestDTO dto) {
+    public ResponseEntity<CommonResponse<AdminUser>> createAgent(@RequestBody AdminUserRequestDTO dto) throws JsonProcessingException {
         log.info("Creating admin user with data: {}", dto);
 
         AdminUser savedAdminUser = adminUserService.createAdminUser(dto);
@@ -38,7 +39,7 @@ public class AdminUserController {
     @GetMapping
     public ResponseEntity<CommonResponse<Page<AdminUser>>> getAllAdminUsers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size) throws JsonProcessingException {
 
         log.info("Fetching admin users - page: {}, size: {}", page, size);
 
@@ -58,7 +59,7 @@ public class AdminUserController {
     @PutMapping("/{id}")
     public ResponseEntity<CommonResponse<AdminUser>> updateAdminUser(
             @PathVariable Long id,
-            @RequestBody AdminUserRequestDTO dto) {
+            @RequestBody AdminUserRequestDTO dto) throws JsonProcessingException {
 
         log.info("Updating admin user with ID: {}", id);
         log.debug("Update data: {}", dto);
@@ -77,7 +78,7 @@ public class AdminUserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommonResponse<AdminUser>> getAdminUserById(@PathVariable Long id) {
+    public ResponseEntity<CommonResponse<AdminUser>> getAdminUserById(@PathVariable Long id) throws JsonProcessingException {
         log.info("Fetching admin user with ID: {}", id);
 
         AdminUser adminUser = adminUserService.getAdminUserById(id);
