@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.entities.Admin;
 import com.im.admin.entities.Enterprises;
 import com.im.admin.response.CommonResponse;
@@ -66,7 +67,7 @@ public class AdminController {
     @GetMapping()
     public ResponseEntity<List<Admin>> getAllAdmins(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size) throws JsonProcessingException {
         log.info("Request received to get all Admins with page: {}, size: {}", page, size);
 
         List<Admin> admins = adminService.getAllAdmins(page, size);
@@ -79,7 +80,7 @@ public class AdminController {
      * Get Admin by ID.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Admin> getAdminById(@PathVariable String id) {
+    public ResponseEntity<Admin> getAdminById(@PathVariable String id) throws JsonProcessingException {
         log.info("Request received to fetch Admin with ID: {}", id);
 
         Admin admin = adminService.getAdminById(id);

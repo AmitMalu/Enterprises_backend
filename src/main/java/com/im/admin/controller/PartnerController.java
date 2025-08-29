@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Partner;
 import com.im.admin.entities.Retailer;
@@ -83,13 +84,13 @@ public class PartnerController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Partner>> getAllPartners() {
+    public ResponseEntity<List<Partner>> getAllPartners() throws JsonProcessingException {
         log.info("Received request to fetch all Partners");
         return ResponseEntity.ok(partnerService.getAllPartners());
     }
 
     @GetMapping("/{partnerId}")
-    public ResponseEntity<Partner> getPartnerById(@PathVariable String partnerId) {
+    public ResponseEntity<Partner> getPartnerById(@PathVariable String partnerId) throws JsonProcessingException {
         log.info("Received request to fetch Partner with ID: {}", partnerId);
         return ResponseEntity.ok(partnerService.getPartnerById(partnerId));
     }
