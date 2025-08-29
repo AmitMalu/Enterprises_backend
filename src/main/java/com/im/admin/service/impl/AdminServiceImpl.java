@@ -15,6 +15,7 @@ import com.im.admin.util.CommonMethods;
 import com.im.admin.util.IdGenerator;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class AdminServiceImpl implements AdminService {
 
@@ -68,6 +70,7 @@ public class AdminServiceImpl implements AdminService {
     public Admin saveAdmin(Admin admin) {
 
         LocalDateTime RequestDateTime = LocalDateTime.now();
+        log.info("Start saving Admin | RequestDateTime={}, Admin={}", RequestDateTime, admin);
 
         // Field Validation
         Set<ConstraintViolation<Admin>> violations = validator.validate(admin);
@@ -76,31 +79,40 @@ public class AdminServiceImpl implements AdminService {
         // Phone validation
         try {
             phoneNumberValidationService.validatePhoneNumber(admin.getMobileNumber());
+            log.info("Phone number validation successful for mobile={}", admin.getMobileNumber());
         } catch (IllegalArgumentException ex) {
+            log.error("Phone number validation failed: {}", ex.getMessage());
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
         }
 
         if (!errors.isEmpty()) {
+            log.error("Validation errors found: {}", errors);
             throw new CustomValidationException(errors);
         }
 
         admin.setId(idGenerator.generateEntityId("Admin", null));
+        log.info("Generated Admin ID={}", admin.getId());
+
         Admin saveAdmin = adminRepository.save(admin);
+        log.info("Admin entity saved successfully | ID={}", saveAdmin.getId());
 
         try {
             saveUserDetails(saveAdmin);
+            log.info("UserDetails saved successfully for Admin ID={}", saveAdmin.getId());
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to save user details for Admin ID={} | Error={}", saveAdmin.getId(), e.getMessage(), e);
             throw new RuntimeException("Failed to save user details: " + e.getMessage());
         }
 
         AdminPostpaidAmount adminPostpaidAccount = new AdminPostpaidAmount();
         adminPostpaidAccount.setAdminId(saveAdmin);
         adminPostpaidAmountRepository.save(adminPostpaidAccount);
+        log.info("AdminPostpaidAmount initialized for Admin ID={}", saveAdmin.getId());
 
         AdminPrepaidAmount adminPrepaidAccount = new AdminPrepaidAmount();
         adminPrepaidAccount.setAdminId(saveAdmin);
         adminPrepaidAmountRepository.save(adminPrepaidAccount);
+        log.info("AdminPrepaidAmount initialized for Admin ID={}", saveAdmin.getId());
 
         LocalDateTime ResponseDateTime = LocalDateTime.now();
 
@@ -109,17 +121,23 @@ public class AdminServiceImpl implements AdminService {
         try {
             DistributorRequest = objectMapper.writeValueAsString(admin);
             DistributorResponse = objectMapper.writeValueAsString(saveAdmin);
+            log.debug("DistributorRequest={}, DistributorResponse={}", DistributorRequest, DistributorResponse);
         } catch (JsonProcessingException e) {
+            log.error("Error serializing Admin objects for logs: {}", e.getMessage(), e);
             e.printStackTrace(); // Optional: Log it
         }
 
         commonFunctions.saveImLogs(DistributorRequest, RequestDateTime, null, // IP address as null
                 DistributorResponse, ResponseDateTime);
+        log.info("IM Logs saved for Admin ID={} | RequestTime={}, ResponseTime={}", saveAdmin.getId(), RequestDateTime, ResponseDateTime);
 
+        log.info("Admin saved successfully | ID={}", saveAdmin.getId());
         return saveAdmin;
     }
 
     private void saveUserDetails(Admin admin) {
+
+        log.info("Saving UserDetails for Admin ID={}", admin.getId());
 
         String hierarchyCode = commonMethods.extractHierarchyType(admin.getId());
 
@@ -139,7 +157,7 @@ public class AdminServiceImpl implements AdminService {
         userDetails.setEditedTime(LocalTime.now());
 
         userDetailsRepository.save(userDetails);
-
+        log.info("UserDetails saved successfully | HierarchyId={}", admin.getId());
     }
 
     /**
@@ -148,18 +166,23 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public Admin updateAdmin(String id, Admin updatedAdmin) {
 
+        log.info("Received request to update Admin with ID: {}", id);
+
         LocalDateTime requestDateTime = LocalDateTime.now();
 
         Optional<Admin> existing = adminRepository.findById(id);
         if (existing.isPresent()) {
             Admin admin = existing.get();
+            log.debug("Existing Admin data: {}", admin);
 
             // Serialize incoming request
             String adminRequest = null;
             try {
                 adminRequest = objectMapper.writeValueAsString(updatedAdmin);
+                log.info("Incoming Admin update request: {}", adminRequest);
             } catch (JsonProcessingException e) {
-                e.printStackTrace(); // Log if needed
+                log.error("Error serializing updatedAdmin request", e);
+                e.printStackTrace(); // keeping your original line
             }
 
             // Update fields
@@ -170,6 +193,7 @@ public class AdminServiceImpl implements AdminService {
             admin.setPassword(updatedAdmin.getPassword());
 
             Admin savedAdmin = adminRepository.save(admin);
+            log.info("Admin updated and saved successfully: {}", savedAdmin);
 
             LocalDateTime responseDateTime = LocalDateTime.now();
 
@@ -177,8 +201,10 @@ public class AdminServiceImpl implements AdminService {
             String adminResponse = null;
             try {
                 adminResponse = objectMapper.writeValueAsString(savedAdmin);
+                log.debug("Serialized Admin response: {}", adminResponse);
             } catch (JsonProcessingException e) {
-                e.printStackTrace(); // Log if needed
+                log.error("Error serializing savedAdmin response", e);
+                e.printStackTrace(); // keeping your original line
             }
 
             // Save logs
@@ -189,12 +215,15 @@ public class AdminServiceImpl implements AdminService {
                     adminResponse,
                     responseDateTime
             );
+            log.info("Logs saved for Admin update operation");
 
             return savedAdmin;
         }
 
+        log.warn("Admin not found with ID: {}", id);
         throw new RuntimeException("Admin not found with ID: " + id);
     }
+
 
 
     /**
@@ -202,19 +231,26 @@ public class AdminServiceImpl implements AdminService {
      */
     @Override
     public void deleteAdmin(String id) {
+        log.info("Request received to delete Admin with ID: {}", id);
+
         if (adminRepository.existsById(id)) {
             adminRepository.deleteById(id);
+            log.info("Successfully deleted Admin with ID: {}", id);
         } else {
+            log.error("Failed to delete Admin. Admin not found with ID: {}", id);
             throw new RuntimeException("Admin not found with ID: " + id);
         }
     }
+
 
     /**
      * Retrieves all Admins with pagination.
      */
     @Override
     public List<Admin> getAllAdmins(int page, int size) {
+        log.info("Fetching all Admins - Page: {}, Size: {}", page, size);
         Page<Admin> result = adminRepository.findAll(PageRequest.of(page, size));
+        log.info("Total Admins fetched: {}", result.getContent().size());
         return result.getContent();
     }
 
@@ -223,9 +259,14 @@ public class AdminServiceImpl implements AdminService {
      */
     @Override
     public Admin getAdminById(String id) {
+        log.info("Fetching Admin with ID: {}", id);
         return adminRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Admin not found with ID: " + id));
+                .orElseThrow(() -> {
+                    log.error("Admin not found with ID: {}", id);
+                    return new RuntimeException("Admin not found with ID: " + id);
+                });
     }
+
 }
 
 
