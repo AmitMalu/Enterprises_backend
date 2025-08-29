@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
@@ -55,6 +56,7 @@ public class PartnerServiceImpl implements PartnerService {
 
     @Autowired
     private CommonFunctions commonFunctions;
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -64,10 +66,13 @@ public class PartnerServiceImpl implements PartnerService {
     public Partner savePartner(Partner partner,
                                MultipartFile aadhaarCardFrontImage,
                                MultipartFile aadhaarCardBackImage,
-                               MultipartFile panCardImage, MultipartFile shopImage,
+                               MultipartFile panCardImage,
+                               MultipartFile shopImage,
                                MultipartFile businessProofImage) throws IOException {
 
-        LocalDateTime RequestDateTime = LocalDateTime.now();
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        log.info("Starting Partner save operation for parentAccount: {}", partner.getParentAccount());
+
         // Field Validation
         Set<ConstraintViolation<Partner>> violations = validator.validate(partner);
         List<FieldErrorDetailsDTO> errors = violations.stream()
@@ -79,6 +84,7 @@ public class PartnerServiceImpl implements PartnerService {
             phoneNumberValidationService.validatePhoneNumber(partner.getMobileNumber());
         } catch (IllegalArgumentException ex) {
             errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+            log.warn("Phone validation failed for Partner mobile: {}", partner.getMobileNumber());
         }
 
         // Image validation
@@ -92,33 +98,32 @@ public class PartnerServiceImpl implements PartnerService {
         for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
             if (entry.getValue() == null || entry.getValue().isEmpty()) {
                 errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
+                log.warn("Missing required image: {}", entry.getKey());
             }
         }
 
         if (!errors.isEmpty()) {
+            log.error("Partner validation failed: {}", errors);
             throw new CustomValidationException(errors);
         }
 
+        // Abbreviation extraction
         String parentAccount = partner.getParentAccount();
-
         if (parentAccount == null || !parentAccount.contains("-")) {
             throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
         }
 
-        // Extract prefix from parentAccount
         String abbreviation = parentAccount.split("-")[0];
-
-        // Optionally validate abbreviation format
         if (!abbreviation.matches("^[A-Z]{2,3}$")) {
             throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
         }
 
         partner.setAbbreviation(abbreviation);
 
+        // ID & Image uploads
         String folder = "Partner";
         partner.setPartnerId(idGenerator.generateHierarchyEntityId(folder, partner.getAbbreviation()));
 
-        // Upload Images
         imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, partner::setAadhaarCardFrontImage);
         imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, partner::setAadhaarCardBackImage);
         imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, partner::setPanCardImage);
@@ -127,6 +132,7 @@ public class PartnerServiceImpl implements PartnerService {
 
         Partner savedPartner = partnerRepository.save(partner);
 
+        // Save prepaid & postpaid accounts
         PartnerPrepaidAmount prepaidAmount = new PartnerPrepaidAmount();
         prepaidAmount.setPartnerId(savedPartner);
         partnerPrepaidAmountRepository.save(prepaidAmount);
@@ -135,94 +141,179 @@ public class PartnerServiceImpl implements PartnerService {
         postpaidAmount.setPartnerId(savedPartner);
         partnerPostpaidAmountRepository.save(postpaidAmount);
 
-
-        LocalDateTime ResponseDateTime = LocalDateTime.now();
-        String PartnerRequest  = objectMapper.writeValueAsString(partner);
-        String PartnerResponse  = objectMapper.writeValueAsString(savedPartner);
+        // Save logs
+        LocalDateTime responseDateTime = LocalDateTime.now();
+        String partnerRequest = objectMapper.writeValueAsString(partner);
+        String partnerResponse = objectMapper.writeValueAsString(savedPartner);
 
         commonFunctions.saveHierarchyLogs(
-                RequestDateTime,
-                PartnerRequest,
-                null, // IP address as null
-                ResponseDateTime,
-                PartnerResponse
+                requestDateTime,
+                partnerRequest,
+                null, // IP address
+                responseDateTime,
+                partnerResponse
         );
 
-        log.info("Successfully saved Partner: {}", savedPartner.getPartnerId());
+        log.info("Partner saved successfully with ID: {}", savedPartner.getPartnerId());
         return savedPartner;
     }
 
     @Transactional
     @Override
     public Partner updatePartner(String id,
-                                         Partner partner,
-                                         MultipartFile aadhaarCardFrontImage,
-                                         MultipartFile aadhaarCardBackImage,
-                                         MultipartFile panCardImage,
-                                         MultipartFile shopImage,
-                                         MultipartFile businessProofImage) throws IOException {
+                                 Partner partner,
+                                 MultipartFile aadhaarCardFrontImage,
+                                 MultipartFile aadhaarCardBackImage,
+                                 MultipartFile panCardImage,
+                                 MultipartFile shopImage,
+                                 MultipartFile businessProofImage) throws IOException {
 
-        Partner existingPartner = partnerRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Partner not found"));
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String partnerRequest = objectMapper.writeValueAsString(partner);
 
-        if (existingPartner.equals(partner)) {
-            return existingPartner;
-        }
+        Partner updatedPartner = null;
+        String partnerResponse = null;
+        LocalDateTime responseDateTime = null;
 
-        // Validate mobile
-        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
-            phoneNumberValidationService.validatePhoneNumber(partner.getMobileNumber());
-        } catch (IllegalArgumentException ex) {
-            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-        }
+            Partner existingPartner = partnerRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("Partner not found with ID: " + id));
 
-        if (!errors.isEmpty()) {
-            throw new CustomValidationException(errors);
-        }
+            if (existingPartner.equals(partner)) {
+                log.info("No changes detected for Partner ID: {}", id);
+                return existingPartner;
+            }
 
-        if (partner.getTitle() != null) existingPartner.setTitle(partner.getTitle());
-        if (partner.getName() != null) existingPartner.setName(partner.getName());
-        if (partner.getMobileNumber() != null) existingPartner.setMobileNumber(partner.getMobileNumber());
-        //if (partner.getAbbreviation() != null) existingPartner.setAbbreviation(partner.getAbbreviation());
-        if (partner.getEmailId() != null) existingPartner.setEmailId(partner.getEmailId());
-        if (partner.getDob() != null) existingPartner.setDob(partner.getDob());
-        if (partner.getAddress() != null) existingPartner.setAddress(partner.getAddress());
-        if (partner.getOutletAddress() != null) existingPartner.setOutletAddress(partner.getOutletAddress());
+            // Validate mobile
+            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+            try {
+                phoneNumberValidationService.validatePhoneNumber(partner.getMobileNumber());
+            } catch (IllegalArgumentException ex) {
+                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+                log.warn("Phone validation failed for Partner mobile: {}", partner.getMobileNumber());
+            }
 
+            if (!errors.isEmpty()) {
+                log.error("Partner update validation failed: {}", errors);
+                throw new CustomValidationException(errors);
+            }
 
-        // Optional image updates
-        String folder = "Partner";
-        if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingPartner::setAadhaarCardFrontImage);
-        }
-        if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingPartner::setAadhaarCardBackImage);
-        }
-        if (panCardImage != null && !panCardImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingPartner::setPanCardImage);
-        }
-        if (shopImage != null && !shopImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingPartner::setShopImage);
-        }
-        if (businessProofImage != null && !businessProofImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingPartner::setBusinessProofImage);
-        }
+            // Update only provided fields
+            if (partner.getTitle() != null) existingPartner.setTitle(partner.getTitle());
+            if (partner.getName() != null) existingPartner.setName(partner.getName());
+            if (partner.getMobileNumber() != null) existingPartner.setMobileNumber(partner.getMobileNumber());
+            if (partner.getEmailId() != null) existingPartner.setEmailId(partner.getEmailId());
+            if (partner.getDob() != null) existingPartner.setDob(partner.getDob());
+            if (partner.getAddress() != null) existingPartner.setAddress(partner.getAddress());
+            if (partner.getOutletAddress() != null) existingPartner.setOutletAddress(partner.getOutletAddress());
 
-        return partnerRepository.save(existingPartner);
+            // Optional image updates
+            String folder = "Partner";
+            if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingPartner::setAadhaarCardFrontImage);
+            }
+            if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingPartner::setAadhaarCardBackImage);
+            }
+            if (panCardImage != null && !panCardImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingPartner::setPanCardImage);
+            }
+            if (shopImage != null && !shopImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingPartner::setShopImage);
+            }
+            if (businessProofImage != null && !businessProofImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingPartner::setBusinessProofImage);
+            }
+
+            updatedPartner = partnerRepository.save(existingPartner);
+
+            responseDateTime = LocalDateTime.now();
+            partnerResponse = objectMapper.writeValueAsString(updatedPartner);
+
+            log.info("Successfully updated Partner with ID: {}", id);
+            return updatedPartner;
+
+        } catch (Exception ex) {
+            partnerResponse = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            log.error("Failed to update Partner with ID: {}. Reason: {}", id, ex.getMessage());
+            throw ex;
+        } finally {
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    partnerRequest,
+                    null, // IP address if available
+                    responseDateTime,
+                    partnerResponse
+            );
+        }
     }
 
     @Override
-    public List<Partner> getAllPartners() {
-        log.info("Fetching all Partners");
-        return partnerRepository.findAll();
+    public List<Partner> getAllPartners() throws JsonProcessingException {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String request = "Fetching all partners";
+
+        List<Partner> partners = null;
+        String response = null;
+        LocalDateTime responseDateTime = null;
+
+        try {
+            log.info(request);
+            partners = partnerRepository.findAll();
+            response = objectMapper.writeValueAsString(partners);
+            responseDateTime = LocalDateTime.now();
+            log.info("Fetched {} partners", partners.size());
+
+            return partners;
+        } catch (Exception ex) {
+            response = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            log.error("Error fetching all partners: {}", ex.getMessage(), ex);
+            throw ex;
+        } finally {
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    request,
+                    null, // ip address if available
+                    responseDateTime,
+                    response
+            );
+        }
     }
 
     @Override
-    public Partner getPartnerById(String partnerId) {
-        log.info("Fetching Partner with ID: {}", partnerId);
-        return partnerRepository.findById(partnerId)
-                .orElseThrow(() -> new RuntimeException("Partner not found"));
+    public Partner getPartnerById(String partnerId) throws JsonProcessingException {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String request = "Fetching Partner with ID: " + partnerId;
+
+        Partner partner = null;
+        String response = null;
+        LocalDateTime responseDateTime = null;
+
+        try {
+            log.info(request);
+            partner = partnerRepository.findById(partnerId)
+                    .orElseThrow(() -> new RuntimeException("Partner not found with ID: " + partnerId));
+            response = objectMapper.writeValueAsString(partner);
+            responseDateTime = LocalDateTime.now();
+            log.info("Fetched Partner: {}", partner.getPartnerId());
+
+            return partner;
+        } catch (Exception ex) {
+            response = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            log.error("Error fetching Partner with ID {}: {}", partnerId, ex.getMessage(), ex);
+            throw ex;
+        } finally {
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    request,
+                    null, // ip address if available
+                    responseDateTime,
+                    response
+            );
+        }
     }
 
     @Override

@@ -116,19 +116,18 @@ public class AdminServiceImpl implements AdminService {
 
         LocalDateTime ResponseDateTime = LocalDateTime.now();
 
-        String DistributorRequest = null;
-        String DistributorResponse = null;
+        String adminRequest = null;
+        String adminResponse = null;
         try {
-            DistributorRequest = objectMapper.writeValueAsString(admin);
-            DistributorResponse = objectMapper.writeValueAsString(saveAdmin);
-            log.debug("DistributorRequest={}, DistributorResponse={}", DistributorRequest, DistributorResponse);
+            adminRequest = objectMapper.writeValueAsString(admin);
+            adminResponse = objectMapper.writeValueAsString(saveAdmin);
+            log.debug("DistributorRequest={}, DistributorResponse={}", adminRequest, adminResponse);
         } catch (JsonProcessingException e) {
             log.error("Error serializing Admin objects for logs: {}", e.getMessage(), e);
             e.printStackTrace(); // Optional: Log it
         }
 
-        commonFunctions.saveImLogs(DistributorRequest, RequestDateTime, null, // IP address as null
-                DistributorResponse, ResponseDateTime);
+        commonFunctions.saveImLogs(adminRequest, RequestDateTime, null, adminResponse, ResponseDateTime);
         log.info("IM Logs saved for Admin ID={} | RequestTime={}, ResponseTime={}", saveAdmin.getId(), RequestDateTime, ResponseDateTime);
 
         log.info("Admin saved successfully | ID={}", saveAdmin.getId());
@@ -160,9 +159,6 @@ public class AdminServiceImpl implements AdminService {
         log.info("UserDetails saved successfully | HierarchyId={}", admin.getId());
     }
 
-    /**
-     * Updates an Admin record.
-     */
     @Override
     public Admin updateAdmin(String id, Admin updatedAdmin) {
 
@@ -225,10 +221,6 @@ public class AdminServiceImpl implements AdminService {
     }
 
 
-
-    /**
-     * Deletes an Admin record.
-     */
     @Override
     public void deleteAdmin(String id) {
         log.info("Request received to delete Admin with ID: {}", id);
@@ -243,29 +235,65 @@ public class AdminServiceImpl implements AdminService {
     }
 
 
-    /**
-     * Retrieves all Admins with pagination.
-     */
     @Override
-    public List<Admin> getAllAdmins(int page, int size) {
-        log.info("Fetching all Admins - Page: {}, Size: {}", page, size);
-        Page<Admin> result = adminRepository.findAll(PageRequest.of(page, size));
-        log.info("Total Admins fetched: {}", result.getContent().size());
-        return result.getContent();
+    public List<Admin> getAllAdmins(int page, int size) throws JsonProcessingException {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String request = "Fetching all Admins - Page: " + page + ", Size: " + size;
+
+        List<Admin> admins = null;
+        String response = null;
+        LocalDateTime responseDateTime = null;
+
+        try {
+            log.info(request);
+            Page<Admin> result = adminRepository.findAll(PageRequest.of(page, size));
+            admins = result.getContent();
+
+            response = objectMapper.writeValueAsString(admins);
+            responseDateTime = LocalDateTime.now();
+
+            log.info("Total Admins fetched: {}", admins.size());
+            return admins;
+        } catch (Exception ex) {
+            response = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            throw ex; // propagate error
+        } finally {
+            commonFunctions.saveImLogs(request, requestDateTime, null, response, responseDateTime);
+        }
     }
 
-    /**
-     * Retrieves an Admin by ID.
-     */
+
     @Override
-    public Admin getAdminById(String id) {
-        log.info("Fetching Admin with ID: {}", id);
-        return adminRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("Admin not found with ID: {}", id);
-                    return new RuntimeException("Admin not found with ID: " + id);
-                });
+    public Admin getAdminById(String id) throws JsonProcessingException {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String request = "Fetching Admin with ID: " + id;
+
+        Admin admin = null;
+        String response = null;
+        LocalDateTime responseDateTime = null;
+
+        try {
+            log.info(request);
+            admin = adminRepository.findById(id)
+                    .orElseThrow(() -> {
+                        log.error("Admin not found with ID: {}", id);
+                        return new RuntimeException("Admin not found with ID: " + id);
+                    });
+
+            response = objectMapper.writeValueAsString(admin);
+            responseDateTime = LocalDateTime.now();
+
+            return admin;
+        } catch (Exception ex) {
+            response = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            throw ex;
+        } finally {
+            commonFunctions.saveImLogs(request, requestDateTime, null, response, responseDateTime);
+        }
     }
+
 
 }
 

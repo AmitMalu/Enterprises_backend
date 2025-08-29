@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.AddressDTO;
@@ -258,48 +259,72 @@ public class RetailerServiceImpl implements RetailerService {
         return updatedRetailer;
     }
 
-
-    @Transactional
     @Override
-    public void deleteRetailer(String retailerId) {
-        log.info("Deleting retailer with ID: {}", retailerId);
+    public Page<RetailerResponseDTO> getAllRetailers(Pageable pageable) throws JsonProcessingException {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String retailerRequest = "Fetching all retailers with pageable: " + pageable.toString();
 
-        Retailer retailer = retailerRepository.findById(retailerId)
-                .orElseThrow(() -> new RuntimeException("Retailer not found"));
+        Page<RetailerResponseDTO> dtoPage = null;
+        String retailerResponse = null;
+        LocalDateTime responseDateTime = null;
 
-        // Delete associated Prepaid Amount record
-        prepaidAmountRepository.findByRetailerId_RetailerId(retailerId)
-                .ifPresent(prepaidAmount -> {
-                    prepaidAmountRepository.delete(prepaidAmount);
-                    log.info("Deleted prepaid amount record for Retailer ID: {}", retailerId);
-                });
+        try {
+            Page<Retailer> retailerPage = retailerRepository.findAll(pageable);
+            dtoPage = retailerPage.map(this::convertToDto);
 
-        // Delete associated Postpaid Amount record
-        postpaidAmountRepository.findByRetailerId_RetailerId(retailerId)
-                .ifPresent(postpaidAmount -> {
-                    postpaidAmountRepository.delete(postpaidAmount);
-                    log.info("Deleted postpaid amount record for Retailer ID: {}", retailerId);
-                });
+            retailerResponse = objectMapper.writeValueAsString(dtoPage.getContent());
+            responseDateTime = LocalDateTime.now();
 
-        // Delete retailer
-        retailerRepository.delete(retailer);
-        log.info("Retailer deleted successfully with ID: {}", retailerId);
-    }
-
-    @Override
-    public Page<RetailerResponseDTO> getAllRetailers(Pageable pageable) {
-        Page<Retailer> retailerPage = retailerRepository.findAll(pageable);
-        return retailerPage.map(this::convertToDto);
+            return dtoPage;
+        } catch (Exception ex) {
+            retailerResponse = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            throw ex; // let API return error as usual
+        } finally {
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    retailerRequest,
+                    null, // ipAddress if available
+                    responseDateTime,
+                    retailerResponse
+            );
+        }
     }
 
 
     @Override
-    public RetailerResponseDTO getRetailerById(String retailerId) {
-        log.info("Fetching retailer by ID: {}", retailerId);
-        Retailer retailer = retailerRepository.findById(retailerId)
-                .orElseThrow(() -> new EntityNotFoundException("Retailer not found with ID: " + retailerId));
-        return convertToDto(retailer);
+    public RetailerResponseDTO getRetailerById(String retailerId) throws JsonProcessingException {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String retailerRequest = "Fetching retailer with ID: " + retailerId;
+
+        RetailerResponseDTO dto = null;
+        String retailerResponse = null;
+        LocalDateTime responseDateTime = null;
+
+        try {
+            Retailer retailer = retailerRepository.findById(retailerId)
+                    .orElseThrow(() -> new EntityNotFoundException("Retailer not found with ID: " + retailerId));
+
+            dto = convertToDto(retailer);
+            retailerResponse = objectMapper.writeValueAsString(dto);
+            responseDateTime = LocalDateTime.now();
+
+            return dto;
+        } catch (Exception ex) {
+            retailerResponse = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
+            throw ex;
+        } finally {
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    retailerRequest,
+                    null, // ipAddress if available
+                    responseDateTime,
+                    retailerResponse
+            );
+        }
     }
+
 
     public RetailerResponseDTO convertToDto(Retailer retailer) {
         RetailerResponseDTO dto = new RetailerResponseDTO();

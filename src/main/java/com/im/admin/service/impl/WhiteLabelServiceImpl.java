@@ -56,113 +56,133 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
     @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
 
-
     @Autowired
     private CommonFunctions commonFunctions;
+
     @Autowired
     private ObjectMapper objectMapper;
 
     @Transactional
     @Override
     public WhiteLabels saveWhiteLabel(WhiteLabels whiteLabels,
-                                         MultipartFile aadhaarCardFrontImage,
-                                         MultipartFile aadhaarCardBackImage,
-                                         MultipartFile panCardImage,
-                                         MultipartFile shopImage,
-                                         MultipartFile businessProofImage) throws IOException {
+                                      MultipartFile aadhaarCardFrontImage,
+                                      MultipartFile aadhaarCardBackImage,
+                                      MultipartFile panCardImage,
+                                      MultipartFile shopImage,
+                                      MultipartFile businessProofImage) throws IOException {
 
-        LocalDateTime RequestDateTime = LocalDateTime.now();
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String whiteLabelRequest = objectMapper.writeValueAsString(whiteLabels);
 
-        // Field Validation
-        Set<ConstraintViolation<WhiteLabels>> violations = validator.validate(whiteLabels);
-        List<FieldErrorDetailsDTO> errors = violations.stream()
-                .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
-                .collect(Collectors.toList());
+        log.info("Request received to save WhiteLabel: {}", whiteLabelRequest);
 
-        // Phone validation
         try {
-            phoneNumberValidationService.validatePhoneNumber(whiteLabels.getMobileNumber());
-        } catch (IllegalArgumentException ex) {
-            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-        }
+            // Field Validation
+            Set<ConstraintViolation<WhiteLabels>> violations = validator.validate(whiteLabels);
+            List<FieldErrorDetailsDTO> errors = violations.stream()
+                    .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
+                    .collect(Collectors.toList());
 
-        // Image validation
-        Map<String, MultipartFile> imageMap = new HashMap<>();
-        imageMap.put("aadhaarCardFrontImage", aadhaarCardFrontImage);
-        imageMap.put("aadhaarCardBackImage", aadhaarCardBackImage);
-        imageMap.put("panCardImage", panCardImage);
-        imageMap.put("shopImage", shopImage);
-        imageMap.put("businessProofImage", businessProofImage);
-
-
-        for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
-            if (entry.getValue() == null || entry.getValue().isEmpty()) {
-                errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
-            }
-        }
-
-        if (!errors.isEmpty()) {
-            throw new CustomValidationException(errors);
-        }
-
-        String abbreviation = whiteLabels.getAbbreviation();
-        if (abbreviation == null || abbreviation.isBlank()) {
-            String parentAccount = whiteLabels.getParentAccount();
-            if (parentAccount == null || !parentAccount.contains("-")) {
-                throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+            // Phone validation
+            try {
+                phoneNumberValidationService.validatePhoneNumber(whiteLabels.getMobileNumber());
+            } catch (IllegalArgumentException ex) {
+                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
             }
 
-            // Extract prefix from parentAccount
-            abbreviation = parentAccount.split("-")[0];
+            // Image validation
+            Map<String, MultipartFile> imageMap = new HashMap<>();
+            imageMap.put("aadhaarCardFrontImage", aadhaarCardFrontImage);
+            imageMap.put("aadhaarCardBackImage", aadhaarCardBackImage);
+            imageMap.put("panCardImage", panCardImage);
+            imageMap.put("shopImage", shopImage);
+            imageMap.put("businessProofImage", businessProofImage);
 
-            // Optionally validate abbreviation format
-            if (!abbreviation.matches("^[A-Z]{2,3}$")) {
-                throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+            for (Map.Entry<String, MultipartFile> entry : imageMap.entrySet()) {
+                if (entry.getValue() == null || entry.getValue().isEmpty()) {
+                    errors.add(new FieldErrorDetailsDTO(entry.getKey(), "image is required"));
+                }
             }
 
-            whiteLabels.setAbbreviation(abbreviation);
+            if (!errors.isEmpty()) {
+                throw new CustomValidationException(errors);
+            }
+
+            // Handle abbreviation
+            String abbreviation = whiteLabels.getAbbreviation();
+            if (abbreviation == null || abbreviation.isBlank()) {
+                String parentAccount = whiteLabels.getParentAccount();
+                if (parentAccount == null || !parentAccount.contains("-")) {
+                    throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
+                }
+
+                abbreviation = parentAccount.split("-")[0];
+
+                if (!abbreviation.matches("^[A-Z]{2,3}$")) {
+                    throw new IllegalArgumentException("Derived abbreviation '" + abbreviation + "' is invalid. Must be 2 to 3 uppercase letters.");
+                }
+                whiteLabels.setAbbreviation(abbreviation);
+            }
+
+            // Generate ID
+            String folder = "White Label";
+            whiteLabels.setWhiteLabelId(idGenerator.generateHierarchyEntityId(folder, whiteLabels.getAbbreviation()));
+
+            // Upload Images
+            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, whiteLabels::setAadhaarCardFrontImage);
+            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, whiteLabels::setAadhaarCardBackImage);
+            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, whiteLabels::setPanCardImage);
+            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, whiteLabels::setShopImage);
+            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, whiteLabels::setBusinessProofImage);
+
+            // Save entity
+            WhiteLabels savedWhiteLabel = whiteLabelRepository.save(whiteLabels);
+            log.info("WhiteLabel saved with ID: {}", savedWhiteLabel.getWhiteLabelId());
+
+            // Save Prepaid Record
+            WhiteLabelPrepaidAmount prepaid = new WhiteLabelPrepaidAmount();
+            prepaid.setWhiteLabelId(savedWhiteLabel);
+            prepaidRepository.save(prepaid);
+            log.info("Prepaid amount record created for WhiteLabel: {}", savedWhiteLabel.getWhiteLabelId());
+
+            // Save Postpaid Record
+            WhiteLabelPostpaidAmount postpaid = new WhiteLabelPostpaidAmount();
+            postpaid.setWhiteLabelId(savedWhiteLabel);
+            postpaidRepository.save(postpaid);
+            log.info("Postpaid amount record created for WhiteLabel: {}", savedWhiteLabel.getWhiteLabelId());
+
+            // Response
+            LocalDateTime responseDateTime = LocalDateTime.now();
+            String whiteLabelResponse = objectMapper.writeValueAsString(savedWhiteLabel);
+
+            // Save hierarchy logs
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    whiteLabelRequest,
+                    null,
+                    responseDateTime,
+                    whiteLabelResponse
+            );
+
+            log.info("WhiteLabel creation successful. ID: {}", savedWhiteLabel.getWhiteLabelId());
+            return savedWhiteLabel;
+
+        } catch (Exception ex) {
+            LocalDateTime responseDateTime = LocalDateTime.now();
+            String errorResponse = "Error while saving WhiteLabel: " + ex.getMessage();
+
+            // Save failure log
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    whiteLabelRequest,
+                    null,
+                    responseDateTime,
+                    errorResponse
+            );
+
+            log.error("Failed to save WhiteLabel. Request: {}", whiteLabelRequest, ex);
+            throw ex;
         }
-
-        String folder = "White Label";
-        whiteLabels.setWhiteLabelId(idGenerator.generateHierarchyEntityId(folder, whiteLabels.getAbbreviation()));
-
-
-        // Upload Images
-        imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, whiteLabels::setAadhaarCardFrontImage);
-        imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, whiteLabels::setAadhaarCardBackImage);
-        imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, whiteLabels::setPanCardImage);
-        imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, whiteLabels::setShopImage);
-        imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, whiteLabels::setBusinessProofImage);
-
-        WhiteLabels savedWhiteLabel = whiteLabelRepository.save(whiteLabels);
-        log.info("WhiteLabel saved with ID: {}", savedWhiteLabel.getWhiteLabelId());
-
-        // Save Prepaid Record
-        WhiteLabelPrepaidAmount prepaid = new WhiteLabelPrepaidAmount();
-        prepaid.setWhiteLabelId(savedWhiteLabel);
-        prepaidRepository.save(prepaid);
-        log.info("Prepaid amount record created for WhiteLabel: {}", savedWhiteLabel.getWhiteLabelId());
-
-        // Save Postpaid Record
-        WhiteLabelPostpaidAmount postpaid = new WhiteLabelPostpaidAmount();
-        postpaid.setWhiteLabelId(savedWhiteLabel);
-        postpaidRepository.save(postpaid);
-        log.info("Postpaid amount record created for WhiteLabel: {}", savedWhiteLabel.getWhiteLabelId());
-
-        LocalDateTime ResponseDateTime = LocalDateTime.now();
-        String WhiteLabelRequest  = objectMapper.writeValueAsString(whiteLabels);
-        String WhiteLableResponse  = objectMapper.writeValueAsString(savedWhiteLabel);
-
-
-        commonFunctions.saveHierarchyLogs(
-                RequestDateTime,
-                WhiteLabelRequest,
-                null, // IP address as null
-                ResponseDateTime,
-                WhiteLableResponse
-        );
-
-        return savedWhiteLabel;
     }
 
     @Transactional
@@ -176,78 +196,123 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
                                         MultipartFile businessProofImage) throws IOException {
 
         LocalDateTime requestDateTime = LocalDateTime.now();
-
-        WhiteLabels existingWhiteLabels = whiteLabelRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("WhiteLabel not found"));
-
-        // Capture request object (incoming update data)
         String whiteLabelRequest = objectMapper.writeValueAsString(whiteLabels);
 
-        if (existingWhiteLabels.equals(whiteLabels)) {
-            return existingWhiteLabels;
-        }
+        log.info("Request received to update WhiteLabel ID: {} with data: {}", id, whiteLabelRequest);
 
-        // Validate mobile
-        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
         try {
-            phoneNumberValidationService.validatePhoneNumber(whiteLabels.getMobileNumber());
-        } catch (IllegalArgumentException ex) {
-            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-        }
+            WhiteLabels existingWhiteLabels = whiteLabelRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("WhiteLabel not found with ID: " + id));
 
-        if (!errors.isEmpty()) {
-            throw new CustomValidationException(errors);
-        }
+            if (existingWhiteLabels.equals(whiteLabels)) {
+                log.info("No changes detected for WhiteLabel ID: {}. Skipping update.", id);
+                return existingWhiteLabels;
+            }
 
-        // Update non-null fields
-        if (whiteLabels.getTitle() != null) existingWhiteLabels.setTitle(whiteLabels.getTitle());
-        if (whiteLabels.getMobileNumber() != null) existingWhiteLabels.setMobileNumber(whiteLabels.getMobileNumber());
-        if (whiteLabels.getAbbreviation() != null) existingWhiteLabels.setAbbreviation(whiteLabels.getAbbreviation());
-        if (whiteLabels.getEmailId() != null) existingWhiteLabels.setEmailId(whiteLabels.getEmailId());
-        if (whiteLabels.getAddress() != null) existingWhiteLabels.setAddress(whiteLabels.getAddress());
-        if (whiteLabels.getIsAdmin() != null) existingWhiteLabels.setIsAdmin(whiteLabels.getIsAdmin());
+            // Validate mobile number
+            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+            try {
+                phoneNumberValidationService.validatePhoneNumber(whiteLabels.getMobileNumber());
+            } catch (IllegalArgumentException ex) {
+                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+            }
+            if (!errors.isEmpty()) {
+                throw new CustomValidationException(errors);
+            }
 
-        // Optional image updates
-        String folder = "White Label";
-        if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingWhiteLabels::setAadhaarCardFrontImage);
-        }
-        if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingWhiteLabels::setAadhaarCardBackImage);
-        }
-        if (panCardImage != null && !panCardImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingWhiteLabels::setPanCardImage);
-        }
-        if (shopImage != null && !shopImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingWhiteLabels::setShopImage);
-        }
-        if (businessProofImage != null && !businessProofImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingWhiteLabels::setBusinessProofImage);
-        }
+            // Update non-null fields
+            if (whiteLabels.getTitle() != null) existingWhiteLabels.setTitle(whiteLabels.getTitle());
+            if (whiteLabels.getMobileNumber() != null) existingWhiteLabels.setMobileNumber(whiteLabels.getMobileNumber());
+            if (whiteLabels.getAbbreviation() != null) existingWhiteLabels.setAbbreviation(whiteLabels.getAbbreviation());
+            if (whiteLabels.getEmailId() != null) existingWhiteLabels.setEmailId(whiteLabels.getEmailId());
+            if (whiteLabels.getAddress() != null) existingWhiteLabels.setAddress(whiteLabels.getAddress());
+            if (whiteLabels.getIsAdmin() != null) existingWhiteLabels.setIsAdmin(whiteLabels.getIsAdmin());
 
-        WhiteLabels updatedWhiteLabel = whiteLabelRepository.save(existingWhiteLabels);
+            // Handle optional image updates
+            String folder = "White Label";
+            if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingWhiteLabels::setAadhaarCardFrontImage);
+            }
+            if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingWhiteLabels::setAadhaarCardBackImage);
+            }
+            if (panCardImage != null && !panCardImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingWhiteLabels::setPanCardImage);
+            }
+            if (shopImage != null && !shopImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingWhiteLabels::setShopImage);
+            }
+            if (businessProofImage != null && !businessProofImage.isEmpty()) {
+                imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingWhiteLabels::setBusinessProofImage);
+            }
 
-        LocalDateTime responseDateTime = LocalDateTime.now();
+            // Save updated entity
+            WhiteLabels updatedWhiteLabel = whiteLabelRepository.save(existingWhiteLabels);
 
-        String whiteLabelResponse = objectMapper.writeValueAsString(updatedWhiteLabel);
+            LocalDateTime responseDateTime = LocalDateTime.now();
+            String whiteLabelResponse = objectMapper.writeValueAsString(updatedWhiteLabel);
 
-        // Save logs
-        commonFunctions.saveHierarchyLogs(
-                requestDateTime,
-                whiteLabelRequest,
-                null, // IP address as null
-                responseDateTime,
-                whiteLabelResponse
-        );
-        return updatedWhiteLabel;
+            // Save logs (success case)
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    whiteLabelRequest,
+                    null,
+                    responseDateTime,
+                    whiteLabelResponse
+            );
+
+            log.info("WhiteLabel updated successfully. ID: {}", updatedWhiteLabel.getWhiteLabelId());
+            return updatedWhiteLabel;
+
+        } catch (Exception ex) {
+            LocalDateTime responseDateTime = LocalDateTime.now();
+            String errorResponse = "Error updating WhiteLabel: " + ex.getMessage();
+
+            // Save failure logs
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    whiteLabelRequest,
+                    null,
+                    responseDateTime,
+                    errorResponse
+            );
+
+            log.error("Failed to update WhiteLabel ID: {}. Request: {}", id, whiteLabelRequest, ex);
+            throw ex;
+        }
     }
 
 
     @Override
     public List<WhiteLabels> getAllWhiteLabels() {
-        log.info("Fetching all WhiteLabels...");
-        return whiteLabelRepository.findAll();
+        LocalDateTime requestTime = LocalDateTime.now();
+        String request = "Fetching all WhiteLabels";
+        log.info("Request to fetch all WhiteLabels at {}", requestTime);
+
+        try {
+            List<WhiteLabels> whiteLabels = whiteLabelRepository.findAll();
+
+            LocalDateTime responseTime = LocalDateTime.now();
+            String response = "Fetched " + whiteLabels.size() + " WhiteLabels";
+
+            commonFunctions.saveHierarchyLogs(requestTime, request, null, responseTime, response);
+
+            log.info("Response for fetching WhiteLabels at {}", responseTime);
+
+            return whiteLabels;
+
+        } catch (Exception e) {
+            LocalDateTime responseTime = LocalDateTime.now();
+            String response = "Error fetching WhiteLabels: " + e.getMessage();
+
+            commonFunctions.saveHierarchyLogs(requestTime, request, null, responseTime, response);
+
+            log.error("Exception while fetching WhiteLabels at {}: {}", responseTime, e.getMessage(), e);
+
+            throw new RuntimeException("Failed to fetch WhiteLabels", e);
+        }
     }
+
 
     @Override
     public WhiteLabels getWhiteLabelById(String id) {
