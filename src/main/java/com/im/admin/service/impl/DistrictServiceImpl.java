@@ -13,6 +13,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DistrictService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DistrictServiceImpl implements DistrictService {
@@ -46,24 +48,38 @@ public class DistrictServiceImpl implements DistrictService {
 
     @Override
     public CommonResponse<DistrictResponseDTO> save(DistrictRequestDTO dto) {
+        log.info("Saving district with request: {}", dto);
+
         District district = new District();
         district.setDistrictName(dto.getDistrictName());
         district.setDistrictCode(dto.getDistrictCode());
         district.setBlocked(dto.getBlocked());
         district.setCreatedBy(dto.getCreatedBy());
 
+        log.debug("Fetching country with ID: {}", dto.getCountryId());
         district.setCountry(countryRepository.findById(dto.getCountryId()).orElseThrow(() -> new RuntimeException("Country not found")));
+
+        log.debug("Fetching state with ID: {}", dto.getStateId());
         district.setState(stateRepository.findById(dto.getStateId()).orElseThrow(() -> new RuntimeException("State not found")));
 
         districtRepository.save(district);
+        log.info("District saved successfully with ID: {}", district.getId());
 
         return CommonResponse.success(toDTO(district), "District saved successfully");
     }
 
+
     @Override
     public CommonResponse<DistrictResponseDTO> update(Long id, DistrictRequestDTO dto) {
+        log.info("Updating district with id: {}", id);
+
         District district = districtRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("District not found"));
+                .orElseThrow(() -> {
+                    log.error("District not found with id: {}", id);
+                    return new RuntimeException("District not found");
+                });
+
+        log.info("Before Update District: {}", district);
 
         district.setDistrictName(dto.getDistrictName());
         district.setDistrictCode(dto.getDistrictCode());
@@ -71,23 +87,42 @@ public class DistrictServiceImpl implements DistrictService {
         district.setEditedOn(LocalDateTime.now());
         district.setEditedBy(dto.getEditedBy());
 
-        district.setCountry(countryRepository.findById(dto.getCountryId()).orElseThrow(() -> new RuntimeException("Country not found")));
-        district.setState(stateRepository.findById(dto.getStateId()).orElseThrow(() -> new RuntimeException("State not found")));
+        district.setCountry(countryRepository.findById(dto.getCountryId()).orElseThrow(() -> {
+            log.error("Country not found with id: {}", dto.getCountryId());
+            return new RuntimeException("Country not found");
+        }));
+        district.setState(stateRepository.findById(dto.getStateId()).orElseThrow(() -> {
+            log.error("State not found with id: {}", dto.getStateId());
+            return new RuntimeException("State not found");
+        }));
 
         districtRepository.save(district);
+        log.info("After Update District: {}", district);
+
         return CommonResponse.success(toDTO(district), "District updated successfully");
     }
 
+
     @Override
     public CommonResponse<DistrictResponseDTO> getById(Long id) {
+        log.info("Fetching district by id: {}", id);
+
         District district = districtRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("District not found"));
+                .orElseThrow(() -> {
+                    log.error("District not found with id: {}", id);
+                    return new RuntimeException("District not found");
+                });
+
+        log.info("District fetched successfully with id: {}", id);
         return CommonResponse.success(toDTO(district), "District fetched");
     }
 
     @Override
     public CommonResponse<Page<DistrictResponseDTO>> getAll(int page, int size,
-                                                            String districtName, String districtCode, Boolean blocked, String createdBy, String editedBy) {
+                                                            String districtName, String districtCode, Boolean blocked,
+                                                            String createdBy, String editedBy) {
+        log.info("Fetching districts with filters - page: {}, size: {}, districtName: {}, districtCode: {}, blocked: {}, createdBy: {}, editedBy: {}",
+                page, size, districtName, districtCode, blocked, createdBy, editedBy);
 
         Pageable pageable = PageRequest.of(page, size);
 
@@ -95,18 +130,23 @@ public class DistrictServiceImpl implements DistrictService {
             List<Predicate> predicates = new ArrayList<>();
 
             if (districtName != null && !districtName.isEmpty()) {
+                log.debug("Applying filter - districtName contains: {}", districtName);
                 predicates.add(cb.like(cb.lower(root.get("districtName")), "%" + districtName.toLowerCase() + "%"));
             }
             if (districtCode != null && !districtCode.isEmpty()) {
+                log.debug("Applying filter - districtCode contains: {}", districtCode);
                 predicates.add(cb.like(cb.lower(root.get("districtCode")), "%" + districtCode.toLowerCase() + "%"));
             }
             if (blocked != null) {
+                log.debug("Applying filter - blocked: {}", blocked);
                 predicates.add(cb.equal(root.get("blocked"), blocked));
             }
             if (createdBy != null && !createdBy.isEmpty()) {
+                log.debug("Applying filter - createdBy contains: {}", createdBy);
                 predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
             }
             if (editedBy != null && !editedBy.isEmpty()) {
+                log.debug("Applying filter - editedBy contains: {}", editedBy);
                 predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
             }
 
@@ -114,12 +154,17 @@ public class DistrictServiceImpl implements DistrictService {
         };
 
         Page<District> districtPage = districtRepository.findAll(spec, pageable);
+        log.info("Total districts fetched: {}", districtPage.getTotalElements());
+
         Page<DistrictResponseDTO> dtoPage = districtPage.map(this::toDTO);
+        log.debug("Mapped district page to DTOs: {}", dtoPage.getContent());
+
         return CommonResponse.success(dtoPage, "Districts fetched successfully");
     }
 
-
     private DistrictResponseDTO toDTO(District district) {
+        log.trace("Mapping District entity to DTO: {}", district);
+
         DistrictResponseDTO dto = new DistrictResponseDTO();
         dto.setId(district.getId());
         dto.setDistrictName(district.getDistrictName());
@@ -133,19 +178,29 @@ public class DistrictServiceImpl implements DistrictService {
         dto.setEditedBy(district.getEditedBy());
         dto.setCreatedOn(district.getCreatedOn());
         dto.setEditedOn(district.getEditedOn());
+
+        log.trace("Mapped DTO: {}", dto);
         return dto;
     }
 
+
     @Override
     public List<DistrictDTO> getDistrictsByState(Long stateId) {
+        log.info("Fetching districts for stateId: {}", stateId);
         List<District> districts = districtRepository.findByStateId(stateId);
-        return districts.stream()
+        log.debug("Districts fetched from DB: {}", districts);
+        List<DistrictDTO> districtDTOs = districts.stream()
                 .map(d -> new DistrictDTO(d.getId(), d.getDistrictName()))
                 .collect(Collectors.toList());
+        log.info("Mapped {} districts to DTOs for stateId: {}", districtDTOs.size(), stateId);
+        return districtDTOs;
     }
+
 
     @Override
     public ByteArrayResource generateSampleTemplate() throws IOException {
+        log.info("Generating sample District Excel template");
+
         List<String> headers = List.of(
                 "District Name",
                 "District Code",
@@ -168,12 +223,14 @@ public class DistrictServiceImpl implements DistrictService {
             for (int i = 0; i < headers.size(); i++) {
                 headerRow.createCell(i).setCellValue(headers.get(i));
             }
+            log.debug("Header row created with columns: {}", headers);
 
             // Sample Data Row
             Row dataRow = sheet.createRow(1);
             for (int i = 0; i < sampleRow.size(); i++) {
                 dataRow.createCell(i).setCellValue(sampleRow.get(i));
             }
+            log.debug("Sample data row added: {}", sampleRow);
 
             // Auto-size columns
             for (int i = 0; i < headers.size(); i++) {
@@ -181,6 +238,7 @@ public class DistrictServiceImpl implements DistrictService {
             }
 
             workbook.write(out);
+            log.info("Sample District template generated successfully");
             return new ByteArrayResource(out.toByteArray());
         }
     }

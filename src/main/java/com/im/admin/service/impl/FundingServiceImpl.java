@@ -66,28 +66,37 @@ public class FundingServiceImpl implements FundingService {
 
     @Transactional
     public String fundsCreditDebit(FundCreditDebitDto dto) {
+        log.info("Starting funds {} operation for userAccountId: {}, WalletType: {}, Amount: {}",
+                dto.getFundingType(), dto.getUserAccountId(), dto.getWalletType(), dto.getAmount());
+
         // Generate base transaction ID
         String baseTxnId = commonMethods.generateBaseTransactionId();
+        log.debug("Generated base transaction ID: {}", baseTxnId);
 
         // Extract values
         String userId = dto.getUserAccountId();
         WalletType walletType = WalletType.fromString(dto.getWalletType());
         TransactionType transactionType = TransactionType.fromString(dto.getFundingType());
+        log.debug("Resolved WalletType: {}, TransactionType: {}", walletType, transactionType);
 
         BigDecimal amount = BigDecimal.valueOf(dto.getAmount());
         BigDecimal confirmAmount = BigDecimal.valueOf(dto.getConfirmAmount());
+        log.debug("Amount: {}, ConfirmAmount: {}", amount, confirmAmount);
 
         // Validate amount match
         if (amount.compareTo(confirmAmount) != 0) {
+            log.error("Amount mismatch: Amount={} ConfirmAmount={}", amount, confirmAmount);
             throw new IllegalArgumentException("Amount and Confirm Amount do not match");
         }
 
         // Resolve wallet
         AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), userId);
+        log.debug("Resolved walletAmountTable for user {}: {}", userId, walletAmountTable);
 
         // Generate transaction ID prefix based on type
         String txnIdPrefix = transactionType == TransactionType.CREDIT ? "FCR" : "FDR";
         String txnId = txnIdPrefix + baseTxnId;
+        log.info("Generated transaction ID: {}", txnId);
 
         commonMethods.performWalletUpdate(
                 walletAmountTable,
@@ -100,6 +109,7 @@ public class FundingServiceImpl implements FundingService {
                 dto.getRemarks()
         );
 
+        log.info("Transaction {} successful for user {} with txnId {}", transactionType.name(), userId, txnId);
         return String.format("Transaction %s successful", transactionType.name());
     }
 
