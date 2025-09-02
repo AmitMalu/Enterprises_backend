@@ -37,6 +37,7 @@ public class VendorServiceImpl implements VendorService {
 
     @Autowired
     private SubProductsRepository subProductsRepository;
+
     @Autowired
     private CommonMethods commonMethods;
 
@@ -46,18 +47,24 @@ public class VendorServiceImpl implements VendorService {
     @Override
     @Transactional
     public Vendors saveVendor(VendorsDTO dto) {
+        log.info("Attempting to save vendor with code: {}", dto.getVendorCode());
+
         if (vendorsRepository.existsByVendorCode(dto.getVendorCode())) {
+            log.warn("Vendor code '{}' already exists. Aborting save operation.", dto.getVendorCode());
             throw new IllegalArgumentException("Vendor code '" + dto.getVendorCode() + "' already exists.");
         }
 
         Vendors vendor = mapToEntity(dto);
+        log.debug("Mapped DTO to entity: {}", vendor);
 
         // Generate custom ID
         String generatedId = commonMethods.generateNextIdForTables("vendors", "id");
         vendor.setId(generatedId);
+        log.info("Generated vendor ID: {}", generatedId);
 
         Vendors savedVendor = vendorsRepository.save(vendor);
-        log.info("Vendor [{}] saved successfully.", savedVendor.getId());
+        log.info("Vendor [{}] saved successfully with code: {}", savedVendor.getId(), savedVendor.getVendorCode());
+
         return savedVendor;
     }
 
@@ -65,13 +72,22 @@ public class VendorServiceImpl implements VendorService {
     @Override
     @Transactional
     public Vendors updateVendor(String id, VendorsDTO dto) {
+        log.info("Initiating update for vendor ID: {}", id);
+
         Vendors existingVendor = vendorsRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Vendor with ID " + id + " not found."));
+                .orElseThrow(() -> {
+                    log.warn("Vendor with ID {} not found. Cannot proceed with update.", id);
+                    return new EntityNotFoundException("Vendor with ID " + id + " not found.");
+                });
+
+        log.debug("Existing vendor before update: {}", existingVendor);
 
         updateEntityFromDto(dto, existingVendor);
+        log.debug("Vendor entity after applying updates from DTO: {}", existingVendor);
 
         Vendors savedVendor = vendorsRepository.save(existingVendor);
-        log.info("Vendor [{}] updated successfully.", savedVendor.getId());
+        log.info("Vendor [{}] updated successfully with code: {}", savedVendor.getId(), savedVendor.getVendorCode());
+
         return savedVendor;
     }
 
@@ -111,26 +127,35 @@ public class VendorServiceImpl implements VendorService {
         }
     }
 
-
     @Override
     public List<VendorActiveResponseDto> getAllActiveVendors() {
-        List<Vendors> activeVendors = vendorsRepository.findByActiveTrue();
+        log.info("Fetching all active vendors");
 
-        return activeVendors.stream()
+        List<Vendors> activeVendors = vendorsRepository.findByActiveTrue();
+        log.debug("Found {} active vendors", activeVendors.size());
+
+        List<VendorActiveResponseDto> response = activeVendors.stream()
                 .map(v -> new VendorActiveResponseDto(v.getId(), v.getVendorName()))
                 .collect(Collectors.toList());
+
+        log.info("Returning {} active vendor DTOs", response.size());
+        return response;
     }
 
     public Vendors mapToEntity(VendorsDTO dto) {
-        Vendors vendor = new Vendors();
+        log.info("Mapping VendorsDTO to entity for vendorCode: {}", dto.getVendorCode());
 
         Products product = productsRepository.findById(dto.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + dto.getProductId()));
+                .orElseThrow(() -> {
+                    log.error("Product not found with ID: {}", dto.getProductId());
+                    return new RuntimeException("Product not found with ID: " + dto.getProductId());
+                });
 
+        Vendors vendor = new Vendors();
         vendor.setProduct(product);
         vendor.setVendorName(dto.getVendorName());
         vendor.setVendorCode(dto.getVendorCode());
-        //vendor.setPriority(dto.getPriority());
+        // vendor.setPriority(dto.getPriority());
         vendor.setModesSupported(dto.getModesSupported());
         vendor.setActive(Boolean.TRUE.equals(dto.getActive()));
         vendor.setBankType(dto.getBankType());
@@ -151,30 +176,33 @@ public class VendorServiceImpl implements VendorService {
             vendor.setWhiteLabelAdminId("-");
         }
 
+        log.debug("Mapped entity: {}", vendor);
         return vendor;
     }
 
     public void updateEntityFromDto(VendorsDTO dto, Vendors entity) {
+        log.info("Updating vendor entity [{}] with new DTO data", entity.getId());
 
         Products product = productsRepository.findById(dto.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + dto.getProductId()));
+                .orElseThrow(() -> {
+                    log.error("Product not found with ID: {}", dto.getProductId());
+                    return new RuntimeException("Product not found with ID: " + dto.getProductId());
+                });
 
         entity.setProduct(product);
         entity.setVendorName(dto.getVendorName());
         entity.setVendorCode(dto.getVendorCode());
         entity.setActive(dto.getActive());
-        //entity.setPriority(dto.getPriority());
+        // entity.setPriority(dto.getPriority());
         entity.setModesSupported(dto.getModesSupported());
         entity.setBankType(dto.getBankType());
         entity.setWebsite(dto.getWebsite());
         entity.setLogo(dto.getLogo());
         entity.setParameter(dto.getParameter());
         entity.setVendorAccount(dto.getVendorAccount());
-
         entity.setUserField1(dto.getUserField1());
         entity.setUserField2(dto.getUserField2());
         entity.setUserField3(dto.getUserField3());
-
         entity.setEditedBy(dto.getEditedBy());
         entity.setEditedOn(LocalDateTime.now());
 
@@ -185,14 +213,26 @@ public class VendorServiceImpl implements VendorService {
             entity.setIsWhiteLabelAdmin(false);
             entity.setWhiteLabelAdminId("-");
         }
+
+        log.debug("Updated vendor entity: {}", entity);
     }
+
 
     @Override
     public VendorsDTO getVendorById(String id) {
+        log.info("Fetching vendor by ID: {}", id);
+
         Vendors vendor = vendorsRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Vendor with ID " + id + " not found."));
-        return toDto(vendor);
+                .orElseThrow(() -> {
+                    log.warn("Vendor with ID {} not found", id);
+                    return new EntityNotFoundException("Vendor with ID " + id + " not found.");
+                });
+
+        VendorsDTO dto = toDto(vendor);
+        log.debug("Mapped vendor entity to DTO: {}", dto);
+        return dto;
     }
+
 
     @Override
     public Page<VendorsDTO> getAllVendors(Pageable pageable,
@@ -214,6 +254,9 @@ public class VendorServiceImpl implements VendorService {
                                           LocalDate createdOn,
                                           LocalDate editedOn) {
 
+        log.info("Fetching vendors with filters - vendorName: {}, vendorCode: {}, productId: {}, isActive: {}, page: {}, size: {}",
+                vendorName, vendorCode, productId, isActive, pageable.getPageNumber(), pageable.getPageSize());
+
         Specification<Vendors> spec = VendorSpecification.getFilter(
                 ids, vendorName, vendorCode, productId, productCode,
                 subProductId, subProductCode, modesSupported,
@@ -222,12 +265,22 @@ public class VendorServiceImpl implements VendorService {
         );
 
         Page<Vendors> entityPage = vendorsRepository.findAll(spec, pageable);
+        log.debug("Found {} vendors matching criteria", entityPage.getTotalElements());
 
-        return entityPage.map(this::toDto);
+        Page<VendorsDTO> dtoPage = entityPage.map(this::toDto);
+        log.info("Returning {} vendor DTOs", dtoPage.getContent().size());
+
+        return dtoPage;
     }
 
+
     public VendorsDTO toDto(Vendors vendor) {
-        if (vendor == null) return null;
+        if (vendor == null) {
+            log.warn("Attempted to convert null Vendor entity to DTO.");
+            return null;
+        }
+
+        log.debug("Converting Vendor entity [{}] to DTO", vendor.getId());
 
         VendorsDTO dto = new VendorsDTO();
         dto.setId(vendor.getId());
@@ -245,7 +298,6 @@ public class VendorServiceImpl implements VendorService {
         dto.setWebsite(vendor.getWebsite());
         dto.setLogo(vendor.getLogo());
         dto.setParameter(vendor.getParameter());
-
         dto.setVendorAccount(vendor.getVendorAccount());
 
         dto.setIsWhiteLabelAdmin(vendor.getIsWhiteLabelAdmin());
@@ -260,8 +312,8 @@ public class VendorServiceImpl implements VendorService {
         dto.setEditedBy(vendor.getEditedBy());
         dto.setEditedOn(vendor.getEditedOn());
 
+        log.debug("Vendor DTO created: {}", dto);
         return dto;
     }
-
 
 }

@@ -41,42 +41,67 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
     private VendorRepository vendorsRepository;
 
 
-
     @Override
     @Transactional
     public CommonResponse<VendorRoutingResponseDTO> save(VendorRoutingRequestDTO request) {
+        log.info("Received request to save VendorRouting: {}", request);
+
         VendorRouting entity = mapToEntity(request);
         VendorRouting saved = vendorRoutingRepository.save(entity);
+
+        log.debug("VendorRouting entity saved: {}", saved);
         return CommonResponse.success(mapToDTO(saved), "Saved successfully");
     }
 
     @Override
     public CommonResponse<VendorRoutingResponseDTO> update(Long id, VendorRoutingRequestDTO request) {
+        log.info("Received request to update VendorRouting with ID: {}", id);
+
         VendorRouting existing = vendorRoutingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("VendorRouting not found"));
+                .orElseThrow(() -> {
+                    log.error("VendorRouting with ID {} not found", id);
+                    return new RuntimeException("VendorRouting not found");
+                });
+
+        log.debug("Existing VendorRouting before update: {}", existing);
         updateEntity(existing, request);
+
         VendorRouting updated = vendorRoutingRepository.save(existing);
+        log.debug("VendorRouting entity updated: {}", updated);
+
         return CommonResponse.success(mapToDTO(updated), "Updated successfully");
     }
 
+
     @Override
     public CommonResponse<VendorRoutingResponseDTO> getById(Long id) {
+        log.info("Fetching VendorRouting by ID: {}", id);
+
         VendorRouting entity = vendorRoutingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("VendorRouting not found"));
+                .orElseThrow(() -> {
+                    log.error("VendorRouting not found for ID: {}", id);
+                    return new RuntimeException("VendorRouting not found");
+                });
+
+        log.debug("VendorRouting entity fetched: {}", entity);
         return CommonResponse.success(mapToDTO(entity), "Fetched successfully");
     }
 
     @Override
     public CommonResponse<Page<VendorRoutingResponseDTO>> getAll(String subProductId, String createdBy, Pageable pageable) {
+        log.info("Fetching all VendorRouting records with filters - subProductId: {}, createdBy: {}", subProductId, createdBy);
+
         Specification<VendorRouting> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
             if (StringUtils.hasText(subProductId)) {
+                log.debug("Applying filter: subProductId = {}", subProductId);
                 Join<VendorRouting, SubProducts> subProductJoin = root.join("subProduct", JoinType.INNER);
                 predicates.add(cb.equal(subProductJoin.get("id"), subProductId));
             }
 
             if (StringUtils.hasText(createdBy)) {
+                log.debug("Applying filter: createdBy = {}", createdBy);
                 predicates.add(cb.equal(root.get("createdBy"), createdBy));
             }
 
@@ -84,12 +109,15 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
         };
 
         Page<VendorRouting> page = vendorRoutingRepository.findAll(spec, pageable);
+        log.debug("VendorRouting page fetched: totalElements = {}", page.getTotalElements());
+
         Page<VendorRoutingResponseDTO> dtoPage = page.map(this::mapToDTO);
         return CommonResponse.success(dtoPage, "Fetched all records");
     }
 
-
     private VendorRoutingResponseDTO mapToDTO(VendorRouting entity) {
+        log.debug("Mapping VendorRouting entity to DTO: {}", entity);
+
         VendorRoutingResponseDTO dto = new VendorRoutingResponseDTO();
         dto.setId(entity.getId());
 
@@ -98,7 +126,6 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
             dto.setSubProductName(entity.getSubProduct().getSubProductTitle());
         }
 
-        // Set vendor objects
         Vendors v1 = entity.getRoutingPriority1();
         Vendors v2 = entity.getRoutingPriority2();
         Vendors v3 = entity.getRoutingPriority3();
@@ -126,15 +153,20 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setEditedBy(entity.getEditedBy());
 
+        log.debug("Mapped DTO: {}", dto);
         return dto;
     }
 
-
     private VendorRouting mapToEntity(VendorRoutingRequestDTO dto) {
+        log.debug("Mapping DTO to VendorRouting entity: {}", dto);
+
         VendorRouting entity = new VendorRouting();
 
         SubProducts subProduct = subProductsRepository.findById(dto.getSubProductId())
-                .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + dto.getSubProductId()));
+                .orElseThrow(() -> {
+                    log.error("SubProduct not found with ID: {}", dto.getSubProductId());
+                    return new RuntimeException("SubProduct not found with ID: " + dto.getSubProductId());
+                });
         entity.setSubProduct(subProduct);
 
         entity.setRoutingPriority1(getVendorEntitySafe(dto.getRoutingPriority1()));
@@ -155,23 +187,32 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
 
         entity.setCreatedBy(dto.getCreatedBy());
         entity.setEditedBy(dto.getEditedBy());
+
+        log.debug("Mapped entity: {}", entity);
         return entity;
     }
 
     private Vendors getVendorEntitySafe(VendorsDTO dto) {
         if (dto == null || dto.getId() == null || dto.getId().trim().isEmpty()) {
+            log.warn("VendorDTO is null or has empty ID: {}", dto);
             return null;
         }
 
         return vendorsRepository.findById(dto.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid vendor ID: " + dto.getId()));
+                .orElseThrow(() -> {
+                    log.error("Invalid vendor ID: {}", dto.getId());
+                    return new IllegalArgumentException("Invalid vendor ID: " + dto.getId());
+                });
     }
 
-
     private void updateEntity(VendorRouting entity, VendorRoutingRequestDTO dto) {
+        log.debug("Updating VendorRouting entity with DTO: {}", dto);
 
         SubProducts subProduct = subProductsRepository.findById(dto.getSubProductId())
-                .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + dto.getSubProductId()));
+                .orElseThrow(() -> {
+                    log.error("SubProduct not found with ID: {}", dto.getSubProductId());
+                    return new RuntimeException("SubProduct not found with ID: " + dto.getSubProductId());
+                });
         entity.setSubProduct(subProduct);
 
         entity.setRoutingPriority1(getVendorEntitySafe(dto.getRoutingPriority1()));
@@ -191,7 +232,10 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
         entity.setValueValueOfTxn(dto.getValueValueOfTxn());
 
         entity.setEditedBy(dto.getEditedBy());
+
+        log.debug("Updated entity: {}", entity);
     }
+
 
 
 }
