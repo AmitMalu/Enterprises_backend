@@ -156,6 +156,4 @@ public class AuthServiceImpl implements AuthService {
         return new CommonResponse<>(200, "Password changed successfully", null);
     }
 
-
-
 }

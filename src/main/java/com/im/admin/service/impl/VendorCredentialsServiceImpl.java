@@ -11,6 +11,7 @@ import com.im.admin.repositories.VendorRepository;
 import com.im.admin.repositories.WhiteLabelRepository;
 import com.im.admin.service.VendorCredentialsService;
 import jakarta.persistence.criteria.Predicate;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@Slf4j
 public class VendorCredentialsServiceImpl implements VendorCredentialsService {
 
     @Autowired
@@ -42,23 +44,38 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
     @Override
     @Transactional
     public VendorCredentials saveVendorCredentials(VendorCredentialsDTO dto) {
+        log.info("Saving VendorCredentials for username: {}", dto.getUsername());
         VendorCredentials entity = mapToEntity(dto);
-        return repository.save(entity);
+        VendorCredentials saved = repository.save(entity);
+        log.debug("Saved VendorCredentials entity: {}", saved);
+        return saved;
     }
 
     @Override
     @Transactional
     public VendorCredentialsResponseDTO updateVendorCredentials(Long id, VendorCredentialsDTO dto) {
-        VendorCredentials existing = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("VendorCredentials not found with id: " + id));
+        log.info("Updating VendorCredentials with ID: {}", id);
 
-        // Fetch vendor and product entities
+        VendorCredentials existing = repository.findById(id)
+                .orElseThrow(() -> {
+                    log.error("VendorCredentials not found with ID: {}", id);
+                    return new RuntimeException("VendorCredentials not found with id: " + id);
+                });
+
         Vendors vendor = vendorsRepository.findById(dto.getVendorId().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid vendor ID: " + dto.getVendorId().getId()));
+                .orElseThrow(() -> {
+                    log.error("Invalid vendor ID: {}", dto.getVendorId().getId());
+                    return new IllegalArgumentException("Invalid vendor ID: " + dto.getVendorId().getId());
+                });
 
         Products product = productsRepository.findById(dto.getProductId().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid product ID: " + dto.getProductId().getId()));
+                .orElseThrow(() -> {
+                    log.error("Invalid product ID: {}", dto.getProductId().getId());
+                    return new IllegalArgumentException("Invalid product ID: " + dto.getProductId().getId());
+                });
 
+        log.debug("Updating fields for VendorCredentials ID: {}", id);
+        // [Set fields as before]
         // Set updated fields
         existing.setVendor(vendor);
         existing.setProduct(product);
@@ -81,20 +98,17 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         existing.setEditedBy(dto.getEditedBy());
 
         VendorCredentials saved = repository.save(existing);
+        log.debug("Updated VendorCredentials entity: {}", saved);
         return mapToDTO(saved);
     }
 
-
-
     @Override
     public Page<VendorCredentialsResponseDTO> getAllVendorCredentials(
-            String productName,
-            String vendorName,
-            String whiteLabelAdminName,
-            String username,
-            Boolean isActive,
-            String createdBy,
-            Pageable pageable) {
+            String productName, String vendorName, String whiteLabelAdminName,
+            String username, Boolean isActive, String createdBy, Pageable pageable) {
+
+        log.info("Fetching VendorCredentials with filters - username: {}, isActive: {}, createdBy: {}, productName: {}, vendorName: {}, whiteLabelAdminName: {}",
+                username, isActive, createdBy, productName, vendorName, whiteLabelAdminName);
 
         Specification<VendorCredentials> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -128,54 +142,23 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         };
 
         Page<VendorCredentials> page = repository.findAll(spec, pageable);
+        log.debug("Fetched {} VendorCredentials records", page.getTotalElements());
 
         return page.map(entity -> {
-            VendorCredentialsResponseDTO dto = new VendorCredentialsResponseDTO();
-            dto.setId(entity.getId());
-            dto.setUsername(entity.getUsername());
-            dto.setClientId(entity.getClientId());
-            dto.setClientSecret(entity.getClientSecret());
-            dto.setSaltKey(entity.getSaltKey());
-            dto.setBaseUrlUat(entity.getBaseUrlUat());
-            dto.setBaseUrlProd(entity.getBaseUrlProd());
-            dto.setTokenUrlUat(entity.getTokenUrlUat());
-            dto.setTokenUrlProd(entity.getTokenUrlProd());
-            dto.setToken(entity.getToken());
-            dto.setIsActive(entity.getIsActive());
-            dto.setUserField1(entity.getUserField1());
-            dto.setUserField2(entity.getUserField2());
-            dto.setUserField3(entity.getUserField3());
-            dto.setCreatedBy(entity.getCreatedBy());
-            dto.setCreatedOn(entity.getCreatedOn());
-            dto.setEditedBy(entity.getEditedBy());
-            dto.setEditedOn(entity.getEditedOn());
-
-            // Vendor & Product info
-            if (entity.getVendor() != null) {
-                dto.setVendorId(entity.getVendor().getId());
-                dto.setVendorName(entity.getVendor().getVendorName());
-            }
-
-            if (entity.getProduct() != null) {
-                dto.setProductId(entity.getProduct().getId());
-                dto.setProductName(entity.getProduct().getName());
-            }
-
-            dto.setWhiteLabelAdminId(entity.getWhiteLabelAdminId());
-            if (StringUtils.hasText(entity.getWhiteLabelAdminId())) {
-                whiteLabelsRepository.findById(entity.getWhiteLabelAdminId()).ifPresent(wl ->
-                        dto.setWhiteLabelAdminName(wl.getName()));
-            }
-
+            VendorCredentialsResponseDTO dto = mapToDTO(entity);
+            log.trace("Mapped VendorCredentials entity to DTO: {}", dto);
             return dto;
         });
     }
 
-
     @Override
     public VendorCredentialsResponseDTO getVendorCredentialsById(Long id) {
+        log.info("Fetching VendorCredentials by ID: {}", id);
         VendorCredentials entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("VendorCredentials not found with id: " + id));
+                .orElseThrow(() -> {
+                    log.error("VendorCredentials not found with ID: {}", id);
+                    return new RuntimeException("VendorCredentials not found with id: " + id);
+                });
         return mapToDTO(entity);
     }
 
