@@ -78,7 +78,7 @@ public class AuthController {
         Optional<UserDetails> optionalUser = findUserByUsername(username);
         if (optionalUser.isEmpty()) {
             log.warn("User not found for username: {}", username);
-            return buildErrorResponse(requestJson, requestTime, 401, "Invalid credentials: user not found");
+            return buildErrorResponse(requestJson, requestTime, 401, "Invalid credentials: Incorrect Username");
         }
 
         UserDetails user = optionalUser.get();
