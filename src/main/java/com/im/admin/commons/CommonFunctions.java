@@ -36,7 +36,7 @@ public class CommonFunctions {
         ImLogs imLogs = new ImLogs();
         imLogs.setRequest(request);
         imLogs.setRequestDateTime(imRequestDateTime);
-        imLogs.setIpAddress(null);
+        imLogs.setIpAddress(ipAddress);
         imLogs.setResponse(response);
         imLogs.setResponseDateTime(imResponseDateTime);
         imLogs = imLogsRepository.save(imLogs);
@@ -50,7 +50,7 @@ public class CommonFunctions {
         vendorReqRes.setRequestDateTime(vendorRequestDateTime);
         vendorReqRes.setResponse(response);
         vendorReqRes.setResponseDateTime(vendorResponseDateTime);
-        vendorReqRes.setRequestIp(null);
+        vendorReqRes.setRequestIp(requestIp);
         vendorReqRes = vendorReqResRepository.save(vendorReqRes);
     }
 
@@ -72,7 +72,7 @@ public class CommonFunctions {
         loginlogs.setRequestDateTime(LoginRequestDateTime);
         loginlogs.setResponse(response);
         loginlogs.setResponseDateTime(LoginResponseDateTime);
-        loginlogs.setIpAddress(null);
+        loginlogs.setIpAddress(requestIp);
         loginlogs = loginLogsRepository.save(loginlogs);
     }
 
@@ -81,7 +81,7 @@ public class CommonFunctions {
         AuditLogs auditogs = new AuditLogs();
         auditogs.setRequest(request);
         auditogs.setRequestDateTime(imRequestDateTime);
-        auditogs.setIpAddress(null);
+        auditogs.setIpAddress(ipAddress);
         auditogs.setResponse(response);
         auditogs.setResponseDateTime(imResponseDateTime);
         auditogs = auditLogsRepository.save(auditogs);
