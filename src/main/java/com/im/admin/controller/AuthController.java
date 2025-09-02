@@ -171,7 +171,7 @@ public class AuthController {
 
         String message = attempts >= 5 ?
                 "Account locked due to 5 failed attempts. Try again in 5 minutes." :
-                "Invalid credentials. Attempt " + attempts + " of 5.";
+                "Password Incorrect. Attempt " + attempts + " of 5.";
 
         return buildErrorResponse(requestJson, requestTime, 401, message);
     }
