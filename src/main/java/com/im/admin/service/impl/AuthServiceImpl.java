@@ -156,4 +156,55 @@ public class AuthServiceImpl implements AuthService {
         return new CommonResponse<>(200, "Password changed successfully", null);
     }
 
+    @Override
+    public CommonResponse<?> changePasswordadmin(ChangePasswordRequestDto request) {
+        String username = request.getUserName();
+        log.info("Change password requested for username={}", username);
+
+        Optional<UserDetails> optionalUser = username.matches("\\d{10}")
+                ? userDetailsRepository.findByMobileNumber(username)
+                : userDetailsRepository.findByEmailId(username);
+
+        if (optionalUser.isEmpty()) {
+            log.error("User not found for username={}", username);
+            throw new RuntimeException("User not found");
+        }
+
+        UserDetails user = optionalUser.get();
+        log.info("User found | MobileNumber={}, HierarchyId={}, Status={}",
+                user.getMobileNumber(), user.getHierarchyId(), user.getUserStatus());
+
+        // Check Active status
+        if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
+            log.error("User account is not active | MobileNumber={}", user.getMobileNumber());
+            throw new RuntimeException("User account is not active");
+        }
+
+        // Password checks
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            log.error("New password and confirm password do not match for MobileNumber={}", user.getMobileNumber());
+            throw new RuntimeException("New password and confirm password do not match");
+        }
+
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getLoginPassword())) {
+            log.error("Old password is incorrect for MobileNumber={}", user.getMobileNumber());
+            throw new RuntimeException("Old password is incorrect");
+        }
+
+        if (passwordEncoder.matches(request.getNewPassword(), user.getLoginPassword())) {
+            log.error("New password cannot be same as old password for MobileNumber={}", user.getMobileNumber());
+            throw new RuntimeException("New password cannot be same as old password");
+        }
+
+        // Save new password
+        String encodedPassword = passwordEncoder.encode(request.getNewPassword());
+        user.setLoginPassword(encodedPassword);
+        userDetailsRepository.save(user);
+        log.info("Password changed successfully for MobileNumber={}", user.getMobileNumber());
+
+        return new CommonResponse<>(200, "Password changed successfully", null);
+    }
+
+
+
 }

@@ -685,6 +685,47 @@ public class AuthController {
         }
     }
 
+
+    @PostMapping("/change-password-admin")
+    public ResponseEntity<?> changePasswordAdmin(@RequestBody ChangePasswordRequestDto request) {
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = "";
+        String responseJson = "";
+
+        log.info("Password change request received for username: {}", request.getUserName());
+
+        try {
+            requestJson = objectMapper.writeValueAsString(request);
+            log.debug("Request payload: {}", requestJson);
+
+            CommonResponse<?> response = authService.changePasswordadmin(request);
+            responseJson = objectMapper.writeValueAsString(response);
+
+            log.info("Password change response for username {}: {}", request.getUserName(), response.getMessage());
+            commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+            log.debug("Password change log saved for username: {}", request.getUserName());
+
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException | JsonProcessingException ex) {
+            log.error("Error during password change for username: {}", request.getUserName(), ex);
+
+            CommonResponse<?> error = new CommonResponse<>(500, ex.getMessage(), null);
+            try {
+                responseJson = objectMapper.writeValueAsString(error);
+            } catch (JsonProcessingException e) {
+                log.error("Failed to serialize error response for username: {}", request.getUserName(), e);
+                responseJson = "{\"statusCode\":500,\"message\":\"Internal error\",\"data\":null}";
+            }
+
+            commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), ex.getMessage());
+            log.debug("Error log saved for username: {}", request.getUserName());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+
     @PostMapping("/add")
     public String addData(@RequestParam String id) {
 

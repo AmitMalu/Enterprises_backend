@@ -9,5 +9,7 @@ public interface AuthService {
 
     CommonResponse<?> changePassword(ChangePasswordRequestDto request);
 
+    CommonResponse<?> changePasswordadmin(ChangePasswordRequestDto request);
+
 //    void changePassword(ChangePasswordRequestDto request);
 }
