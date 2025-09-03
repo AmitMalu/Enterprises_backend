@@ -78,7 +78,7 @@ public class AuthController {
         Optional<UserDetails> optionalUser = findUserByUsername(username);
         if (optionalUser.isEmpty()) {
             log.warn("User not found for username: {}", username);
-            return buildErrorResponse(requestJson, requestTime, 401, "Invalid credentials: Incorrect Username");
+            return buildErrorResponse(requestJson, requestTime, 400, "Invalid credentials: Incorrect Username");
         }
 
         UserDetails user = optionalUser.get();
@@ -173,7 +173,7 @@ public class AuthController {
                 "Account locked due to 5 failed attempts. Try again in 5 minutes." :
                 "Password Incorrect. Attempt " + attempts + " of 5.";
 
-        return buildErrorResponse(requestJson, requestTime, 401, message);
+        return buildErrorResponse(requestJson, requestTime, 400, message);
     }
 
     private void resetFailedAttempts(UserDetails user) {
