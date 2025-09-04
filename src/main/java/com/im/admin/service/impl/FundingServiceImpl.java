@@ -21,10 +21,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,13 +31,22 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.Comparator;
+
 
 @Service
 @Slf4j
@@ -244,14 +250,12 @@ public class FundingServiceImpl implements FundingService {
     @Override
     public Page<RetailerTransactionResponseDto> getSettlementPendingTransactions(SettlementPendingRequestDto request, int page, int size) {
 
-        log.info("Fetching SETTLEMENT PENDING transactions for walletType: {}", request.getWalletType());
+        log.info("Fetching transactions for walletType: {}", request.getWalletType());
 
-        // fetch subProductName from DB
         String subProductName = subProductsRepository.findById(request.getSubProductId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid subProductId"))
                 .getSubProductTitle();
 
-        // fetch vendorName if vendorId present
         String vendorName = null;
         if (request.getVendorId() != null && !request.getVendorId().isBlank()) {
             vendorName = vendorRepository.findById(request.getVendorId())
@@ -261,59 +265,94 @@ public class FundingServiceImpl implements FundingService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("updatedDateOfTransaction").descending());
 
+        List<String> statusList;
+        if ("POST SETTLEMENT".equalsIgnoreCase(request.getTranStatus())) {
+            statusList = Arrays.asList("SUCCESS", "FAILURE");
+        } else if (request.getTranStatus() == null || request.getTranStatus().isBlank()) {
+            statusList = null; // all records
+        } else {
+            statusList = Collections.singletonList(request.getTranStatus());
+        }
+
         Page<RetailerTransactionResponseDto> responsePage;
 
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
-            responsePage = retailerPrepaidTransactionDetailsRepository.findFilteredTransactions(
-                    request.getFromDate(),
-                    request.getToDate(),
-                    subProductName,
-                    vendorName,
-                    request.getTranStatus(),
-                    pageable
-            ).map(txn -> new RetailerTransactionResponseDto(
-                    txn.getId(),
-                    txn.getUpdatedDateOfTransaction(),
-                    txn.getRetailerId(),
-                    txn.getMobileNo(),
-                    txn.getSchemeName(),
-                    txn.getAmount(),
-                    txn.getTranStatus(),
-                    txn.getTransactionType(),
-                    txn.getRemarks(),
-                    txn.getTransactionId(),
-                    txn.getMedium(),
-                    txn.getSubProductName()
-            ));
+            // Only Prepaid
+            responsePage = fetchPrepaid(request.getFromDate(), request.getToDate(),
+                    subProductName, vendorName, statusList, pageable);
 
         } else if ("POSTPAID".equalsIgnoreCase(request.getWalletType())) {
-            responsePage = retailerPostpaidTransactionDetailsRepository.findFilteredTransactions(
-                    request.getFromDate(),
-                    request.getToDate(),
-                    subProductName,
-                    vendorName,
-                    request.getTranStatus(),
-                    pageable
-            ).map(txn -> new RetailerTransactionResponseDto(
-                    txn.getId(),
-                    txn.getUpdatedDateOfTransaction(),
-                    txn.getRetailerId(),
-                    txn.getMobileNo(),
-                    txn.getSchemeName(),
-                    txn.getAmount(),
-                    txn.getTranStatus(),
-                    txn.getTransactionType(),
-                    txn.getRemarks(),
-                    txn.getTransactionId(),
-                    txn.getMedium(),
-                    txn.getSubProductName()
-            ));
+            // Only Postpaid
+            responsePage = fetchPostpaid(request.getFromDate(), request.getToDate(),
+                    subProductName, vendorName, statusList, pageable);
+
+        } else if (request.getWalletType() == null || request.getWalletType().isBlank()) {
+            // Empty/null → Both Prepaid + Postpaid
+            Page<RetailerTransactionResponseDto> prepaid = fetchPrepaid(request.getFromDate(), request.getToDate(),
+                    subProductName, vendorName, statusList, pageable);
+
+            Page<RetailerTransactionResponseDto> postpaid = fetchPostpaid(request.getFromDate(), request.getToDate(),
+                    subProductName, vendorName, statusList, pageable);
+
+            // Merge both pages safely
+            List<RetailerTransactionResponseDto> merged = Stream.concat(prepaid.stream(), postpaid.stream())
+                    .sorted(Comparator.comparing(
+                            RetailerTransactionResponseDto::getUpdatedAt,
+                            Comparator.nullsLast(Comparator.naturalOrder())
+                    ).reversed())
+                    .collect(Collectors.toList());
+
+            responsePage = new PageImpl<>(merged, pageable, merged.size());
+
         } else {
-            throw new IllegalArgumentException("Invalid walletType. Allowed values: PREPAID / POSTPAID");
+            // ❌ Invalid walletType
+            throw new IllegalArgumentException("Invalid walletType: " + request.getWalletType());
         }
 
         return responsePage;
     }
+
+
+    // Helper methods
+    private Page<RetailerTransactionResponseDto> fetchPrepaid(LocalDate fromDate, LocalDate toDate,String subProductName, String vendorName, List<String> statusList, Pageable pageable) {
+        return retailerPrepaidTransactionDetailsRepository.findFilteredTransactions(
+                fromDate, toDate, subProductName, vendorName, statusList, pageable
+        ).map(txn -> new RetailerTransactionResponseDto(
+                txn.getId(),
+                txn.getUpdatedDateOfTransaction(),
+                txn.getRetailerId(),
+                txn.getMobileNo(),
+                txn.getSchemeName(),
+                txn.getAmount(),
+                txn.getTranStatus(),
+                txn.getTransactionType(),
+                txn.getRemarks(),
+                txn.getTransactionId(),
+                txn.getMedium(),
+                txn.getSubProductName()
+        ));
+    }
+
+    private Page<RetailerTransactionResponseDto> fetchPostpaid(LocalDate fromDate, LocalDate toDate,String subProductName, String vendorName, List<String> statusList, Pageable pageable) {
+        return retailerPostpaidTransactionDetailsRepository.findFilteredTransactions(
+                fromDate, toDate, subProductName, vendorName, statusList, pageable
+        ).map(txn -> new RetailerTransactionResponseDto(
+                txn.getId(),
+                txn.getUpdatedDateOfTransaction(),
+                txn.getRetailerId(),
+                txn.getMobileNo(),
+                txn.getSchemeName(),
+                txn.getAmount(),
+                txn.getTranStatus(),
+                txn.getTransactionType(),
+                txn.getRemarks(),
+                txn.getTransactionId(),
+                txn.getMedium(),
+                txn.getSubProductName()
+        ));
+    }
+
+
 
 
 }

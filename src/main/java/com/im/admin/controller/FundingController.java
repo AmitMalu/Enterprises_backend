@@ -80,10 +80,10 @@ public class FundingController {
         Page<RetailerTransactionResponseDto> transactions =
                 fundingService.getSettlementPendingTransactions(request, page, size);
 
-        log.info("Settlement pending transactions fetched successfully. Total records: {}", transactions.getTotalElements());
+        log.info("success. Total records: {}", transactions.getTotalElements());
 
         return ResponseEntity.ok(
-                new CommonResponse(200, "Settlement pending transactions fetched successfully", transactions)
+                new CommonResponse(200, "success", transactions)
         );
     }
 
