@@ -2,6 +2,8 @@ package com.im.admin.service.impl.reports;
 
 import com.im.admin.entities.PartnerPostpaidTransactionDetails;
 import com.im.admin.entities.PartnerPrepaidTransactionDetails;
+import com.im.admin.entities.RetailerPostpaidTransactionDetails;
+import com.im.admin.entities.RetailerPrepaidTransactionDetails;
 import com.im.admin.repositories.*;
 import com.im.admin.response.SearchTransactionReportResponseDto;
 import com.im.admin.service.reports.AsyncSearchService;
@@ -93,8 +95,63 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
     @Override
     @Async
     public CompletableFuture<List<SearchTransactionReportResponseDto>> searchRetailerById(String txnId, String hierarchyId) {
-        return CompletableFuture.completedFuture(Collections.emptyList());
+        List<SearchTransactionReportResponseDto> result = new ArrayList<>();
+
+//        //  Retailer Prepaid Transactions
+//        List<RetailerPrepaidTransactionDetails> prepaidTxns =
+//                retailerPrepaidTransactionDetailsRepository.findByTransactionIdAndHierarchyId(txnId, hierarchyId);
+//        for (RetailerPrepaidTransactionDetails txn : prepaidTxns) {
+//            result.add(mapToDto(txn, "Prepaid"));
+//        }
+//
+//        //  Retailer Postpaid Transactions
+//        List<RetailerPostpaidTransactionDetails> postpaidTxns =
+//                retailerPostpaidTransactionDetailsRepository.findByTransactionIdAndHierarchyId(txnId, hierarchyId);
+//        for (RetailerPostpaidTransactionDetails txn : postpaidTxns) {
+//            result.add(mapToDto(txn, "Postpaid"));
+//        }
+
+
+
+
+        return CompletableFuture.completedFuture(result);
     }
+
+    private SearchTransactionReportResponseDto mapToDto(RetailerPrepaidTransactionDetails txn, String walletType) {
+        SearchTransactionReportResponseDto dto = new SearchTransactionReportResponseDto();
+        dto.setTransactionId(txn.getTransactionId());
+        dto.setHierarchyId(txn.getRetailerId());
+        dto.setWalletType(walletType);  //  "Prepaid"
+        dto.setBalBefore(txn.getBalBeforeTran());
+        dto.setAmount(txn.getAmount());
+        dto.setBalAfter(txn.getBalAfterTran());
+        dto.setSubProductName(txn.getSubProductName());
+        dto.setNarration(txn.getNarration());
+        dto.setStatus(txn.getTranStatus());
+        dto.setDate(txn.getDateOfTransaction());
+        dto.setTime(txn.getTimeOfTransaction());
+        return dto;
+    }
+
+    private SearchTransactionReportResponseDto mapToDto(RetailerPostpaidTransactionDetails txn, String walletType) {
+        SearchTransactionReportResponseDto dto = new SearchTransactionReportResponseDto();
+        dto.setTransactionId(txn.getTransactionId());
+        dto.setHierarchyId(txn.getRetailerId());
+        dto.setWalletType(walletType);   // "Postpaid"
+        dto.setBalBefore(txn.getBalBeforeTran());
+        dto.setAmount(txn.getAmount());
+        dto.setBalAfter(txn.getBalAfterTran());
+        dto.setSubProductName(txn.getSubProductName());
+        dto.setNarration(txn.getNarration());
+        dto.setStatus(txn.getTranStatus());
+        dto.setDate(txn.getDateOfTransaction());
+        dto.setTime(txn.getTimeOfTransaction());
+        return dto;
+    }
+
+
+
+
 
     @Override
     @Async
@@ -106,7 +163,7 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
     @Async
     public CompletableFuture<List<SearchTransactionReportResponseDto>> searchPartnerById(String txnId, String hierarchyId) {
         List<SearchTransactionReportResponseDto> result = new ArrayList<>();
-
+//
 //        List<PartnerPrepaidTransactionDetails> prepaidTxns = partnerPrepaidTransactionDetailsRepository.findByTransactionIdAndHierarchyId(txnId, hierarchyId);
 //        for (PartnerPrepaidTransactionDetails txn : prepaidTxns) {
 //            result.add(mapToDto(txn, "Prepaid"));

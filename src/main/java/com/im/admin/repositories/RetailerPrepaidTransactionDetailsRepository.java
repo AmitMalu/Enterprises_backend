@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -17,18 +18,21 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
     Optional<RetailerPrepaidTransactionDetails> findByTransactionId(String transactionId);
 
     @Query("SELECT r FROM RetailerPrepaidTransactionDetails r " +
-            "WHERE (:tranStatus IS NULL OR :tranStatus = '' OR r.tranStatus = :tranStatus) " +
-            "AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate) " +
+            "WHERE (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate) " +
             "AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate) " +
             "AND r.subProductName = :subProductName " +
-            "AND (:vendorName IS NULL OR r.vendorName = :vendorName)")
+            "AND (:vendorName IS NULL OR r.vendorName = :vendorName) " +
+            "AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)")
     Page<RetailerPrepaidTransactionDetails> findFilteredTransactions(
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             @Param("subProductName") String subProductName,
             @Param("vendorName") String vendorName,
-            @Param("tranStatus") String tranStatus,
+            @Param("tranStatusList") List<String> tranStatusList,
             Pageable pageable
     );
+
+
+//    List<RetailerPrepaidTransactionDetails> findByTransactionIdAndHierarchyId(String txnId, String hierarchyId);
 
 }
