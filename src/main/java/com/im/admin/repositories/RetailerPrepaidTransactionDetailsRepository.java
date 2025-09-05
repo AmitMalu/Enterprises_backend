@@ -32,10 +32,18 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
             Pageable pageable
     );
 
+    // Search by normalized transactionId + retailerId
+    @Query("SELECT t FROM RetailerPrepaidTransactionDetails t " +
+            "WHERE t.transactionId LIKE %:txnId% AND t.retailerId = :hierarchyId")
+    List<RetailerPrepaidTransactionDetails> findTransactionsByTransactionIdAndRetailerId(
+            @Param("txnId") String txnId,
+            @Param("hierarchyId") String hierarchyId);
 
-    List<RetailerPrepaidTransactionDetails> findByTransactionIdAndRetailerId(String txnId, String hierarchyId);
 
+    // Search only by normalized transactionId (for Admin / global search)
+    @Query("SELECT t FROM RetailerPrepaidTransactionDetails t " +
+            "WHERE t.transactionId LIKE %:txnId%")
+    List<RetailerPrepaidTransactionDetails> findTransactionsByTransactionId(@Param("txnId") String txnId);
 
-//    List<RetailerPrepaidTransactionDetails> findByTransactionIdAndHierarchyId(String txnId, String hierarchyId);
 
 }

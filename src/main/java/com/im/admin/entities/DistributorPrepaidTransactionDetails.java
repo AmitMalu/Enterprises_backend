@@ -1,6 +1,7 @@
 package com.im.admin.entities;
 
 
+import com.im.admin.dto.CommonSearchTransactionDetails;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +17,7 @@ import java.util.Date;
 @Setter
 @Entity
 @Table(name = "distributor_prepaid_transaction_details")
-public class DistributorPrepaidTransactionDetails {
+public class DistributorPrepaidTransactionDetails implements CommonSearchTransactionDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -82,4 +83,9 @@ public class DistributorPrepaidTransactionDetails {
 
     @Column(name = "narration")
     private String narration;
+
+    @Override
+    public String getHierarchyId() {
+        return distributorId;
+    }
 }

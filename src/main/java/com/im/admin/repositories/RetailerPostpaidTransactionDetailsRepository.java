@@ -1,6 +1,7 @@
 package com.im.admin.repositories;
 
 import com.im.admin.entities.RetailerPostpaidTransactionDetails;
+import com.im.admin.entities.RetailerPrepaidTransactionDetails;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Query;
@@ -32,9 +33,14 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
             Pageable pageable
     );
 
-    List<RetailerPostpaidTransactionDetails> findByTransactionIdAndRetailerId(String txnId, String hierarchyId);
+    @Query("SELECT t FROM RetailerPostpaidTransactionDetails t " +
+            "WHERE t.transactionId LIKE %:txnId% AND t.retailerId = :hierarchyId")
+    List<RetailerPostpaidTransactionDetails> findTransactionsByTransactionIdAndRetailerId(
+            @Param("txnId") String txnId,
+            @Param("hierarchyId") String hierarchyId);
 
-
-//    List<RetailerPostpaidTransactionDetails> findByTransactionIdAndHierarchyId(String txnId, String hierarchyId);
-
+    // Search only by normalized transactionId (for Admin / global search)
+    @Query("SELECT t FROM RetailerPostpaidTransactionDetails t " +
+            "WHERE t.transactionId LIKE %:txnId%")
+    List<RetailerPostpaidTransactionDetails> findTransactionsByTransactionId(@Param("txnId") String txnId);
 }
