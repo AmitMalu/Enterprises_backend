@@ -33,6 +33,9 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
     );
 
 
+    List<RetailerPrepaidTransactionDetails> findByTransactionIdAndRetailerId(String txnId, String hierarchyId);
+
+
 //    List<RetailerPrepaidTransactionDetails> findByTransactionIdAndHierarchyId(String txnId, String hierarchyId);
 
 }
