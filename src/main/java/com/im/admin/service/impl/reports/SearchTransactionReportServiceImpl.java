@@ -1,9 +1,11 @@
 package com.im.admin.service.impl.reports;
 
+import com.im.admin.dto.SearchTransactionReportGroupedResponse;
 import com.im.admin.response.SearchTransactionReportResponseDto;
 import com.im.admin.service.reports.AsyncSearchService;
 import com.im.admin.service.reports.SearchTransactionReportService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TransactionPrefixUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -28,23 +30,15 @@ public class SearchTransactionReportServiceImpl implements SearchTransactionRepo
     private AsyncSearchService asyncService;
 
     @Override
-    public Page<SearchTransactionReportResponseDto> searchTransactionById(String txnId, String hierarchyId, Pageable pageable) throws IllegalAccessException {
+    public SearchTransactionReportGroupedResponse searchTransactionById(
+            String txnId, String hierarchyId, Pageable pageable) throws IllegalAccessException {
 
-        // Normalize transactionId to base form (remove prefix if needed)
         String normalizedTxnId = txnId.length() > 14 ? txnId.substring(txnId.length() - 17) : txnId;
 
         List<CompletableFuture<List<SearchTransactionReportResponseDto>>> futures = new ArrayList<>();
         String hierarchyType = (hierarchyId == null) ? "AD" : commonMethods.extractHierarchyType(hierarchyId);
 
-        if ("AD".equalsIgnoreCase(hierarchyType)) {
-            futures.add(asyncService.searchRetailer(normalizedTxnId));
-            futures.add(asyncService.searchDistributor(normalizedTxnId));
-            futures.add(asyncService.searchPartner(normalizedTxnId));
-            futures.add(asyncService.searchSuperDistributor(normalizedTxnId));
-            futures.add(asyncService.searchWhiteLabel(normalizedTxnId));
-            futures.add(asyncService.searchEnterprise(normalizedTxnId));
-            futures.add(asyncService.searchAdmin(normalizedTxnId));
-        } else if ("WL-AD".equalsIgnoreCase(hierarchyType)) {
+        if ("AD".equalsIgnoreCase(hierarchyType) || "WL-AD".equalsIgnoreCase(hierarchyType)) {
             futures.add(asyncService.searchRetailer(normalizedTxnId));
             futures.add(asyncService.searchDistributor(normalizedTxnId));
             futures.add(asyncService.searchPartner(normalizedTxnId));
@@ -67,7 +61,7 @@ public class SearchTransactionReportServiceImpl implements SearchTransactionRepo
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
-        List<SearchTransactionReportResponseDto> results = futures.stream()
+        List<SearchTransactionReportResponseDto> allResults = futures.stream()
                 .flatMap(f -> {
                     try {
                         return f.get().stream();
@@ -79,11 +73,17 @@ public class SearchTransactionReportServiceImpl implements SearchTransactionRepo
                         .thenComparing(SearchTransactionReportResponseDto::getTime).reversed())
                 .toList();
 
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), results.size());
-        List<SearchTransactionReportResponseDto> pageContent = results.subList(start, end);
+        // Separate into two lists
+        List<SearchTransactionReportResponseDto> transactionDetails = allResults.stream()
+                .filter(dto -> TransactionPrefixUtil.isTransaction(dto.getTransactionId()))
+                .toList();
 
-        return new PageImpl<>(pageContent, pageable, results.size());
+        List<SearchTransactionReportResponseDto> walletDetails = allResults.stream()
+                .filter(dto -> TransactionPrefixUtil.isWallet(dto.getTransactionId()))
+                .toList();
+
+        return new SearchTransactionReportGroupedResponse(transactionDetails, walletDetails);
     }
+
 
 }

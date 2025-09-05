@@ -1,6 +1,7 @@
 package com.im.admin.entities;
 
 
+import com.im.admin.dto.CommonSearchTransactionDetails;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +17,7 @@ import java.util.Date;
 @Setter
 @Entity
 @Table(name = "partner_postpaid_transaction_details")
-public class PartnerPostpaidTransactionDetails {
+public class PartnerPostpaidTransactionDetails implements CommonSearchTransactionDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -82,5 +83,10 @@ public class PartnerPostpaidTransactionDetails {
 
     @Column(name = "narration")
     private String narration;
+
+    @Override
+    public String getHierarchyId() {
+        return partnerId;
+    }
 
 }
