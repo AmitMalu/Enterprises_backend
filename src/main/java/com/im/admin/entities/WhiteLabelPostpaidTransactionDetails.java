@@ -1,6 +1,7 @@
 package com.im.admin.entities;
 
 
+import com.im.admin.dto.CommonSearchTransactionDetails;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +17,7 @@ import java.util.Date;
 @Setter
 @Entity
 @Table(name = "white_label_postpaid_transaction_details")
-public class WhiteLabelPostpaidTransactionDetails {
+public class WhiteLabelPostpaidTransactionDetails implements CommonSearchTransactionDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -85,5 +86,10 @@ public class WhiteLabelPostpaidTransactionDetails {
 
     @Column(name = "narration")
     private String narration;
+
+    @Override
+    public String getHierarchyId() {
+        return whitelabelId;
+    }
 
 }

@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.im.admin.dto.CommonSearchTransactionDetails;
 import com.im.admin.util.AbstractRetailerTransactionDetails;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -8,10 +9,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.Date;
 
 @Entity
 @Getter
@@ -19,7 +18,7 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "retailer_postpaid_transaction_details")
-public class RetailerPostpaidTransactionDetails implements AbstractRetailerTransactionDetails {
+public class RetailerPostpaidTransactionDetails implements AbstractRetailerTransactionDetails, CommonSearchTransactionDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -138,5 +137,10 @@ public class RetailerPostpaidTransactionDetails implements AbstractRetailerTrans
     @Override
     public String getSubProductCode() {
         return "";
+    }
+
+    @Override
+    public String getHierarchyId() {
+        return retailerId;
     }
 }

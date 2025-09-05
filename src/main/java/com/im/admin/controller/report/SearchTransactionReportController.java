@@ -1,6 +1,7 @@
 package com.im.admin.controller.report;
 
 
+import com.im.admin.dto.SearchTransactionReportGroupedResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.SearchTransactionReportResponseDto;
 import com.im.admin.service.reports.SearchTransactionReportService;
@@ -29,7 +30,7 @@ public class SearchTransactionReportController {
     private CommonMethods commonMethods;
 
     @GetMapping("/view")
-    public ResponseEntity<CommonResponse<Page<SearchTransactionReportResponseDto>>> searchTransaction(
+    public ResponseEntity<CommonResponse<SearchTransactionReportGroupedResponse>> searchTransaction(
             @RequestParam String transactionId,
             @RequestParam(required = false) String hierarchyId,
             @RequestParam(defaultValue = "0") int page,
@@ -44,7 +45,7 @@ public class SearchTransactionReportController {
             log.warn("Admin provided hierarchyId which is not allowed | hierarchyId={}", hierarchyId);
             return ResponseEntity.badRequest().body(
                     new CommonResponse<>(400, "Admin must not provide hierarchyId", null));
-        } else if (!"AD".equalsIgnoreCase(userType) && (hierarchyId == null || hierarchyId.isBlank())) {
+        } else if (!"AD".equalsIgnoreCase(userType) && hierarchyId.isBlank()) {
             log.warn("Non-admin user did not provide required hierarchyId");
             return ResponseEntity.badRequest().body(
                     new CommonResponse<>(400, "hierarchyId is required for non-admin users", null));
@@ -53,21 +54,17 @@ public class SearchTransactionReportController {
         Pageable pageable = PageRequest.of(page, size);
 
         try {
-            Page<SearchTransactionReportResponseDto> result =
+            SearchTransactionReportGroupedResponse result =
                     searchTransactionReportService.searchTransactionById(transactionId, hierarchyId, pageable);
 
-            if (result.isEmpty()) {
+            if ((result.getTransactionDetails().isEmpty() && result.getWalletDetails().isEmpty())) {
                 log.info("No transactions found for transactionId={}, hierarchyId={}", transactionId, hierarchyId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new CommonResponse<>(
-                                404,
-                                "No transaction found",
-                                new PageImpl<>(new ArrayList<>(), pageable, 0)
-                        ));
+                        .body(new CommonResponse<>(404, "No transaction found", null));
             }
 
-            log.info("Transactions fetched successfully | transactionId={}, hierarchyId={}, totalRecords={}",
-                    transactionId, hierarchyId, result.getTotalElements());
+            log.info("Transactions fetched successfully | transactionId={}, hierarchyId={}, transactions={}, wallets={}",
+                    transactionId, hierarchyId, result.getTransactionDetails().size(), result.getWalletDetails().size());
 
             return ResponseEntity.ok(new CommonResponse<>(200, "Transaction(s) fetched successfully", result));
 
@@ -75,9 +72,8 @@ public class SearchTransactionReportController {
             log.error("Access forbidden while searching transaction | transactionId={}, hierarchyId={}, error={}",
                     transactionId, hierarchyId, ex.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new CommonResponse<>(403, ex.getMessage(), new PageImpl<>(new ArrayList<>(), pageable, 0)));
+                    .body(new CommonResponse<>(403, ex.getMessage(), null));
         }
     }
-
 
 }
