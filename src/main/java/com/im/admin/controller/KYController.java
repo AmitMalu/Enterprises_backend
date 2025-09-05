@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/kyc")
-public class KYCController {
+public class KYController {
 
     @Autowired
     private KYCService kycService;
