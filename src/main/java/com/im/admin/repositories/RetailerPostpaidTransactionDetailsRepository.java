@@ -32,6 +32,9 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
             Pageable pageable
     );
 
+    List<RetailerPostpaidTransactionDetails> findByTransactionIdAndRetailerId(String txnId, String hierarchyId);
+
+
 //    List<RetailerPostpaidTransactionDetails> findByTransactionIdAndHierarchyId(String txnId, String hierarchyId);
 
 }
