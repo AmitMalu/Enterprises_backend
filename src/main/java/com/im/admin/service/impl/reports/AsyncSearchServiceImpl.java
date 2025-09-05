@@ -97,19 +97,19 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
     public CompletableFuture<List<SearchTransactionReportResponseDto>> searchRetailerById(String txnId, String hierarchyId) {
         List<SearchTransactionReportResponseDto> result = new ArrayList<>();
 
-//        //  Retailer Prepaid Transactions
-//        List<RetailerPrepaidTransactionDetails> prepaidTxns =
-//                retailerPrepaidTransactionDetailsRepository.findByTransactionIdAndHierarchyId(txnId, hierarchyId);
-//        for (RetailerPrepaidTransactionDetails txn : prepaidTxns) {
-//            result.add(mapToDto(txn, "Prepaid"));
-//        }
-//
-//        //  Retailer Postpaid Transactions
-//        List<RetailerPostpaidTransactionDetails> postpaidTxns =
-//                retailerPostpaidTransactionDetailsRepository.findByTransactionIdAndHierarchyId(txnId, hierarchyId);
-//        for (RetailerPostpaidTransactionDetails txn : postpaidTxns) {
-//            result.add(mapToDto(txn, "Postpaid"));
-//        }
+        //  Retailer Prepaid Transactions
+        List<RetailerPrepaidTransactionDetails> prepaidTxns =
+                retailerPrepaidTransactionDetailsRepository.findByTransactionIdAndRetailerId(txnId, hierarchyId);
+        for (RetailerPrepaidTransactionDetails txn : prepaidTxns) {
+            result.add(mapToDto(txn, "Prepaid"));
+        }
+
+        //  Retailer Postpaid Transactions
+        List<RetailerPostpaidTransactionDetails> postpaidTxns =
+                retailerPostpaidTransactionDetailsRepository.findByTransactionIdAndRetailerId(txnId, hierarchyId);
+        for (RetailerPostpaidTransactionDetails txn : postpaidTxns) {
+            result.add(mapToDto(txn, "Postpaid"));
+        }
 
 
 
