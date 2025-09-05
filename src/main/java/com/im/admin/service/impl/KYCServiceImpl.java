@@ -1,0 +1,158 @@
+package com.im.admin.service.impl;
+
+import com.im.admin.dto.KYCRequestDto;
+import com.im.admin.entities.*;
+import com.im.admin.repositories.*;
+import com.im.admin.response.KYCResponseDto;
+import com.im.admin.service.KYCService;
+import com.im.admin.util.CommonMethods;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class KYCServiceImpl implements KYCService {
+
+    @Autowired
+    private RetailerRepository retailerRepository;
+
+    @Autowired
+    private DistributorRepository distributorRepository;
+
+    @Autowired
+    private PartnerRepository partnerRepository;
+
+    @Autowired
+    private SuperDistributorRepository superDistributorRepository;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelsRepository;
+
+    @Autowired
+    private EnterprisesRepository enterprisesRepository;
+
+    @Autowired
+    private AdminRepository adminRepository;
+
+    @Autowired
+    private CommonMethods commonMethods;
+
+
+    @Override
+    public KYCResponseDto getKYCDetails(KYCRequestDto kycRequestDto) {
+
+        String searchKeyword = kycRequestDto.getSearchKeyword();
+
+        // Try to extract type (RT, DT, PT, etc.)
+        String type = commonMethods.extractHierarchyType(searchKeyword);
+
+        if (type != null && !"UNKNOWN".equalsIgnoreCase(type)) {
+            return getByHierarchyId(type, searchKeyword);
+        } else {
+            return getByMobileNumber(searchKeyword);
+        }
+    }
+
+    private KYCResponseDto getByHierarchyId(String type, String hierarchyId) {
+        return switch (type) {
+            case "RT" -> retailerRepository.findById(hierarchyId)
+                    .map(this::mapRetailer).orElse(null);
+            case "DT" -> distributorRepository.findById(hierarchyId)
+                    .map(this::mapDistributor).orElse(null);
+            case "PT" -> partnerRepository.findById(hierarchyId)
+                    .map(this::mapPartner).orElse(null);
+            case "SD" -> superDistributorRepository.findById(hierarchyId)
+                    .map(this::mapSuperDistributor).orElse(null);
+            case "WL" -> whiteLabelsRepository.findById(hierarchyId)
+                    .map(this::mapWhiteLabel).orElse(null);
+            case "ET" -> enterprisesRepository.findById(hierarchyId)
+                    .map(this::mapEnterprise).orElse(null);
+            default -> null;
+        };
+    }
+
+    private KYCResponseDto getByMobileNumber(String mobileNumber) {
+        Retailer r = retailerRepository.findByMobileNumber(mobileNumber);
+        if (r != null) return mapRetailer(r);
+
+        Distributor d = distributorRepository.findByMobileNumber(mobileNumber);
+        if (d != null) return mapDistributor(d);
+
+        Partner p = partnerRepository.findByMobileNumber(mobileNumber);
+        if (p != null) return mapPartner(p);
+
+        SuperDistributor sd = superDistributorRepository.findByMobileNumber(mobileNumber);
+        if (sd != null) return mapSuperDistributor(sd);
+
+        WhiteLabels wl = whiteLabelsRepository.findByMobileNumber(mobileNumber);
+        if (wl != null) return mapWhiteLabel(wl);
+
+        Enterprises et = enterprisesRepository.findByMobileNumber(mobileNumber);
+        if (et != null) return mapEnterprise(et);
+
+        return null;
+    }
+
+    // ---- Mapping Methods ----
+    private KYCResponseDto mapRetailer(Retailer r) {
+        return new KYCResponseDto(
+                r.getRetailerId(), r.getName(), r.getMobileNumber(),
+                r.getEmailId(), r.getEmailVerified(),
+                r.getAadhaarCardFrontImage(), r.getAadhaarCardBackImage(), r.getIsAadhaarVerified(), r.getAadhaarNumber(),
+                r.getPanCardImage(), r.getPanNumber(), r.getPanVerified(), r.getAadhaarPanVerified(),
+                r.getShopImage(), r.getShopNumber(), r.getBusinessProofImage(), r.getBusinessNumber(), r.getGstNumberVerified()
+        );
+    }
+
+    private KYCResponseDto mapDistributor(Distributor d) {
+        return new KYCResponseDto(
+                d.getDistributorId(), d.getName(), d.getMobileNumber(),
+                d.getEmailId(), d.getEmailVerified(),
+                d.getAadhaarCardFrontImage(), d.getAadhaarCardBackImage(), d.getIsAadhaarVerified(), d.getAadhaarNumber(),
+                d.getPanCardImage(), d.getPanNumber(), d.getPanVerified(), d.getAadhaarPanVerified(),
+                d.getShopImage(), d.getShopNumber(), d.getBusinessProofImage(), d.getBusinessNumber(), d.getGstNumberVerified()
+        );
+    }
+
+    private KYCResponseDto mapPartner(Partner p) {
+        return new KYCResponseDto(
+                p.getPartnerId(), p.getName(), p.getMobileNumber(),
+                p.getEmailId(), p.getEmailVerified(),
+                p.getAadhaarCardFrontImage(), p.getAadhaarCardBackImage(), p.getIsAadhaarVerified(), p.getAadhaarNumber(),
+                p.getPanCardImage(), p.getPanNumber(), p.getPanVerified(), p.getAadhaarPanVerified(),
+                p.getShopImage(), p.getShopNumber(), p.getBusinessProofImage(), p.getBusinessNumber(), p.getGstNumberVerified()
+        );
+    }
+
+    private KYCResponseDto mapSuperDistributor(SuperDistributor sd) {
+        return new KYCResponseDto(
+                sd.getSuperDistributorId(), sd.getName(), sd.getMobileNumber(),
+                sd.getEmailId(), sd.getEmailVerified(),
+                sd.getAadhaarCardFrontImage(), sd.getAadhaarCardBackImage(), sd.getIsAadhaarVerified(), sd.getAadhaarNumber(),
+                sd.getPanCardImage(), sd.getPanNumber(), sd.getPanVerified(), sd.getAadhaarPanVerified(),
+                sd.getShopImage(), sd.getShopNumber(), sd.getBusinessProofImage(), sd.getBusinessNumber(), sd.getGstNumberVerified()
+        );
+    }
+
+    private KYCResponseDto mapWhiteLabel(WhiteLabels wl) {
+        return new KYCResponseDto(
+                wl.getWhiteLabelId(), wl.getTitle(), wl.getMobileNumber(),
+                wl.getEmailId(), wl.getEmailVerified(),
+                wl.getAadhaarCardFrontImage(), wl.getAadhaarCardBackImage(), wl.getIsAadhaarVerified(), wl.getAadhaarNumber(),
+                wl.getPanCardImage(), wl.getPanNumber(), wl.getPanVerified(), wl.getAadhaarPanVerified(),
+                wl.getShopImage(), wl.getShopNumber(), wl.getBusinessProofImage(), wl.getBusinessNumber(), wl.getGstNumberVerified()
+        );
+    }
+
+    private KYCResponseDto mapEnterprise(Enterprises et) {
+        return new KYCResponseDto(
+                et.getEnterpriseId(), et.getName(), et.getMobileNumber(),
+                et.getEmailId(), et.getEmailVerified(),
+                et.getAadhaarCardFrontImage(), et.getAadhaarCardBackImage(), et.getIsAadhaarVerified(), et.getAadhaarNumber(),
+                et.getPanCardImage(), et.getPanNumber(), et.getPanVerified(), et.getAadhaarPanVerified(),
+                et.getShopImage(), et.getShopNumber(), et.getBusinessProofImage(), et.getBusinessNumber(), et.getGstNumberVerified()
+        );
+    }
+
+}
+
+

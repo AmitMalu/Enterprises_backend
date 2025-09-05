@@ -31,5 +31,7 @@ public interface SuperDistributorRepository extends JpaRepository<SuperDistribut
 
     List<SuperDistributor> findByParentAccountContainingIgnoreCase(String fromId);
 
+    SuperDistributor findByMobileNumber(String mobileNumber);
+
 }
 

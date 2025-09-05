@@ -8,9 +8,11 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
-public interface AdminRepository extends JpaRepository<Admin, String> {
+public interface
+AdminRepository extends JpaRepository<Admin, String> {
 
     List<Admin> findByStatus(String status);
 
@@ -18,6 +20,8 @@ public interface AdminRepository extends JpaRepository<Admin, String> {
 
     @Query("SELECT a.name FROM Admin a WHERE a.id = :hierarchyId")
     String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
+
+    Admin findByMobileNumber(String mobileNumber);
 
 //    List<Admin> findByParentAccount(String fromId);
 

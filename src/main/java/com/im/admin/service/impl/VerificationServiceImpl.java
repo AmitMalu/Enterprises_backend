@@ -91,7 +91,7 @@ public class VerificationServiceImpl implements VerificationService {
             // 3. Prepare request
             Map<String, String> body = new HashMap<>();
             body.put("id_number", aadhaarNumber);
-            requestJson = objectMapper.writeValueAsString(body); // 👈 store request JSON
+            requestJson = objectMapper.writeValueAsString(body); //  store request JSON
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
             String url = credentials.getBaseUrlUat() + "/v1/aadhaar-validation/aadhaar-validation";
@@ -104,7 +104,7 @@ public class VerificationServiceImpl implements VerificationService {
             );
 
             AadhaarValidationResponse responseBody = response.getBody();
-            responseJson = objectMapper.writeValueAsString(responseBody); // 👈 store response JSON
+            responseJson = objectMapper.writeValueAsString(responseBody); //  store response JSON
 
             // 5. Save logs
             commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
