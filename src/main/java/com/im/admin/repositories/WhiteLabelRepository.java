@@ -36,6 +36,8 @@ public interface WhiteLabelRepository extends JpaRepository<WhiteLabels, String>
 
     List<WhiteLabels> findByParentAccountContainingIgnoreCase(String fromId);
 
+
+
 }
 
 

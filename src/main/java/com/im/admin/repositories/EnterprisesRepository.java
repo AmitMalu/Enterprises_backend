@@ -29,6 +29,8 @@ public interface EnterprisesRepository extends JpaRepository<Enterprises, String
 
 
     List<Enterprises> findByParentAccount(String fromId);
+
+   Enterprises findByMobileNumber(String mobileNumber);
 }
 
 
