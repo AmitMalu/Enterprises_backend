@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface WhiteLabelPrepaidTransactionDetailsRepository extends JpaRepository<WhiteLabelPrepaidTransactionDetails, Integer> {
+public interface WhiteLabelPrepaidTransactionDetailsRepository extends JpaRepository<WhiteLabelPrepaidTransactionDetails, Integer>, BaseTransactionRepository<WhiteLabelPrepaidTransactionDetails, Integer> {
 
     // Search by normalized transactionId + whitelabelId
     @Query("SELECT wl FROM WhiteLabelPrepaidTransactionDetails wl " +

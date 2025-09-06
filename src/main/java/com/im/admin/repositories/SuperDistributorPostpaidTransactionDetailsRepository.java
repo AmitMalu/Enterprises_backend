@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface SuperDistributorPostpaidTransactionDetailsRepository extends JpaRepository<SuperDistributorPostpaidTransactionDetails, Integer> {
+public interface SuperDistributorPostpaidTransactionDetailsRepository extends JpaRepository<SuperDistributorPostpaidTransactionDetails, Integer>, BaseTransactionRepository<SuperDistributorPostpaidTransactionDetails, Integer> {
 
 
     // Search by normalized transactionId + distributorId

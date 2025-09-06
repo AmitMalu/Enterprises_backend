@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RetailerPostpaidTransactionDetailsRepository extends JpaRepository<RetailerPostpaidTransactionDetails, Integer> {
+public interface RetailerPostpaidTransactionDetailsRepository extends JpaRepository<RetailerPostpaidTransactionDetails, Integer>, BaseTransactionRepository<RetailerPostpaidTransactionDetails, Integer> {
 
     Optional<RetailerPostpaidTransactionDetails> findByTransactionId(String transactionId);
 

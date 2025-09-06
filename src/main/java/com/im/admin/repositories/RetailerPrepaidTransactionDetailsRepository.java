@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RetailerPrepaidTransactionDetailsRepository extends JpaRepository<RetailerPrepaidTransactionDetails, Integer> {
+public interface RetailerPrepaidTransactionDetailsRepository extends JpaRepository<RetailerPrepaidTransactionDetails, Integer>, BaseTransactionRepository<RetailerPrepaidTransactionDetails, Integer> {
 
     Optional<RetailerPrepaidTransactionDetails> findByTransactionId(String transactionId);
 
@@ -44,6 +44,5 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
     @Query("SELECT t FROM RetailerPrepaidTransactionDetails t " +
             "WHERE t.transactionId LIKE %:txnId%")
     List<RetailerPrepaidTransactionDetails> findTransactionsByTransactionId(@Param("txnId") String txnId);
-
 
 }
