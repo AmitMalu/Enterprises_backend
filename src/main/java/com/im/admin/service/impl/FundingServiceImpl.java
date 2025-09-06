@@ -305,7 +305,7 @@ public class FundingServiceImpl implements FundingService {
             responsePage = new PageImpl<>(merged, pageable, merged.size());
 
         } else {
-            // ❌ Invalid walletType
+            //  Invalid walletType
             throw new IllegalArgumentException("Invalid walletType: " + request.getWalletType());
         }
 
@@ -351,8 +351,5 @@ public class FundingServiceImpl implements FundingService {
                 txn.getSubProductName()
         ));
     }
-
-
-
 
 }
