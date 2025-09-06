@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface EnterprisesPrepaidTransactionDetailsRepository extends JpaRepository<EnterprisesPrepaidTransactionDetails, Integer> {
+public interface EnterprisesPrepaidTransactionDetailsRepository extends JpaRepository<EnterprisesPrepaidTransactionDetails, Integer>, BaseTransactionRepository<EnterprisesPrepaidTransactionDetails, Integer> {
 
     // Search by normalized transactionId + enterprisesId
     @Query("SELECT et FROM EnterprisesPrepaidTransactionDetails et " +

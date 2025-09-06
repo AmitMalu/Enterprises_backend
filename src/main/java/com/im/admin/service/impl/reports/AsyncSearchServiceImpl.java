@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -201,5 +203,60 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
         dto.setTime(txn.getTimeOfTransaction());
         return dto;
     }
+
+    @Override
+    @Async
+    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchTransactionsByHour(LocalDateTime start, LocalDateTime end) {
+        List<SearchTransactionReportResponseDto> result = new ArrayList<>();
+
+        LocalDate date = start.toLocalDate();
+        int hour = start.getHour(); // only this hour is considered
+
+        // Retailer
+        result.addAll(fetchTransactions(
+                () -> retailerPrepaidTransactionDetailsRepository.findByDateAndHour(date, hour),
+                () -> retailerPostpaidTransactionDetailsRepository.findByDateAndHour(date, hour)
+        ));
+
+        // Distributor
+        result.addAll(fetchTransactions(
+                () -> distributorPrepaidTransactionDetailsRepository.findByDateAndHour(date, hour),
+                () -> distributorPostpaidTransactionDetailsRepository.findByDateAndHour(date, hour)
+        ));
+
+        // Partner
+        result.addAll(fetchTransactions(
+                () -> partnerPrepaidTransactionDetailsRepository.findByDateAndHour(date, hour),
+                () -> partnerPostpaidTransactionDetailsRepository.findByDateAndHour(date, hour)
+        ));
+
+        // SuperDistributor
+        result.addAll(fetchTransactions(
+                () -> superDistributorPrepaidTransactionDetailsRepository.findByDateAndHour(date, hour),
+                () -> superDistributorPostpaidTransactionDetailsRepository.findByDateAndHour(date, hour)
+        ));
+
+        // WhiteLabel
+        result.addAll(fetchTransactions(
+                () -> whiteLabelPrepaidTransactionDetailsRepository.findByDateAndHour(date, hour),
+                () -> whiteLabelPostpaidTransactionDetailsRepository.findByDateAndHour(date, hour)
+        ));
+
+        // Enterprises
+        result.addAll(fetchTransactions(
+                () -> enterprisesPrepaidTransactionDetailsRepository.findByDateAndHour(date, hour),
+                () -> enterprisesPostpaidTransactionDetailsRepository.findByDateAndHour(date, hour)
+        ));
+
+        // Admin
+        result.addAll(fetchTransactions(
+                () -> adminPrepaidTransactionDetailsRepository.findByDateAndHour(date, hour),
+                () -> adminPostpaidTransactionDetailsRepository.findByDateAndHour(date, hour)
+        ));
+
+        // At this point `result` contains merged Prepaid + Postpaid for all hierarchies
+        return CompletableFuture.completedFuture(result);
+    }
+
 
 }

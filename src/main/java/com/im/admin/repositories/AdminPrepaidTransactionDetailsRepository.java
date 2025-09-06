@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface AdminPrepaidTransactionDetailsRepository extends JpaRepository<AdminPrepaidTransactionDetails, Integer> {
+public interface AdminPrepaidTransactionDetailsRepository extends JpaRepository<AdminPrepaidTransactionDetails, Integer>, BaseTransactionRepository<AdminPrepaidTransactionDetails, Integer> {
 
 
     // Search by normalized transactionId + enterprisesId
