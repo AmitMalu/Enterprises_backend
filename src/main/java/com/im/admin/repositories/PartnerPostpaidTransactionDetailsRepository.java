@@ -8,10 +8,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
-public interface PartnerPostpaidTransactionDetailsRepository extends JpaRepository<PartnerPostpaidTransactionDetails, Integer> {
+public interface PartnerPostpaidTransactionDetailsRepository extends JpaRepository<PartnerPostpaidTransactionDetails, Integer>, BaseTransactionRepository<PartnerPostpaidTransactionDetails, Integer> {
 
     // Search by normalized transactionId + distributorId
     @Query("SELECT pt FROM PartnerPostpaidTransactionDetails pt " +

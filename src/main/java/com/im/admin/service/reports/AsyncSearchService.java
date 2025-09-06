@@ -3,6 +3,7 @@ package com.im.admin.service.reports;
 import com.im.admin.response.SearchTransactionReportResponseDto;
 import org.springframework.scheduling.annotation.Async;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -23,4 +24,7 @@ public interface AsyncSearchService {
     @Async CompletableFuture<List<SearchTransactionReportResponseDto>> searchWhiteLabelById(String txnId, String hierarchyId);
     @Async CompletableFuture<List<SearchTransactionReportResponseDto>> searchEnterpriseById(String txnId, String hierarchyId);
     @Async CompletableFuture<List<SearchTransactionReportResponseDto>> searchAdminById(String txnId, String hierarchyId);
+
+    @Async CompletableFuture<List<SearchTransactionReportResponseDto>> searchTransactionsByHour(LocalDateTime start, LocalDateTime end);
+
 }
