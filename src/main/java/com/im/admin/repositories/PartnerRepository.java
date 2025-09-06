@@ -32,5 +32,7 @@ public interface PartnerRepository extends JpaRepository<Partner, String> {
 
     List<Partner> findByParentAccountContainingIgnoreCase(String fromId);
 
+    Partner findByMobileNumber(String mobileNumber);
+
 }
 

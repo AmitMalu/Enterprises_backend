@@ -28,7 +28,7 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
 
     List<Retailer> findByParentAccountContainingIgnoreCase(String parentAccount);
 
-
+    Retailer findByMobileNumber(String mobileNumber);
 
     //boolean existsByAbbreviation(String abbrivation);
 
