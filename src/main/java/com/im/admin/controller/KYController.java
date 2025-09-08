@@ -75,4 +75,15 @@ public class KYController {
     }
 
 
+    @DeleteMapping("/delete-document")
+    public ResponseEntity<CommonResponse<Object>> deleteKycDocument(
+            @RequestParam String hierarchyId,
+            @RequestParam String category) {
+
+        kycService.deleteKycDocument(hierarchyId, category);
+
+        CommonResponse<Object> commonResponse = new CommonResponse<>(201, "Document deleted (nullified) successfully", null);
+        return ResponseEntity.ok(commonResponse);
+    }
+
 }
