@@ -7,6 +7,7 @@ import com.im.admin.repositories.*;
 import com.im.admin.response.KYCResponseDto;
 import com.im.admin.service.KYCService;
 import com.im.admin.util.CommonMethods;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -210,34 +211,33 @@ public class KYCServiceImpl implements KYCService {
         String hierarchyId = request.getHierarchyId();
         String type = commonMethods.extractHierarchyType(request.getHierarchyId());
         String category = request.getCategory();
-        String subCategory = request.getSubCategory();
         boolean verified = request.isVerified();
 
         final String finalImagePath = imagePath;
 
         switch (type) {
             case "RT" -> retailerRepository.findById(hierarchyId).ifPresent(r -> {
-                updateDocument(r, category, subCategory, verified, finalImagePath);
+                updateDocument(r, category, verified, finalImagePath);
                 retailerRepository.save(r);
             });
             case "DT" -> distributorRepository.findById(hierarchyId).ifPresent(d -> {
-                updateDocument(d, category, subCategory, verified, finalImagePath);
+                updateDocument(d, category, verified, finalImagePath);
                 distributorRepository.save(d);
             });
             case "PT" -> partnerRepository.findById(hierarchyId).ifPresent(p -> {
-                updateDocument(p, category, subCategory, verified, finalImagePath);
+                updateDocument(p, category, verified, finalImagePath);
                 partnerRepository.save(p);
             });
             case "SD" -> superDistributorRepository.findById(hierarchyId).ifPresent(sd -> {
-                updateDocument(sd, category, subCategory, verified, finalImagePath);
+                updateDocument(sd, category, verified, finalImagePath);
                 superDistributorRepository.save(sd);
             });
             case "WL" -> whiteLabelsRepository.findById(hierarchyId).ifPresent(wl -> {
-                updateDocument(wl, category, subCategory, verified, finalImagePath);
+                updateDocument(wl, category, verified, finalImagePath);
                 whiteLabelsRepository.save(wl);
             });
             case "ET" -> enterprisesRepository.findById(hierarchyId).ifPresent(et -> {
-                updateDocument(et, category, subCategory, verified, finalImagePath);
+                updateDocument(et, category, verified, finalImagePath);
                 enterprisesRepository.save(et);
             });
             default -> {
@@ -267,62 +267,48 @@ public class KYCServiceImpl implements KYCService {
     }
 
 
-    private void updateDocument(Object entity, String category, String subCategory, boolean verified, String image) {
+    private void updateDocument(Object entity, String category, boolean verified, String image) {
         switch (category.toUpperCase()) {
-            case "AADHAAR" -> {
+            case "AADHAAR_FRONT" -> {
                 if (entity instanceof Retailer r) {
-                    if (image != null) {
-                        if ("BACK".equalsIgnoreCase(subCategory)) {
-                            r.setAadhaarCardBackImage(image);
-                        } else {
-                            r.setAadhaarCardFrontImage(image);
-                        }
-                    }
+                    if (image != null) r.setAadhaarCardFrontImage(image);
                     r.setIsAadhaarVerified(verified);
                 } else if (entity instanceof Distributor d) {
-                    if (image != null) {
-                        if ("BACK".equalsIgnoreCase(subCategory)) {
-                            d.setAadhaarCardBackImage(image);
-                        } else {
-                            d.setAadhaarCardFrontImage(image);
-                        }
-                    }
+                    if (image != null) d.setAadhaarCardFrontImage(image);
                     d.setIsAadhaarVerified(verified);
                 } else if (entity instanceof Partner p) {
-                    if (image != null) {
-                        if ("BACK".equalsIgnoreCase(subCategory)) {
-                            p.setAadhaarCardBackImage(image);
-                        } else {
-                            p.setAadhaarCardFrontImage(image);
-                        }
-                    }
+                    if (image != null) p.setAadhaarCardFrontImage(image);
                     p.setIsAadhaarVerified(verified);
                 } else if (entity instanceof SuperDistributor sd) {
-                    if (image != null) {
-                        if ("BACK".equalsIgnoreCase(subCategory)) {
-                            sd.setAadhaarCardBackImage(image);
-                        } else {
-                            sd.setAadhaarCardFrontImage(image);
-                        }
-                    }
+                    if (image != null) sd.setAadhaarCardFrontImage(image);
                     sd.setIsAadhaarVerified(verified);
                 } else if (entity instanceof WhiteLabels wl) {
-                    if (image != null) {
-                        if ("BACK".equalsIgnoreCase(subCategory)) {
-                            wl.setAadhaarCardBackImage(image);
-                        } else {
-                            wl.setAadhaarCardFrontImage(image);
-                        }
-                    }
+                    if (image != null) wl.setAadhaarCardFrontImage(image);
                     wl.setIsAadhaarVerified(verified);
                 } else if (entity instanceof Enterprises et) {
-                    if (image != null) {
-                        if ("BACK".equalsIgnoreCase(subCategory)) {
-                            et.setAadhaarCardBackImage(image);
-                        } else {
-                            et.setAadhaarCardFrontImage(image);
-                        }
-                    }
+                    if (image != null) et.setAadhaarCardFrontImage(image);
+                    et.setIsAadhaarVerified(verified);
+                }
+            }
+
+            case "AADHAAR_BACK" -> {
+                if (entity instanceof Retailer r) {
+                    if (image != null) r.setAadhaarCardBackImage(image);
+                    r.setIsAadhaarVerified(verified);
+                } else if (entity instanceof Distributor d) {
+                    if (image != null) d.setAadhaarCardBackImage(image);
+                    d.setIsAadhaarVerified(verified);
+                } else if (entity instanceof Partner p) {
+                    if (image != null) p.setAadhaarCardBackImage(image);
+                    p.setIsAadhaarVerified(verified);
+                } else if (entity instanceof SuperDistributor sd) {
+                    if (image != null) sd.setAadhaarCardBackImage(image);
+                    sd.setIsAadhaarVerified(verified);
+                } else if (entity instanceof WhiteLabels wl) {
+                    if (image != null) wl.setAadhaarCardBackImage(image);
+                    wl.setIsAadhaarVerified(verified);
+                } else if (entity instanceof Enterprises et) {
+                    if (image != null) et.setAadhaarCardBackImage(image);
                     et.setIsAadhaarVerified(verified);
                 }
             }
@@ -387,7 +373,133 @@ public class KYCServiceImpl implements KYCService {
                 }
             }
         }
+
+
 }
+
+
+    @Transactional
+    @Override
+    public void deleteKycDocument(String hierarchyId, String category) {
+
+        String type = commonMethods.extractHierarchyType(hierarchyId);
+
+        switch (type) {
+            case "RT" -> retailerRepository.findById(hierarchyId).ifPresent(r -> {
+                removeDocumentField(r, category);
+                retailerRepository.save(r);
+            });
+            case "DT" -> distributorRepository.findById(hierarchyId).ifPresent(d -> {
+                removeDocumentField(d, category);
+                distributorRepository.save(d);
+            });
+            case "PT" -> partnerRepository.findById(hierarchyId).ifPresent(p -> {
+                removeDocumentField(p, category);
+                partnerRepository.save(p);
+            });
+            case "SD" -> superDistributorRepository.findById(hierarchyId).ifPresent(sd -> {
+                removeDocumentField(sd, category);
+                superDistributorRepository.save(sd);
+            });
+            case "WL" -> whiteLabelsRepository.findById(hierarchyId).ifPresent(wl -> {
+                removeDocumentField(wl, category);
+                whiteLabelsRepository.save(wl);
+            });
+            case "ET" -> enterprisesRepository.findById(hierarchyId).ifPresent(et -> {
+                removeDocumentField(et, category);
+                enterprisesRepository.save(et);
+            });
+            default -> throw new IllegalArgumentException("Invalid type");
+        }
+    }
+
+
+    private void removeDocumentField(Object entity, String category) {
+        switch (category.toUpperCase()) {
+            case "AADHAAR_FRONT" -> {
+                if (entity instanceof Retailer r) {
+                    r.setAadhaarCardFrontImage(null);
+                } else if (entity instanceof Distributor d) {
+                    d.setAadhaarCardFrontImage(null);
+                } else if (entity instanceof Partner p) {
+                    p.setAadhaarCardFrontImage(null);
+                } else if (entity instanceof SuperDistributor sd) {
+                    sd.setAadhaarCardFrontImage(null);
+                } else if (entity instanceof WhiteLabels wl) {
+                    wl.setAadhaarCardFrontImage(null);
+                } else if (entity instanceof Enterprises et) {
+                    et.setAadhaarCardFrontImage(null);
+                }
+            }
+
+            case "AADHAAR_BACK" -> {
+                if (entity instanceof Retailer r) {
+                    r.setAadhaarCardBackImage(null);
+                } else if (entity instanceof Distributor d) {
+                    d.setAadhaarCardBackImage(null);
+                } else if (entity instanceof Partner p) {
+                    p.setAadhaarCardBackImage(null);
+                } else if (entity instanceof SuperDistributor sd) {
+                    sd.setAadhaarCardBackImage(null);
+                } else if (entity instanceof WhiteLabels wl) {
+                    wl.setAadhaarCardBackImage(null);
+                } else if (entity instanceof Enterprises et) {
+                    et.setAadhaarCardBackImage(null);
+                }
+            }
+
+            case "PAN" -> {
+                if (entity instanceof Retailer r) {
+                    r.setPanCardImage(null);
+                } else if (entity instanceof Distributor d) {
+                    d.setPanCardImage(null);
+                } else if (entity instanceof Partner p) {
+                    p.setPanCardImage(null);
+                } else if (entity instanceof SuperDistributor sd) {
+                    sd.setPanCardImage(null);
+                } else if (entity instanceof WhiteLabels wl) {
+                    wl.setPanCardImage(null);
+                } else if (entity instanceof Enterprises et) {
+                    et.setPanCardImage(null);
+                }
+            }
+
+            case "SHOP" -> {
+                if (entity instanceof Retailer r) {
+                    r.setShopImage(null);
+                } else if (entity instanceof Distributor d) {
+                    d.setShopImage(null);
+                } else if (entity instanceof Partner p) {
+                    p.setShopImage(null);
+                } else if (entity instanceof SuperDistributor sd) {
+                    sd.setShopImage(null);
+                } else if (entity instanceof WhiteLabels wl) {
+                    wl.setShopImage(null);
+                } else if (entity instanceof Enterprises et) {
+                    et.setShopImage(null);
+                }
+            }
+
+            case "BUSINESS" -> {
+                if (entity instanceof Retailer r) {
+                    r.setBusinessProofImage(null);
+                } else if (entity instanceof Distributor d) {
+                    d.setBusinessProofImage(null);
+                } else if (entity instanceof Partner p) {
+                    p.setBusinessProofImage(null);
+                } else if (entity instanceof SuperDistributor sd) {
+                    sd.setBusinessProofImage(null);
+                } else if (entity instanceof WhiteLabels wl) {
+                    wl.setBusinessProofImage(null);
+                } else if (entity instanceof Enterprises et) {
+                    et.setBusinessProofImage(null);
+                }
+            }
+        }
+    }
+
+
+
 }
 
 

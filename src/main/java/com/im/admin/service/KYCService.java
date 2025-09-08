@@ -14,4 +14,8 @@ public interface KYCService {
     Page<KYCResponseDto> searchByHierarchyWise(String hierarchyType, Pageable pageable);
 
     String editKyc(KYCEditRequest request, MultipartFile imageFile);
+
+
+    void deleteKycDocument(String hierarchyId, String category);
+
 }
