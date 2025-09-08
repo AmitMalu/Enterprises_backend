@@ -1,14 +1,23 @@
 package com.im.admin.controller;
 
 
+import com.im.admin.dto.HierarchySearchRequestDto;
+import com.im.admin.dto.KYCEditRequest;
 import com.im.admin.dto.KYCRequestDto;
+import com.im.admin.entities.Retailer;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.KYCResponseDto;
 import com.im.admin.service.KYCService;
+import com.im.admin.util.JsonUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/kyc")
@@ -18,11 +27,52 @@ public class KYController {
     private KYCService kycService;
 
     @GetMapping("/fetch-documnets")
-    public ResponseEntity<CommonResponse<KYCResponseDto>> fetchKYC(@RequestBody KYCRequestDto kycRequestDto) {
-        KYCResponseDto dto = kycService.getKYCDetails(kycRequestDto);
+    public ResponseEntity<CommonResponse<KYCResponseDto>> searchByMobileNoAndHierarchyId(@RequestBody KYCRequestDto kycRequestDto) {
+        KYCResponseDto dto = kycService.searchByMobileNoAndHierarchyId(kycRequestDto);
         if (dto == null) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(new CommonResponse<>(201, "Documents fetched successfully", dto));
     }
+
+    @GetMapping("/search-by-hierarchy-wise")
+    public ResponseEntity<CommonResponse<Page<KYCResponseDto>>> searchByHierarchyWise(
+            @RequestBody HierarchySearchRequestDto requestDto,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<KYCResponseDto> responsePage = kycService.searchByHierarchyWise(requestDto.getHierarchyType(), pageable);
+
+        return ResponseEntity.ok(new CommonResponse<>(201, "fetched all Documents", responsePage));
+    }
+
+
+    @PostMapping(value = "/edit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommonResponse<String>> editKyc(
+            @RequestPart("request") String requestJson,
+            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile) {
+
+        KYCEditRequest request;
+        try {
+            request = JsonUtil.parseJson(requestJson, KYCEditRequest.class);
+        } catch (Exception e) {
+            CommonResponse<String> errorResponse = new CommonResponse<>();
+            errorResponse.setStatusCode(HttpStatus.BAD_REQUEST.value());
+            errorResponse.setMessage("Invalid request JSON");
+            errorResponse.setData(null);
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+
+        String result = kycService.editKyc(request, imageFile);
+
+        CommonResponse<String> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.OK.value());
+        response.setMessage(result);
+        response.setData(null);
+
+        return ResponseEntity.ok(response);
+    }
+
+
 }
