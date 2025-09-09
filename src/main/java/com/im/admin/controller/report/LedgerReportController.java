@@ -41,14 +41,13 @@ public class LedgerReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size
     ) {
-        Pageable pageable = PageRequest.of(page, size,
-                Sort.by("dateOfTransaction").descending()
-                        .and(Sort.by("timeOfTransaction")).descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.unsorted());  // Important: Unsored Pageable
 
         Page<LedgerReportDto> reports = service.getLedgerReports(fromDate, toDate, pageable);
 
         return ResponseEntity.ok(CommonResponse.success(reports, "Ledger reports fetched successfully"));
     }
+
 
     @GetMapping("/download")
     public ResponseEntity<byte[]> downloadLedgerReport(
