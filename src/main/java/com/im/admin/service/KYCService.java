@@ -18,4 +18,6 @@ public interface KYCService {
 
     void deleteKycDocument(String hierarchyId, String category);
 
+    Object getApprovedDocuments(String searchKeyword, Pageable pageable);
+
 }

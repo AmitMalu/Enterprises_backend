@@ -18,7 +18,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 
 
 
@@ -213,6 +222,7 @@ public class KYCServiceImpl implements KYCService {
         String category = request.getCategory();
         boolean verified = request.isVerified();
 
+
         final String finalImagePath = imagePath;
 
         switch (type) {
@@ -372,9 +382,23 @@ public class KYCServiceImpl implements KYCService {
                     et.setGstNumberVerified(verified);
                 }
             }
+
+            case "EMAIL" -> {
+                if (entity instanceof Retailer r) {
+                    r.setEmailVerified(verified);
+                } else if (entity instanceof Distributor d) {
+                    d.setEmailVerified(verified);
+                } else if (entity instanceof Partner p) {
+                    p.setEmailVerified(verified);
+                } else if (entity instanceof SuperDistributor sd) {
+                    sd.setEmailVerified(verified);
+                } else if (entity instanceof WhiteLabels wl) {
+                    wl.setEmailVerified(verified);
+                } else if (entity instanceof Enterprises et) {
+                    et.setEmailVerified(verified);
+                }
+            }
         }
-
-
 }
 
 
@@ -498,6 +522,150 @@ public class KYCServiceImpl implements KYCService {
         }
     }
 
+
+    @Override
+    public Object getApprovedDocuments(String searchKeyword, Pageable pageable) {
+
+        switch (searchKeyword.toUpperCase()) {
+            case "RT", "DT", "PT", "SD", "WL", "ET" -> {
+                Page<?> pageData = switch (searchKeyword.toUpperCase()) {
+                    case "RT" -> retailerRepository.findAll(pageable);
+                    case "DT" -> distributorRepository.findAll(pageable);
+                    case "PT" -> partnerRepository.findAll(pageable);
+                    case "SD" -> superDistributorRepository.findAll(pageable);
+                    case "WL" -> whiteLabelsRepository.findAll(pageable);
+                    case "ET" -> enterprisesRepository.findAll(pageable);
+                    default -> Page.empty(pageable);
+                };
+
+                List<Object> mappedList = pageData.stream()
+                        .filter(this::hasApprovedDocuments)
+                        .map(entity -> {
+                            if (entity instanceof Retailer) return mapRetailer((Retailer) entity);
+                            if (entity instanceof Distributor) return mapDistributor((Distributor) entity);
+                            if (entity instanceof Partner) return mapPartner((Partner) entity);
+                            if (entity instanceof SuperDistributor) return mapSuperDistributor((SuperDistributor) entity);
+                            if (entity instanceof WhiteLabels) return mapWhiteLabel((WhiteLabels) entity);
+                            if (entity instanceof Enterprises) return mapEnterprise((Enterprises) entity);
+                            return null;
+                        })
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+
+                return new PageImpl<>(mappedList, pageable, pageData.getTotalElements());
+            }
+
+            default -> {
+                String type = commonMethods.extractHierarchyType(searchKeyword);
+
+                if (type != null && !"UNKNOWN".equalsIgnoreCase(type)) {
+                    return switch (type) {
+                        case "RT" -> retailerRepository.findById(searchKeyword)
+                                .filter(this::hasApprovedDocuments)
+                                .map(this::mapRetailer)
+                                .orElse(null);
+
+                        case "DT" -> distributorRepository.findById(searchKeyword)
+                                .filter(this::hasApprovedDocuments)
+                                .map(this::mapDistributor)
+                                .orElse(null);
+
+                        case "PT" -> partnerRepository.findById(searchKeyword)
+                                .filter(this::hasApprovedDocuments)
+                                .map(this::mapPartner)
+                                .orElse(null);
+
+                        case "SD" -> superDistributorRepository.findById(searchKeyword)
+                                .filter(this::hasApprovedDocuments)
+                                .map(this::mapSuperDistributor)
+                                .orElse(null);
+
+                        case "WL" -> whiteLabelsRepository.findById(searchKeyword)
+                                .filter(this::hasApprovedDocuments)
+                                .map(this::mapWhiteLabel)
+                                .orElse(null);
+
+                        case "ET" -> enterprisesRepository.findById(searchKeyword)
+                                .filter(this::hasApprovedDocuments)
+                                .map(this::mapEnterprise)
+                                .orElse(null);
+
+                        default -> null;
+                    };
+                } else {
+                    // Fallback search by mobile number
+                    Retailer r = retailerRepository.findByMobileNumber(searchKeyword);
+                    if (r != null && hasApprovedDocuments(r)) return mapRetailer(r);
+
+                    Distributor d = distributorRepository.findByMobileNumber(searchKeyword);
+                    if (d != null && hasApprovedDocuments(d)) return mapDistributor(d);
+
+                    Partner p = partnerRepository.findByMobileNumber(searchKeyword);
+                    if (p != null && hasApprovedDocuments(p)) return mapPartner(p);
+
+                    SuperDistributor sd = superDistributorRepository.findByMobileNumber(searchKeyword);
+                    if (sd != null && hasApprovedDocuments(sd)) return mapSuperDistributor(sd);
+
+                    WhiteLabels wl = whiteLabelsRepository.findByMobileNumber(searchKeyword);
+                    if (wl != null && hasApprovedDocuments(wl)) return mapWhiteLabel(wl);
+
+                    Enterprises et = enterprisesRepository.findByMobileNumber(searchKeyword);
+                    if (et != null && hasApprovedDocuments(et)) return mapEnterprise(et);
+
+                    return null;
+                }
+            }
+        }
+
+
+}
+    private boolean hasApprovedDocuments(Object entity) {
+        if (entity instanceof Retailer r) {
+            return Boolean.TRUE.equals(r.getEmailVerified())  // Mandatory
+                    && (r.getAadhaarCardFrontImage() != null && Boolean.TRUE.equals(r.getIsAadhaarVerified()))
+                    && (r.getAadhaarCardBackImage() != null && Boolean.TRUE.equals(r.getIsAadhaarVerified()))
+                    && (r.getPanCardImage() != null && Boolean.TRUE.equals(r.getPanVerified()))
+                    && (r.getShopImage() != null)
+                    && (r.getBusinessProofImage() != null && Boolean.TRUE.equals(r.getGstNumberVerified()));
+        } else if (entity instanceof Distributor d) {
+            return Boolean.TRUE.equals(d.getEmailVerified())
+                    && (d.getAadhaarCardFrontImage() != null && Boolean.TRUE.equals(d.getIsAadhaarVerified()))
+                    && (d.getAadhaarCardBackImage() != null && Boolean.TRUE.equals(d.getIsAadhaarVerified()))
+                    && (d.getPanCardImage() != null && Boolean.TRUE.equals(d.getPanVerified()))
+                    && (d.getShopImage() != null)
+                    && (d.getBusinessProofImage() != null && Boolean.TRUE.equals(d.getGstNumberVerified()));
+        } else if (entity instanceof Partner p) {
+            return Boolean.TRUE.equals(p.getEmailVerified())
+                    && (p.getAadhaarCardFrontImage() != null && Boolean.TRUE.equals(p.getIsAadhaarVerified()))
+                    && (p.getAadhaarCardBackImage() != null && Boolean.TRUE.equals(p.getIsAadhaarVerified()))
+                    && (p.getPanCardImage() != null && Boolean.TRUE.equals(p.getPanVerified()))
+                    && (p.getShopImage() != null)
+                    && (p.getBusinessProofImage() != null && Boolean.TRUE.equals(p.getGstNumberVerified()));
+        } else if (entity instanceof SuperDistributor sd) {
+            return Boolean.TRUE.equals(sd.getEmailVerified())
+                    && (sd.getAadhaarCardFrontImage() != null && Boolean.TRUE.equals(sd.getIsAadhaarVerified()))
+                    && (sd.getAadhaarCardBackImage() != null && Boolean.TRUE.equals(sd.getIsAadhaarVerified()))
+                    && (sd.getPanCardImage() != null && Boolean.TRUE.equals(sd.getPanVerified()))
+                    && (sd.getShopImage() != null)
+                    && (sd.getBusinessProofImage() != null && Boolean.TRUE.equals(sd.getGstNumberVerified()));
+        } else if (entity instanceof WhiteLabels wl) {
+            return Boolean.TRUE.equals(wl.getEmailVerified())
+                    && (wl.getAadhaarCardFrontImage() != null && Boolean.TRUE.equals(wl.getIsAadhaarVerified()))
+                    && (wl.getAadhaarCardBackImage() != null && Boolean.TRUE.equals(wl.getIsAadhaarVerified()))
+                    && (wl.getPanCardImage() != null && Boolean.TRUE.equals(wl.getPanVerified()))
+                    && (wl.getShopImage() != null)
+                    && (wl.getBusinessProofImage() != null && Boolean.TRUE.equals(wl.getGstNumberVerified()));
+        } else if (entity instanceof Enterprises et) {
+            return Boolean.TRUE.equals(et.getEmailVerified())
+                    && (et.getAadhaarCardFrontImage() != null && Boolean.TRUE.equals(et.getIsAadhaarVerified()))
+                    && (et.getAadhaarCardBackImage() != null && Boolean.TRUE.equals(et.getIsAadhaarVerified()))
+                    && (et.getPanCardImage() != null && Boolean.TRUE.equals(et.getPanVerified()))
+                    && (et.getShopImage() != null)
+                    && (et.getBusinessProofImage() != null && Boolean.TRUE.equals(et.getGstNumberVerified()));
+        }
+
+        return false;
+    }
 
 
 }
