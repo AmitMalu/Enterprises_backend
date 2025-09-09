@@ -86,4 +86,22 @@ public class KYController {
         return ResponseEntity.ok(commonResponse);
     }
 
+
+    @PostMapping("/approved-documents")
+    public ResponseEntity<CommonResponse<Object>> getApprovedDocuments(
+            @RequestBody HierarchySearchRequestDto requestDto,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Object result = kycService.getApprovedDocuments(requestDto.getSearchKeyword(), pageable);
+
+        CommonResponse<Object> response = new CommonResponse<>(
+                201, "Approved document(s) fetched successfully", result
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
 }
