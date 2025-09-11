@@ -32,12 +32,10 @@ public class SearchTransactionReportController {
     @GetMapping("/view")
     public ResponseEntity<CommonResponse<SearchTransactionReportGroupedResponse>> searchTransaction(
             @RequestParam String transactionId,
-            @RequestParam(required = false) String hierarchyId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(required = false) String hierarchyId) {
 
-        log.info("Received request to search transaction | transactionId={}, hierarchyId={}, page={}, size={}",
-                transactionId, hierarchyId, page, size);
+        log.info("Received request to search transaction | transactionId={}, hierarchyId={}",
+                transactionId, hierarchyId);
 
         String userType = (hierarchyId == null) ? "AD" : commonMethods.extractHierarchyType(hierarchyId);
 
@@ -51,20 +49,22 @@ public class SearchTransactionReportController {
                     new CommonResponse<>(400, "hierarchyId is required for non-admin users", null));
         }
 
-        Pageable pageable = PageRequest.of(page, size);
-
         try {
             SearchTransactionReportGroupedResponse result =
-                    searchTransactionReportService.searchTransactionById(transactionId, hierarchyId, pageable);
+                    searchTransactionReportService.searchTransactionById(transactionId, hierarchyId);
 
-            if ((result.getTransactionDetails().isEmpty() && result.getWalletDetails().isEmpty())) {
+            if (result.getTransactionDetails().isEmpty() &&
+                    result.getWalletDetails().isEmpty()) {
+
                 log.info("No transactions found for transactionId={}, hierarchyId={}", transactionId, hierarchyId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new CommonResponse<>(404, "No transaction found", null));
             }
 
             log.info("Transactions fetched successfully | transactionId={}, hierarchyId={}, transactions={}, wallets={}",
-                    transactionId, hierarchyId, result.getTransactionDetails().size(), result.getWalletDetails().size());
+                    transactionId, hierarchyId,
+                    result.getTransactionDetails().size(),
+                    result.getWalletDetails().size());
 
             return ResponseEntity.ok(new CommonResponse<>(200, "Transaction(s) fetched successfully", result));
 
@@ -75,5 +75,7 @@ public class SearchTransactionReportController {
                     .body(new CommonResponse<>(403, ex.getMessage(), null));
         }
     }
+
+
 
 }

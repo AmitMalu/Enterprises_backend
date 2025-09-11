@@ -8,7 +8,7 @@ import org.springframework.data.domain.Pageable;
 public interface SearchTransactionReportService {
 
     SearchTransactionReportGroupedResponse searchTransactionById(
-            String txnId, String hierarchyId, Pageable pageable
+            String txnId, String hierarchyId
     ) throws IllegalAccessException;
 
 }

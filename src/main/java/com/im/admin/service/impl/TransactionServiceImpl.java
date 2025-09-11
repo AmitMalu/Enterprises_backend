@@ -1619,149 +1619,154 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional
     public String updateTransactionStatus(UpdateTransactionStatusRequest request) {
-        String retailerId;
-        BigDecimal amount;
-        String operatorName;
-        String subProductName;
 
-        AbstractRetailerTransactionDetails txn;
+        StringBuilder lastResult = new StringBuilder();
 
-        String walletType = request.getWalletType().toUpperCase(); // "PREPAID" or "POSTPAID"
-        String baseTransactionId = request.getTranxId().replaceFirst("^TXN", "");
-        String fullTxnId = "TXN" + baseTransactionId;
+        for (String tranxId : request.getTransactionIds()) {
+            try {
+                AbstractRetailerTransactionDetails txn;
+                String walletType = request.getWalletType().toUpperCase();
+                String baseTransactionId = tranxId.replaceFirst("^TXN", "");
+                String fullTxnId = "TXN" + baseTransactionId;
 
-        // Fetch transaction and wallet based on wallet type
-        if ("PREPAID".equals(walletType)) {
-            RetailerPrepaidTransactionDetails prepaidTxn = retailerPrepaidTransactionDetailsRepository
-                    .findByTransactionId(fullTxnId)
-                    .orElseThrow(() -> new RuntimeException("Prepaid transaction not found"));
+                if ("PREPAID".equals(walletType)) {
+                    RetailerPrepaidTransactionDetails prepaidTxn = retailerPrepaidTransactionDetailsRepository
+                            .findByTransactionId(fullTxnId)
+                            .orElseThrow(() -> new RuntimeException("Prepaid transaction not found"));
 
-            if (!"SETTLEMENT PENDING".equalsIgnoreCase(prepaidTxn.getTranStatus())) {
-                return "SKIPPED: Transaction already processed with status: " + prepaidTxn.getTranStatus();
-            }
-
-            txn = (AbstractRetailerTransactionDetails) prepaidTxn;
-
-        } else if ("POSTPAID".equals(walletType)) {
-            RetailerPostpaidTransactionDetails postpaidTxn = retailerPostpaidTransactionDetailsRepository
-                    .findByTransactionId(fullTxnId)
-                    .orElseThrow(() -> new RuntimeException("Postpaid transaction not found"));
-
-            if (!"SETTLEMENT PENDING".equalsIgnoreCase(postpaidTxn.getTranStatus())) {
-                return "SKIPPED: Transaction already processed with status: " + postpaidTxn.getTranStatus();
-            }
-
-            txn = (AbstractRetailerTransactionDetails) postpaidTxn;
-
-        } else {
-            return "Invalid wallet type specified.";
-        }
-
-        retailerId = txn.getRetailerId();
-        amount = txn.getAmount();
-        operatorName = txn.getOperatorName();
-        subProductName = txn.getSubProductName();
-
-        // Step 1: Build scheme request DTO
-        TransactionSchemeDetailsRequestDto newRequest = new TransactionSchemeDetailsRequestDto();
-        newRequest.setHierarchyId(retailerId);
-        newRequest.setOperatorName(operatorName);
-        newRequest.setWalletType(walletType);
-        newRequest.setAmount(amount.doubleValue());
-        newRequest.setConfirmAmount(amount.doubleValue());
-
-        //find operatorCode from operator name
-        Operators operator = operatorsRepository.findByOperatorName(operatorName)
-                .orElseThrow(() -> new RuntimeException("Operator not found: " + operatorName));
-
-        SubProducts subProduct = subProductsRepository.findBySubProductTitle(subProductName)
-                .orElseThrow(() -> new RuntimeException("SubProduct not found for name: " + subProductName));
-
-        // Replace with actual codes based on your data model or transaction
-        newRequest.setOperatorCode(operator.getOperatorCode());
-        newRequest.setProductCode(subProduct.getProduct().getProductCode());
-        newRequest.setSubProductCode(subProduct.getSubProductCode());
-
-        // Step 2: Fetch scheme details
-        TransactionSchemeDetailsResponseDto schemeDetails = makeRequestForTransaction(newRequest);
-
-        // Step 3: Populate scheme attributes
-        newRequest.setSchemeRate(schemeDetails.getMatchedSchemeRate());
-        newRequest.setGstValue(schemeDetails.getGstRate());
-        newRequest.setTdsRate(schemeDetails.getTdsRate());
-        newRequest.setHasCharge(schemeDetails.getHasCharge());
-        newRequest.setIsCommission(schemeDetails.getIsCommission());
-        newRequest.setTransactionType(schemeDetails.getTransactionType());
-        newRequest.setBaseTranxId(baseTransactionId);
-        newRequest.setTransactionType(txn.getService());
-
-        AbstractWalletAmountTable wallet = getWalletByType(walletType, retailerId);
-
-        // Step 4: Update based on status
-        if (("PENDING".equalsIgnoreCase(request.getOldStatus()) && "SUCCESS".equalsIgnoreCase(request.getNewStatus())) ||
-                ("FAILURE".equalsIgnoreCase(request.getOldStatus()) || "SUCCESS".equalsIgnoreCase(request.getNewStatus())) ||
-                ("SETTLEMENT PENDING".equalsIgnoreCase(request.getOldStatus()) && "SUCCESS".equalsIgnoreCase(request.getNewStatus()))) {
-
-            processTransactionStatusChange(newRequest, request.getNewStatus());
-
-            return "Transaction updated to SUCCESS";
-        } else if ("PENDING".equalsIgnoreCase(request.getOldStatus()) && "FAILURE".equalsIgnoreCase(request.getNewStatus()) ||
-                "SETTLEMENT PENDING".equalsIgnoreCase(request.getOldStatus()) && "FAILURE".equalsIgnoreCase(request.getNewStatus())) {
-            insertTransaction(wallet, "FAILURE", amount, wallet.getAvailableBalance(), wallet.getAvailableBalance(),
-                    "Manual Update to FAILURE", buildTransactionId("FLD", baseTransactionId), "CREDIT", newRequest);
-
-            return "Transaction marked as FAILURE";
-        } else if ("SUCCESS".equalsIgnoreCase(request.getOldStatus()) && "FAILURE".equalsIgnoreCase(request.getNewStatus())) {
-
-            List<String> hierarchyList = List.of("retailer", "distributor", "partner", "super_distributor", "white_label", "enterprises", "admin");
-
-            for (String hierarchy : hierarchyList) {
-                String txnTable = hierarchy + "_" + walletType + "_transaction_details";
-                String amountTable = hierarchy + "_" + walletType + "_amount";
-                String idColumnName = getIdColumnFromTable(amountTable);
-
-                List<DynamicTransactionDTO> records = transactionDetailsRepository.findTransactions(txnTable, fullTxnId);
-
-                if (records != null && !records.isEmpty()) {
-                    for (DynamicTransactionDTO tranx : records) {
-                        String reverseAction = tranx.getActionOnBalanceAmount().equalsIgnoreCase("CREDIT") ? "DEBIT" : "CREDIT";
-                        String hierarchyId = tranx.getHierarchyId(); // must be fetched or passed correctly
-
-                        DynamicWalletDTO dynamicWallet = dynamicWalletRepository.findWallet(amountTable, idColumnName, hierarchyId);
-                        BigDecimal currentBalance = wallet.getAvailableBalance();
-                        BigDecimal newBalance = reverseAction.equals("CREDIT")
-                                ? currentBalance.add(txn.getAmount())
-                                : currentBalance.subtract(txn.getAmount());
-
-                        dynamicWalletRepository.updateWallet(amountTable, idColumnName, hierarchyId, newBalance, txn.getAmount());
-
-                        DynamicTransactionDTO reversal = new DynamicTransactionDTO();
-                        reversal.setTransactionId("FLD" + baseTransactionId);
-                        reversal.setAmount(txn.getAmount());
-                        reversal.setBalBeforeTran(currentBalance);
-                        reversal.setBalAfterTran(newBalance);
-                        reversal.setFinalBalance(newBalance);
-                        reversal.setTranStatus("FAILURE");
-                        reversal.setActionOnBalanceAmount(reverseAction);
-                        reversal.setService(tranx.getService());
-                        reversal.setRemarks("Reversal of TXN: " + fullTxnId);
-                        reversal.setNarration("Auto-reversal due to FAILED status");
-                        reversal.setHierarchyId(tranx.getHierarchyId());
-                        reversal.setOperatorName(tranx.getOperatorName());
-                        reversal.setMobileNo(tranx.getMobileNo());
-                        reversal.setSchemeName(tranx.getSchemeName());
-                        reversal.setSubProductName(tranx.getSubProductName());
-
-                        transactionDetailsRepository.insertTransaction(txnTable, reversal);
+                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(prepaidTxn.getTranStatus())) {
+                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(prepaidTxn.getTranStatus()).append("\n");
+                        continue;
                     }
-                }
-            }
 
-            return "SUCCESS → FAILURE reversal completed.";
+                    txn = prepaidTxn;
+
+                } else if ("POSTPAID".equals(walletType)) {
+                    RetailerPostpaidTransactionDetails postpaidTxn = retailerPostpaidTransactionDetailsRepository
+                            .findByTransactionId(fullTxnId)
+                            .orElseThrow(() -> new RuntimeException("Postpaid transaction not found"));
+
+                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(postpaidTxn.getTranStatus())) {
+                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(postpaidTxn.getTranStatus()).append("\n");
+                        continue;
+                    }
+
+                    txn = postpaidTxn;
+
+                } else {
+                    lastResult.append("FAILED: Invalid wallet type specified for txnId: ").append(fullTxnId).append("\n");
+                    continue;
+                }
+
+                // Extract basic details
+                String retailerId = txn.getRetailerId();
+                BigDecimal amount = txn.getAmount();
+                String operatorName = txn.getOperatorName();
+                String subProductName = txn.getSubProductName();
+
+                TransactionSchemeDetailsRequestDto newRequest = new TransactionSchemeDetailsRequestDto();
+                newRequest.setHierarchyId(retailerId);
+                newRequest.setOperatorName(operatorName);
+                newRequest.setWalletType(walletType);
+                newRequest.setAmount(amount.doubleValue());
+                newRequest.setConfirmAmount(amount.doubleValue());
+
+                Operators operator = operatorsRepository.findByOperatorName(operatorName)
+                        .orElseThrow(() -> new RuntimeException("Operator not found: " + operatorName));
+
+                SubProducts subProduct = subProductsRepository.findBySubProductTitle(subProductName)
+                        .orElseThrow(() -> new RuntimeException("SubProduct not found: " + subProductName));
+
+                newRequest.setOperatorCode(operator.getOperatorCode());
+                newRequest.setProductCode(subProduct.getProduct().getProductCode());
+                newRequest.setSubProductCode(subProduct.getSubProductCode());
+
+                TransactionSchemeDetailsResponseDto schemeDetails = makeRequestForTransaction(newRequest);
+
+                newRequest.setSchemeRate(schemeDetails.getMatchedSchemeRate());
+                newRequest.setGstValue(schemeDetails.getGstRate());
+                newRequest.setTdsRate(schemeDetails.getTdsRate());
+                newRequest.setHasCharge(schemeDetails.getHasCharge());
+                newRequest.setIsCommission(schemeDetails.getIsCommission());
+                newRequest.setTransactionType(schemeDetails.getTransactionType());
+                newRequest.setBaseTranxId(baseTransactionId);
+                newRequest.setTransactionType(txn.getService());
+
+                AbstractWalletAmountTable wallet = getWalletByType(walletType, retailerId);
+
+                if (("PENDING".equalsIgnoreCase(request.getOldStatus()) && "SUCCESS".equalsIgnoreCase(request.getNewStatus())) ||
+                        ("FAILURE".equalsIgnoreCase(request.getOldStatus()) || "SUCCESS".equalsIgnoreCase(request.getNewStatus())) ||
+                        ("SETTLEMENT PENDING".equalsIgnoreCase(request.getOldStatus()) && "SUCCESS".equalsIgnoreCase(request.getNewStatus()))) {
+
+                    processTransactionStatusChange(newRequest, request.getNewStatus());
+                    lastResult.append("SUCCESS: Transaction ").append(fullTxnId).append(" updated to SUCCESS.\n");
+
+                } else if (("PENDING".equalsIgnoreCase(request.getOldStatus()) && "FAILURE".equalsIgnoreCase(request.getNewStatus())) ||
+                        ("SETTLEMENT PENDING".equalsIgnoreCase(request.getOldStatus()) && "FAILURE".equalsIgnoreCase(request.getNewStatus()))) {
+
+                    insertTransaction(wallet, "FAILURE", amount, wallet.getAvailableBalance(), wallet.getAvailableBalance(),
+                            "Manual Update to FAILURE", buildTransactionId("FLD", baseTransactionId), "CREDIT", newRequest);
+
+                    lastResult.append("SUCCESS: Transaction ").append(fullTxnId).append(" marked as FAILURE.\n");
+
+                } else if ("SUCCESS".equalsIgnoreCase(request.getOldStatus()) && "FAILURE".equalsIgnoreCase(request.getNewStatus())) {
+
+                    List<String> hierarchyList = List.of("retailer", "distributor", "partner", "super_distributor", "white_label", "enterprises", "admin");
+
+                    for (String hierarchy : hierarchyList) {
+                        String txnTable = hierarchy + "_" + walletType + "_transaction_details";
+                        String amountTable = hierarchy + "_" + walletType + "_amount";
+                        String idColumnName = getIdColumnFromTable(amountTable);
+
+                        List<DynamicTransactionDTO> records = transactionDetailsRepository.findTransactions(txnTable, fullTxnId);
+
+                        if (records != null && !records.isEmpty()) {
+                            for (DynamicTransactionDTO tranx : records) {
+                                String reverseAction = tranx.getActionOnBalanceAmount().equalsIgnoreCase("CREDIT") ? "DEBIT" : "CREDIT";
+                                String hierarchyId = tranx.getHierarchyId();
+
+                                DynamicWalletDTO dynamicWallet = dynamicWalletRepository.findWallet(amountTable, idColumnName, hierarchyId);
+                                BigDecimal currentBalance = wallet.getAvailableBalance();
+                                BigDecimal newBalance = reverseAction.equals("CREDIT")
+                                        ? currentBalance.add(amount)
+                                        : currentBalance.subtract(amount);
+
+                                dynamicWalletRepository.updateWallet(amountTable, idColumnName, hierarchyId, newBalance, amount);
+
+                                DynamicTransactionDTO reversal = new DynamicTransactionDTO();
+                                reversal.setTransactionId("FLD" + baseTransactionId);
+                                reversal.setAmount(amount);
+                                reversal.setBalBeforeTran(currentBalance);
+                                reversal.setBalAfterTran(newBalance);
+                                reversal.setFinalBalance(newBalance);
+                                reversal.setTranStatus("FAILURE");
+                                reversal.setActionOnBalanceAmount(reverseAction);
+                                reversal.setService(tranx.getService());
+                                reversal.setRemarks("Reversal of TXN: " + fullTxnId);
+                                reversal.setNarration("Auto-reversal due to FAILED status");
+                                reversal.setHierarchyId(tranx.getHierarchyId());
+                                reversal.setOperatorName(tranx.getOperatorName());
+                                reversal.setMobileNo(tranx.getMobileNo());
+                                reversal.setSchemeName(tranx.getSchemeName());
+                                reversal.setSubProductName(tranx.getSubProductName());
+
+                                transactionDetailsRepository.insertTransaction(txnTable, reversal);
+                            }
+                        }
+                    }
+
+                    lastResult.append("SUCCESS: Reversal for txnId ").append(fullTxnId).append(" completed.\n");
+                }
+
+            } catch (Exception ex) {
+                lastResult.append("FAILED: Error processing txnId ").append(tranxId).append(": ").append(ex.getMessage()).append("\n");
+                log.error("Error updating transaction {}: {}", tranxId, ex.getMessage(), ex);
+            }
         }
 
-        return "Invalid status update requested.";
+        return lastResult.toString();
     }
+
 
     public String getIdColumnFromTable(String tableName) {
         if (tableName.contains("_prepaid_")) {
@@ -1920,15 +1925,16 @@ public class TransactionServiceImpl implements TransactionService {
     public CompletableFuture<Map<String, String>> updateStatus(UpdateTransactionStatusRequest request) {
         Map<String, String> result = new HashMap<>();
         try {
-             updateTransactionStatus(request);
-            result.put("transactionId", request.getTranxId());
+            updateTransactionStatus(request);
+            result.put("transactionId", String.join(",", request.getTransactionIds()));
             result.put("status", "SUCCESS");
         } catch (Exception e) {
-            result.put("transactionId", request.getTranxId());
+            result.put("transactionId", String.join(",", request.getTransactionIds()));
             result.put("status", "FAILED: " + e.getMessage());
         }
         return CompletableFuture.completedFuture(result);
     }
+
 
     private final BlockingQueue<UpdateTransactionStatusRequest> queue = new LinkedBlockingQueue<>();
 
@@ -1940,7 +1946,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         for (String txnId : transactionIds) {
             UpdateTransactionStatusRequest request = new UpdateTransactionStatusRequest(
-                    txnId,
+                    List.of(txnId),
                     "SETTLEMENT PENDING",
                     newStatus.toUpperCase(),
                     walletType,
@@ -1963,5 +1969,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         return new CommonResponse<>(200, "Bulk update completed", resultList);
     }
+
+
 
 }
