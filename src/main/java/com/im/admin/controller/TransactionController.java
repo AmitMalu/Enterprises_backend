@@ -59,11 +59,12 @@ public class TransactionController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/update-status")
-    public ResponseEntity<String> updateTransactionStatus(@RequestBody UpdateTransactionStatusRequest request) {
+    @PostMapping("/update-status/bulk")
+    public ResponseEntity<String> updateTransactionStatusBulk(@RequestBody UpdateTransactionStatusRequest request) {
         transactionService.updateTransactionStatus(request);
-        return ResponseEntity.ok("Transaction status updated successfully");
+        return ResponseEntity.ok("Bulk transaction status update completed successfully");
     }
+
 
     @GetMapping("/isSettlement/filter-by")
     public ResponseEntity<CommonResponse<List<Map<String, Object>>>> getIsSettlementTransactions(

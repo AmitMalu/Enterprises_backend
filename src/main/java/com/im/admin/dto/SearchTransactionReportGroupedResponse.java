@@ -4,6 +4,7 @@ import com.im.admin.response.SearchTransactionReportResponseDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -15,5 +16,4 @@ public class SearchTransactionReportGroupedResponse {
 
     private List<SearchTransactionReportResponseDto> transactionDetails;
     private List<SearchTransactionReportResponseDto> walletDetails;
-
 }

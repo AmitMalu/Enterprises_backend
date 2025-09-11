@@ -20,6 +20,7 @@ public interface TransactionService {
 
     String updateTransactionStatus(UpdateTransactionStatusRequest request);
 
+
     //String bulkUpdateTransactionStatus(BulkUpdateTransactionStatusRequest bulkRequest);
 
     List<Map<String, Object>> getSettlementTransactionsByFilter(
