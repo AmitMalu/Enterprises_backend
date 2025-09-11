@@ -1,5 +1,6 @@
 package com.im.admin.service.impl.reports;
 
+import com.im.admin.dto.SearchTransactionReportContentResponse;
 import com.im.admin.dto.SearchTransactionReportGroupedResponse;
 import com.im.admin.response.SearchTransactionReportResponseDto;
 import com.im.admin.service.reports.AsyncSearchService;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -31,7 +33,7 @@ public class SearchTransactionReportServiceImpl implements SearchTransactionRepo
 
     @Override
     public SearchTransactionReportGroupedResponse searchTransactionById(
-            String txnId, String hierarchyId, Pageable pageable) throws IllegalAccessException {
+            String txnId, String hierarchyId) throws IllegalAccessException {
 
         String normalizedTxnId = txnId.length() > 14 ? txnId.substring(txnId.length() - 17) : txnId;
 
@@ -73,16 +75,15 @@ public class SearchTransactionReportServiceImpl implements SearchTransactionRepo
                         .thenComparing(SearchTransactionReportResponseDto::getTime).reversed())
                 .toList();
 
-        // Separate into two lists
-        List<SearchTransactionReportResponseDto> transactionDetails = allResults.stream()
+        List<SearchTransactionReportResponseDto> transactionDetailsList = allResults.stream()
                 .filter(dto -> TransactionPrefixUtil.isTransaction(dto.getTransactionId()))
                 .toList();
 
-        List<SearchTransactionReportResponseDto> walletDetails = allResults.stream()
+        List<SearchTransactionReportResponseDto> walletDetailsList = allResults.stream()
                 .filter(dto -> TransactionPrefixUtil.isWallet(dto.getTransactionId()))
                 .toList();
 
-        return new SearchTransactionReportGroupedResponse(transactionDetails, walletDetails);
+        return new SearchTransactionReportGroupedResponse(transactionDetailsList, walletDetailsList);
     }
 
 
