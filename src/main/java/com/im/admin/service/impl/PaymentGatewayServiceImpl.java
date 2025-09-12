@@ -142,34 +142,74 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     }
 
     public String generateTokenAsPerVendor(VendorCredentials vendorCredentials) {
+        LocalDateTime requestTime = LocalDateTime.now();
+        String responseBody = null;
 
-        // Set headers only
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("username", vendorCredentials.getUsername());
-        headers.set("password", vendorCredentials.getPassword());
-        headers.set("client_id", vendorCredentials.getClientId());
+        try {
+            // Set headers only
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("username", vendorCredentials.getUsername());
+            headers.set("password", vendorCredentials.getPassword());
+            headers.set("client_id", vendorCredentials.getClientId());
 
-        HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
+            HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
 
-        String url = vendorCredentials.getTokenUrlUat();
-        log.info("Sending token request to URL: {}", url);
+            String url = vendorCredentials.getTokenUrlUat();
+            log.info("Sending token request to URL: {} for vendor: {}", url, vendorCredentials.getVendor().getId());
 
-        ResponseEntity<PgTokenResponseDTO> response = restTemplate.postForEntity(
-                url,
-                requestEntity,
-                PgTokenResponseDTO.class
-        );
+            // Capture request for logging
+            String requestLog = String.format("Headers: %s, Body: %s", headers, "null");
 
-        PgTokenResponseDTO tokenResponse = response.getBody();
-        log.info("Bearer token response: {}", tokenResponse);
+            ResponseEntity<PgTokenResponseDTO> response = restTemplate.postForEntity(
+                    url,
+                    requestEntity,
+                    PgTokenResponseDTO.class
+            );
 
-        if (tokenResponse != null && tokenResponse.getData() != null) {
-            return tokenResponse.getData().getToken();
-        } else {
-            throw new RuntimeException("Failed to get token from Runpaisa");
+            LocalDateTime responseTime = LocalDateTime.now();
+            PgTokenResponseDTO tokenResponse = response.getBody();
+
+            // Convert response to JSON for logging
+            responseBody = tokenResponse != null ? tokenResponse.toString() : "null";
+
+            log.info("Bearer token response for vendor {}: {}", vendorCredentials.getVendor().getId(), tokenResponse);
+
+            // Save vendor request/response logs
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestLog,
+                    vendorCredentials.getVendor().getId(),
+                    responseTime,
+                    responseBody,
+                    null // method to fetch IP from request context
+            );
+
+            if (tokenResponse != null && tokenResponse.getData() != null) {
+                return tokenResponse.getData().getToken();
+            } else {
+                throw new RuntimeException("Failed to get token from Runpaisa, response: " + responseBody);
+            }
+        } catch (Exception ex) {
+            LocalDateTime errorTime = LocalDateTime.now();
+
+            // Log failure
+            log.error("Error while generating token for vendor {}: {}", vendorCredentials.getVendor().getId(), ex.getMessage(), ex);
+
+            // Save error log
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    "Token Request Failed",
+                    vendorCredentials.getVendor().getId(),
+                    errorTime,
+                    ex.getMessage(),
+                    null
+            );
+
+            throw ex; // rethrow so caller knows it failed
         }
     }
+
 
     @Override
     public CommonResponse<RetailerCommissionResponseDTO> fetchRetailerCommission(PaymentGatewayCardBinRequestDTO requestDTO) {
@@ -235,7 +275,11 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req) {
         log.info("Received createOrder request: {}", req);
 
+        LocalDateTime imRequestTime = LocalDateTime.now();
+        String imResponseBody = null;
+
         try {
+            // ====== Vendor Routing & Credentials ======
             log.debug("Fetching vendor routing for subProductId: {}", req.getSubProductId());
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
 
@@ -249,6 +293,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
             log.debug("Credentials retrieved: clientId={}, baseUrl={}", credentials.getClientId(), credentials.getBaseUrlUat());
 
+            // ====== Prepare Headers ======
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
             headers.set("client_id", credentials.getClientId());
@@ -256,6 +301,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             headers.set("token", token);
             log.debug("Headers prepared: {}", headers);
 
+            // ====== Request Body ======
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("callbackurl", req.getCallbackUrl());
             String baseTransactionId = commonMethods.generateBaseTransactionId();
@@ -271,20 +317,52 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
             String url = credentials.getBaseUrlUat() + "/order";
-            log.info("Sending POST request to URL: {}", url);
+            log.info("Sending POST request to vendor URL: {}", url);
+
+            // ====== Vendor Call ======
+            LocalDateTime vendorRequestTime = LocalDateTime.now();
+            String vendorRequestStr = "Headers: " + headers + ", Body: " + body;
 
             ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
-            log.info("Received response: status={}, body={}", response.getStatusCode(), response.getBody());
+
+            LocalDateTime vendorResponseTime = LocalDateTime.now();
+            String vendorResponseStr = response.getBody();
+
+            log.info("Vendor response: status={}, body={}", response.getStatusCode(), vendorResponseStr);
+
+            // ====== Save Vendor Logs ======
+            commonFunctions.saveVendorLogs(
+                    vendorRequestTime,
+                    vendorRequestStr,
+                    vendor.getId(),
+                    vendorResponseTime,
+                    vendorResponseStr,
+                    null
+            );
+
+            // ====== Build Response for IM Caller ======
+            imResponseBody = vendorResponseStr;
+            LocalDateTime imResponseTime = LocalDateTime.now();
+
+            commonFunctions.saveImLogs(req.toString(), imRequestTime, null, imResponseBody, imResponseTime);
 
             return ResponseEntity.status(response.getStatusCode())
-                    .body(CommonResponse.success(response.getBody(), "Order created successfully"));
+                    .body(CommonResponse.success(vendorResponseStr, "Order created successfully"));
 
         } catch (Exception e) {
             log.error("Error while creating order for request: {}", req, e);
+
+            imResponseBody = "Order creation failed: " + e.getMessage();
+            LocalDateTime imResponseTime = LocalDateTime.now();
+
+            // Save failed IM log
+            commonFunctions.saveImLogs(req.toString(), imRequestTime, null, imResponseBody, imResponseTime);
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResponse.failure("Order creation failed: " + e.getMessage()));
+                    .body(CommonResponse.failure(imResponseBody));
         }
     }
+
 
     @Override
     public ResponseEntity<?> orderStatus(String orderId) {
