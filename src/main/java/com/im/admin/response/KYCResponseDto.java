@@ -14,21 +14,21 @@ public class KYCResponseDto {
     private String name;
     private String mobileNumber;
     private String emailId;
-    private Boolean emailVerified;
-
-    private String aadhaarCardFrontImage;
-    private String aadhaarCardBackImage;
-    private Boolean isAadhaarVerified;
-    private String aadhaarNumber;
-
-    private String panCardImage;
-    private String panNumber;
-    private Boolean panVerified;
-    private Boolean aadhaarPanVerified;
-
-    private String shopImage;
-    private String shopNumber;
-    private String businessProofImage;
-    private String businessNumber;
-    private Boolean gstNumberVerified;
+//    private Boolean emailVerified;
+//
+//    private String aadhaarCardFrontImage;
+//    private String aadhaarCardBackImage;
+//    private Boolean isAadhaarVerified;
+//    private String aadhaarNumber;
+//
+//    private String panCardImage;
+//    private String panNumber;
+//    private Boolean panVerified;
+//    private Boolean aadhaarPanVerified;
+//
+//    private String shopImage;
+//    private String shopNumber;
+//    private String businessProofImage;
+//    private String businessNumber;
+//    private Boolean gstNumberVerified;
 }
