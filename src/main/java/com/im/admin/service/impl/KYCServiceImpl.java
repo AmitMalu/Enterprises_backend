@@ -4,6 +4,7 @@ import com.im.admin.dto.KYCEditRequest;
 import com.im.admin.dto.KYCRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
+import com.im.admin.response.KYCApprovedResponseDto;
 import com.im.admin.response.KYCResponseDto;
 import com.im.admin.response.KycDocumentDto;
 import com.im.admin.service.KYCService;
@@ -542,37 +543,7 @@ public class KYCServiceImpl implements KYCService {
                 }
             }
 
-            case "EMAIL" -> {
-                if (entity instanceof Retailer r) {
-                    r.setEmailVerified(null);
-                } else if (entity instanceof Distributor d) {
-                    d.setEmailVerified(null);
-                } else if (entity instanceof Partner p) {
-                    p.setEmailVerified(null);
-                } else if (entity instanceof SuperDistributor sd) {
-                    sd.setEmailVerified(null);
-                } else if (entity instanceof WhiteLabels wl) {
-                    wl.setEmailVerified(null);
-                } else if (entity instanceof Enterprises et) {
-                    et.setEmailVerified(null);
-                }
-            }
 
-            case "AADHAAR_PAN_VERIFIED" -> {
-                if (entity instanceof Retailer r) {
-                    r.setAadhaarPanVerified(null);
-                } else if (entity instanceof Distributor d) {
-                    d.setAadhaarPanVerified(null);
-                } else if (entity instanceof Partner p) {
-                    p.setAadhaarPanVerified(null);
-                } else if (entity instanceof SuperDistributor sd) {
-                    sd.setAadhaarPanVerified(null);
-                } else if (entity instanceof WhiteLabels wl) {
-                    wl.setAadhaarPanVerified(null);
-                } else if (entity instanceof Enterprises et) {
-                    et.setAadhaarPanVerified(null);
-                }
-            }
         }
     }
 
@@ -595,12 +566,12 @@ public class KYCServiceImpl implements KYCService {
                 List<Object> mappedList = pageData.stream()
                         .filter(this::hasApprovedDocuments)
                         .map(entity -> {
-                            if (entity instanceof Retailer) return mapRetailer((Retailer) entity);
-                            if (entity instanceof Distributor) return mapDistributor((Distributor) entity);
-                            if (entity instanceof Partner) return mapPartner((Partner) entity);
-                            if (entity instanceof SuperDistributor) return mapSuperDistributor((SuperDistributor) entity);
-                            if (entity instanceof WhiteLabels) return mapWhiteLabel((WhiteLabels) entity);
-                            if (entity instanceof Enterprises) return mapEnterprise((Enterprises) entity);
+                            if (entity instanceof Retailer) return mapApprovedRetailer((Retailer) entity);
+                            if (entity instanceof Distributor) return mapApprovedDistributor((Distributor) entity);
+                            if (entity instanceof Partner) return mapApprovedPartner((Partner) entity);
+                            if (entity instanceof SuperDistributor) return mapApprovedSuperDistributor((SuperDistributor) entity);
+                            if (entity instanceof WhiteLabels) return mapApprovedWhiteLabel((WhiteLabels) entity);
+                            if (entity instanceof Enterprises) return mapApprovedEnterprise((Enterprises) entity);
                             return null;
                         })
                         .filter(Objects::nonNull)
@@ -616,32 +587,32 @@ public class KYCServiceImpl implements KYCService {
                     return switch (type) {
                         case "RT" -> retailerRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapRetailer)
+                                .map(this::mapApprovedRetailer)
                                 .orElse(null);
 
                         case "DT" -> distributorRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapDistributor)
+                                .map(this::mapApprovedDistributor)
                                 .orElse(null);
 
                         case "PT" -> partnerRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapPartner)
+                                .map(this::mapApprovedPartner)
                                 .orElse(null);
 
                         case "SD" -> superDistributorRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapSuperDistributor)
+                                .map(this::mapApprovedSuperDistributor)
                                 .orElse(null);
 
                         case "WL" -> whiteLabelsRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapWhiteLabel)
+                                .map(this::mapApprovedWhiteLabel)
                                 .orElse(null);
 
                         case "ET" -> enterprisesRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapEnterprise)
+                                .map(this::mapApprovedEnterprise)
                                 .orElse(null);
 
                         default -> null;
@@ -720,6 +691,69 @@ public class KYCServiceImpl implements KYCService {
 
         return false;
     }
+
+
+    // ---- Mapping Methods ----
+    private KYCApprovedResponseDto mapApprovedRetailer(Retailer r) {
+        return new KYCApprovedResponseDto(
+                r.getRetailerId(), r.getName(), r.getMobileNumber(),
+                r.getEmailId(), r.getEmailVerified(),
+                r.getAadhaarCardFrontImage(), r.getAadhaarCardBackImage(), r.getIsAadhaarVerified(), r.getAadhaarNumber(),
+                r.getPanCardImage(), r.getPanNumber(), r.getPanVerified(), r.getAadhaarPanVerified(),
+                r.getShopImage(), r.getShopNumber(), r.getBusinessProofImage(), r.getBusinessNumber(), r.getGstNumberVerified()
+        );
+    }
+
+    private KYCApprovedResponseDto mapApprovedDistributor(Distributor d) {
+        return new KYCApprovedResponseDto(
+                d.getDistributorId(), d.getName(), d.getMobileNumber(),
+                d.getEmailId(), d.getEmailVerified(),
+                d.getAadhaarCardFrontImage(), d.getAadhaarCardBackImage(), d.getIsAadhaarVerified(), d.getAadhaarNumber(),
+                d.getPanCardImage(), d.getPanNumber(), d.getPanVerified(), d.getAadhaarPanVerified(),
+                d.getShopImage(), d.getShopNumber(), d.getBusinessProofImage(), d.getBusinessNumber(), d.getGstNumberVerified()
+        );
+    }
+
+    private KYCApprovedResponseDto mapApprovedPartner(Partner p) {
+        return new KYCApprovedResponseDto(
+                p.getPartnerId(), p.getName(), p.getMobileNumber(),
+                p.getEmailId(), p.getEmailVerified(),
+                p.getAadhaarCardFrontImage(), p.getAadhaarCardBackImage(), p.getIsAadhaarVerified(), p.getAadhaarNumber(),
+                p.getPanCardImage(), p.getPanNumber(), p.getPanVerified(), p.getAadhaarPanVerified(),
+                p.getShopImage(), p.getShopNumber(), p.getBusinessProofImage(), p.getBusinessNumber(), p.getGstNumberVerified()
+        );
+    }
+
+    private KYCApprovedResponseDto mapApprovedSuperDistributor(SuperDistributor sd) {
+        return new KYCApprovedResponseDto(
+                sd.getSuperDistributorId(), sd.getName(), sd.getMobileNumber(),
+                sd.getEmailId(), sd.getEmailVerified(),
+                sd.getAadhaarCardFrontImage(), sd.getAadhaarCardBackImage(), sd.getIsAadhaarVerified(), sd.getAadhaarNumber(),
+                sd.getPanCardImage(), sd.getPanNumber(), sd.getPanVerified(), sd.getAadhaarPanVerified(),
+                sd.getShopImage(), sd.getShopNumber(), sd.getBusinessProofImage(), sd.getBusinessNumber(), sd.getGstNumberVerified()
+        );
+    }
+
+    private KYCApprovedResponseDto mapApprovedWhiteLabel(WhiteLabels wl) {
+        return new KYCApprovedResponseDto(
+                wl.getWhiteLabelId(), wl.getTitle(), wl.getMobileNumber(),
+                wl.getEmailId(), wl.getEmailVerified(),
+                wl.getAadhaarCardFrontImage(), wl.getAadhaarCardBackImage(), wl.getIsAadhaarVerified(), wl.getAadhaarNumber(),
+                wl.getPanCardImage(), wl.getPanNumber(), wl.getPanVerified(), wl.getAadhaarPanVerified(),
+                wl.getShopImage(), wl.getShopNumber(), wl.getBusinessProofImage(), wl.getBusinessNumber(), wl.getGstNumberVerified()
+        );
+    }
+
+    private KYCApprovedResponseDto mapApprovedEnterprise(Enterprises et) {
+        return new KYCApprovedResponseDto(
+                et.getEnterpriseId(), et.getName(), et.getMobileNumber(),
+                et.getEmailId(), et.getEmailVerified(),
+                et.getAadhaarCardFrontImage(), et.getAadhaarCardBackImage(), et.getIsAadhaarVerified(), et.getAadhaarNumber(),
+                et.getPanCardImage(), et.getPanNumber(), et.getPanVerified(), et.getAadhaarPanVerified(),
+                et.getShopImage(), et.getShopNumber(), et.getBusinessProofImage(), et.getBusinessNumber(), et.getGstNumberVerified()
+        );
+    }
+
 
     @Override
     public List<KycDocumentDto> getKycDetailDocumentsByHierarchyId(String hierarchyId) {
@@ -862,31 +896,31 @@ public class KYCServiceImpl implements KYCService {
         }
 
         return List.of(
-                new KycDocumentDto("Email",
+                new KycDocumentDto("EMAIL",
                         isEmailVerified == null ? "null" : isEmailVerified ? "true" : "false",
                         email, null),
 
-                new KycDocumentDto("Aadhaar Card Front",
+                new KycDocumentDto("AADHAAR_FRONT",
                         isAadhaarVerified == null ? "null" : isAadhaarVerified ? "true" : "false",
                         aadhaarNumber, aadhaarFront),
 
-                new KycDocumentDto("Aadhaar Card Back",
+                new KycDocumentDto("AADHAAR_BACK",
                         isAadhaarVerified == null ? "null" : isAadhaarVerified ? "true" : "false",
                         aadhaarNumber, aadhaarBack),
 
-                new KycDocumentDto("PAN Card",
+                new KycDocumentDto("PAN",
                         panVerified == null ? "null" : panVerified ? "true" : "false",
                         panNumber, panImage),
 
-                new KycDocumentDto("Shop Image",
+                new KycDocumentDto("SHOP",
                         gstNumberVerified == null ? "null" : gstNumberVerified ? "true" : "false",
                         shopNumber, shopImage),
 
-                new KycDocumentDto("Business Proof",
+                new KycDocumentDto("BUSINESS",
                         gstNumberVerified == null ? "null" : gstNumberVerified ? "true" : "false",
                         businessNumber, businessProofImage),
 
-                new KycDocumentDto("Aadhaar & PAN Verified",
+                new KycDocumentDto("AADHAAR_PAN_VERIFIED",
                         aadhaarPanVerified == null ? "null" : aadhaarPanVerified ? "true" : "false",
                         aadhaarNumber, null)
         );
