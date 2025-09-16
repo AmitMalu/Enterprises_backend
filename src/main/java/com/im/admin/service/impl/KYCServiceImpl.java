@@ -4,7 +4,9 @@ import com.im.admin.dto.KYCEditRequest;
 import com.im.admin.dto.KYCRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
+import com.im.admin.response.KYCApprovedResponseDto;
 import com.im.admin.response.KYCResponseDto;
+import com.im.admin.response.KycDocumentDto;
 import com.im.admin.service.KYCService;
 import com.im.admin.util.CommonMethods;
 import jakarta.transaction.Transactional;
@@ -18,14 +20,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 
@@ -121,60 +122,66 @@ public class KYCServiceImpl implements KYCService {
     private KYCResponseDto mapRetailer(Retailer r) {
         return new KYCResponseDto(
                 r.getRetailerId(), r.getName(), r.getMobileNumber(),
-                r.getEmailId(), r.getEmailVerified(),
-                r.getAadhaarCardFrontImage(), r.getAadhaarCardBackImage(), r.getIsAadhaarVerified(), r.getAadhaarNumber(),
-                r.getPanCardImage(), r.getPanNumber(), r.getPanVerified(), r.getAadhaarPanVerified(),
-                r.getShopImage(), r.getShopNumber(), r.getBusinessProofImage(), r.getBusinessNumber(), r.getGstNumberVerified()
+                r.getEmailId()
+//                r.getEmailId(), r.getEmailVerified(),
+//                r.getAadhaarCardFrontImage(), r.getAadhaarCardBackImage(), r.getIsAadhaarVerified(), r.getAadhaarNumber(),
+//                r.getPanCardImage(), r.getPanNumber(), r.getPanVerified(), r.getAadhaarPanVerified(),
+//                r.getShopImage(), r.getShopNumber(), r.getBusinessProofImage(), r.getBusinessNumber(), r.getGstNumberVerified()
         );
     }
 
     private KYCResponseDto mapDistributor(Distributor d) {
         return new KYCResponseDto(
                 d.getDistributorId(), d.getName(), d.getMobileNumber(),
-                d.getEmailId(), d.getEmailVerified(),
-                d.getAadhaarCardFrontImage(), d.getAadhaarCardBackImage(), d.getIsAadhaarVerified(), d.getAadhaarNumber(),
-                d.getPanCardImage(), d.getPanNumber(), d.getPanVerified(), d.getAadhaarPanVerified(),
-                d.getShopImage(), d.getShopNumber(), d.getBusinessProofImage(), d.getBusinessNumber(), d.getGstNumberVerified()
+                d.getEmailId()
+//                d.getEmailId(), d.getEmailVerified(),
+//                d.getAadhaarCardFrontImage(), d.getAadhaarCardBackImage(), d.getIsAadhaarVerified(), d.getAadhaarNumber(),
+//                d.getPanCardImage(), d.getPanNumber(), d.getPanVerified(), d.getAadhaarPanVerified(),
+//                d.getShopImage(), d.getShopNumber(), d.getBusinessProofImage(), d.getBusinessNumber(), d.getGstNumberVerified()
         );
     }
 
     private KYCResponseDto mapPartner(Partner p) {
         return new KYCResponseDto(
                 p.getPartnerId(), p.getName(), p.getMobileNumber(),
-                p.getEmailId(), p.getEmailVerified(),
-                p.getAadhaarCardFrontImage(), p.getAadhaarCardBackImage(), p.getIsAadhaarVerified(), p.getAadhaarNumber(),
-                p.getPanCardImage(), p.getPanNumber(), p.getPanVerified(), p.getAadhaarPanVerified(),
-                p.getShopImage(), p.getShopNumber(), p.getBusinessProofImage(), p.getBusinessNumber(), p.getGstNumberVerified()
+                p.getEmailId()
+//                p.getEmailId(), p.getEmailVerified(),
+//                p.getAadhaarCardFrontImage(), p.getAadhaarCardBackImage(), p.getIsAadhaarVerified(), p.getAadhaarNumber(),
+//                p.getPanCardImage(), p.getPanNumber(), p.getPanVerified(), p.getAadhaarPanVerified(),
+//                p.getShopImage(), p.getShopNumber(), p.getBusinessProofImage(), p.getBusinessNumber(), p.getGstNumberVerified()
         );
     }
 
     private KYCResponseDto mapSuperDistributor(SuperDistributor sd) {
         return new KYCResponseDto(
                 sd.getSuperDistributorId(), sd.getName(), sd.getMobileNumber(),
-                sd.getEmailId(), sd.getEmailVerified(),
-                sd.getAadhaarCardFrontImage(), sd.getAadhaarCardBackImage(), sd.getIsAadhaarVerified(), sd.getAadhaarNumber(),
-                sd.getPanCardImage(), sd.getPanNumber(), sd.getPanVerified(), sd.getAadhaarPanVerified(),
-                sd.getShopImage(), sd.getShopNumber(), sd.getBusinessProofImage(), sd.getBusinessNumber(), sd.getGstNumberVerified()
+                 sd.getEmailId()
+//                sd.getEmailId(), sd.getEmailVerified(),
+//                sd.getAadhaarCardFrontImage(), sd.getAadhaarCardBackImage(), sd.getIsAadhaarVerified(), sd.getAadhaarNumber(),
+//                sd.getPanCardImage(), sd.getPanNumber(), sd.getPanVerified(), sd.getAadhaarPanVerified(),
+//                sd.getShopImage(), sd.getShopNumber(), sd.getBusinessProofImage(), sd.getBusinessNumber(), sd.getGstNumberVerified()
         );
     }
 
     private KYCResponseDto mapWhiteLabel(WhiteLabels wl) {
         return new KYCResponseDto(
                 wl.getWhiteLabelId(), wl.getTitle(), wl.getMobileNumber(),
-                wl.getEmailId(), wl.getEmailVerified(),
-                wl.getAadhaarCardFrontImage(), wl.getAadhaarCardBackImage(), wl.getIsAadhaarVerified(), wl.getAadhaarNumber(),
-                wl.getPanCardImage(), wl.getPanNumber(), wl.getPanVerified(), wl.getAadhaarPanVerified(),
-                wl.getShopImage(), wl.getShopNumber(), wl.getBusinessProofImage(), wl.getBusinessNumber(), wl.getGstNumberVerified()
+                 wl.getEmailId()
+//                wl.getEmailId(), wl.getEmailVerified(),
+//                wl.getAadhaarCardFrontImage(), wl.getAadhaarCardBackImage(), wl.getIsAadhaarVerified(), wl.getAadhaarNumber(),
+//                wl.getPanCardImage(), wl.getPanNumber(), wl.getPanVerified(), wl.getAadhaarPanVerified(),
+//                wl.getShopImage(), wl.getShopNumber(), wl.getBusinessProofImage(), wl.getBusinessNumber(), wl.getGstNumberVerified()
         );
     }
 
     private KYCResponseDto mapEnterprise(Enterprises et) {
         return new KYCResponseDto(
                 et.getEnterpriseId(), et.getName(), et.getMobileNumber(),
-                et.getEmailId(), et.getEmailVerified(),
-                et.getAadhaarCardFrontImage(), et.getAadhaarCardBackImage(), et.getIsAadhaarVerified(), et.getAadhaarNumber(),
-                et.getPanCardImage(), et.getPanNumber(), et.getPanVerified(), et.getAadhaarPanVerified(),
-                et.getShopImage(), et.getShopNumber(), et.getBusinessProofImage(), et.getBusinessNumber(), et.getGstNumberVerified()
+                et.getEmailId()
+//                et.getEmailId(), et.getEmailVerified(),
+//                et.getAadhaarCardFrontImage(), et.getAadhaarCardBackImage(), et.getIsAadhaarVerified(), et.getAadhaarNumber(),
+//                et.getPanCardImage(), et.getPanNumber(), et.getPanVerified(), et.getAadhaarPanVerified(),
+//                et.getShopImage(), et.getShopNumber(), et.getBusinessProofImage(), et.getBusinessNumber(), et.getGstNumberVerified()
         );
     }
 
@@ -398,6 +405,22 @@ public class KYCServiceImpl implements KYCService {
                     et.setEmailVerified(verified);
                 }
             }
+
+            case "AADHAAR_PAN_VERIFIED" -> {
+                if (entity instanceof Retailer r) {
+                    r.setAadhaarPanVerified(verified);
+                } else if (entity instanceof Distributor d) {
+                    d.setAadhaarPanVerified(verified);
+                } else if (entity instanceof Partner p) {
+                    p.setAadhaarPanVerified(verified);
+                } else if (entity instanceof SuperDistributor sd) {
+                    sd.setAadhaarPanVerified(verified);
+                } else if (entity instanceof WhiteLabels wl) {
+                    wl.setAadhaarPanVerified(verified);
+                } else if (entity instanceof Enterprises et) {
+                    et.setAadhaarPanVerified(verified);
+                }
+            }
         }
 }
 
@@ -519,6 +542,8 @@ public class KYCServiceImpl implements KYCService {
                     et.setBusinessProofImage(null);
                 }
             }
+
+
         }
     }
 
@@ -541,12 +566,12 @@ public class KYCServiceImpl implements KYCService {
                 List<Object> mappedList = pageData.stream()
                         .filter(this::hasApprovedDocuments)
                         .map(entity -> {
-                            if (entity instanceof Retailer) return mapRetailer((Retailer) entity);
-                            if (entity instanceof Distributor) return mapDistributor((Distributor) entity);
-                            if (entity instanceof Partner) return mapPartner((Partner) entity);
-                            if (entity instanceof SuperDistributor) return mapSuperDistributor((SuperDistributor) entity);
-                            if (entity instanceof WhiteLabels) return mapWhiteLabel((WhiteLabels) entity);
-                            if (entity instanceof Enterprises) return mapEnterprise((Enterprises) entity);
+                            if (entity instanceof Retailer) return mapApprovedRetailer((Retailer) entity);
+                            if (entity instanceof Distributor) return mapApprovedDistributor((Distributor) entity);
+                            if (entity instanceof Partner) return mapApprovedPartner((Partner) entity);
+                            if (entity instanceof SuperDistributor) return mapApprovedSuperDistributor((SuperDistributor) entity);
+                            if (entity instanceof WhiteLabels) return mapApprovedWhiteLabel((WhiteLabels) entity);
+                            if (entity instanceof Enterprises) return mapApprovedEnterprise((Enterprises) entity);
                             return null;
                         })
                         .filter(Objects::nonNull)
@@ -562,32 +587,32 @@ public class KYCServiceImpl implements KYCService {
                     return switch (type) {
                         case "RT" -> retailerRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapRetailer)
+                                .map(this::mapApprovedRetailer)
                                 .orElse(null);
 
                         case "DT" -> distributorRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapDistributor)
+                                .map(this::mapApprovedDistributor)
                                 .orElse(null);
 
                         case "PT" -> partnerRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapPartner)
+                                .map(this::mapApprovedPartner)
                                 .orElse(null);
 
                         case "SD" -> superDistributorRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapSuperDistributor)
+                                .map(this::mapApprovedSuperDistributor)
                                 .orElse(null);
 
                         case "WL" -> whiteLabelsRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapWhiteLabel)
+                                .map(this::mapApprovedWhiteLabel)
                                 .orElse(null);
 
                         case "ET" -> enterprisesRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
-                                .map(this::mapEnterprise)
+                                .map(this::mapApprovedEnterprise)
                                 .orElse(null);
 
                         default -> null;
@@ -666,6 +691,241 @@ public class KYCServiceImpl implements KYCService {
 
         return false;
     }
+
+
+    // ---- Mapping Methods ----
+    private KYCApprovedResponseDto mapApprovedRetailer(Retailer r) {
+        return new KYCApprovedResponseDto(
+                r.getRetailerId(), r.getName(), r.getMobileNumber(),
+                r.getEmailId(), r.getEmailVerified(),
+                r.getAadhaarCardFrontImage(), r.getAadhaarCardBackImage(), r.getIsAadhaarVerified(), r.getAadhaarNumber(),
+                r.getPanCardImage(), r.getPanNumber(), r.getPanVerified(), r.getAadhaarPanVerified(),
+                r.getShopImage(), r.getShopNumber(), r.getBusinessProofImage(), r.getBusinessNumber(), r.getGstNumberVerified()
+        );
+    }
+
+    private KYCApprovedResponseDto mapApprovedDistributor(Distributor d) {
+        return new KYCApprovedResponseDto(
+                d.getDistributorId(), d.getName(), d.getMobileNumber(),
+                d.getEmailId(), d.getEmailVerified(),
+                d.getAadhaarCardFrontImage(), d.getAadhaarCardBackImage(), d.getIsAadhaarVerified(), d.getAadhaarNumber(),
+                d.getPanCardImage(), d.getPanNumber(), d.getPanVerified(), d.getAadhaarPanVerified(),
+                d.getShopImage(), d.getShopNumber(), d.getBusinessProofImage(), d.getBusinessNumber(), d.getGstNumberVerified()
+        );
+    }
+
+    private KYCApprovedResponseDto mapApprovedPartner(Partner p) {
+        return new KYCApprovedResponseDto(
+                p.getPartnerId(), p.getName(), p.getMobileNumber(),
+                p.getEmailId(), p.getEmailVerified(),
+                p.getAadhaarCardFrontImage(), p.getAadhaarCardBackImage(), p.getIsAadhaarVerified(), p.getAadhaarNumber(),
+                p.getPanCardImage(), p.getPanNumber(), p.getPanVerified(), p.getAadhaarPanVerified(),
+                p.getShopImage(), p.getShopNumber(), p.getBusinessProofImage(), p.getBusinessNumber(), p.getGstNumberVerified()
+        );
+    }
+
+    private KYCApprovedResponseDto mapApprovedSuperDistributor(SuperDistributor sd) {
+        return new KYCApprovedResponseDto(
+                sd.getSuperDistributorId(), sd.getName(), sd.getMobileNumber(),
+                sd.getEmailId(), sd.getEmailVerified(),
+                sd.getAadhaarCardFrontImage(), sd.getAadhaarCardBackImage(), sd.getIsAadhaarVerified(), sd.getAadhaarNumber(),
+                sd.getPanCardImage(), sd.getPanNumber(), sd.getPanVerified(), sd.getAadhaarPanVerified(),
+                sd.getShopImage(), sd.getShopNumber(), sd.getBusinessProofImage(), sd.getBusinessNumber(), sd.getGstNumberVerified()
+        );
+    }
+
+    private KYCApprovedResponseDto mapApprovedWhiteLabel(WhiteLabels wl) {
+        return new KYCApprovedResponseDto(
+                wl.getWhiteLabelId(), wl.getTitle(), wl.getMobileNumber(),
+                wl.getEmailId(), wl.getEmailVerified(),
+                wl.getAadhaarCardFrontImage(), wl.getAadhaarCardBackImage(), wl.getIsAadhaarVerified(), wl.getAadhaarNumber(),
+                wl.getPanCardImage(), wl.getPanNumber(), wl.getPanVerified(), wl.getAadhaarPanVerified(),
+                wl.getShopImage(), wl.getShopNumber(), wl.getBusinessProofImage(), wl.getBusinessNumber(), wl.getGstNumberVerified()
+        );
+    }
+
+    private KYCApprovedResponseDto mapApprovedEnterprise(Enterprises et) {
+        return new KYCApprovedResponseDto(
+                et.getEnterpriseId(), et.getName(), et.getMobileNumber(),
+                et.getEmailId(), et.getEmailVerified(),
+                et.getAadhaarCardFrontImage(), et.getAadhaarCardBackImage(), et.getIsAadhaarVerified(), et.getAadhaarNumber(),
+                et.getPanCardImage(), et.getPanNumber(), et.getPanVerified(), et.getAadhaarPanVerified(),
+                et.getShopImage(), et.getShopNumber(), et.getBusinessProofImage(), et.getBusinessNumber(), et.getGstNumberVerified()
+        );
+    }
+
+
+    @Override
+    public List<KycDocumentDto> getKycDetailDocumentsByHierarchyId(String hierarchyId) {
+        String type = commonMethods.extractHierarchyType(hierarchyId);
+
+        if (type == null || "UNKNOWN".equalsIgnoreCase(type)) {
+            return Collections.emptyList();
+        }
+
+        Object entity = switch (type) {
+            case "RT" -> retailerRepository.findById(hierarchyId).orElse(null);
+            case "DT" -> distributorRepository.findById(hierarchyId).orElse(null);
+            case "PT" -> partnerRepository.findById(hierarchyId).orElse(null);
+            case "SD" -> superDistributorRepository.findById(hierarchyId).orElse(null);
+            case "WL" -> whiteLabelsRepository.findById(hierarchyId).orElse(null);
+            case "ET" -> enterprisesRepository.findById(hierarchyId).orElse(null);
+            default -> null;
+        };
+
+        if (entity == null) return Collections.emptyList();
+
+        return mapEntityToDocumentList(entity);
+    }
+
+    private List<KycDocumentDto> mapEntityToDocumentList(Object entity) {
+        String email = null;
+        String aadhaarNumber = null;
+        String aadhaarFront = null, aadhaarBack = null;
+        String panNumber = null, panImage = null;
+        String shopNumber = null, shopImage = null;
+        String businessNumber = null, businessProofImage = null;
+
+        Boolean isEmailVerified = null;
+        Boolean isAadhaarVerified = null;
+        Boolean aadhaarPanVerified = null;
+        Boolean gstNumberVerified = null;
+        Boolean panVerified = null;
+
+        if (entity instanceof Retailer r) {
+            email = r.getEmailId();
+            aadhaarNumber = r.getAadhaarNumber();
+            aadhaarFront = r.getAadhaarCardFrontImage();
+            aadhaarBack = r.getAadhaarCardBackImage();
+            panNumber = r.getPanNumber();
+            panImage = r.getPanCardImage();
+            shopNumber = r.getShopNumber();
+            shopImage = r.getShopImage();
+            businessNumber = r.getBusinessNumber();
+            businessProofImage = r.getBusinessProofImage();
+            isEmailVerified = r.getEmailVerified();
+            isAadhaarVerified = r.getIsAadhaarVerified();
+            aadhaarPanVerified = r.getAadhaarPanVerified();
+            gstNumberVerified = r.getGstNumberVerified();
+            panVerified = r.getPanVerified();
+        }
+        else if (entity instanceof Distributor d) {
+            email = d.getEmailId();
+            aadhaarNumber = d.getAadhaarNumber();
+            aadhaarFront = d.getAadhaarCardFrontImage();
+            aadhaarBack = d.getAadhaarCardBackImage();
+            panNumber = d.getPanNumber();
+            panImage = d.getPanCardImage();
+            shopNumber = d.getShopNumber();
+            shopImage = d.getShopImage();
+            businessNumber = d.getBusinessNumber();
+            businessProofImage = d.getBusinessProofImage();
+            isEmailVerified = d.getEmailVerified();
+            isAadhaarVerified = d.getIsAadhaarVerified();
+            aadhaarPanVerified = d.getAadhaarPanVerified();
+            gstNumberVerified = d.getGstNumberVerified();
+            panVerified = d.getPanVerified();
+        }
+        else if (entity instanceof Partner p) {
+            email = p.getEmailId();
+            aadhaarNumber = p.getAadhaarNumber();
+            aadhaarFront = p.getAadhaarCardFrontImage();
+            aadhaarBack = p.getAadhaarCardBackImage();
+            panNumber = p.getPanNumber();
+            panImage = p.getPanCardImage();
+            shopNumber = p.getShopNumber();
+            shopImage = p.getShopImage();
+            businessNumber = p.getBusinessNumber();
+            businessProofImage = p.getBusinessProofImage();
+            isEmailVerified = p.getEmailVerified();
+            isAadhaarVerified = p.getIsAadhaarVerified();
+            aadhaarPanVerified = p.getAadhaarPanVerified();
+            gstNumberVerified = p.getGstNumberVerified();
+            panVerified = p.getPanVerified();
+        }
+        else if (entity instanceof SuperDistributor sd) {
+            email = sd.getEmailId();
+            aadhaarNumber = sd.getAadhaarNumber();
+            aadhaarFront = sd.getAadhaarCardFrontImage();
+            aadhaarBack = sd.getAadhaarCardBackImage();
+            panNumber = sd.getPanNumber();
+            panImage = sd.getPanCardImage();
+            shopNumber = sd.getShopNumber();
+            shopImage = sd.getShopImage();
+            businessNumber = sd.getBusinessNumber();
+            businessProofImage = sd.getBusinessProofImage();
+            isEmailVerified = sd.getEmailVerified();
+            isAadhaarVerified = sd.getIsAadhaarVerified();
+            aadhaarPanVerified = sd.getAadhaarPanVerified();
+            gstNumberVerified = sd.getGstNumberVerified();
+            panVerified = sd.getPanVerified();
+        }
+        else if (entity instanceof WhiteLabels wl) {
+            email = wl.getEmailId();
+            aadhaarNumber = wl.getAadhaarNumber();
+            aadhaarFront = wl.getAadhaarCardFrontImage();
+            aadhaarBack = wl.getAadhaarCardBackImage();
+            panNumber = wl.getPanNumber();
+            panImage = wl.getPanCardImage();
+            shopNumber = wl.getShopNumber();
+            shopImage = wl.getShopImage();
+            businessNumber = wl.getBusinessNumber();
+            businessProofImage = wl.getBusinessProofImage();
+            isEmailVerified = wl.getEmailVerified();
+            isAadhaarVerified = wl.getIsAadhaarVerified();
+            aadhaarPanVerified = wl.getAadhaarPanVerified();
+            gstNumberVerified = wl.getGstNumberVerified();
+            panVerified = wl.getPanVerified();
+        }
+        else if (entity instanceof Enterprises et) {
+            email = et.getEmailId();
+            aadhaarNumber = et.getAadhaarNumber();
+            aadhaarFront = et.getAadhaarCardFrontImage();
+            aadhaarBack = et.getAadhaarCardBackImage();
+            panNumber = et.getPanNumber();
+            panImage = et.getPanCardImage();
+            shopNumber = et.getShopNumber();
+            shopImage = et.getShopImage();
+            businessNumber = et.getBusinessNumber();
+            businessProofImage = et.getBusinessProofImage();
+            isEmailVerified = et.getEmailVerified();
+            isAadhaarVerified = et.getIsAadhaarVerified();
+            aadhaarPanVerified = et.getAadhaarPanVerified();
+            gstNumberVerified = et.getGstNumberVerified();
+            panVerified = et.getPanVerified();
+        }
+
+        return List.of(
+                new KycDocumentDto("EMAIL",
+                        isEmailVerified == null ? "null" : isEmailVerified ? "true" : "false",
+                        email, null),
+
+                new KycDocumentDto("AADHAAR_FRONT",
+                        isAadhaarVerified == null ? "null" : isAadhaarVerified ? "true" : "false",
+                        aadhaarNumber, aadhaarFront),
+
+                new KycDocumentDto("AADHAAR_BACK",
+                        isAadhaarVerified == null ? "null" : isAadhaarVerified ? "true" : "false",
+                        aadhaarNumber, aadhaarBack),
+
+                new KycDocumentDto("PAN",
+                        panVerified == null ? "null" : panVerified ? "true" : "false",
+                        panNumber, panImage),
+
+                new KycDocumentDto("SHOP",
+                        gstNumberVerified == null ? "null" : gstNumberVerified ? "true" : "false",
+                        shopNumber, shopImage),
+
+                new KycDocumentDto("BUSINESS",
+                        gstNumberVerified == null ? "null" : gstNumberVerified ? "true" : "false",
+                        businessNumber, businessProofImage),
+
+                new KycDocumentDto("AADHAAR_PAN_VERIFIED",
+                        aadhaarPanVerified == null ? "null" : aadhaarPanVerified ? "true" : "false",
+                        aadhaarNumber, null)
+        );
+    }
+
 
 
 }

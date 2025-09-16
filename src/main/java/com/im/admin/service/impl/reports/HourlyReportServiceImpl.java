@@ -15,6 +15,8 @@ import com.im.admin.util.TransactionPrefixUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,9 +45,10 @@ public class HourlyReportServiceImpl implements HourlyReportService {
     private static final DateTimeFormatter FNAME_FMT = DateTimeFormatter.ofPattern("yyyyMMdd_HH");
 
     @Override
-    public List<HourlyReportEntity> listReportsByDate(LocalDate date) {
-        return hourlyReportRepository.findByDatedOrderByTimestampAsc(date);
+    public Page<HourlyReportEntity> listReportsByDate(LocalDate date, Pageable pageable) {
+        return hourlyReportRepository.findByDatedOrderByTimestampAsc(date, pageable);
     }
+
 
     @Override
     @Transactional
