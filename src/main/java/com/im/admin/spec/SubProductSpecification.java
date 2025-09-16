@@ -42,11 +42,12 @@ public class SubProductSpecification {
             if (subProductCode != null)
                 predicates.add(cb.like(cb.lower(root.get("subProductCode")), "%" + subProductCode.toLowerCase() + "%"));
             if (productCode != null)
-                predicates.add(cb.like(cb.lower(root.get("productCode")), "%" + productCode.toLowerCase() + "%"));
+                predicates.add(cb.like(cb.lower(root.join("product").get("productCode")), "%" + productCode.toLowerCase() + "%"));
             if (productId != null)
-                predicates.add(cb.equal(root.get("productId"), productId));
-            if (productName != null)
-                predicates.add(cb.like(cb.lower(root.get("productName")), "%" + productName.toLowerCase() + "%"));
+                predicates.add(cb.equal(root.join("product").get("id"), productId));
+            if (productName != null) {
+                predicates.add(cb.like(cb.lower(root.join("product").get("name")), "%" + productName.toLowerCase() + "%"));
+            }
             if (walletType != null)
                 predicates.add(cb.like(cb.lower(root.get("walletType")), "%" + walletType.toLowerCase() + "%"));
             if (isSettlement != null)

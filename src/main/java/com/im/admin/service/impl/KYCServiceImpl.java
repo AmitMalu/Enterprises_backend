@@ -228,33 +228,34 @@ public class KYCServiceImpl implements KYCService {
         String type = commonMethods.extractHierarchyType(request.getHierarchyId());
         String category = request.getCategory();
         boolean verified = request.isVerified();
+        String docNumber = request.getDocNumber();
 
 
         final String finalImagePath = imagePath;
 
         switch (type) {
             case "RT" -> retailerRepository.findById(hierarchyId).ifPresent(r -> {
-                updateDocument(r, category, verified, finalImagePath);
+                updateDocument(r, category, verified, finalImagePath,docNumber);
                 retailerRepository.save(r);
             });
             case "DT" -> distributorRepository.findById(hierarchyId).ifPresent(d -> {
-                updateDocument(d, category, verified, finalImagePath);
+                updateDocument(d, category, verified, finalImagePath,docNumber);
                 distributorRepository.save(d);
             });
             case "PT" -> partnerRepository.findById(hierarchyId).ifPresent(p -> {
-                updateDocument(p, category, verified, finalImagePath);
+                updateDocument(p, category, verified, finalImagePath,docNumber);
                 partnerRepository.save(p);
             });
             case "SD" -> superDistributorRepository.findById(hierarchyId).ifPresent(sd -> {
-                updateDocument(sd, category, verified, finalImagePath);
+                updateDocument(sd, category, verified, finalImagePath,docNumber);
                 superDistributorRepository.save(sd);
             });
             case "WL" -> whiteLabelsRepository.findById(hierarchyId).ifPresent(wl -> {
-                updateDocument(wl, category, verified, finalImagePath);
+                updateDocument(wl, category, verified, finalImagePath,docNumber);
                 whiteLabelsRepository.save(wl);
             });
             case "ET" -> enterprisesRepository.findById(hierarchyId).ifPresent(et -> {
-                updateDocument(et, category, verified, finalImagePath);
+                updateDocument(et, category, verified, finalImagePath,docNumber);
                 enterprisesRepository.save(et);
             });
             default -> {
@@ -284,27 +285,33 @@ public class KYCServiceImpl implements KYCService {
     }
 
 
-    private void updateDocument(Object entity, String category, boolean verified, String image) {
+    private void updateDocument(Object entity, String category, boolean verified, String image,String docNumber) {
         switch (category.toUpperCase()) {
             case "AADHAAR_FRONT" -> {
                 if (entity instanceof Retailer r) {
                     if (image != null) r.setAadhaarCardFrontImage(image);
                     r.setIsAadhaarVerified(verified);
+                    r.setAadhaarNumber(docNumber);
                 } else if (entity instanceof Distributor d) {
                     if (image != null) d.setAadhaarCardFrontImage(image);
                     d.setIsAadhaarVerified(verified);
+                    d.setAadhaarNumber(docNumber);
                 } else if (entity instanceof Partner p) {
                     if (image != null) p.setAadhaarCardFrontImage(image);
                     p.setIsAadhaarVerified(verified);
+                    p.setAadhaarNumber(docNumber);
                 } else if (entity instanceof SuperDistributor sd) {
                     if (image != null) sd.setAadhaarCardFrontImage(image);
                     sd.setIsAadhaarVerified(verified);
+                    sd.setAadhaarNumber(docNumber);
                 } else if (entity instanceof WhiteLabels wl) {
                     if (image != null) wl.setAadhaarCardFrontImage(image);
                     wl.setIsAadhaarVerified(verified);
+                    wl.setAadhaarNumber(docNumber);
                 } else if (entity instanceof Enterprises et) {
                     if (image != null) et.setAadhaarCardFrontImage(image);
                     et.setIsAadhaarVerified(verified);
+                    et.setAadhaarNumber(docNumber);
                 }
             }
 
@@ -312,21 +319,27 @@ public class KYCServiceImpl implements KYCService {
                 if (entity instanceof Retailer r) {
                     if (image != null) r.setAadhaarCardBackImage(image);
                     r.setIsAadhaarVerified(verified);
+                    r.setAadhaarNumber(docNumber);
                 } else if (entity instanceof Distributor d) {
                     if (image != null) d.setAadhaarCardBackImage(image);
                     d.setIsAadhaarVerified(verified);
+                    d.setAadhaarNumber(docNumber);
                 } else if (entity instanceof Partner p) {
                     if (image != null) p.setAadhaarCardBackImage(image);
                     p.setIsAadhaarVerified(verified);
+                    p.setAadhaarNumber(docNumber);
                 } else if (entity instanceof SuperDistributor sd) {
                     if (image != null) sd.setAadhaarCardBackImage(image);
                     sd.setIsAadhaarVerified(verified);
+                    sd.setAadhaarNumber(docNumber);
                 } else if (entity instanceof WhiteLabels wl) {
                     if (image != null) wl.setAadhaarCardBackImage(image);
                     wl.setIsAadhaarVerified(verified);
+                    wl.setAadhaarNumber(docNumber);
                 } else if (entity instanceof Enterprises et) {
                     if (image != null) et.setAadhaarCardBackImage(image);
                     et.setIsAadhaarVerified(verified);
+                    et.setAadhaarNumber(docNumber);
                 }
             }
 
@@ -334,37 +347,49 @@ public class KYCServiceImpl implements KYCService {
                 if (entity instanceof Retailer r) {
                     if (image != null) r.setPanCardImage(image);
                     r.setPanVerified(verified);
+                    r.setPanNumber(docNumber);
                 } else if (entity instanceof Distributor d) {
                     if (image != null) d.setPanCardImage(image);
                     d.setPanVerified(verified);
+                    d.setPanNumber(docNumber);
                 } else if (entity instanceof Partner p) {
                     if (image != null) p.setPanCardImage(image);
                     p.setPanVerified(verified);
+                    p.setPanNumber(docNumber);
                 } else if (entity instanceof SuperDistributor sd) {
                     if (image != null) sd.setPanCardImage(image);
                     sd.setPanVerified(verified);
+                    sd.setPanNumber(docNumber);
                 } else if (entity instanceof WhiteLabels wl) {
                     if (image != null) wl.setPanCardImage(image);
                     wl.setPanVerified(verified);
+                    wl.setPanNumber(docNumber);
                 } else if (entity instanceof Enterprises et) {
                     if (image != null) et.setPanCardImage(image);
                     et.setPanVerified(verified);
+                    et.setPanNumber(docNumber);
                 }
             }
 
             case "SHOP" -> {
                 if (entity instanceof Retailer r) {
                     if (image != null) r.setShopImage(image);
+                    r.setShopNumber(docNumber);
                 } else if (entity instanceof Distributor d) {
                     if (image != null) d.setShopImage(image);
+                    d.setShopNumber(docNumber);
                 } else if (entity instanceof Partner p) {
                     if (image != null) p.setShopImage(image);
+                    p.setShopNumber(docNumber);
                 } else if (entity instanceof SuperDistributor sd) {
                     if (image != null) sd.setShopImage(image);
+                    sd.setShopNumber(docNumber);
                 } else if (entity instanceof WhiteLabels wl) {
                     if (image != null) wl.setShopImage(image);
+                    wl.setShopNumber(docNumber);
                 } else if (entity instanceof Enterprises et) {
                     if (image != null) et.setShopImage(image);
+                    et.setShopNumber(docNumber);
                 }
             }
 
@@ -372,53 +397,70 @@ public class KYCServiceImpl implements KYCService {
                 if (entity instanceof Retailer r) {
                     if (image != null) r.setBusinessProofImage(image);
                     r.setGstNumberVerified(verified);
+                    r.setBusinessNumber(docNumber);
                 } else if (entity instanceof Distributor d) {
                     if (image != null) d.setBusinessProofImage(image);
                     d.setGstNumberVerified(verified);
+                    d.setBusinessNumber(docNumber);
                 } else if (entity instanceof Partner p) {
                     if (image != null) p.setBusinessProofImage(image);
                     p.setGstNumberVerified(verified);
+                    p.setBusinessNumber(docNumber);
                 } else if (entity instanceof SuperDistributor sd) {
                     if (image != null) sd.setBusinessProofImage(image);
                     sd.setGstNumberVerified(verified);
+                    sd.setBusinessNumber(docNumber);
                 } else if (entity instanceof WhiteLabels wl) {
                     if (image != null) wl.setBusinessProofImage(image);
                     wl.setGstNumberVerified(verified);
                 } else if (entity instanceof Enterprises et) {
                     if (image != null) et.setBusinessProofImage(image);
                     et.setGstNumberVerified(verified);
+                    et.setBusinessNumber(docNumber);
                 }
             }
 
             case "EMAIL" -> {
                 if (entity instanceof Retailer r) {
                     r.setEmailVerified(verified);
+                    r.setEmailId(docNumber);
                 } else if (entity instanceof Distributor d) {
                     d.setEmailVerified(verified);
                 } else if (entity instanceof Partner p) {
                     p.setEmailVerified(verified);
+                    p.setEmailId(docNumber);
                 } else if (entity instanceof SuperDistributor sd) {
                     sd.setEmailVerified(verified);
+                    sd.setEmailId(docNumber);
                 } else if (entity instanceof WhiteLabels wl) {
                     wl.setEmailVerified(verified);
+                    wl.setEmailId(docNumber);
                 } else if (entity instanceof Enterprises et) {
                     et.setEmailVerified(verified);
+                    et.setEmailId(docNumber);
                 }
             }
 
             case "AADHAAR_PAN_VERIFIED" -> {
                 if (entity instanceof Retailer r) {
                     r.setAadhaarPanVerified(verified);
+                    r.setAadhaarNumber(docNumber);
                 } else if (entity instanceof Distributor d) {
                     d.setAadhaarPanVerified(verified);
+                    d.setAadhaarNumber(docNumber);
                 } else if (entity instanceof Partner p) {
                     p.setAadhaarPanVerified(verified);
+                    p.setAadhaarNumber(docNumber);
                 } else if (entity instanceof SuperDistributor sd) {
                     sd.setAadhaarPanVerified(verified);
+                    sd.setAadhaarNumber(docNumber);
                 } else if (entity instanceof WhiteLabels wl) {
                     wl.setAadhaarPanVerified(verified);
+                    wl.setAadhaarNumber(docNumber);
                 } else if (entity instanceof Enterprises et) {
                     et.setAadhaarPanVerified(verified);
+                    et.setAadhaarNumber(docNumber);
+                    et.setAadhaarNumber(docNumber);
                 }
             }
         }
@@ -440,6 +482,7 @@ public class KYCServiceImpl implements KYCService {
                 removeDocumentField(d, category);
                 distributorRepository.save(d);
             });
+
             case "PT" -> partnerRepository.findById(hierarchyId).ifPresent(p -> {
                 removeDocumentField(p, category);
                 partnerRepository.save(p);
@@ -549,7 +592,7 @@ public class KYCServiceImpl implements KYCService {
 
 
     @Override
-    public Object getApprovedDocuments(String searchKeyword, Pageable pageable) {
+    public Page<Object> getApprovedDocuments(String searchKeyword, Pageable pageable) {
 
         switch (searchKeyword.toUpperCase()) {
             case "RT", "DT", "PT", "SD", "WL", "ET" -> {
@@ -584,7 +627,7 @@ public class KYCServiceImpl implements KYCService {
                 String type = commonMethods.extractHierarchyType(searchKeyword);
 
                 if (type != null && !"UNKNOWN".equalsIgnoreCase(type)) {
-                    return switch (type) {
+                    Object singleEntity = switch (type) {
                         case "RT" -> retailerRepository.findById(searchKeyword)
                                 .filter(this::hasApprovedDocuments)
                                 .map(this::mapApprovedRetailer)
@@ -617,33 +660,36 @@ public class KYCServiceImpl implements KYCService {
 
                         default -> null;
                     };
+
+                    List<Object> list = (singleEntity != null) ? List.of(singleEntity) : List.of();
+                    return new PageImpl<>(list, pageable, list.size());
                 } else {
-                    // Fallback search by mobile number
+                    List<Object> resultList = new ArrayList<>();
+
                     Retailer r = retailerRepository.findByMobileNumber(searchKeyword);
-                    if (r != null && hasApprovedDocuments(r)) return mapRetailer(r);
+                    if (r != null && hasApprovedDocuments(r)) resultList.add(mapRetailer(r));
 
                     Distributor d = distributorRepository.findByMobileNumber(searchKeyword);
-                    if (d != null && hasApprovedDocuments(d)) return mapDistributor(d);
+                    if (d != null && hasApprovedDocuments(d)) resultList.add(mapDistributor(d));
 
                     Partner p = partnerRepository.findByMobileNumber(searchKeyword);
-                    if (p != null && hasApprovedDocuments(p)) return mapPartner(p);
+                    if (p != null && hasApprovedDocuments(p)) resultList.add(mapPartner(p));
 
                     SuperDistributor sd = superDistributorRepository.findByMobileNumber(searchKeyword);
-                    if (sd != null && hasApprovedDocuments(sd)) return mapSuperDistributor(sd);
+                    if (sd != null && hasApprovedDocuments(sd)) resultList.add(mapSuperDistributor(sd));
 
                     WhiteLabels wl = whiteLabelsRepository.findByMobileNumber(searchKeyword);
-                    if (wl != null && hasApprovedDocuments(wl)) return mapWhiteLabel(wl);
+                    if (wl != null && hasApprovedDocuments(wl)) resultList.add(mapWhiteLabel(wl));
 
                     Enterprises et = enterprisesRepository.findByMobileNumber(searchKeyword);
-                    if (et != null && hasApprovedDocuments(et)) return mapEnterprise(et);
+                    if (et != null && hasApprovedDocuments(et)) resultList.add(mapEnterprise(et));
 
-                    return null;
+                    return new PageImpl<>(resultList, pageable, resultList.size());
                 }
             }
         }
+    }
 
-
-}
     private boolean hasApprovedDocuments(Object entity) {
         if (entity instanceof Retailer r) {
             return Boolean.TRUE.equals(r.getEmailVerified())  // Mandatory
