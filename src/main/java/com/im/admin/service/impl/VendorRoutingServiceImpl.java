@@ -26,6 +26,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -88,36 +89,79 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
     }
 
     @Override
-    public CommonResponse<Page<VendorRoutingResponseDTO>> getAll(String subProductId, String createdBy, Pageable pageable) {
-        log.info("Fetching all VendorRouting records with filters - subProductId: {}, createdBy: {}", subProductId, createdBy);
+    public CommonResponse<Page<VendorRoutingResponseDTO>> getAll(Map<String, String> filters, Pageable pageable) {
+        Specification<VendorRouting> spec = buildSpecification(filters);
 
-        Specification<VendorRouting> spec = (root, query, cb) -> {
+        Page<VendorRouting> page = vendorRoutingRepository.findAll(spec, pageable);
+        log.debug("Fetched VendorRouting: totalElements={}", page.getTotalElements());
+
+        Page<VendorRoutingResponseDTO> dtoPage = page.map(this::mapToDTO);
+        return CommonResponse.success(dtoPage, "Fetched VendorRouting records successfully");
+    }
+
+    private Specification<VendorRouting> buildSpecification(Map<String, String> filters) {
+        return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (StringUtils.hasText(subProductId)) {
-                log.debug("Applying filter: subProductId = {}", subProductId);
-                Join<VendorRouting, SubProducts> subProductJoin = root.join("subProduct", JoinType.INNER);
-                predicates.add(cb.equal(subProductJoin.get("id"), subProductId));
-            }
+            filters.forEach((field, value) -> {
+                if (!StringUtils.hasText(value)) return;
 
-            if (StringUtils.hasText(createdBy)) {
-                log.debug("Applying filter: createdBy = {}", createdBy);
-                predicates.add(cb.equal(root.get("createdBy"), createdBy));
-            }
+                switch (field) {
+                    case "id" -> predicates.add(cb.equal(root.get("id"), convertType(Long.class, value)));
+
+                    case "subProductId" -> {
+                        Join<Object, Object> subJoin = root.join("subProduct", JoinType.INNER);
+                        predicates.add(cb.equal(subJoin.get("id"), value)); // String
+                    }
+
+                    case "routingPriority1" -> {
+                        Join<Object, Object> v1Join = root.join("routingPriority1", JoinType.INNER);
+                        predicates.add(cb.equal(v1Join.get("id"), value)); // <-- String
+                    }
+
+                    case "routingPriority2" -> {
+                        Join<Object, Object> v2Join = root.join("routingPriority2", JoinType.INNER);
+                        predicates.add(cb.equal(v2Join.get("id"), value));
+                    }
+
+                    case "routingPriority3" -> {
+                        Join<Object, Object> v3Join = root.join("routingPriority3", JoinType.INNER);
+                        predicates.add(cb.equal(v3Join.get("id"), value));
+                    }
+
+                    default -> {
+                        try {
+                            if (root.get(field).getJavaType().equals(String.class)) {
+                                predicates.add(cb.like(cb.lower(root.get(field)), "%" + value.toLowerCase() + "%"));
+                            } else {
+                                predicates.add(cb.equal(root.get(field),
+                                        convertType(root.get(field).getJavaType(), value)));
+                            }
+                        } catch (IllegalArgumentException e) {
+                            log.warn("Filter field '{}' not found on VendorRouting entity, ignoring.", field);
+                        }
+                    }
+                }
+            });
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
 
-        Page<VendorRouting> page = vendorRoutingRepository.findAll(spec, pageable);
-        log.debug("VendorRouting page fetched: totalElements = {}", page.getTotalElements());
-
-        Page<VendorRoutingResponseDTO> dtoPage = page.map(this::mapToDTO);
-        return CommonResponse.success(dtoPage, "Fetched all records");
+    private Object convertType(Class<?> targetType, String value) {
+        if (Long.class.equals(targetType) || long.class.equals(targetType)) {
+            return Long.valueOf(value);
+        }
+        if (Integer.class.equals(targetType) || int.class.equals(targetType)) {
+            return Integer.valueOf(value);
+        }
+        if (Boolean.class.equals(targetType) || boolean.class.equals(targetType)) {
+            return Boolean.valueOf(value);
+        }
+        return value;
     }
 
     private VendorRoutingResponseDTO mapToDTO(VendorRouting entity) {
-        log.debug("Mapping VendorRouting entity to DTO: {}", entity);
-
         VendorRoutingResponseDTO dto = new VendorRoutingResponseDTO();
         dto.setId(entity.getId());
 
@@ -153,7 +197,6 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setEditedBy(entity.getEditedBy());
 
-        log.debug("Mapped DTO: {}", dto);
         return dto;
     }
 

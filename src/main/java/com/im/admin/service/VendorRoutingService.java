@@ -6,6 +6,8 @@ import com.im.admin.response.CommonResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Map;
+
 public interface VendorRoutingService {
 
     CommonResponse<VendorRoutingResponseDTO> save(VendorRoutingRequestDTO request);
@@ -14,6 +16,6 @@ public interface VendorRoutingService {
 
     CommonResponse<VendorRoutingResponseDTO> getById(Long id);
 
-    CommonResponse<Page<VendorRoutingResponseDTO>> getAll(String subProductId, String createdBy, Pageable pageable);
+    CommonResponse<Page<VendorRoutingResponseDTO>> getAll(Map<String, String> filters, Pageable pageable);
 }
 
