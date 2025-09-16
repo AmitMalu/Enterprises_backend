@@ -14,6 +14,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/vendor-routing")
 @RequiredArgsConstructor
@@ -49,19 +51,22 @@ public class VendorRoutingController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Get all VendorRouting records with dynamic filters, pagination, sorting.
+     * Example: /api/vendor-routing?subProductId=123&createdBy=admin&page=0&size=10&sort=id,desc
+     */
     @GetMapping
     public ResponseEntity<CommonResponse<Page<VendorRoutingResponseDTO>>> getAll(
-            @RequestParam(required = false) String subProductId,
-            @RequestParam(required = false) String createdBy,
+            @RequestParam Map<String, String> allParams,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id,desc") String[] sort) {
 
-        log.info("Fetching all VendorRouting records with filters - subProductId: {}, createdBy: {}, page: {}, size: {}",
-                subProductId, createdBy, page, size);
+        Sort.Direction direction = sort.length > 1 ? Sort.Direction.fromString(sort[1]) : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sort[0]));
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        CommonResponse<Page<VendorRoutingResponseDTO>> response = vendorRoutingService.getAll(subProductId, createdBy, pageable);
-        log.debug("Fetched VendorRouting page size: {}", response.getData().getSize());
+        log.info("Fetching VendorRouting with filters: {}, page: {}, size: {}", allParams, page, size);
+        CommonResponse<Page<VendorRoutingResponseDTO>> response = vendorRoutingService.getAll(allParams, pageable);
 
         return ResponseEntity.ok(response);
     }
