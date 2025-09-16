@@ -21,7 +21,8 @@ public interface KYCService {
 
     void deleteKycDocument(String hierarchyId, String category);
 
-    Object getApprovedDocuments(String searchKeyword, Pageable pageable);
+    Page<Object> getApprovedDocuments(String searchKeyword, Pageable pageable);
+
 
 
     List<KycDocumentDto> getKycDetailDocumentsByHierarchyId(String hierarchyId);
