@@ -70,7 +70,15 @@ public class OnboardingServiceImpl implements OnboardingService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<GenericPendingRecordDto> getAllRecordsByStatus(String status, int page, int size) {
+    public Page<GenericPendingRecordDto> getAllRecordsByStatus(String status, int page, int size,
+                                                               String type,
+                                                               String id,
+                                                               String name,
+                                                               String createdBy,
+                                                               String createdOn,
+                                                               String mobileNumber,
+                                                               String emailId,
+                                                               String parentAccount) {
 
         CompletableFuture<List<Retailer>> retailersFuture = asyncPendingFetcher.fetchRetailers(status);
         CompletableFuture<List<Distributor>> distributorsFuture = asyncPendingFetcher.fetchDistributors(status);
@@ -78,7 +86,6 @@ public class OnboardingServiceImpl implements OnboardingService {
         CompletableFuture<List<SuperDistributor>> superDistributorsFuture = asyncPendingFetcher.fetchSuperDistributors(status);
         CompletableFuture<List<WhiteLabels>> whiteLabelsFuture = asyncPendingFetcher.fetchWhiteLabels(status);
         CompletableFuture<List<Enterprises>> enterprisesFuture = asyncPendingFetcher.fetchEnterprises(status);
-//        CompletableFuture<List<Admin>> adminsFuture = asyncPendingFetcher.fetchAdmins(status);
 
         CompletableFuture.allOf(retailersFuture, distributorsFuture, partnersFuture, superDistributorsFuture,
                 whiteLabelsFuture, enterprisesFuture).join();
@@ -90,20 +97,32 @@ public class OnboardingServiceImpl implements OnboardingService {
         records.addAll(superDistributorsFuture.join().stream().map(PendingRecordMapper::fromSuperDistributor).toList());
         records.addAll(whiteLabelsFuture.join().stream().map(PendingRecordMapper::fromWhiteLabel).toList());
         records.addAll(enterprisesFuture.join().stream().map(PendingRecordMapper::fromEnterprise).toList());
-//        records.addAll(adminsFuture.join().stream().map(PendingRecordMapper::fromAdmin).toList());
 
         if (records.isEmpty()) {
             throw new NoPendingRecordsFoundException("No " + status + " records found in any hierarchy.");
         }
 
-        // Pagination
+        // Apply filters
+        List<GenericPendingRecordDto> filteredRecords = records.stream()
+                .filter(r -> status == null || status.isEmpty() || r.getStatus().equalsIgnoreCase(status))
+                .filter(r -> type == null || type.isEmpty() || r.getType().toLowerCase().contains(type.toLowerCase()))
+                .filter(r -> id == null || id.isEmpty() || r.getId().toLowerCase().contains(id.toLowerCase()))
+                .filter(r -> name == null || name.isEmpty() || r.getName().toLowerCase().contains(name.toLowerCase()))
+                .filter(r -> createdBy == null || createdBy.isEmpty() || r.getCreatedBy().toLowerCase().contains(createdBy.toLowerCase()))
+                .filter(r -> createdOn == null || createdOn.isEmpty() || r.getCreatedOn().contains(createdOn))
+                .filter(r -> mobileNumber == null || mobileNumber.isEmpty() || r.getMobileNumber().contains(mobileNumber))
+                .filter(r -> emailId == null || emailId.isEmpty() || r.getEmailId().toLowerCase().contains(emailId.toLowerCase()))
+                .filter(r -> parentAccount == null || parentAccount.isEmpty() || r.getParentAccount().toLowerCase().contains(parentAccount.toLowerCase()))
+                .toList();
+
         Pageable pageable = PageRequest.of(page, size);
         int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), records.size());
-        List<GenericPendingRecordDto> paginatedList = records.subList(start, end);
+        int end = Math.min(start + pageable.getPageSize(), filteredRecords.size());
+        List<GenericPendingRecordDto> paginatedList = filteredRecords.subList(start, end);
 
-        return new PageImpl<>(paginatedList, pageable, records.size());
+        return new PageImpl<>(paginatedList, pageable, filteredRecords.size());
     }
+
 
 
 

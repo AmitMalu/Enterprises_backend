@@ -26,6 +26,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -166,19 +167,45 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
     }
 
     @Override
-    public Page<UserSearchResponseDto> searchActiveRetailers(String keyword, Pageable pageable) {
-        Page<UserDetails> page = userDetailsRepository.searchActiveRetailers(keyword, pageable);
+    public Page<UserSearchResponseDto> searchActiveRetailers(
+            String mobileNumber,
+            String hierarchyId,
+            String hierarchyCode,
+            String createdDate,
+            String lastLoginDate,
+            String emailId,
+            Pageable pageable,
+             String keyword
+    ) {
+        Page<UserDetails> page = userDetailsRepository.searchActiveRetailers(keyword,pageable); // fetch active retailers
 
-        return page.map(u -> {
-            UserSearchResponseDto dto = new UserSearchResponseDto();
-            dto.setMobileNumber(u.getMobileNumber());
-            dto.setHierarchyId(u.getHierarchyId());
-            dto.setHierarchyCode(u.getHierarchyCode());
-            dto.setCreatedDate(u.getCreatedDate());
-            dto.setLastLoginDate(u.getLastLoginDate());
-            dto.setEmailId(u.getEmailId());
-            return dto;
-        });
+        List<UserSearchResponseDto> filteredList = page.stream()
+                .map(u -> {
+                    UserSearchResponseDto dto = new UserSearchResponseDto();
+                    dto.setMobileNumber(u.getMobileNumber());
+                    dto.setHierarchyId(u.getHierarchyId());
+                    dto.setHierarchyCode(u.getHierarchyCode());
+                    dto.setCreatedDate(u.getCreatedDate());
+                    dto.setLastLoginDate(u.getLastLoginDate());
+                    dto.setEmailId(u.getEmailId());
+                    return dto;
+                })
+                .filter(dto -> mobileNumber == null || mobileNumber.isEmpty() ||
+                        dto.getMobileNumber().toLowerCase().contains(mobileNumber.toLowerCase()))
+                .filter(dto -> hierarchyId == null || hierarchyId.isEmpty() ||
+                        dto.getHierarchyId().toLowerCase().contains(hierarchyId.toLowerCase()))
+                .filter(dto -> hierarchyCode == null || hierarchyCode.isEmpty() ||
+                        dto.getHierarchyCode().toLowerCase().contains(hierarchyCode.toLowerCase()))
+                .filter(dto -> createdDate == null || createdDate.isEmpty() ||
+                        dto.getCreatedDate().toString().contains(createdDate))
+                .filter(dto -> lastLoginDate == null || lastLoginDate.isEmpty() ||
+                        (dto.getLastLoginDate() != null && dto.getLastLoginDate().toString().contains(lastLoginDate)))
+                .filter(dto -> emailId == null || emailId.isEmpty() ||
+                        dto.getEmailId().toLowerCase().contains(emailId.toLowerCase()))
+                .toList();
+
+        return new PageImpl<>(filteredList, pageable, page.getTotalElements());
     }
+
 
 }

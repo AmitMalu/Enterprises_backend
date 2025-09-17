@@ -59,7 +59,7 @@ public class VendorController {
             @RequestParam(required = false) String subProductId,
             @RequestParam(required = false) String subProductCode,
             @RequestParam(required = false) String modesSupported,
-            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) String bankType,
             @RequestParam(required = false) String website,
             @RequestParam(required = false) String logo,
@@ -70,12 +70,12 @@ public class VendorController {
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate editedOn
     ) {
         log.info("Fetching vendors with filters - page: {}, size: {}, vendorName: {}, vendorCode: {}, productId: {}, subProductId: {}, isActive: {}",
-                page, size, vendorName, vendorCode, productId, subProductId, isActive);
+                page, size, vendorName, vendorCode, productId, subProductId, active);
 
         Pageable pageable = PageRequest.of(page, size);
         Page<VendorsDTO> dtoPage = vendorsService.getAllVendors(
                 pageable, id, vendorName, vendorCode, productId, productCode,
-                subProductId, subProductCode, modesSupported, isActive,
+                subProductId, subProductCode, modesSupported, active,
                 bankType, website, logo, parameter, createdBy, editedBy, createdOn, editedOn
         );
 

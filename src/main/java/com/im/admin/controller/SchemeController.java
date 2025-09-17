@@ -83,14 +83,42 @@ public class SchemeController {
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<GetAllSchemeResponse>>> getAllSchemes(
+            @RequestParam(required = false) Long id,
+            @RequestParam(required = false) String schemeName,
+            @RequestParam(required = false) String schemeCode,
+            @RequestParam(required = false) String schemeCombinationHashCode,
+            @RequestParam(required = false) String productId,
+            @RequestParam(required = false) String productName,
+            @RequestParam(required = false) String subProductId,
+            @RequestParam(required = false) String subProductName,
+            @RequestParam(required = false) String vendorId,
+            @RequestParam(required = false) String vendorName,
+            @RequestParam(required = false) String schemeHierarchyName,
+            @RequestParam(required = false) String schemeHierarchySelectionId,
+            @RequestParam(required = false) String createdOn,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String editedOn,
+            @RequestParam(required = false) String editedBy,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        log.info("Fetching all schemes. Page: {}, Size: {}", page, size);
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        log.info("Fetching all schemes with filters: schemeName: {}, schemeCode: {}, schemeCombinationHashCode: {}, productId: {}, productName: {}, subProductId: {}, subProductName: {}, vendorId: {}, vendorName: {}, schemeHierarchyName: {}, schemeHierarchySelectionId: {}, createdOn: {}, createdBy: {}, editedOn: {}, editedBy: {}, page: {}, size: {}",
+                schemeName, schemeCode, schemeCombinationHashCode, productId, productName, subProductId, subProductName,
+                vendorId, vendorName, schemeHierarchyName, schemeHierarchySelectionId, createdOn, createdBy, editedOn, editedBy,
+                page, size);
+
         Pageable pageable = PageRequest.of(page, size);
-        Page<GetAllSchemeResponse> schemes = schemeService.getAllSchemes(pageable);
+
+        Page<GetAllSchemeResponse> schemes = schemeService.getAllSchemes(
+                id, schemeName, schemeCode, schemeCombinationHashCode, productId, productName, subProductId,
+                subProductName, vendorId, vendorName, schemeHierarchyName, schemeHierarchySelectionId,
+                createdOn, createdBy, editedOn, editedBy, pageable
+        );
+
         log.info("Fetched {} schemes", schemes.getTotalElements());
         return ResponseEntity.ok(new CommonResponse<>(200, "Schemes fetched successfully", schemes));
     }
+
 
     @GetMapping("/get-by-id/{id}")
     public ResponseEntity<CommonResponse<GetAllSchemeResponse>> getSchemeById(@PathVariable Long id) {

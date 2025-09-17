@@ -244,7 +244,7 @@ public class VendorServiceImpl implements VendorService {
                                           String subProductId,
                                           String subProductCode,
                                           String modesSupported,
-                                          Boolean isActive,
+                                          Boolean active,
                                           String bankType,
                                           String website,
                                           String logo,
@@ -255,12 +255,12 @@ public class VendorServiceImpl implements VendorService {
                                           LocalDate editedOn) {
 
         log.info("Fetching vendors with filters - vendorName: {}, vendorCode: {}, productId: {}, isActive: {}, page: {}, size: {}",
-                vendorName, vendorCode, productId, isActive, pageable.getPageNumber(), pageable.getPageSize());
+                vendorName, vendorCode, productId, active, pageable.getPageNumber(), pageable.getPageSize());
 
         Specification<Vendors> spec = VendorSpecification.getFilter(
                 ids, vendorName, vendorCode, productId, productCode,
                 subProductId, subProductCode, modesSupported,
-                isActive, bankType, website, logo, parameter,
+                active, bankType, website, logo, parameter,
                 createdBy, editedBy, createdOn, editedOn
         );
 

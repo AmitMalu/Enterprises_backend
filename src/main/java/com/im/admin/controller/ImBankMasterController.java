@@ -50,6 +50,7 @@ public class ImBankMasterController {
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<ImBankMaster>>> getAll(
+            @RequestParam(required = false) Long id,
             @RequestParam(required = false) String bankName,
             @RequestParam(required = false) String accountNumber,
             @RequestParam(required = false) String ifscCode,
@@ -58,13 +59,14 @@ public class ImBankMasterController {
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) Boolean isBlocked,
             @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String editedOn,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         log.info("API Call: getAll ImBankMaster with filters bankName: {}, accountNumber: {}, ifscCode: {}, charges: {}, chargesType: {}, isActive: {}, isBlocked: {}, createdBy: {}, page: {}, size: {}",
                 bankName, accountNumber, ifscCode, charges, chargesType, isActive, isBlocked, createdBy, page, size);
-        CommonResponse<Page<ImBankMaster>> response = service.getAll(bankName, accountNumber, ifscCode, charges,
-                chargesType, isActive, isBlocked, createdBy, page, size);
+        CommonResponse<Page<ImBankMaster>> response = service.getAll(id,bankName, accountNumber, ifscCode, charges,
+                chargesType, isActive, isBlocked, createdBy, editedOn, page, size);
         log.info("Fetched ImBankMaster list successfully");
         return ResponseEntity.ok(response);
     }
