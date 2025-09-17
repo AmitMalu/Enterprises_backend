@@ -22,6 +22,16 @@ public interface SchemeAllocationService {
 
     List<RetailerSchemeAllocationResponse> getAllocatedSchemesForRetailer(String hierarchyId);
 
-    Page<UserSearchResponseDto> searchActiveRetailers(String keyword, Pageable pageable);
+    Page<UserSearchResponseDto> searchActiveRetailers(
+            String mobileNumber,
+            String hierarchyId,
+            String hierarchyCode,
+            String createdDate,
+            String lastLoginDate,
+            String emailId,
+            Pageable pageable,
+             String keyword
+    );
+
 
 }

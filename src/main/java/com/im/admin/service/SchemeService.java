@@ -29,7 +29,26 @@ public interface SchemeService {
 
 //    VendorRouting saveVendorRouting(VendorRoutingDto request);
 
-    Page<GetAllSchemeResponse> getAllSchemes(Pageable pageable);
+    Page<GetAllSchemeResponse> getAllSchemes(
+            Long id,
+            String schemeName,
+            String schemeCode,
+            String schemeCombinationHashCode,
+            String productId,
+            String productName,
+            String subProductId,
+            String subProductName,
+            String vendorId,
+            String vendorName,
+            String schemeHierarchyName,
+            String schemeHierarchySelectionId,
+            String createdOn,
+            String createdBy,
+            String editedOn,
+            String editedBy,
+            Pageable pageable
+    );
+
 
     GetAllSchemeResponse getSchemeDtoById(Long id);
 

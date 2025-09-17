@@ -72,14 +72,30 @@ public class HierarchySelectionController {
 
     @GetMapping("/getAll")
     public ResponseEntity<CommonResponse<Page<SchemeHierarchySelectionResponseDTO>>> getAllSelections(
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String schemeHierarchySelectionName,
+            @RequestParam(required = false) String schemeHierarchyCombination,
+            @RequestParam(required = false) String combinationHashCode,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String createdOn,
+            @RequestParam(required = false) String editedBy,
+            @RequestParam(required = false) String editedOn,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        log.info("API Call: getAllSelections page: {}, size: {}", page, size);
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        log.info("API Call: getAllSelections with filters. Page: {}, Size: {}", page, size);
         Pageable pageable = PageRequest.of(page, size);
-        Page<SchemeHierarchySelectionResponseDTO> pageData = hierarchyService.getAllSelections(pageable);
+
+        Page<SchemeHierarchySelectionResponseDTO> pageData = hierarchyService.getAllSelections(
+                id, schemeHierarchySelectionName, schemeHierarchyCombination,
+                combinationHashCode, createdBy, createdOn, editedBy, editedOn, pageable
+        );
+
         log.info("Fetched {} hierarchy selections", pageData.getNumberOfElements());
+
         return ResponseEntity.ok(CommonResponse.success(pageData, "Selections fetched successfully."));
     }
+
 
     @GetMapping("/getById/{id}")
     public ResponseEntity<CommonResponse<SchemeHierarchySelectionResponseDTO>> getById(@PathVariable String id) {

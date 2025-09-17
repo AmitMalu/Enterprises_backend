@@ -90,25 +90,35 @@ public class SchemeAllocationController {
 
     @GetMapping("/active-retailers")
     public ResponseEntity<CommonResponse<Page<UserSearchResponseDto>>> ActiveRetailers(
+            @RequestParam(required = false) String mobileNumber,
+            @RequestParam(required = false) String hierarchyId,
+            @RequestParam(required = false) String hierarchyCode,
+            @RequestParam(required = false) String createdDate,
+            @RequestParam(required = false) String lastLoginDate,
+            @RequestParam(required = false) String emailId,
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size
+    ) {
 
-        log.info("Searching active retailers with keyword: '{}', page: {}, size: {}", keyword, page, size);
+        log.info("Searching active retailers with filters, page: {}, size: {}", page, size);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
 
-        Page<UserSearchResponseDto> result = allocationService.searchActiveRetailers(keyword, pageable);
+        Page<UserSearchResponseDto> result = allocationService.searchActiveRetailers(
+                mobileNumber, hierarchyId, hierarchyCode, createdDate, lastLoginDate, emailId, pageable, keyword
+        );
 
         if (result.isEmpty()) {
-            log.warn("No active retailers found for keyword: {}", keyword);
-            return ResponseEntity.ok(CommonResponse.success(result, "No active retailers found for keyword: " + keyword));
+            log.warn("No active retailers found for given filters");
+            return ResponseEntity.ok(CommonResponse.success(result, "No active retailers found."));
         }
 
         log.info("Retailer search successful. Found {} retailers.", result.getTotalElements());
 
         return ResponseEntity.ok(CommonResponse.success(result, "Retailer search successful"));
     }
+
 
 
 }

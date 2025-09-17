@@ -1,8 +1,10 @@
 package com.im.admin.repositories;
 
+import com.im.admin.entities.ImBankMaster;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.im.admin.entities.Scheme;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -11,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface SchemeRepository extends JpaRepository<Scheme, Long> {
+public interface SchemeRepository extends JpaRepository<Scheme, Long>, JpaSpecificationExecutor<Scheme> {
 
     boolean existsBySchemeCombinationHashCodeStartingWith(String combinationHash);
 

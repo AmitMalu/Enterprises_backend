@@ -19,7 +19,7 @@ public class VendorSpecification {
             String subProductId,
             String subProductCode,
             String modesSupported,
-            Boolean isActive,
+            Boolean active,
             String bankType,
             String website,
             String logo,
@@ -54,8 +54,12 @@ public class VendorSpecification {
                 predicates.add(cb.like(cb.lower(root.get("subProductCode")), "%" + subProductCode.toLowerCase() + "%"));
             if (modesSupported != null)
                 predicates.add(cb.like(cb.lower(root.get("modesSupported")), "%" + modesSupported.toLowerCase() + "%"));
-            if (isActive != null)
-                predicates.add(cb.equal(root.get("isActive"), isActive));
+
+            if (active != null) {
+                predicates.add(cb.equal(root.get("active"), active));
+            }
+
+
             if (bankType != null)
                 predicates.add(cb.like(cb.lower(root.get("bankType")), "%" + bankType.toLowerCase() + "%"));
             if (website != null)

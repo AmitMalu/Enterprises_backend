@@ -15,7 +15,18 @@ public interface HierarchySelectionService {
 
     Map<String, Object> updateHierarchySelection(String id, SchemeHierarchySelectionRequest requestDTO);
 
-    Page<SchemeHierarchySelectionResponseDTO> getAllSelections(Pageable pageable);
+    Page<SchemeHierarchySelectionResponseDTO> getAllSelections(
+            String id,
+            String schemeHierarchySelectionName,
+            String schemeHierarchyCombination,
+            String combinationHashCode,
+            String createdBy,
+            String createdOn,
+            String editedBy,
+            String editedOn,
+            Pageable pageable
+    );
+
 
     SchemeHierarchySelectionResponseDTO getSelectionById(String id);
 
