@@ -26,7 +26,7 @@ public interface VendorService {
                                    String subProductId,
                                    String subProductCode,
                                    String modesSupported,
-                                   Boolean isActive,
+                                   Boolean active,
                                    String bankType,
                                    String website,
                                    String logo,

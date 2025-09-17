@@ -14,9 +14,17 @@ import com.im.admin.service.SchemeService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.*;
+import org.springframework.stereotype.Service;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
+import org.springframework.data.jpa.domain.Specification;
+
+
+import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
+import java.util.List;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -220,51 +228,110 @@ public class SchemeServiceImpl implements SchemeService {
 //    }
 
     @Override
-    public Page<GetAllSchemeResponse> getAllSchemes(Pageable pageable) {
-        Page<Scheme> schemes = schemeRepository.findAll(pageable);
+    public Page<GetAllSchemeResponse> getAllSchemes(
+            Long id,
+            String schemeName,
+            String schemeCode,
+            String schemeCombinationHashCode,
+            String productId,
+            String productName,
+            String subProductId,
+            String subProductName,
+            String vendorId,
+            String vendorName,
+            String schemeHierarchyName,
+            String schemeHierarchySelectionId,
+            String createdOn,
+            String createdBy,
+            String editedOn,
+            String editedBy,
+            Pageable pageable
+    ) {
+        Specification<Scheme> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
 
-        return schemes.map(scheme -> {
-            String[] parts = scheme.getSchemeCombinationHashCode().split("-");
+            if (id != null)
+                predicates.add(cb.equal(root.get("id"), id));
 
-            String productId = parts.length > 0 ? parts[0] : null;
-            String subProductId = parts.length > 1 ? parts[1] : null;
-            String vendorId = parts.length > 2 ? parts[2] : null;
-            String schemeHierarchyId = parts.length > 3 ? parts[3] : null;
+            if (schemeName != null && !schemeName.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("schemeName")), "%" + schemeName.toLowerCase() + "%"));
 
-            assert productId != null;
-            String productName = productsRepository.findById(Short.valueOf(productId))
-                    .map(Products::getName).orElse("N/A");
+            if (schemeCode != null && !schemeCode.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("schemeCode")), "%" + schemeCode.toLowerCase() + "%"));
 
-            assert subProductId != null;
-            String subProductName = subProductsRepository.findById(subProductId)
-                    .map(SubProducts::getSubProductTitle).orElse("N/A");
+            if (schemeCombinationHashCode != null && !schemeCombinationHashCode.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%" + schemeCombinationHashCode.toLowerCase() + "%"));
 
-            assert vendorId != null;
-            String vendorName = vendorRepository.findById(vendorId)
-                    .map(Vendors::getVendorName).orElse("N/A");
+            if (createdOn != null && !createdOn.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("createdOn").as(String.class)), "%" + createdOn.toLowerCase() + "%"));
 
-            String schemeHierarchyName = schemeHierarchySelectionRepository.findByCustomId(schemeHierarchyId)
-                    .map(SchemeHierarchySelection::getSchemeHierarchyCombination).orElse("N/A");
+            if (createdBy != null && !createdBy.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
 
-            return new GetAllSchemeResponse(
-                    scheme.getId(),
-                    scheme.getSchemeName(),
-                    scheme.getSchemeCode(),
-                    scheme.getSchemeCombinationHashCode(),
-                    productId,
-                    productName,
-                    subProductId,
-                    subProductName,
-                    vendorId,
-                    vendorName,
-                    schemeHierarchyName,
-                    schemeHierarchyId,
-                    scheme.getCreatedOn(),
-                    scheme.getCreatedBy(),
-                    scheme.getEditedOn(),
-                    scheme.getEditedBy()
-            );
-        });
+            if (editedOn != null && !editedOn.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("editedOn").as(String.class)), "%" + editedOn.toLowerCase() + "%"));
+
+            if (editedBy != null && !editedBy.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
+
+            if (productId != null && !productId.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), productId.toLowerCase() + "-%"));
+
+            if (subProductId != null && !subProductId.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%-" + subProductId.toLowerCase() + "-%"));
+
+            if (vendorId != null && !vendorId.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%-" + vendorId.toLowerCase() + "-%"));
+
+            if (schemeHierarchySelectionId != null && !schemeHierarchySelectionId.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%-" + schemeHierarchySelectionId.toLowerCase() + "-%"));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Scheme> schemes = schemeRepository.findAll(spec, pageable);
+
+        List<GetAllSchemeResponse> filteredList = schemes.stream().map(scheme -> {
+                    String[] parts = scheme.getSchemeCombinationHashCode().split("-");
+
+                    String prodId = parts.length > 0 ? parts[0] : null;
+                    String subProdId = parts.length > 1 ? parts[1] : null;
+                    String vendId = parts.length > 2 ? parts[2] : null;
+                    String schemeHierarchySelId = parts.length > 3 ? parts[3] : null;
+
+                    String prodName = productsRepository.findById(Short.valueOf(prodId)).map(Products::getName).orElse("N/A");
+                    String subProdName = subProductsRepository.findById(subProdId).map(SubProducts::getSubProductTitle).orElse("N/A");
+                    String vendName = vendorRepository.findById(vendId).map(Vendors::getVendorName).orElse("N/A");
+                    String schemeHierarchyNameRes = schemeHierarchySelectionRepository.findByCustomId(schemeHierarchySelId)
+                            .map(SchemeHierarchySelection::getSchemeHierarchyCombination).orElse("N/A");
+
+                    return new GetAllSchemeResponse(
+                            scheme.getId(),
+                            scheme.getSchemeName(),
+                            scheme.getSchemeCode(),
+                            scheme.getSchemeCombinationHashCode(),
+                            prodId,
+                            prodName,
+                            subProdId,
+                            subProdName,
+                            vendId,
+                            vendName,
+                            schemeHierarchyNameRes,
+                            schemeHierarchySelId,
+                            scheme.getCreatedOn(),
+                            scheme.getCreatedBy(),
+                            scheme.getEditedOn(),
+                            scheme.getEditedBy()
+                    );
+                })
+                .filter(s -> (productName == null || productName.isEmpty() || s.getProductName().toLowerCase().contains(productName.toLowerCase())))
+                .filter(s -> (subProductName == null || subProductName.isEmpty() || s.getSubProductName().toLowerCase().contains(subProductName.toLowerCase())))
+                .filter(s -> (vendorName == null || vendorName.isEmpty() || s.getVendorName().toLowerCase().contains(vendorName.toLowerCase())))
+                .filter(s -> (schemeHierarchyName == null || schemeHierarchyName.isEmpty() || s.getSchemeHierarchyName().toLowerCase().contains(schemeHierarchyName.toLowerCase())))
+                .toList();  // Collect into List<GetAllSchemeResponse>
+
+              // Return as Page<GetAllSchemeResponse> preserving pagination metadata
+        return new PageImpl<>(filteredList, pageable, schemes.getTotalElements());
     }
 
     @Override

@@ -18,6 +18,7 @@ public interface ImBankMasterService {
     CommonResponse<ImBankMasterResponseDTO> getById(Long id);
 
     CommonResponse<Page<ImBankMaster>> getAll(
+            Long id,
             String bankName,
             String accountNumber,
             String ifscCode,
@@ -26,6 +27,7 @@ public interface ImBankMasterService {
             Boolean isActive,
             Boolean isBlocked,
             String createdBy,
+            String editedOn,
             int page,
             int size
     );

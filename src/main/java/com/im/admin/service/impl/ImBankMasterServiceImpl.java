@@ -59,6 +59,7 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
 
     @Override
     public CommonResponse<Page<ImBankMaster>> getAll(
+            Long id,
             String bankName,
             String accountNumber,
             String ifscCode,
@@ -67,6 +68,7 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
             Boolean isActive,
             Boolean isBlocked,
             String createdBy,
+            String editedOn,
             int page,
             int size
     ) {
@@ -74,6 +76,10 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
 
         Specification<ImBankMaster> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+
+
+            if (id != null)
+                predicates.add(cb.equal(root.get("id"), id));
 
             if (bankName != null && !bankName.isEmpty())
                 predicates.add(cb.like(cb.lower(root.get("bankName")), "%" + bankName.toLowerCase() + "%"));
@@ -85,6 +91,7 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
                 predicates.add(cb.like(cb.lower(root.get("ifscCode")), "%" + ifscCode.toLowerCase() + "%"));
 
             if (charges != null)
+
                 predicates.add(cb.equal(root.get("charges"), charges));
 
             if (chargesType != null && !chargesType.isEmpty())
@@ -98,6 +105,10 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
 
             if (createdBy != null && !createdBy.isEmpty())
                 predicates.add(cb.equal(cb.lower(root.get("createdBy")), createdBy.toLowerCase()));
+
+            if (editedOn != null && !editedOn.isEmpty())
+                predicates.add(cb.like(cb.lower(root.get("editedOn").as(String.class)), "%" + editedOn.toLowerCase() + "%"));
+
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };

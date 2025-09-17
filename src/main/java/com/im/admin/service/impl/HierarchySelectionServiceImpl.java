@@ -15,6 +15,7 @@ import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -158,9 +159,41 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
     }
 
     @Override
-    public Page<SchemeHierarchySelectionResponseDTO> getAllSelections(Pageable pageable) {
-        return hierarchySelectionRepository.findAll(pageable).map(SchemeHierarchySelectionResponseDTO::new);
+    public Page<SchemeHierarchySelectionResponseDTO> getAllSelections(
+            String id,
+            String schemeHierarchySelectionName,
+            String schemeHierarchyCombination,
+            String combinationHashCode,
+            String createdBy,
+            String createdOn,
+            String editedBy,
+            String editedOn,
+            Pageable pageable
+    ) {
+        Page<SchemeHierarchySelection> selections = hierarchySelectionRepository.findAll(pageable);
+
+        List<SchemeHierarchySelectionResponseDTO> filteredList = selections.stream()
+                .map(SchemeHierarchySelectionResponseDTO::new)
+                .filter(dto -> (id == null || id.isEmpty() || dto.getId().toLowerCase().contains(id.toLowerCase())))
+                .filter(dto -> (schemeHierarchySelectionName == null || schemeHierarchySelectionName.isEmpty() ||
+                        dto.getSchemeHierarchySelectionName().toLowerCase().contains(schemeHierarchySelectionName.toLowerCase())))
+                .filter(dto -> (schemeHierarchyCombination == null || schemeHierarchyCombination.isEmpty() ||
+                        dto.getSchemeHierarchyCombination().toString().toLowerCase().contains(schemeHierarchyCombination.toLowerCase())))
+                .filter(dto -> (combinationHashCode == null || combinationHashCode.isEmpty() ||
+                        dto.getCombinationHashCode().toLowerCase().contains(combinationHashCode.toLowerCase())))
+                .filter(dto -> (createdBy == null || createdBy.isEmpty() ||
+                        dto.getCreatedBy().toLowerCase().contains(createdBy.toLowerCase())))
+                .filter(dto -> (createdOn == null || createdOn.isEmpty() ||
+                        dto.getCreatedOn().toString().toLowerCase().contains(createdOn.toLowerCase())))
+                .filter(dto -> (editedBy == null || editedBy.isEmpty() ||
+                        dto.getEditedBy().toLowerCase().contains(editedBy.toLowerCase())))
+                .filter(dto -> (editedOn == null || editedOn.isEmpty() ||
+                        dto.getEditedOn().toString().toLowerCase().contains(editedOn.toLowerCase())))
+                .toList();
+
+        return new PageImpl<>(filteredList, pageable, selections.getTotalElements());
     }
+
 
     @Override
     public SchemeHierarchySelectionResponseDTO getSelectionById(String id) {
