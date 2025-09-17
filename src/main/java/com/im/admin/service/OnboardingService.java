@@ -11,7 +11,9 @@ public interface OnboardingService {
 
     String approveOrRejectHierarchy(OnboardingHierarchyRequestDto hierarchyRequestDto);
 
-    Page<GenericPendingRecordDto> getAllRecordsByStatus(String status, int page, int size);
+
 
     GenericPendingRecordDto getRecordById(String id);
+
+    Page<GenericPendingRecordDto> getAllRecordsByStatus(String status, int page, int size, String type, String id, String name, String createdBy, String createdOn, String mobileNumber, String emailId, String parentAccount);
 }
