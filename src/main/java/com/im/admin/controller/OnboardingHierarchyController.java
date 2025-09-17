@@ -8,6 +8,8 @@ import com.im.admin.service.OnboardingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,24 +24,34 @@ public class OnboardingHierarchyController {
     @PostMapping("/getAll-records")
     public ResponseEntity<CommonResponse<Page<GenericPendingRecordDto>>> getAllRecordsByStatus(
             @RequestParam("status") String status,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String createdOn,
+            @RequestParam(required = false) String mobileNumber,
+            @RequestParam(required = false) String emailId,
+            @RequestParam(required = false) String parentAccount,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        log.info("Fetching records with status: {}, page: {}, size: {}", status, page, size);
-        Page<GenericPendingRecordDto> response = onboardingService.getAllRecordsByStatus(status, page, size);
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<GenericPendingRecordDto> response = onboardingService.getAllRecordsByStatus(
+                status, page, size,
+                type, id, name, createdBy, createdOn, mobileNumber, emailId, parentAccount);
 
         String formattedStatus = status.toUpperCase();
-        String message;
-        switch (formattedStatus) {
-            case "APPROVED" -> message = "Approved records fetched successfully";
-            case "REJECTED" -> message = "Rejected records fetched successfully";
-            case "PENDING" -> message = "Pending records fetched successfully";
-            default -> message = formattedStatus + " records fetched successfully";
-        }
+        String message = switch (formattedStatus) {
+            case "APPROVED" -> "Approved records fetched successfully";
+            case "REJECTED" -> "Rejected records fetched successfully";
+            case "PENDING" -> "Pending records fetched successfully";
+            default -> formattedStatus + " records fetched successfully";
+        };
 
-        log.info("Fetched {} records for status {}", response.getTotalElements(), formattedStatus);
         return ResponseEntity.ok(CommonResponse.success(response, message));
     }
+
 
     @PostMapping("/approve-or-reject")
     public ResponseEntity<CommonResponse> onboardHierarchy(@RequestBody OnboardingHierarchyRequestDto hierarchyRequestDto) {
