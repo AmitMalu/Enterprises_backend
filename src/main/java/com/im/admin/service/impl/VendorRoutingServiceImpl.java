@@ -113,21 +113,43 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
                         Join<Object, Object> subJoin = root.join("subProduct", JoinType.INNER);
                         predicates.add(cb.equal(subJoin.get("id"), value)); // String
                     }
+                    case "subProductName" -> {
+                        Join<Object, Object> subJoin = root.join("subProduct", JoinType.INNER);
+                        predicates.add(cb.like(cb.lower(subJoin.get("subProductTitle")), "%" + value.toLowerCase() + "%"));
+                    }
 
                     case "routingPriority1" -> {
                         Join<Object, Object> v1Join = root.join("routingPriority1", JoinType.INNER);
                         predicates.add(cb.equal(v1Join.get("id"), value)); // <-- String
                     }
 
+                    case "routingPriority1Name" -> {
+                        Join<Object, Object> v1Join = root.join("routingPriority1", JoinType.INNER);
+                        predicates.add(cb.like(cb.lower(v1Join.get("vendorName")), "%" + value.toLowerCase() + "%"));
+                    }
+
+
                     case "routingPriority2" -> {
                         Join<Object, Object> v2Join = root.join("routingPriority2", JoinType.INNER);
                         predicates.add(cb.equal(v2Join.get("id"), value));
                     }
 
+                    case "routingPriority2Name" -> {
+                        Join<Object, Object> v2Join = root.join("routingPriority2", JoinType.INNER);
+                        predicates.add(cb.like(cb.lower(v2Join.get("vendorName")), "%" + value.toLowerCase() + "%"));
+                    }
+
+
                     case "routingPriority3" -> {
                         Join<Object, Object> v3Join = root.join("routingPriority3", JoinType.INNER);
                         predicates.add(cb.equal(v3Join.get("id"), value));
                     }
+
+                    case "routingPriority3Name" -> {
+                        Join<Object, Object> v3Join = root.join("routingPriority3", JoinType.INNER);
+                        predicates.add(cb.like(cb.lower(v3Join.get("vendorName")), "%" + value.toLowerCase() + "%"));
+                    }
+
 
                     default -> {
                         try {

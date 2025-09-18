@@ -189,7 +189,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
 
     @Override
-    public AdminUser updateAdminUser(Long id, AdminUserRequestDTO dto) throws JsonProcessingException {
+    public AdminUser updateAdminUser(String id, AdminUserRequestDTO dto) throws JsonProcessingException {
         LocalDateTime requestDateTime = LocalDateTime.now();
         String request = null;
         String response = null;
@@ -259,7 +259,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
 
     @Override
-    public AdminUser getAdminUserById(Long id) throws JsonProcessingException {
+    public AdminUser getAdminUserById(String  id) throws JsonProcessingException {
         LocalDateTime requestDateTime = LocalDateTime.now();
         String request = "Fetching AdminUser with ID: " + id;
         String response = null;
@@ -273,6 +273,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                         log.error("Admin user not found with ID: {}", id);
                         return new RuntimeException("Admin user not found with ID: " + id);
                     });
+
 
             response = objectMapper.writeValueAsString(adminUser);
             responseDateTime = LocalDateTime.now();

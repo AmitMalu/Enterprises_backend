@@ -16,11 +16,7 @@ import java.util.List;
 public interface NetworkBankService {
     NetworkBankMaster addBank(BankRequestDto bankRequestDto, MultipartFile logoFile) throws IOException;
 
-    Page<NetworkBankMaster> getAllBanks(Pageable pageable, String id, String bankCode, String bankName,
-                                        String bankBranchName, String ifscCode, String imps, String neft,
-                                        String rtgs, String activeStatus, String createdBy,
-                                        String editedBy, Boolean isBlocked, LocalDate createdOn,
-                                        LocalDate editedOn);
+    
 
     NetworkBankMaster updateBank(Long id, BankRequestDto bankRequestDto, MultipartFile logoFile);
 
@@ -30,4 +26,5 @@ public interface NetworkBankService {
 
     BankInfoResponse getBankInfoByIfsc(String ifscCode);
 
+    Page<NetworkBankMaster> getAllBanks(Pageable pageable, String id, String bankCode, String bankName, String bankBranchName, String ifscCode, Boolean imps, Boolean neft, Boolean rtgs, Boolean isActive, String createdBy, String editedBy, Boolean isBlocked, LocalDate createdOn, LocalDate editedOn);
 }
