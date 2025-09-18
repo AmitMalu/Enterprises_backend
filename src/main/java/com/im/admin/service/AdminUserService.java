@@ -10,7 +10,7 @@ public interface AdminUserService {
 
     Page<AdminUser> getAllAdminUsers(int page, int size) throws JsonProcessingException;
 
-    AdminUser updateAdminUser(Long id, AdminUserRequestDTO dto) throws JsonProcessingException;
+    AdminUser updateAdminUser(String id, AdminUserRequestDTO dto) throws JsonProcessingException;
 
-    AdminUser getAdminUserById(Long id) throws JsonProcessingException;
+    AdminUser getAdminUserById(String  id) throws JsonProcessingException;
 }

@@ -335,6 +335,14 @@ public class AuthController {
                     break;
 
                 case "RT":
+
+                    // Add role_id and sub_role_id
+                    responseMap.put("role_id", user.getRole_id());
+                    ImSubRole rtSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                    if (rtSubRole != null) {
+                        responseMap.put("sub_role_id", rtSubRole.getSubRoleId());
+                    }
+
                     List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
                     Map<String, List<Map<String, String>>> productSubMap = new LinkedHashMap<>();
                     Map<String, String> productIdToName = new HashMap<>();

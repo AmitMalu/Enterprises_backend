@@ -81,19 +81,32 @@ public class NetworkBankServiceImpl implements NetworkBankService {
 
 
     @Override
-    public Page<NetworkBankMaster> getAllBanks(Pageable pageable, String id, String bankCode, String bankName,
-                                        String bankBranchName, String ifscCode, String imps, String neft,
-                                        String rtgs, String activeStatus, String createdBy,
-                                        String editedBy, Boolean isBlocked, LocalDate createdOn,
-                                        LocalDate editedOn) {
-
+    public Page<NetworkBankMaster> getAllBanks(
+            Pageable pageable,
+            String id,
+            String bankCode,
+            String bankName,
+            String bankBranchName,
+            String ifscCode,
+            Boolean imps,
+            Boolean neft,
+            Boolean rtgs,
+            Boolean isActive,
+            String createdBy,
+            String editedBy,
+            Boolean isBlocked,
+            LocalDate createdOn,
+            LocalDate editedOn
+    ) {
         Specification<NetworkBankMaster> spec = BankSpecification.getFilter(
-                id, bankCode, bankName, bankBranchName, ifscCode, imps, neft, rtgs,
-                activeStatus, createdBy, editedBy, isBlocked, createdOn, editedOn
+                id, bankCode, bankName, bankBranchName, ifscCode,
+                imps, neft, rtgs, isActive,
+                createdBy, editedBy, isBlocked, createdOn, editedOn
         );
 
         return bankMasterRepository.findAll(spec, pageable);
     }
+
 
     @Override
     public NetworkBankMaster updateBank(Long id, BankRequestDto dto, MultipartFile logoFile) {

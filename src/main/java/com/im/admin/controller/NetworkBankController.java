@@ -62,23 +62,23 @@ public class NetworkBankController {
             @RequestParam(required = false) String bankName,
             @RequestParam(required = false) String bankBranchName,
             @RequestParam(required = false) String ifscCode,
-            @RequestParam(required = false) String imps,
-            @RequestParam(required = false) String neft,
-            @RequestParam(required = false) String rtgs,
-            @RequestParam(required = false) String activeStatus,
+            @RequestParam(required = false) Boolean imps,
+            @RequestParam(required = false) Boolean neft,
+            @RequestParam(required = false) Boolean rtgs,
+            @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) String createdBy,
             @RequestParam(required = false) String editedBy,
             @RequestParam(required = false) Boolean isBlocked,
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createdOn,
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate editedOn
     ) {
-
         log.info("Fetching BankMaster list with filters - bankName: {}, bankCode: {}", bankName, bankCode);
 
         Pageable pageable = PageRequest.of(page, size);
         Page<NetworkBankMaster> banks = bankService.getAllBanks(
-                pageable, id, bankCode, bankName, bankBranchName, ifscCode, imps, neft, rtgs,
-                activeStatus, createdBy, editedBy, isBlocked, createdOn, editedOn
+                pageable, id, bankCode, bankName, bankBranchName, ifscCode,
+                imps, neft, rtgs, isActive,
+                createdBy, editedBy, isBlocked, createdOn, editedOn
         );
 
         CommonResponse<Page<NetworkBankMaster>> response = new CommonResponse<>(
@@ -88,6 +88,7 @@ public class NetworkBankController {
         );
         return ResponseEntity.ok(response);
     }
+
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommonResponse<NetworkBankMaster>> updateBank(

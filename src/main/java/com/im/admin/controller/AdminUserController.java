@@ -58,7 +58,7 @@ public class AdminUserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<CommonResponse<AdminUser>> updateAdminUser(
-            @PathVariable Long id,
+            @PathVariable String id,
             @RequestBody AdminUserRequestDTO dto) throws JsonProcessingException {
 
         log.info("Updating admin user with ID: {}", id);
@@ -78,7 +78,7 @@ public class AdminUserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommonResponse<AdminUser>> getAdminUserById(@PathVariable Long id) throws JsonProcessingException {
+    public ResponseEntity<CommonResponse<AdminUser>> getAdminUserById(@PathVariable String  id) throws JsonProcessingException {
         log.info("Fetching admin user with ID: {}", id);
 
         AdminUser adminUser = adminUserService.getAdminUserById(id);
