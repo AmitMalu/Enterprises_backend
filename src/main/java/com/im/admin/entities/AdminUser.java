@@ -26,8 +26,8 @@ import java.util.List;
 public class AdminUser {
 
     @Id
-    @Column(name = "adminuser_id", nullable = false)
-    private String adminrUserId;
+    @Column(name = "id", nullable = false)
+    private String id;
 
     @Column(name = "parent_account", nullable = false)
     private String parentAccount;
