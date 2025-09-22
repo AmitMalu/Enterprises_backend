@@ -18,7 +18,7 @@ public class AdminUserRequestDTO {
     @NotBlank(message = "Parent account is required")
     private String parentAccount;
 
-    private String adminrUserId;
+    private String id;
 
     @Column(name = "abbreviation", length = 3)
     @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")

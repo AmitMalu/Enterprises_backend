@@ -8,10 +8,13 @@ import com.im.admin.service.AdminUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 @Slf4j
 @RestController
@@ -39,12 +42,26 @@ public class AdminUserController {
     @GetMapping
     public ResponseEntity<CommonResponse<Page<AdminUser>>> getAllAdminUsers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) throws JsonProcessingException {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String mobileNumber,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String emailId,
+            @RequestParam(required = false) Boolean status,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate dob,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate createdOn,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate lastEditedOn,
+            @RequestParam(required = false) String editedBy
+    ) throws JsonProcessingException {
 
-        log.info("Fetching admin users - page: {}, size: {}", page, size);
+        log.info("Fetching admin users with filters - page: {}, size: {}", page, size);
 
-        Page<AdminUser> adminUsers = adminUserService.getAllAdminUsers(page, size);
-        log.debug("Fetched admin users: {}", adminUsers.getContent());
+        Page<AdminUser> adminUsers = adminUserService.getAllAdminUsers(
+                page, size, id, name, mobileNumber, username,
+                emailId, status, dob, createdOn, createdBy, lastEditedOn, editedBy
+        );
 
         CommonResponse<Page<AdminUser>> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
@@ -56,9 +73,10 @@ public class AdminUserController {
                 .body(response);
     }
 
+
     @PutMapping("/{id}")
     public ResponseEntity<CommonResponse<AdminUser>> updateAdminUser(
-            @PathVariable Long id,
+            @PathVariable String id,
             @RequestBody AdminUserRequestDTO dto) throws JsonProcessingException {
 
         log.info("Updating admin user with ID: {}", id);
@@ -78,7 +96,7 @@ public class AdminUserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommonResponse<AdminUser>> getAdminUserById(@PathVariable Long id) throws JsonProcessingException {
+    public ResponseEntity<CommonResponse<AdminUser>> getAdminUserById(@PathVariable String  id) throws JsonProcessingException {
         log.info("Fetching admin user with ID: {}", id);
 
         AdminUser adminUser = adminUserService.getAdminUserById(id);

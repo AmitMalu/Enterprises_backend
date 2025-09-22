@@ -15,14 +15,19 @@ import com.im.admin.util.IdGenerator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.criteria.Predicate;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Service
@@ -78,8 +83,8 @@ public class AdminUserServiceImpl implements AdminUserService {
             log.debug("Abbreviation set to: {}", abbreviation);
 
             String folder = "AdminUser";
-            dto.setAdminrUserId(idGenerator.generateHierarchyEntityId(folder, "AD"));
-            log.debug("Generated AdminUser ID: {}", dto.getAdminrUserId());
+            dto.setId(idGenerator.generateHierarchyEntityId(folder, "AD"));
+            log.debug("Generated AdminUser ID: {}", dto.getId());
 
             String adminId = dto.getParentAccount();
 
@@ -93,7 +98,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             log.debug("Permissions joined as: {}", permissionString);
 
             AdminUser adminUser = new AdminUser();
-            adminUser.setAdminrUserId(dto.getAdminrUserId());
+            adminUser.setId(dto.getId());
             adminUser.setParentAccount(dto.getParentAccount());
             adminUser.setName(dto.getName());
             adminUser.setMobileNumber(dto.getMobileNumber());
@@ -108,11 +113,11 @@ public class AdminUserServiceImpl implements AdminUserService {
             adminUser.setPermission(permissionString);
 
             AdminUser savedAdmin = adminUserRepository.save(adminUser);
-            log.info("AdminUser saved successfully with ID: {}", savedAdmin.getAdminrUserId());
+            log.info("AdminUser saved successfully with ID: {}", savedAdmin.getId());
 
             UserDetails user = new UserDetails();
             user.setMobileNumber(savedAdmin.getMobileNumber());
-            user.setHierarchyId(savedAdmin.getAdminrUserId());
+            user.setHierarchyId(savedAdmin.getId());
             user.setHierarchyCode("AU");
             user.setLoginUserName(savedAdmin.getUsername());
             user.setLoginPassword(savedAdmin.getPassword());
@@ -125,7 +130,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             user.setPermission(savedAdmin.getPermission());
 
             userDetailsRepository.save(user);
-            log.info("UserDetails saved for AdminUser ID: {}", savedAdmin.getAdminrUserId());
+            log.info("UserDetails saved for AdminUser ID: {}", savedAdmin.getId());
 
             response = objectMapper.writeValueAsString(savedAdmin);
             responseDateTime = LocalDateTime.now();
@@ -156,9 +161,21 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
-    public Page<AdminUser> getAllAdminUsers(int page, int size) throws JsonProcessingException {
+    public Page<AdminUser> getAllAdminUsers(int page, int size,
+                                            String id,
+                                            String name,
+                                            String mobileNumber,
+                                            String username,
+                                            String emailId,
+                                            Boolean status,
+                                            LocalDate dob,
+                                            LocalDate createdOn,
+                                            String createdBy,
+                                            LocalDate lastEditedOn,
+                                            String editedBy) throws JsonProcessingException {
+
         LocalDateTime requestDateTime = LocalDateTime.now();
-        String request = "Fetching all AdminUsers - Page: " + page + ", Size: " + size;
+        String request = "Fetching AdminUsers - Page: " + page + ", Size: " + size;
         String response = null;
         LocalDateTime responseDateTime = null;
 
@@ -166,7 +183,54 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         try {
             Pageable pageable = PageRequest.of(page, size, Sort.by("createdOn").descending());
-            Page<AdminUser> pageResult = adminUserRepository.findAll(pageable);
+
+            //  build Specification for filters
+            Specification<AdminUser> spec = (root, query, cb) -> {
+                List<Predicate> predicates = new ArrayList<>();
+
+                if (id != null && !id.isEmpty()) {
+                    predicates.add(cb.like(
+                            cb.lower(root.get("id").as(String.class)),
+                            "%" + id.toLowerCase() + "%"
+                    ));
+                }
+
+
+
+                if (name != null && !name.isEmpty())
+                    predicates.add(cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%"));
+
+                if (mobileNumber != null && !mobileNumber.isEmpty())
+                    predicates.add(cb.like(root.get("mobileNumber"), "%" + mobileNumber + "%"));
+
+                if (username != null && !username.isEmpty())
+                    predicates.add(cb.like(cb.lower(root.get("loginUsername")), "%" + username.toLowerCase() + "%"));
+
+                if (emailId != null && !emailId.isEmpty())
+                    predicates.add(cb.like(cb.lower(root.get("emailId")), "%" + emailId.toLowerCase() + "%"));
+
+                if (status != null)
+                    predicates.add(cb.equal(root.get("userStatus"), status));
+
+                if (dob != null)
+                    predicates.add(cb.equal(root.get("dob"), dob));
+
+                if (createdOn != null)
+                    predicates.add(cb.equal(root.get("createdOn").as(LocalDate.class), createdOn));
+
+                if (createdBy != null && !createdBy.isEmpty())
+                    predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+
+                if (lastEditedOn != null)
+                    predicates.add(cb.equal(root.get("editedOn").as(LocalDate.class), lastEditedOn));
+
+                if (editedBy != null && !editedBy.isEmpty())
+                    predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
+
+                return cb.and(predicates.toArray(new Predicate[0]));
+            };
+
+            Page<AdminUser> pageResult = adminUserRepository.findAll(spec, pageable);
 
             response = objectMapper.writeValueAsString(pageResult.getContent());
             responseDateTime = LocalDateTime.now();
@@ -189,7 +253,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
 
     @Override
-    public AdminUser updateAdminUser(Long id, AdminUserRequestDTO dto) throws JsonProcessingException {
+    public AdminUser updateAdminUser(String id, AdminUserRequestDTO dto) throws JsonProcessingException {
         LocalDateTime requestDateTime = LocalDateTime.now();
         String request = null;
         String response = null;
@@ -220,14 +284,14 @@ public class AdminUserServiceImpl implements AdminUserService {
             existingUser.setEditedBy(dto.getEditedBy());
 
             AdminUser savedUser = adminUserRepository.save(existingUser);
-            log.info("AdminUser updated successfully for ID: {}", savedUser.getAdminrUserId());
+            log.info("AdminUser updated successfully for ID: {}", savedUser.getId());
 
             // Update corresponding UserDetails
             UserDetails userDetails = userDetailsRepository
-                    .findByLoginUserName(savedUser.getUsername())
+                    .findByMobileNumber(savedUser.getMobileNumber())
                     .orElseThrow(() -> {
-                        log.error("UserDetails not found for username: {}", savedUser.getUsername());
-                        return new RuntimeException("UserDetails not found for username: " + savedUser.getUsername());
+                        log.error("UserDetails not found for mobileNumber: {}", savedUser.getMobileNumber());
+                        return new RuntimeException("UserDetails not found for mobileNumber: " + savedUser.getMobileNumber());
                     });
 
             userDetails.setMobileNumber(savedUser.getMobileNumber());
@@ -259,7 +323,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
 
     @Override
-    public AdminUser getAdminUserById(Long id) throws JsonProcessingException {
+    public AdminUser getAdminUserById(String  id) throws JsonProcessingException {
         LocalDateTime requestDateTime = LocalDateTime.now();
         String request = "Fetching AdminUser with ID: " + id;
         String response = null;
@@ -273,6 +337,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                         log.error("Admin user not found with ID: {}", id);
                         return new RuntimeException("Admin user not found with ID: " + id);
                     });
+
 
             response = objectMapper.writeValueAsString(adminUser);
             responseDateTime = LocalDateTime.now();

@@ -16,10 +16,10 @@ public class BankSpecification {
             String bankName,
             String bankBranchName,
             String ifscCode,
-            String imps,
-            String neft,
-            String rtgs,
-            String activeStatus,
+            Boolean imps,
+            Boolean neft,
+            Boolean rtgs,
+            Boolean activeStatus,
             String createdBy,
             String editedBy,
             Boolean isBlocked,
@@ -31,26 +31,44 @@ public class BankSpecification {
 
             if (id != null)
                 predicates.add(cb.like(cb.lower(root.get("id").as(String.class)), "%" + id.toLowerCase() + "%"));
+
             if (bankCode != null)
                 predicates.add(cb.like(cb.lower(root.get("bankCode")), "%" + bankCode.toLowerCase() + "%"));
+
             if (bankName != null)
                 predicates.add(cb.like(cb.lower(root.get("bankName")), "%" + bankName.toLowerCase() + "%"));
+
             if (bankBranchName != null)
                 predicates.add(cb.like(cb.lower(root.get("bankBranchName")), "%" + bankBranchName.toLowerCase() + "%"));
+
             if (ifscCode != null)
                 predicates.add(cb.like(cb.lower(root.get("ifscCode")), "%" + ifscCode.toLowerCase() + "%"));
+
+            //  Boolean fields (direct comparison, no lower())
             if (imps != null)
-                predicates.add(cb.equal(cb.lower(root.get("imps")), imps.toLowerCase()));
+                predicates.add(cb.equal(root.get("imps"), imps));
+
             if (neft != null)
-                predicates.add(cb.equal(cb.lower(root.get("neft")), neft.toLowerCase()));
+                predicates.add(cb.equal(root.get("neft"), neft));
+
             if (rtgs != null)
-                predicates.add(cb.equal(cb.lower(root.get("rtgs")), rtgs.toLowerCase()));
-            if (activeStatus != null)
-                predicates.add(cb.like(cb.lower(root.get("activeStatus")), "%" + activeStatus.toLowerCase() + "%"));
+                predicates.add(cb.equal(root.get("rtgs"), rtgs));
+
+            //  Assuming activeStatus is String (ACTIVE/INACTIVE etc.)
+//            if (activeStatus != null) {
+//                predicates.add(cb.equal(root.get("activeStatus"), activeStatus));
+//            }
+            if (activeStatus != null) {
+                predicates.add(cb.equal(root.get("isActive"), activeStatus));
+            }
+
+
             if (createdBy != null)
                 predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+
             if (editedBy != null)
                 predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
+
             if (isBlocked != null)
                 predicates.add(cb.equal(root.get("isBlocked"), isBlocked));
 
@@ -73,4 +91,5 @@ public class BankSpecification {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
+
 }
