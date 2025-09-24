@@ -2,6 +2,7 @@ package com.im.admin.config;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Set;
 
@@ -22,13 +23,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.crypto.spec.IvParameterSpec;
+
 @Component
 @Slf4j
 public class AESFilter extends OncePerRequestFilter {
 
 	private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/images/","/webjars/**", "cache",
 			"/api/aes/generate-token", "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password","/auth/forgot-password",
-			"/api/aes/validate-token", "/api/pg/generate-token", "/api/pg/payment/callback","/auth/forget-verify-otp", "/api/payout/callback");
+			"/api/aes/validate-token", "/api/pg/generate-token", "/api/pg/payment/callback","/auth/forget-verify-otp", "/api/payout/callback",
+			"/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials");
 
 	private final UrlPathHelper pathHelper = new UrlPathHelper();
 
@@ -53,7 +57,10 @@ public class AESFilter extends OncePerRequestFilter {
 	);
 
 	@Autowired
-	private AESController aesController;
+	private AESKeyService aesKeyService;
+
+	@Autowired
+	private AESEncryptionUtil aesEncryptionUtil;
 
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
@@ -111,32 +118,34 @@ public class AESFilter extends OncePerRequestFilter {
 
 	private String decryptToken(String token) throws Exception {
 		if (token == null || token.isBlank()) {
-			throw new IllegalArgumentException("Missing argument: token is empty");
+			throw new IllegalArgumentException("Missing token");
 		}
 
 		log.info("Decrypting token: {}", token);
 
-		String[] parts = token.split("\\|", 2); // Split into hierarchyCode and token
-		if (parts.length != 2) {
-			throw new IllegalArgumentException("Invalid token format. Expected hierarchyCode|encryptedToken");
+		// hierarchyCode|saltBase64|ivBase64|encryptedToken
+		String[] parts = token.split("\\|", 4);
+		if (parts.length != 4) {
+			throw new IllegalArgumentException("Invalid token format. Expected hierarchy|salt|iv|encryptedToken");
 		}
 
 		String hierarchyCode = parts[0];
-		String encryptedToken = parts[1];
-
-		String salt = HIERARCHY_SALTS.getOrDefault(hierarchyCode, "defaultSalt");
+		String saltBase64 = parts[1];
+		String ivBase64 = parts[2];
+		String encryptedToken = parts[3];
 
 		log.info("Generating encryption key using hierarchy type: {}", hierarchyCode);
 
-		byte[] derivedKey = AESEncryptionUtil.deriveKey(baseSecret, salt, iterations, keyLength);
+		// derive the same key from saltBase64
+		byte[] derivedKey = aesEncryptionUtil.deriveKey(baseSecret, saltBase64, iterations, keyLength);
 
-		byte[] secretKey = this.aesController.getSecretKey();
-		if (secretKey == null || secretKey.length == 0) {
-			throw new IllegalStateException("Secret key is not initialized");
-		}
+		IvParameterSpec ivSpec = new IvParameterSpec(Base64.getDecoder().decode(ivBase64));
 
-		return AESEncryptionUtil.decryptEnterprises(encryptedToken, derivedKey);
+		// decrypt payload
+		String decryptedPayload = aesEncryptionUtil.decrypt(encryptedToken, derivedKey, ivSpec);
+		return decryptedPayload;
 	}
+
 
 	private boolean isTokenExpired(String generationTimestamp, String expirationTimestamp) {
 		try {

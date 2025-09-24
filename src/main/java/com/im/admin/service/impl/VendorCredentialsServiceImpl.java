@@ -190,6 +190,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         entity.setUserField1(dto.getUserField1());
         entity.setUserField2(dto.getUserField2());
         entity.setUserField3(dto.getUserField3());
+        entity.setTokenType(dto.getTokenType());
         entity.setCreatedBy(dto.getCreatedBy());
         entity.setEditedBy(dto.getEditedBy());
 

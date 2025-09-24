@@ -17,5 +17,7 @@ public class LoginRequestDto {
     private String newPassword;
     private String reEnteredPassword;
     private String url;
+    private String salt;
+    private String iv;
 
 }
