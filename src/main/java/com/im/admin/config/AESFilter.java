@@ -131,13 +131,15 @@ public class AESFilter extends OncePerRequestFilter {
 
 		String hierarchyCode = parts[0];
 		String saltBase64 = parts[1];
+		byte[] saltBytes = Base64.getDecoder().decode(saltBase64);
+
 		String ivBase64 = parts[2];
 		String encryptedToken = parts[3];
 
 		log.info("Generating encryption key using hierarchy type: {}", hierarchyCode);
 
 		// derive the same key from saltBase64
-		byte[] derivedKey = aesEncryptionUtil.deriveKey(baseSecret, saltBase64, iterations, keyLength);
+		byte[] derivedKey = aesEncryptionUtil.deriveKey(baseSecret, saltBytes, iterations, keyLength);
 
 		IvParameterSpec ivSpec = new IvParameterSpec(Base64.getDecoder().decode(ivBase64));
 
