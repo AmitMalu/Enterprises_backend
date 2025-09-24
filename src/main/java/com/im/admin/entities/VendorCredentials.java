@@ -84,6 +84,9 @@ public class VendorCredentials {
     @Column(name = "user_field_3")
     private String userField3;
 
+    @Column(name = "token_type")
+    private String tokenType;
+
     @CreationTimestamp
     @Column(name = "created_on", updatable = false)
     private LocalDateTime createdOn;

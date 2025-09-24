@@ -32,6 +32,7 @@ public class VendorCredentialsDTO {
     private String userField1;
     private String userField2;
     private String userField3;
+    private String tokenType;
     private String createdBy;
     private String editedBy;
 

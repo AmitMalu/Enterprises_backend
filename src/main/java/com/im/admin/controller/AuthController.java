@@ -8,17 +8,22 @@ import com.im.admin.dto.LoginRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
+import com.im.admin.request.TokenGenerationRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AuthService;
+import com.im.admin.util.AESEncryptionUtil;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.OtpUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import javax.crypto.spec.IvParameterSpec;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
@@ -27,6 +32,15 @@ import java.util.*;
 @RequestMapping("/auth")
 @Slf4j
 public class AuthController {
+
+    @Value("${app.security.base-secret}")
+    private String baseSecret;
+
+    @Value("${app.security.pbkdf2-iterations}")
+    private int iterations;
+
+    @Value("${app.security.pbkdf2-keylength}")
+    private int keyLength;
 
     @Autowired
     private AESController aesController;
@@ -67,45 +81,74 @@ public class AuthController {
     @Autowired
     private AdminRepository adminRepository;
 
+    @Autowired
+    private AESEncryptionUtil aesEncryptionUtil;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = serializeRequest(loginRequestDto);
-        String username = loginRequestDto.getUserName();
 
-        log.info("Login attempt started for username: {}", username);
+        try {
+            // 1️ IV
+            byte[] ivBytes = Base64.getDecoder().decode(loginRequestDto.getIv());
+            IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
 
-        Optional<UserDetails> optionalUser = findUserByUsername(username);
-        if (optionalUser.isEmpty()) {
-            log.warn("User not found for username: {}", username);
-            return buildErrorResponse(requestJson, requestTime, 400, "Invalid credentials: Incorrect Username");
+            // 2️ Derive AES key using the Base64 salt string directly
+            byte[] secretKey = aesEncryptionUtil.deriveKey(baseSecret,
+                    loginRequestDto.getSalt(), // <--- use the Base64 string directly
+                    iterations, keyLength);
+
+            // 3️ Decrypt username & password
+            String decryptedUsername = aesEncryptionUtil.decrypt(loginRequestDto.getUserName(), secretKey, ivSpec);
+            String decryptedPassword = aesEncryptionUtil.decrypt(loginRequestDto.getPassword(), secretKey, ivSpec);
+
+            log.info("Login attempt started for username: {} and password: {}", decryptedUsername, decryptedPassword);
+
+            // 4️ Find user by decrypted username
+            Optional<UserDetails> optionalUser = findUserByUsername(decryptedUsername);
+            if (optionalUser.isEmpty()) {
+                log.warn("User not found for username: {}", decryptedUsername);
+                return buildErrorResponse(requestJson, requestTime, 400, "Invalid credentials: Incorrect Username");
+            }
+
+            UserDetails user = optionalUser.get();
+            log.debug("User found: ID={}, Status={}, Hierarchy={}", user.getHierarchyId(),
+                    user.getUserStatus(), user.getHierarchyId());
+
+            // 5 Domain / status checks
+            if (!isUrlValidForUserHierarchy(user.getHierarchyId(), loginRequestDto.getUrl())) {
+                log.warn("Invalid login domain for user ID: {}", user.getHierarchyId());
+                return buildErrorResponse(requestJson, requestTime, 401, "Invalid login domain for this user");
+            }
+
+            if (isUserLocked(user)) {
+                log.warn("User account locked due to failed attempts: ID={}", user.getHierarchyId());
+                return buildErrorResponse(requestJson, requestTime, 403,
+                        "Account is locked due to multiple failed attempts. Try again later.");
+            }
+
+            if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
+                log.warn("User account is not active: ID={}", user.getHierarchyId());
+                return buildErrorResponse(requestJson, requestTime, 403,
+                        "User account is not active. Please contact support.");
+            }
+
+            if (Boolean.TRUE.equals(user.getIsBlocked())) {
+                log.warn("User is blocked: ID={}", user.getHierarchyId());
+                return buildErrorResponse(requestJson, requestTime, 403,
+                        "User is blocked. Please contact support.");
+            }
+
+            // 6️ Hand off to your password validation using decrypted password
+            return handlePasswordValidation(user, decryptedPassword, requestJson, requestTime);
+
+        } catch (Exception e) {
+            log.error("Error processing encrypted login credentials", e);
+            return buildErrorResponse(requestJson, requestTime, 400, "Invalid encrypted credentials");
         }
-
-        UserDetails user = optionalUser.get();
-        log.debug("User found: ID={}, Status={}, Hierarchy={}", user.getHierarchyId(), user.getUserStatus(), user.getHierarchyId());
-
-        if (!isUrlValidForUserHierarchy(user.getHierarchyId(), loginRequestDto.getUrl())) {
-            log.warn("Invalid login domain for user ID: {}", user.getHierarchyId());
-            return buildErrorResponse(requestJson, requestTime, 401, "Invalid login domain for this user");
-        }
-
-        if (isUserLocked(user)) {
-            log.warn("User account locked due to failed attempts: ID={}", user.getHierarchyId());
-            return buildErrorResponse(requestJson, requestTime, 403, "Account is locked due to multiple failed attempts. Try again later.");
-        }
-
-        if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
-            log.warn("User account is not active: ID={}", user.getHierarchyId());
-            return buildErrorResponse(requestJson, requestTime, 403, "User account is not active. Please contact support.");
-        }
-
-        if (Boolean.TRUE.equals(user.getIsBlocked())) {
-            log.warn("User is blocked: ID={}", user.getHierarchyId());
-            return buildErrorResponse(requestJson, requestTime, 403, "User is blocked. Please contact support.");
-        }
-
-        return handlePasswordValidation(user, loginRequestDto.getPassword(), requestJson, requestTime);
     }
+
 
     private Optional<UserDetails> findUserByUsername(String username) {
         Optional<UserDetails> user = userDetailsRepository.findByMobileNumber(username);
@@ -255,7 +298,7 @@ public class AuthController {
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<?> verifyOtp(@RequestBody LoginRequestDto loginRequestDto) {
+    public ResponseEntity<?> verifyOtp(@RequestBody LoginRequestDto loginRequestDto) throws Exception {
 
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = "username=" + loginRequestDto.getUserName() + "&otp=" + loginRequestDto.getOtp();
@@ -263,9 +306,22 @@ public class AuthController {
 
         log.info("OTP verification attempt for username: {}", loginRequestDto.getUserName());
 
+        // 1️ IV
+        byte[] ivBytes = Base64.getDecoder().decode(loginRequestDto.getIv());
+        IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
+
+        // 2️ Derive AES key using the Base64 salt string directly
+        byte[] secretKey = aesEncryptionUtil.deriveKey(baseSecret,
+                loginRequestDto.getSalt(), // <--- use the Base64 string directly
+                iterations, keyLength);
+
+        // 3️ Decrypt username & password
+        String decryptedUsername = aesEncryptionUtil.decrypt(loginRequestDto.getUserName(), secretKey, ivSpec);
+        String decryptedPassword = aesEncryptionUtil.decrypt(loginRequestDto.getPassword(), secretKey, ivSpec);
+
         Optional<UserDetails> optionalUser = loginRequestDto.getUserName().matches("\\d{10}")
-                ? userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName())
-                : userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
+                ? userDetailsRepository.findByMobileNumber(decryptedUsername)
+                : userDetailsRepository.findByEmailId(decryptedUsername);
 
         if (optionalUser.isEmpty()) {
             log.warn("User not found for username: {}", loginRequestDto.getUserName());
@@ -291,7 +347,7 @@ public class AuthController {
 
         log.info("OTP verified successfully for user ID: {}", user.getHierarchyId());
 
-        ResponseEntity<?> responseEntity = aesController.generateToken(loginRequestDto.getUserName());
+        ResponseEntity<?> responseEntity = aesController.generateToken(new TokenGenerationRequest(decryptedUsername, decryptedPassword, loginRequestDto.getSalt(), loginRequestDto.getIv()));
         if (responseEntity.getStatusCode() == HttpStatus.OK) {
             Map<String, Object> tokenData = (Map<String, Object>) responseEntity.getBody();
             String token = (String) tokenData.get("token");
