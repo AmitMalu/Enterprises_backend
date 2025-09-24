@@ -48,11 +48,11 @@ public class AESEncryptionUtil {
     }
 
     // ======= New PBKDF2 key derivation =======
-    public byte[] deriveKey(String baseSecret, String salt, int iterations, int keyLength) throws Exception {
+    public byte[] deriveKey(String baseSecret, byte[] salt, int iterations, int keyLength) throws Exception {
         log.info("Starting key derivation with salt: {}", salt);
 
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-        KeySpec spec = new PBEKeySpec(baseSecret.toCharArray(), salt.getBytes(), iterations, keyLength);
+        KeySpec spec = new PBEKeySpec(baseSecret.toCharArray(), salt, iterations, keyLength);
         byte[] key = factory.generateSecret(spec).getEncoded();
 
         log.info("Derived key successfully: {}", Arrays.toString(key));

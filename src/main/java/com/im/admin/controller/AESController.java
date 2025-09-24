@@ -22,6 +22,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.util.*;
 
@@ -110,12 +111,12 @@ public class AESController {
 	public ResponseEntity<?> generateToken(@RequestBody TokenGenerationRequest tokenGenerationRequest) {
 		try {
 			// 1 Generate salt & IV
-			String saltBase64 = tokenGenerationRequest.getSalt(); // client sends or you generate
+			byte[] saltBytes = Base64.getDecoder().decode(tokenGenerationRequest.getSalt());
 			byte[] userPassIvBytes = Base64.getDecoder().decode(tokenGenerationRequest.getIvBase64());
 			IvParameterSpec userPassIv = new IvParameterSpec(userPassIvBytes);
 
 			// 2 Derive key
-			byte[] tokenDerivedKey = aesEncryptionUtil.deriveKey(baseSecret, saltBase64, iterations, keyLength);
+			byte[] tokenDerivedKey = aesEncryptionUtil.deriveKey(baseSecret, saltBytes, iterations, keyLength);
 
 			// 3 Decrypt username/password
 			String decryptedUsername = aesEncryptionUtil.decrypt(
@@ -150,7 +151,7 @@ public class AESController {
 			// 7 Combine everything you’ll need later to decrypt:
 			// hierarchyCode|saltBase64|ivBase64|encryptedToken
 			String fullToken = user.getHierarchyCode() + "|" +
-					saltBase64 + "|" +
+					saltBytes + "|" +
 					Base64.getEncoder().encodeToString(tokenIv.getIV()) + "|" +
 					encryptedToken;
 
@@ -203,20 +204,26 @@ public class AESController {
 	@PostMapping("/encrypt-credentials")
 	public ResponseEntity<?> encryptCredentials(@RequestBody EncryptDecryptCredentialsDto encryptDecryptCredentialsDto ) {
 		try {
-			// Generate one salt & IV for the request
-			String salt = aesEncryptionUtil.generateRandomSalt();
+			// 1. Generate raw salt bytes
+			byte[] saltBytes = new byte[16];
+			new SecureRandom().nextBytes(saltBytes);
+			String saltBase64 = Base64.getEncoder().encodeToString(saltBytes); // send to client
+
+			// 2. Generate IV
 			IvParameterSpec iv = aesEncryptionUtil.generateIv();
 			String ivBase64 = Base64.getEncoder().encodeToString(iv.getIV());
 
-			byte[] derivedKey = aesEncryptionUtil.deriveKey(baseSecret, salt, iterations, keyLength);
+			// 3. Derive key from raw salt bytes
+			byte[] derivedKey = aesEncryptionUtil.deriveKey(baseSecret, saltBytes, iterations, keyLength);
 
+			// 4. Encrypt using derived key + IV
 			String encryptedUsername = aesEncryptionUtil.encrypt(encryptDecryptCredentialsDto.getUsername(), derivedKey, iv );
 			String encryptedPassword = aesEncryptionUtil.encrypt(encryptDecryptCredentialsDto.getPassword(), derivedKey, iv );
 
 			return ResponseEntity.ok(Map.of(
 					"cipherUsername", encryptedUsername,
 					"cipherPassword", encryptedPassword,
-					"salt", salt,
+					"salt", saltBase64,   // send base64 salt to client
 					"iv", ivBase64
 			));
 		} catch (Exception e) {
@@ -225,6 +232,7 @@ public class AESController {
 		}
 	}
 
+
 	@PostMapping("/decrypt-credentials")
 	public ResponseEntity<?> decryptCredentials(@RequestBody EncryptDecryptCredentialsDto decryptCredentials) {
 		try {
@@ -232,10 +240,12 @@ public class AESController {
 			byte[] ivBytes = Base64.getDecoder().decode(decryptCredentials.getIv());
 			IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
 
+			byte[] saltByte = Base64.getDecoder().decode(decryptCredentials.getSalt());
+
 			// 3️ Derive AES key using decoded salt
 			byte[] secretKey = aesEncryptionUtil.deriveKey(
 					baseSecret,
-					decryptCredentials.getSalt(),
+					saltByte,
 					iterations,
 					keyLength
 			);
