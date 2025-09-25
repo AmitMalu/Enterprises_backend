@@ -182,10 +182,16 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
 
                 CreateOrderRequest jsonBody = new CreateOrderRequest();
+                jsonBody.setOrderId("ORD" + commonMethods.generateBaseTransactionId());
                 jsonBody.setCallbackUrl(req.getCallbackUrl());
                 jsonBody.setAmount(req.getAmount());
                 jsonBody.setMerchantRef(req.getMerchantRef());
                 jsonBody.setUsername(credentials.getUsername());
+
+                // Add transaction scheme placeholder if needed
+                TransactionSchemeDetailsRequestDto scheme = new TransactionSchemeDetailsRequestDto();
+                // TODO: fill required scheme fields
+                jsonBody.setTransactionScheme(scheme);
 
                 HttpEntity<CreateOrderRequest> requestEntity = new HttpEntity<>(jsonBody, headers);
 
