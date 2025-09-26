@@ -38,9 +38,6 @@ public class RetailerUser {
     @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")
     private String abbreviation;
 
-//    @NotBlank(message = "Title is mandatory")
-//    private String title;
-
     @NotBlank(message = "Name is mandatory")
     private String name;
 
@@ -77,64 +74,13 @@ public class RetailerUser {
     })
     private Address add;
 
-//    @Embedded
-//    @AttributeOverrides({
-//            @AttributeOverride(name = "outletName", column = @Column(name = "outlet_name")),
-//            @AttributeOverride(name = "companyType", column = @Column(name = "outlet_company_type")),
-//            @AttributeOverride(name = "companyName", column = @Column(name = "outlet_company_name")),
-//            @AttributeOverride(name = "address", column = @Column(name = "outlet_address")),
-//            @AttributeOverride(name = "city", column = @Column(name = "outlet_city")),
-//            @AttributeOverride(name = "state", column = @Column(name = "outlet_state")),
-//            @AttributeOverride(name = "zipCode", column = @Column(name = "outlet_zip_code"))
-//    })
-//    private Address outletAddress;
-
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.MERGE, CascadeType.PERSIST})
     @JoinColumn(name = "bank_details_id", referencedColumnName = "id")
     private BanksDetailss bankDetails;
 
     @Column(name = "status")
     private Boolean status = true;
-
-//    @Column(name = "aadhaar_card_front_image")
-//    private String aadhaarCardFrontImage;
-//
-//    @Column(name = "aadhaar_card_back_image")
-//    private String aadhaarCardBackImage;
-//
-//    @Column(name = "is_aadhaar_verified")
-//    private Boolean isAadhaarVerified;
-//
-//    @Column(name = "aadhaar_number")
-//    private String aadhaarNumber;
-//
-//    @Column(name = "pan_card_image")
-//    private String panCardImage;
-//
-//    @Column(name = "pan_number")
-//    private String panNumber;
-//
-//    @Column(name = "pan_verified")
-//    private Boolean panVerified;
-//
-//    @Column(name = "aadhaar_pan_verified")
-//    private Boolean aadhaarPanVerified;
-//
-//    @Column(name = "shop_image")
-//    private String shopImage;
-//
-//    @Column(name = "shop_number")
-//    private String shopNumber;
-//
-//    @Column(name = "business_proof_image")
-//    private String businessProofImage;
-//
-//    @Column(name = "business_number")
-//    private String businessNumber;
-//
-//    @Column(name = "GST_number_verified")
-//    private Boolean GSTNumberVerified;
 
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
@@ -185,31 +131,6 @@ public class RetailerUser {
             }
         }
 
-
-
-//        if (this.outletAddress != null) {
-//            if (this.outletAddress.getOutletName() == null) {
-//                this.outletAddress.setOutletName("N/A");
-//            }
-//            if (this.outletAddress.getCompanyType() == null) {
-//                this.outletAddress.setCompanyType("N/A");
-//            }
-//            if (this.outletAddress.getCompanyName() == null) {
-//                this.outletAddress.setCompanyName("N/A");
-//            }
-//            if (this.outletAddress.getAddress() == null) {
-//                this.outletAddress.setAddress("N/A");
-//            }
-//            if (this.outletAddress.getCity() == null) {
-//                this.outletAddress.setCity("N/A");
-//            }
-//            if (this.outletAddress.getState() == null) {
-//                this.outletAddress.setState("N/A");
-//            }
-//            if (this.outletAddress.getZipCode() == null) {
-//                this.outletAddress.setZipCode("N/A");
-//            }
-//        }
     }
 
 }

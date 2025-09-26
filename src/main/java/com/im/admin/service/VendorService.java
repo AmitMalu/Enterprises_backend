@@ -5,6 +5,7 @@ import com.im.admin.dto.VendorActiveResponseDto;
 import com.im.admin.dto.VendorDropdownResponseDto;
 import com.im.admin.dto.VendorsDTO;
 import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.response.CommonResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -44,6 +45,8 @@ public interface VendorService {
     List<VendorDropdownResponseDto> getActiveVendorByProductId(Short productId);
 
     List<VendorActiveResponseDto> getAllActiveVendors();
+
+    CommonResponse<List<VendorDropdownResponseDto>> getVendorsBySubProduct(String subProductId);
 
 }
 
