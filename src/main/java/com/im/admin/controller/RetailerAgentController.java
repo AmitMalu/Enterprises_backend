@@ -3,14 +3,15 @@ package com.im.admin.controller;
 import com.im.admin.entities.RetailerUser;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.RetailerAgentService;
+import com.im.admin.spec.projectionFilter.RetailerUserProjection;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -34,5 +35,45 @@ public class RetailerAgentController {
         response.setData(savedAgent);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+        @GetMapping("/get-all/filter")
+        public ResponseEntity<CommonResponse<Map<String, Object>>> getFilteredUsers(
+                @RequestParam(required = false) String name,
+                @RequestParam(required = false) String mobileNumber,
+                @RequestParam(required = false) String emailId,
+                @RequestParam(required = false) Boolean emailVerified,
+                @RequestParam(required = false) Boolean status,
+                @RequestParam(defaultValue = "0") int page,
+                @RequestParam(defaultValue = "10") int size,
+                @RequestParam(defaultValue = "createdOn") String sortBy,
+                @RequestParam(defaultValue = "desc") String sortDir
+        ) {
+            return ResponseEntity.ok(
+                    retailerAgentService.getFilteredUsers(
+                            name, mobileNumber, emailId, emailVerified, status,
+                            page, size, sortBy, sortDir
+                    )
+            );
+        }
+
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<CommonResponse<Void>> deleteRetailerAgent(@PathVariable String id) {
+        return ResponseEntity.ok(retailerAgentService.deleteRetailerAgent(id));
+    }
+
+    @PutMapping("/update-agent/{id}")
+    public ResponseEntity<CommonResponse<RetailerUser>> updateAgent(
+            @PathVariable String id,
+            @RequestBody RetailerUser retailerUser) {
+
+        RetailerUser updatedAgent = retailerAgentService.updateAgent(id, retailerUser);
+
+        CommonResponse<RetailerUser> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.OK.value());
+        response.setMessage("Retailer Agent updated successfully");
+        response.setData(updatedAgent);
+
+        return ResponseEntity.ok(response);
     }
 }
