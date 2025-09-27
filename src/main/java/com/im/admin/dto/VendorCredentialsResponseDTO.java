@@ -30,6 +30,7 @@ public class VendorCredentialsResponseDTO {
     private String tokenUrlUat;
     private String tokenUrlProd;
     private String token;
+    private String tokenType;
     private String clientId;
     private String clientSecret;
     private String saltKey;
