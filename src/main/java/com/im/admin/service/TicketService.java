@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
+import java.util.Map;
 
 public interface TicketService {
     Object getTransactionDetails(String transactionId, String hierarchyId);
@@ -23,7 +24,7 @@ public interface TicketService {
 
     List<TicketIssueTypeDto> getAllIssueTypes();
 
-    Page<TicketWithTransactionDto> getAllTickets(Pageable pageable);
+    Page<TicketWithTransactionDto> getAllTickets(Map<String, Object> filters, Pageable pageable);
 
 
     Ticket getTicketById(Long id);

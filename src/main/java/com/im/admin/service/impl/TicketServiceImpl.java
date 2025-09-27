@@ -9,6 +9,7 @@ import com.im.admin.repositories.TicketCommentRepository;
 import com.im.admin.repositories.TicketRepository;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.service.TicketService;
+import com.im.admin.spec.GenericSpecification;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
@@ -16,12 +17,12 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
@@ -36,6 +37,7 @@ import java.util.Optional;
 import static com.fasterxml.jackson.datatype.jsr310.DecimalUtils.toBigDecimal;
 
 @Service
+@Slf4j
 public class TicketServiceImpl implements TicketService {
 
     @Autowired
@@ -180,8 +182,10 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
-    public Page<TicketWithTransactionDto> getAllTickets(Pageable pageable) {
-        Page<Ticket> tickets = ticketRepository.findAll(pageable);
+    public Page<TicketWithTransactionDto> getAllTickets(Map<String, Object> filters, Pageable pageable) {
+
+        Specification<Ticket> ticketSpecification = new GenericSpecification<>(filters);
+        Page<Ticket> tickets = ticketRepository.findAll(ticketSpecification, pageable);
 
         return tickets.map(ticket -> {
             TicketWithTransactionDto dto = new TicketWithTransactionDto();
@@ -189,7 +193,6 @@ public class TicketServiceImpl implements TicketService {
 
             try {
                 Map<String, Object> transactionDetails = getTransactionDetailsMap(ticket.getTransactionId(), ticket.getRaisedBy());
-
                 if (transactionDetails != null) {
                     dto.setTranStatus((String) transactionDetails.get("tran_status"));
                     dto.setBalBeforeTran(toBigDecimal(transactionDetails.get("bal_before_tran")));
@@ -200,7 +203,7 @@ public class TicketServiceImpl implements TicketService {
                     dto.setActionOnBalanceAmount((String) transactionDetails.get("action_on_balance_amount"));
                 }
             } catch (Exception e) {
-                System.out.println("Transaction details not found for transactionId: " + ticket.getTransactionId());
+                log.warn("Transaction details not found for transactionId: {}", ticket.getTransactionId());
             }
 
             return dto;

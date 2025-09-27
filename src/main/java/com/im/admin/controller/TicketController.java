@@ -19,7 +19,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @Slf4j
@@ -135,15 +137,16 @@ public class TicketController {
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<TicketWithTransactionDto>>> getAllTickets(
+            @RequestParam Map<String, String> params,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size) {  // Spring auto-binds query params into this DTO
 
-        log.info("Fetching all tickets. Page: {}, Size: {}", page, size);
+        log.info("Fetching tickets with params: {}, Page: {}, Size: {}", params, page, size);
 
         try {
-            Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
-            Page<TicketWithTransactionDto> tickets = ticketService.getAllTickets(pageable);
-            log.info("Fetched {} tickets", tickets.getTotalElements());
+            Map<String, Object> filter = new HashMap<>(params);
+            Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+            Page<TicketWithTransactionDto> tickets = ticketService.getAllTickets(filter, pageable);
             return ResponseEntity.ok(new CommonResponse<>(200, "Tickets fetched successfully.", tickets));
         } catch (Exception e) {
             log.error("Error fetching tickets", e);
@@ -151,6 +154,7 @@ public class TicketController {
                     .body(new CommonResponse<>(500, "Failed to fetch tickets", null));
         }
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse> getTicketById(@PathVariable Long id) {
