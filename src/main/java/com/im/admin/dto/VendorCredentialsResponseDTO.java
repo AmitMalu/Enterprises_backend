@@ -20,6 +20,8 @@ public class VendorCredentialsResponseDTO {
     private Short productId;
     private String productName;
 
+    private String callbackUrl;
+
     private Boolean isWhiteLabelAdmin;
     private String whiteLabelAdminId;
     private String whiteLabelAdminName;

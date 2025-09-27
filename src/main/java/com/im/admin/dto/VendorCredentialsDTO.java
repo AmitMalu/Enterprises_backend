@@ -16,6 +16,7 @@ public class VendorCredentialsDTO {
     private Long id;
     private Vendors vendorId;
     private Products productId;
+    private String callbackUrl;
     private String baseUrlUat;
     private String token;
     private String baseUrlProd;

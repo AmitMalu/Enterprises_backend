@@ -174,6 +174,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         VendorCredentials entity = new VendorCredentials();
         entity.setVendor(vendor);
         entity.setProduct(product);
+        entity.setCallbackUrl(dto.getCallbackUrl());
 
         entity.setToken(dto.getToken());
         entity.setTokenType(dto.getTokenType());
@@ -205,6 +206,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
 
         // Use manual mapping instead of BeanUtils to avoid lazy-loading issues
         dto.setId(entity.getId());
+        dto.setCallbackUrl(entity.getCallbackUrl());
         dto.setBaseUrlUat(entity.getBaseUrlUat());
         dto.setBaseUrlProd(entity.getBaseUrlProd());
         dto.setToken(entity.getToken());

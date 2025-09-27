@@ -183,7 +183,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
                 CreateOrderRequest jsonBody = new CreateOrderRequest();
                 jsonBody.setOrderId("ORD" + commonMethods.generateBaseTransactionId());
-                jsonBody.setCallbackUrl(req.getCallbackUrl());
+                jsonBody.setCallbackUrl(credentials.getCallbackUrl());
                 jsonBody.setAmount(req.getAmount());
                 jsonBody.setMerchantRef(req.getMerchantRef());
                 jsonBody.setUsername(credentials.getUsername());
@@ -225,7 +225,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 headers.set("token", token);
 
                 MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-                body.add("callbackurl", req.getCallbackUrl());
+                body.add("callbackurl", credentials.getCallbackUrl());
                 body.add("order_id", "ORD" + commonMethods.generateBaseTransactionId());
                 body.add("amount", String.valueOf(req.getAmount()));
                 if (req.getMerchantRef() != null) {
