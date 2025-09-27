@@ -36,6 +36,9 @@ public class VendorCredentials {
     @NotNull(message = "Product is required")
     private Products product;
 
+    @Column(name = "callback_url")
+    private String callbackUrl;
+
     @Column(name = "token_url_uat")
     private String tokenUrlUat;
 
