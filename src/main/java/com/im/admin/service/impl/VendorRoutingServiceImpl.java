@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -218,6 +219,10 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
 
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setEditedBy(entity.getEditedBy());
+        dto.setCreatedOn(entity.getCreatedOn());
+        dto.setEditedOn(entity.getEditedOn());
+
+
 
         return dto;
     }
@@ -252,6 +257,8 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
 
         entity.setCreatedBy(dto.getCreatedBy());
         entity.setEditedBy(dto.getEditedBy());
+        entity.setCreatedOn(dto.getCreatedOn());
+        entity.setEditedOn(dto.getEditedOn());
 
         log.debug("Mapped entity: {}", entity);
         return entity;
@@ -297,6 +304,9 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
         entity.setValueValueOfTxn(dto.getValueValueOfTxn());
 
         entity.setEditedBy(dto.getEditedBy());
+        entity.setEditedBy(dto.getEditedBy());
+        entity.setEditedOn(LocalDateTime.now());
+
 
         log.debug("Updated entity: {}", entity);
     }
