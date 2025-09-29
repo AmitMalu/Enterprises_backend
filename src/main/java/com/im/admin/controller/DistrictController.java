@@ -13,12 +13,15 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Slf4j
@@ -91,17 +94,33 @@ public class DistrictController {
     }
 
     @PostMapping("/bulk-upload")
-    public ResponseEntity<CommonResponse<String>> uploadDistrictExcel(@RequestParam("file") MultipartFile file,
-                                                                      @RequestParam("uploadedBy") String uploadedBy) {
-        log.info("API Call: uploadDistrictExcel by {}", uploadedBy);
+    public ResponseEntity<byte[]> uploadDistrictExcel(@RequestParam("file") MultipartFile file,
+                                                      @RequestParam("uploadedBy") String uploadedBy) {
+
         try {
-            String result = districtService.uploadDistrictsFromExcel(file, uploadedBy);
-            log.info("District bulk upload successful: {}", result);
-            return ResponseEntity.ok(CommonResponse.success("Upload Result", result));
+            ByteArrayInputStream updatedFile = districtService.uploadDistrictsFromExcel(file, uploadedBy);
+
+            String originalFileName = file.getOriginalFilename();
+            String baseName = originalFileName != null && originalFileName.contains(".")
+                    ? originalFileName.substring(0, originalFileName.lastIndexOf('.'))
+                    : "DistrictUpload";
+
+            String returnFileName = baseName + "_Upload_Result.xlsx";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + returnFileName + "\"");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentType(MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(updatedFile.readAllBytes());
+
         } catch (Exception e) {
-            log.error("District bulk upload failed: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest().body(CommonResponse.failure("Upload failed: " + e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(("Upload failed: " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
         }
     }
+
 }
 

@@ -25,6 +25,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -244,16 +245,19 @@ public class DistrictServiceImpl implements DistrictService {
     }
 
     @Override
-    public String uploadDistrictsFromExcel(MultipartFile file, String uploadedBy) throws IOException {
+    public ByteArrayInputStream uploadDistrictsFromExcel(MultipartFile file, String uploadedBy) {
         if (file.isEmpty() || !file.getOriginalFilename().endsWith(".xlsx")) {
-            return "Invalid file. Only .xlsx format supported.";
+            throw new IllegalArgumentException("Invalid file. Only .xlsx format supported.");
         }
-
-        int success = 0, skipped = 0;
-        List<String> errors = new ArrayList<>();
 
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
+
+            // Add Status column at the end
+            Row header = sheet.getRow(0);
+            if (header == null) header = sheet.createRow(0);
+            int statusCol = header.getLastCellNum();
+            header.createCell(statusCol).setCellValue("Status");
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
@@ -267,7 +271,7 @@ public class DistrictServiceImpl implements DistrictService {
                     String blockedStr = getCellString(row, 4);
 
                     if (districtRepository.existsByDistrictCode(districtCode)) {
-                        skipped++;
+                        row.createCell(statusCol).setCellValue("Skipped (Duplicate)");
                         continue;
                     }
 
@@ -289,18 +293,22 @@ public class DistrictServiceImpl implements DistrictService {
                     district.setCreatedOn(LocalDateTime.now());
 
                     districtRepository.save(district);
-                    success++;
+                    row.createCell(statusCol).setCellValue("Inserted");
 
                 } catch (Exception e) {
-                    skipped++;
-                    errors.add("Row " + (i + 1) + ": " + e.getMessage());
+                    row.createCell(statusCol).setCellValue("Error: " + e.getMessage());
                 }
             }
-        }
 
-        return "Upload complete. Inserted: " + success + ", Skipped: " + skipped +
-                (errors.isEmpty() ? "" : ". Errors: " + String.join("; ", errors));
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
+            return new ByteArrayInputStream(out.toByteArray());
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to process Excel file", e);
+        }
     }
+
 
     private String getCellString(Row row, int index) {
         Cell cell = row.getCell(index, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);

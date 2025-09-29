@@ -19,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -214,16 +215,19 @@ public class PinCodeServiceImpl implements PinCodeService {
     }
 
     @Override
-    public String uploadPinCodesFromExcel(MultipartFile file, String uploadedBy) {
+    public ByteArrayInputStream uploadPinCodesFromExcel(MultipartFile file, String uploadedBy) {
         if (file.isEmpty() || !file.getOriginalFilename().endsWith(".xlsx")) {
-            return "Invalid file. Only .xlsx format supported.";
+            throw new IllegalArgumentException("Invalid file. Only .xlsx format supported.");
         }
-
-        int success = 0, skipped = 0;
-        List<String> errors = new ArrayList<>();
 
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
+
+            // Add "Status" column header
+            Row header = sheet.getRow(0);
+            if (header == null) header = sheet.createRow(0);
+            int statusCol = header.getLastCellNum(); // new column at the end
+            header.createCell(statusCol).setCellValue("Status");
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
@@ -237,7 +241,7 @@ public class PinCodeServiceImpl implements PinCodeService {
                     String cityName = getCellString(row, 4);
 
                     if (pinCodeRepository.existsByPinCode(pinCode)) {
-                        skipped++;
+                        row.createCell(statusCol).setCellValue("Skipped (Duplicate)");
                         continue;
                     }
 
@@ -263,20 +267,21 @@ public class PinCodeServiceImpl implements PinCodeService {
                     pin.setCreatedOn(LocalDateTime.now());
 
                     pinCodeRepository.save(pin);
-                    success++;
+                    row.createCell(statusCol).setCellValue("Inserted");
 
                 } catch (Exception e) {
-                    skipped++;
-                    errors.add("Row " + (i + 1) + ": " + e.getMessage());
+                    row.createCell(statusCol).setCellValue("Error: " + e.getMessage());
                 }
             }
 
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to read Excel file", e);
-        }
+            // Write back updated Excel to stream
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
+            return new ByteArrayInputStream(out.toByteArray());
 
-        return "Upload complete. Inserted: " + success + ", Skipped: " + skipped +
-                (errors.isEmpty() ? "" : ". Errors: " + String.join("; ", errors));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to process Excel file", e);
+        }
     }
 
     private String getCellString(Row row, int index) {
