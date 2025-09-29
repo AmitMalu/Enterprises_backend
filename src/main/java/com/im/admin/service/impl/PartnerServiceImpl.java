@@ -124,24 +124,13 @@ public class PartnerServiceImpl implements PartnerService {
 
         partner.setAbbreviation(abbreviation);
 
-        // ID & Image uploads
-        String folder = "Partner";
-        partner.setPartnerId(idGenerator.generateHierarchyEntityId(folder, partner.getAbbreviation()));
-
-        String aadhaarFrontFilePath = imageUtil.saveImage(aadhaarCardFrontImage, "Partner");
-        partner.setAadhaarCardFrontImage(aadhaarFrontFilePath);
-
-        String aadhaarBackFilePath = imageUtil.saveImage(aadhaarCardBackImage, "Partner");
-        partner.setAadhaarCardFrontImage(aadhaarBackFilePath);
-
-        String panCardFilePath = imageUtil.saveImage(panCardImage, "Partner");
-        partner.setAadhaarCardFrontImage(panCardFilePath);
-
-        String shopFilePath = imageUtil.saveImage(shopImage, "Partner");
-        partner.setAadhaarCardFrontImage(shopFilePath);
-
-        String businessFilePath = imageUtil.saveImage(businessProofImage, "Partner");
-        partner.setAadhaarCardFrontImage(businessFilePath);
+        // 🔹 Upload images (clean & correct mapping)
+        log.info("Uploading distributor images...");
+        partner.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, "Partner"));
+        partner.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, "Partner"));
+        partner.setPanCardImage(imageUtil.saveImage(panCardImage, "Partner"));
+        partner.setShopImage(imageUtil.saveImage(shopImage, "Partner"));
+        partner.setBusinessProofImage(imageUtil.saveImage(businessProofImage, "Partner"));
 
         Partner savedPartner = partnerRepository.save(partner);
 
