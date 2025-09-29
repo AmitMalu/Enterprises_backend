@@ -1,10 +1,12 @@
 package com.im.admin.controller;
 
 
-import com.im.admin.dto.VerifyTokenRequestDto;
+import com.im.admin.config.EncryptionService;
+import com.im.admin.dto.EncryptDecryptCredentialsDto;
 import com.im.admin.entities.UserDetails;
 import com.im.admin.repositories.UserDetailsRepository;
 
+import com.im.admin.request.TokenGenerationRequest;
 import com.im.admin.util.AESEncryptionUtil;
 
 import jakarta.annotation.PostConstruct;
@@ -13,12 +15,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.util.*;
 
@@ -26,6 +30,9 @@ import java.util.*;
 @Slf4j
 @RequestMapping("/api/aes")
 public class AESController {
+
+	@Autowired
+	private PasswordEncoder passwordEncoder;
 
 	@Value("${app.security.base-secret}")
 	private String baseSecret;
@@ -53,6 +60,12 @@ public class AESController {
 
 	@Autowired
 	private UserDetailsRepository userDetailsRepository;
+
+	@Autowired
+	private EncryptionService encryptionService;
+
+	@Autowired
+	private AESEncryptionUtil aesEncryptionUtil;
 
 	@PostConstruct
 	public void init() {
@@ -95,81 +108,159 @@ public class AESController {
 	}
 
 	@PostMapping("/generate-token")
-	public ResponseEntity<?> generateToken(String username) {
+	public ResponseEntity<?> generateToken(@RequestBody TokenGenerationRequest tokenGenerationRequest) {
 		try {
-			log.info("Attempting to generate token for username: {}", username);
+			// 1 Generate salt & IV
+			byte[] saltBytes = Base64.getDecoder().decode(tokenGenerationRequest.getSalt());
+			byte[] userPassIvBytes = Base64.getDecoder().decode(tokenGenerationRequest.getIvBase64());
+			IvParameterSpec userPassIv = new IvParameterSpec(userPassIvBytes);
 
-			Optional<UserDetails> optionalUser = userDetailsRepository.findByMobileNumber(username);
+			// 2 Derive key
+			byte[] tokenDerivedKey = aesEncryptionUtil.deriveKey(baseSecret, saltBytes, iterations, keyLength);
+
+			// 3 Decrypt username/password
+			String decryptedUsername = aesEncryptionUtil.decrypt(
+					tokenGenerationRequest.getUsername(), tokenDerivedKey, userPassIv);
+			String decryptedPassword = aesEncryptionUtil.decrypt(
+					tokenGenerationRequest.getPassword(), tokenDerivedKey, userPassIv);
+
+			// 4 Validate user/password (your existing code)
+			Optional<UserDetails> optionalUser = userDetailsRepository.findByMobileNumber(decryptedUsername);
 			if (optionalUser.isEmpty()) {
-				optionalUser = userDetailsRepository.findByEmailId(username);
+				optionalUser = userDetailsRepository.findByEmailId(decryptedUsername);
 			}
-
 			if (optionalUser.isEmpty()) {
-				log.warn("User not found for username: {}", username);
 				return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-						.body("Invalid credentials: user not found");
+						.body(Map.of("error", "Invalid credentials"));
+			}
+			UserDetails user = optionalUser.get();
+			if (!passwordEncoder.matches(decryptedPassword, user.getLoginPassword())) {
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+						.body(Map.of("error", "Invalid credentials"));
 			}
 
-			UserDetails user = optionalUser.get();
-			String hierarchyType = user.getHierarchyCode();
-			String salt = HIERARCHY_SALTS.getOrDefault(hierarchyType, "defaultSalt");
-
-			log.info("Generating encryption key using hierarchy type: {}", hierarchyType);
-
-			byte[] derivedKey = AESEncryptionUtil.deriveKey(baseSecret, salt, iterations, keyLength);
-
+			// 5 Build payload
 			long currentTime = System.currentTimeMillis();
-			long expirationTime = currentTime + 3600000L; // 1 hour
+			long expirationTime = currentTime + 3600_000L;
+			String payload = currentTime + "/" + expirationTime + "/" + user.getMobileNumber();
 
-			String payload = currentTime + "/" + expirationTime + "/" + username;
-			IvParameterSpec iv = AESEncryptionUtil.generateIv();
-			String encryptedToken = AESEncryptionUtil.encryptEnterprises(payload, derivedKey, iv);
+			// 6 Encrypt payload
+			IvParameterSpec tokenIv = aesEncryptionUtil.generateIv();
+			String encryptedToken = aesEncryptionUtil.encrypt(payload, tokenDerivedKey, tokenIv);
 
-			log.info("Token generated successfully for username: {}", username);
-
-			String token = hierarchyType + "|" + encryptedToken;
+			// 7 Combine everything you’ll need later to decrypt:
+			// hierarchyCode|saltBase64|ivBase64|encryptedToken
+			String fullToken = user.getHierarchyCode() + "|" +
+					tokenGenerationRequest.getSalt() + "|" +
+					Base64.getEncoder().encodeToString(tokenIv.getIV()) + "|" +
+					encryptedToken;
 
 			return ResponseEntity.ok(Map.of(
-					"token", token
+					"token", fullToken,
+					"expiresAt", expirationTime
 			));
 		} catch (Exception e) {
-			log.error("Error generating token for username: {}", username, e);
+			log.error("Error generating token", e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("Error generating token: " + e.getMessage());
+					.body(Map.of("error", "Error generating token: " + e.getMessage()));
 		}
 	}
 
-	@PostMapping("/validate-token")
-	public ResponseEntity<?> validateToken(@RequestBody VerifyTokenRequestDto verifyTokenRequestDto) {
 
-		String hierarchyType = verifyTokenRequestDto.getHierarchyType();
-		String token = verifyTokenRequestDto.getToken();
+//	@PostMapping("/validate-token")
+//	public ResponseEntity<?> validateToken(@RequestBody VerifyTokenRequestDto verifyTokenRequestDto) {
+//
+//		String hierarchyType = verifyTokenRequestDto.getHierarchyType();
+//		String token = verifyTokenRequestDto.getToken();
+//
+//		try {
+//			String salt = HIERARCHY_SALTS.getOrDefault(hierarchyType, "defaultSalt");
+//			byte[] derivedKey = AESEncryptionUtil.deriveKey(baseSecret, salt, iterations, keyLength);
+//
+//			log.info("Received token: {}", token);
+//			String decryptedPayload = AESEncryptionUtil.decryptEnterprises(token, derivedKey);
+//			String[] parts = decryptedPayload.split("/");
+//
+//			long issuedAt = Long.parseLong(parts[0]);
+//			long expiresAt = Long.parseLong(parts[1]);
+//			String username = parts[2];
+//
+//			if (System.currentTimeMillis() > expiresAt) {
+//				return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//						.body("Token has expired.");
+//			}
+//
+//			return ResponseEntity.ok(Map.of(
+//					"username", username,
+//					"issuedAt", issuedAt,
+//					"expiresAt", expiresAt
+//			));
+//		} catch (Exception e) {
+//			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//					.body("Invalid token: " + e.getMessage());
+//		}
+//	}
 
+	@PostMapping("/encrypt-credentials")
+	public ResponseEntity<?> encryptCredentials(@RequestBody EncryptDecryptCredentialsDto encryptDecryptCredentialsDto ) {
 		try {
-			String salt = HIERARCHY_SALTS.getOrDefault(hierarchyType, "defaultSalt");
-			byte[] derivedKey = AESEncryptionUtil.deriveKey(baseSecret, salt, iterations, keyLength);
+			// 1. Generate raw salt bytes
+			byte[] saltBytes = new byte[16];
+			new SecureRandom().nextBytes(saltBytes);
+			String saltBase64 = Base64.getEncoder().encodeToString(saltBytes); // send to client
 
-			log.info("Received token: {}", token);
-			String decryptedPayload = AESEncryptionUtil.decryptEnterprises(token, derivedKey);
-			String[] parts = decryptedPayload.split("/");
+			// 2. Generate IV
+			IvParameterSpec iv = aesEncryptionUtil.generateIv();
+			String ivBase64 = Base64.getEncoder().encodeToString(iv.getIV());
 
-			long issuedAt = Long.parseLong(parts[0]);
-			long expiresAt = Long.parseLong(parts[1]);
-			String username = parts[2];
+			// 3. Derive key from raw salt bytes
+			byte[] derivedKey = aesEncryptionUtil.deriveKey(baseSecret, saltBytes, iterations, keyLength);
 
-			if (System.currentTimeMillis() > expiresAt) {
-				return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-						.body("Token has expired.");
-			}
+			// 4. Encrypt using derived key + IV
+			String encryptedUsername = aesEncryptionUtil.encrypt(encryptDecryptCredentialsDto.getUsername(), derivedKey, iv );
+			String encryptedPassword = aesEncryptionUtil.encrypt(encryptDecryptCredentialsDto.getPassword(), derivedKey, iv );
 
 			return ResponseEntity.ok(Map.of(
-					"username", username,
-					"issuedAt", issuedAt,
-					"expiresAt", expiresAt
+					"cipherUsername", encryptedUsername,
+					"cipherPassword", encryptedPassword,
+					"salt", saltBase64,   // send base64 salt to client
+					"iv", ivBase64
 			));
 		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-					.body("Invalid token: " + e.getMessage());
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("error", e.getMessage()));
+		}
+	}
+
+
+	@PostMapping("/decrypt-credentials")
+	public ResponseEntity<?> decryptCredentials(@RequestBody EncryptDecryptCredentialsDto decryptCredentials) {
+		try {
+			// 1️ IV decode
+			byte[] ivBytes = Base64.getDecoder().decode(decryptCredentials.getIv());
+			IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
+
+			byte[] saltByte = Base64.getDecoder().decode(decryptCredentials.getSalt());
+
+			// 3️ Derive AES key using decoded salt
+			byte[] secretKey = aesEncryptionUtil.deriveKey(
+					baseSecret,
+					saltByte,
+					iterations,
+					keyLength
+			);
+
+			// 4️ Decrypt username & password
+			String decryptedUsername = aesEncryptionUtil.decrypt(decryptCredentials.getUsername(), secretKey, ivSpec);
+			String decryptedPassword = aesEncryptionUtil.decrypt(decryptCredentials.getPassword(), secretKey, ivSpec);
+
+			return ResponseEntity.ok(Map.of(
+					"username", decryptedUsername,
+					"password", decryptedPassword
+			));
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+					.body(Map.of("error", e.getMessage()));
 		}
 	}
 

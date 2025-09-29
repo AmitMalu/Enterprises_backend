@@ -139,5 +139,20 @@ public class VendorController {
         return ResponseEntity.ok(CommonResponse.success(result, "Active vendors fetched successfully"));
     }
 
+    @GetMapping("/by-subProduct/{subProductId}")
+    public ResponseEntity<CommonResponse<List<VendorDropdownResponseDto>>> getVendorsBySubProduct(
+            @PathVariable String subProductId) {
+        try {
+            CommonResponse<List<VendorDropdownResponseDto>> response = vendorsService.getVendorsBySubProduct(subProductId);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(CommonResponse.error(404, ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.error(500, "Failed to fetch vendors"));
+        }
+    }
+
 }
 

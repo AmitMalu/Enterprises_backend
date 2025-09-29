@@ -5,9 +5,11 @@ import com.im.admin.entities.UserDetailsId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 
 import java.util.List;
@@ -22,7 +24,7 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
 
     Optional<UserDetails> findFirstByHierarchyId(String hierarchyId);
 
-    List<UserDetails> findByHierarchyId(String hierarchyId);
+    Optional<UserDetails> findByHierarchyId(String hierarchyId);
 
     @Query("SELECT u FROM UserDetails u WHERE u.userStatus = 'Active' AND u.hierarchyId LIKE %:keyword%")
     Page<UserDetails> searchActiveUsersByHierarchyId(@Param("keyword") String keyword, Pageable pageable);
@@ -42,9 +44,12 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
     List<String> findHierarchyIdsByHierarchyCode(@Param("code") String code);
 
     @Query("SELECT u FROM UserDetails u WHERE u.hierarchyId = :value OR u.mobileNumber = :value")
-    List<UserDetails> findByHierarchyIdOrMobileNumber(@Param("value") String value);
+    UserDetails findByHierarchyIdOrMobileNumber(@Param("value") String value);
 
     Optional<UserDetails> findByLoginUserName(String loginUserName);
 
-
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM UserDetails u WHERE u.hierarchyId = :hierarchyId")
+    void deleteByHierarchyId(@Param("hierarchyId") String hierarchyId);
 }

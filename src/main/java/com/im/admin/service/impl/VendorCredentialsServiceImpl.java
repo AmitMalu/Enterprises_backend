@@ -84,6 +84,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         existing.setTokenUrlUat(dto.getTokenUrlUat());
         existing.setTokenUrlProd(dto.getTokenUrlProd());
         existing.setToken(dto.getToken());
+        existing.setTokenType(dto.getTokenType());
         existing.setClientId(dto.getClientId());
         existing.setClientSecret(dto.getClientSecret());
         existing.setSaltKey(dto.getSaltKey());
@@ -173,8 +174,10 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         VendorCredentials entity = new VendorCredentials();
         entity.setVendor(vendor);
         entity.setProduct(product);
+        entity.setCallbackUrl(dto.getCallbackUrl());
 
         entity.setToken(dto.getToken());
+        entity.setTokenType(dto.getTokenType());
         entity.setBaseUrlUat(dto.getBaseUrlUat());
         entity.setBaseUrlProd(dto.getBaseUrlProd());
         entity.setTokenUrlUat(dto.getTokenUrlUat());
@@ -190,6 +193,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         entity.setUserField1(dto.getUserField1());
         entity.setUserField2(dto.getUserField2());
         entity.setUserField3(dto.getUserField3());
+        entity.setTokenType(dto.getTokenType());
         entity.setCreatedBy(dto.getCreatedBy());
         entity.setEditedBy(dto.getEditedBy());
 
@@ -202,9 +206,11 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
 
         // Use manual mapping instead of BeanUtils to avoid lazy-loading issues
         dto.setId(entity.getId());
+        dto.setCallbackUrl(entity.getCallbackUrl());
         dto.setBaseUrlUat(entity.getBaseUrlUat());
         dto.setBaseUrlProd(entity.getBaseUrlProd());
         dto.setToken(entity.getToken());
+        dto.setTokenType(entity.getTokenType());
         dto.setTokenUrlUat(entity.getTokenUrlUat());
         dto.setTokenUrlProd(entity.getTokenUrlProd());
         dto.setClientId(entity.getClientId());

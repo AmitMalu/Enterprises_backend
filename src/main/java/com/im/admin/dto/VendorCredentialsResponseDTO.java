@@ -20,6 +20,8 @@ public class VendorCredentialsResponseDTO {
     private Short productId;
     private String productName;
 
+    private String callbackUrl;
+
     private Boolean isWhiteLabelAdmin;
     private String whiteLabelAdminId;
     private String whiteLabelAdminName;
@@ -30,6 +32,7 @@ public class VendorCredentialsResponseDTO {
     private String tokenUrlUat;
     private String tokenUrlProd;
     private String token;
+    private String tokenType;
     private String clientId;
     private String clientSecret;
     private String saltKey;

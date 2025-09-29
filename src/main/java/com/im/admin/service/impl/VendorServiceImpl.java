@@ -9,6 +9,7 @@ import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.VendorRepository;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.VendorService;
 import com.im.admin.spec.VendorSpecification;
 import com.im.admin.util.CommonMethods;
@@ -314,6 +315,31 @@ public class VendorServiceImpl implements VendorService {
 
         log.debug("Vendor DTO created: {}", dto);
         return dto;
+    }
+
+    @Override
+    public CommonResponse<List<VendorDropdownResponseDto>> getVendorsBySubProduct(String subProductId) {
+
+        SubProducts subProduct = subProductsRepository.findById(subProductId)
+                .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductId));
+
+        Products product = subProduct.getProduct();
+
+        List<Vendors> vendors = vendorsRepository.findByProduct(product);
+
+        if (vendors.isEmpty()) {
+            throw new RuntimeException("No vendors found for product id: " + product.getId());
+        }
+
+        List<VendorDropdownResponseDto> dtoList = vendors.stream().map(v -> {
+            VendorDropdownResponseDto dto = new VendorDropdownResponseDto();
+            dto.setId(v.getId());
+            dto.setVendorName(v.getVendorName());
+            dto.setVendorCode(v.getVendorCode());
+            return dto;
+        }).toList();
+
+        return CommonResponse.success(dtoList, "Vendors fetched successfully");
     }
 
 }

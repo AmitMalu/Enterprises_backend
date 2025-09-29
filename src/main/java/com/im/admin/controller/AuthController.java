@@ -8,17 +8,22 @@ import com.im.admin.dto.LoginRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
+import com.im.admin.request.TokenGenerationRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AuthService;
+import com.im.admin.util.AESEncryptionUtil;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.OtpUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import javax.crypto.spec.IvParameterSpec;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
@@ -27,6 +32,15 @@ import java.util.*;
 @RequestMapping("/auth")
 @Slf4j
 public class AuthController {
+
+    @Value("${app.security.base-secret}")
+    private String baseSecret;
+
+    @Value("${app.security.pbkdf2-iterations}")
+    private int iterations;
+
+    @Value("${app.security.pbkdf2-keylength}")
+    private int keyLength;
 
     @Autowired
     private AESController aesController;
@@ -67,45 +81,76 @@ public class AuthController {
     @Autowired
     private AdminRepository adminRepository;
 
+    @Autowired
+    private AESEncryptionUtil aesEncryptionUtil;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = serializeRequest(loginRequestDto);
-        String username = loginRequestDto.getUserName();
 
-        log.info("Login attempt started for username: {}", username);
+        try {
+            // 1️ IV
+            byte[] ivBytes = Base64.getDecoder().decode(loginRequestDto.getIv());
+            IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
 
-        Optional<UserDetails> optionalUser = findUserByUsername(username);
-        if (optionalUser.isEmpty()) {
-            log.warn("User not found for username: {}", username);
-            return buildErrorResponse(requestJson, requestTime, 400, "Invalid credentials: Incorrect Username");
+            byte[] saltBytes = Base64.getDecoder().decode(loginRequestDto.getSalt());
+
+            // 2️ Derive AES key using the Base64 salt string directly
+            byte[] secretKey = aesEncryptionUtil.deriveKey(baseSecret,
+                    saltBytes, // <--- use the Base64 string directly
+                    iterations, keyLength);
+
+            // 3️ Decrypt username & password
+            String decryptedUsername = aesEncryptionUtil.decrypt(loginRequestDto.getUserName(), secretKey, ivSpec);
+            String decryptedPassword = aesEncryptionUtil.decrypt(loginRequestDto.getPassword(), secretKey, ivSpec);
+
+            log.info("Login attempt started for username: {} and password: {}", decryptedUsername, decryptedPassword);
+
+            // 4️ Find user by decrypted username
+            Optional<UserDetails> optionalUser = findUserByUsername(decryptedUsername);
+            if (optionalUser.isEmpty()) {
+                log.warn("User not found for username: {}", decryptedUsername);
+                return buildErrorResponse(requestJson, requestTime, 400, "Invalid credentials: Incorrect Username");
+            }
+
+            UserDetails user = optionalUser.get();
+            log.debug("User found: ID={}, Status={}, Hierarchy={}", user.getHierarchyId(),
+                    user.getUserStatus(), user.getHierarchyId());
+
+            // 5 Domain / status checks
+            if (!isUrlValidForUserHierarchy(user.getHierarchyId(), loginRequestDto.getUrl())) {
+                log.warn("Invalid login domain for user ID: {}", user.getHierarchyId());
+                return buildErrorResponse(requestJson, requestTime, 401, "Invalid login domain for this user");
+            }
+
+            if (isUserLocked(user)) {
+                log.warn("User account locked due to failed attempts: ID={}", user.getHierarchyId());
+                return buildErrorResponse(requestJson, requestTime, 403,
+                        "Account is locked due to multiple failed attempts. Try again later.");
+            }
+
+            if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
+                log.warn("User account is not active: ID={}", user.getHierarchyId());
+                return buildErrorResponse(requestJson, requestTime, 403,
+                        "User account is not active. Please contact support.");
+            }
+
+            if (Boolean.TRUE.equals(user.getIsBlocked())) {
+                log.warn("User is blocked: ID={}", user.getHierarchyId());
+                return buildErrorResponse(requestJson, requestTime, 403,
+                        "User is blocked. Please contact support.");
+            }
+
+            // 6️ Hand off to your password validation using decrypted password
+            return handlePasswordValidation(user, decryptedPassword, requestJson, requestTime);
+
+        } catch (Exception e) {
+            log.error("Error processing encrypted login credentials", e);
+            return buildErrorResponse(requestJson, requestTime, 400, "Invalid encrypted credentials");
         }
-
-        UserDetails user = optionalUser.get();
-        log.debug("User found: ID={}, Status={}, Hierarchy={}", user.getHierarchyId(), user.getUserStatus(), user.getHierarchyId());
-
-        if (!isUrlValidForUserHierarchy(user.getHierarchyId(), loginRequestDto.getUrl())) {
-            log.warn("Invalid login domain for user ID: {}", user.getHierarchyId());
-            return buildErrorResponse(requestJson, requestTime, 401, "Invalid login domain for this user");
-        }
-
-        if (isUserLocked(user)) {
-            log.warn("User account locked due to failed attempts: ID={}", user.getHierarchyId());
-            return buildErrorResponse(requestJson, requestTime, 403, "Account is locked due to multiple failed attempts. Try again later.");
-        }
-
-        if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
-            log.warn("User account is not active: ID={}", user.getHierarchyId());
-            return buildErrorResponse(requestJson, requestTime, 403, "User account is not active. Please contact support.");
-        }
-
-        if (Boolean.TRUE.equals(user.getIsBlocked())) {
-            log.warn("User is blocked: ID={}", user.getHierarchyId());
-            return buildErrorResponse(requestJson, requestTime, 403, "User is blocked. Please contact support.");
-        }
-
-        return handlePasswordValidation(user, loginRequestDto.getPassword(), requestJson, requestTime);
     }
+
 
     private Optional<UserDetails> findUserByUsername(String username) {
         Optional<UserDetails> user = userDetailsRepository.findByMobileNumber(username);
@@ -255,7 +300,7 @@ public class AuthController {
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<?> verifyOtp(@RequestBody LoginRequestDto loginRequestDto) {
+    public ResponseEntity<?> verifyOtp(@RequestBody LoginRequestDto loginRequestDto) throws Exception {
 
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = "username=" + loginRequestDto.getUserName() + "&otp=" + loginRequestDto.getOtp();
@@ -263,6 +308,7 @@ public class AuthController {
 
         log.info("OTP verification attempt for username: {}", loginRequestDto.getUserName());
 
+        // 1. Find user
         Optional<UserDetails> optionalUser = loginRequestDto.getUserName().matches("\\d{10}")
                 ? userDetailsRepository.findByMobileNumber(loginRequestDto.getUserName())
                 : userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
@@ -274,6 +320,7 @@ public class AuthController {
 
         UserDetails user = optionalUser.get();
 
+        // 2. Validate OTP
         if (user.getOtp() == null || user.getOtpExpiryTime() == null) {
             log.warn("No OTP generated for user ID: {}", user.getHierarchyId());
             return ResponseEntity.ok(new CommonResponse<>(400, "No OTP generated for this user", null));
@@ -291,140 +338,151 @@ public class AuthController {
 
         log.info("OTP verified successfully for user ID: {}", user.getHierarchyId());
 
-        ResponseEntity<?> responseEntity = aesController.generateToken(loginRequestDto.getUserName());
-        if (responseEntity.getStatusCode() == HttpStatus.OK) {
-            Map<String, Object> tokenData = (Map<String, Object>) responseEntity.getBody();
-            String token = (String) tokenData.get("token");
+        // 3. Generate salt + IV
+        String saltBase64 = aesEncryptionUtil.generateRandomSalt();
+        IvParameterSpec ivSpec = aesEncryptionUtil.generateIv();
+        String ivBase64 = Base64.getEncoder().encodeToString(ivSpec.getIV());
 
-            user.setUserLoginStatus(true);
-            user.setOtp(null);
-            user.setOtpExpiryTime(null);
-            userDetailsRepository.save(user);
+        // 4. Derive key
+        byte[] saltBytes = Base64.getDecoder().decode(saltBase64);
+        byte[] secretKey = aesEncryptionUtil.deriveKey(baseSecret, saltBytes, iterations, keyLength);
 
-            Map<String, Object> responseMap = new HashMap<>();
-            responseMap.put("token", token);
-            responseMap.put("hierarchyId", user.getHierarchyId());
-            responseMap.put("mobileNumber", user.getMobileNumber());
-            responseMap.put("emailId", user.getEmailId());
+        // create token payload (whatever you want inside)
+        long now = System.currentTimeMillis();
+        long exp = now + 3600_000L; // 1 hour expiry
+        String payload = now + "/" + exp + "/" + user.getMobileNumber();
 
-            String hierarchyCode = user.getHierarchyCode();
-            log.debug("Resolving role for hierarchyCode: {}", hierarchyCode);
+        // encrypt payload
+        String encryptedToken = aesEncryptionUtil.encrypt(payload, secretKey, ivSpec);
 
-            switch (hierarchyCode.toUpperCase()) {
-                case "AD":
-                    responseMap.put("role_id", user.getRole_id());
-                    ImSubRole adSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
-                    if (adSubRole != null) {
-                        responseMap.put("sub_role_id", adSubRole.getSubRoleId());
-                        responseMap.put("role", hierarchyCode);
-                    }
-                    break;
+        // final token string: hierarchyCode|salt|iv|ciphertext
+        String fullToken = user.getHierarchyCode() + "|" + saltBase64 + "|" + ivBase64 + "|" + encryptedToken;
 
-                case "WL":
-                    WhiteLabels whiteLabel = whiteLabelRepository.findByMobileNumber(user.getMobileNumber());
-                    if (whiteLabel != null && Boolean.TRUE.equals(whiteLabel.getIsAdmin())) {
-                        responseMap.put("role_id", user.getRole_id());
-                        ImSubRole wlSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
-                        if (wlSubRole != null) {
-                            responseMap.put("sub_role_id", wlSubRole.getSubRoleId());
-                        }
-                        responseMap.put("role", "WL-AD");
-                    } else {
-                        responseMap.put("role", "WL");
-                    }
-                    break;
+        // 7. Update user login status
+        user.setUserLoginStatus(true);
+        user.setOtp(null);
+        user.setOtpExpiryTime(null);
+        userDetailsRepository.save(user);
 
-                case "RT":
+        // 8. Build responseMap
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("token", fullToken);
+        responseMap.put("hierarchyId", user.getHierarchyId());
+        responseMap.put("mobileNumber", user.getMobileNumber());
+        responseMap.put("emailId", user.getEmailId());
 
-                    // Add role_id and sub_role_id
-                    responseMap.put("role_id", user.getRole_id());
-                    ImSubRole rtSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
-                    if (rtSubRole != null) {
-                        responseMap.put("sub_role_id", rtSubRole.getSubRoleId());
-                    }
+        String hierarchyCode = user.getHierarchyCode();
+        log.debug("Resolving role for hierarchyCode: {}", hierarchyCode);
 
-                    List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
-                    Map<String, List<Map<String, String>>> productSubMap = new LinkedHashMap<>();
-                    Map<String, String> productIdToName = new HashMap<>();
-
-                    for (SchemeAllocation sa : schemes) {
-                        Optional<Products> productOpt = productsRepository.findByProductCode(sa.getProductCode());
-                        Optional<SubProducts> subProductOpt = subProductsRepository.findBySubProductCode(sa.getSubProductCode());
-
-                        if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
-                            log.warn("Skipping scheme due to missing mapping for productCode={} or subProductCode={}",
-                                    sa.getProductCode(), sa.getSubProductCode());
-                            continue;
-                        }
-
-                        String productId = String.valueOf(productOpt.get().getId());
-                        String productName = productOpt.get().getName();
-                        String subProductId = String.valueOf(subProductOpt.get().getId());
-                        String subProductName = subProductOpt.get().getSubProductTitle();
-
-                        productIdToName.putIfAbsent(productId, productName);
-
-                        Map<String, String> subProductMap = new HashMap<>();
-                        subProductMap.put("subProductId", subProductId);
-                        subProductMap.put("subProductName", subProductName);
-                        subProductMap.put("schemeCode", sa.getSchemeCode());
-
-                        productSubMap.computeIfAbsent(productId, k -> new ArrayList<>()).add(subProductMap);
-                    }
-
-                    List<Map<String, Object>> productList = new ArrayList<>();
-                    for (Map.Entry<String, List<Map<String, String>>> entry : productSubMap.entrySet()) {
-                        Map<String, Object> product = new HashMap<>();
-                        product.put("productId", entry.getKey());
-                        product.put("productName", productIdToName.get(entry.getKey()));
-                        product.put("subProducts", entry.getValue());
-                        productList.add(product);
-                    }
-
-                    responseMap.put("products", productList);
+        switch (hierarchyCode.toUpperCase()) {
+            case "AD":
+                responseMap.put("role_id", user.getRole_id());
+                ImSubRole adSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                if (adSubRole != null) {
+                    responseMap.put("sub_role_id", adSubRole.getSubRoleId());
                     responseMap.put("role", hierarchyCode);
-                    break;
+                }
+                break;
 
-                case "RU":
+            case "WL":
+                WhiteLabels whiteLabel = whiteLabelRepository.findByMobileNumber(user.getMobileNumber());
+                if (whiteLabel != null && Boolean.TRUE.equals(whiteLabel.getIsAdmin())) {
                     responseMap.put("role_id", user.getRole_id());
-                    ImSubRole ruSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
-                    if (ruSubRole != null) {
-                        responseMap.put("sub_role_id", ruSubRole.getSubRoleId());
+                    ImSubRole wlSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                    if (wlSubRole != null) {
+                        responseMap.put("sub_role_id", wlSubRole.getSubRoleId());
                     }
-                    responseMap.put("role", "RA");
-                    break;
+                    responseMap.put("role", "WL-AD");
+                } else {
+                    responseMap.put("role", "WL");
+                }
+                break;
 
-                case "AU":
-                    responseMap.put("permissions", user.getPermission());
-                    responseMap.put("role", "AU");
-                    break;
+            case "RT":
+                responseMap.put("role_id", user.getRole_id());
+                ImSubRole rtSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                if (rtSubRole != null) {
+                    responseMap.put("sub_role_id", rtSubRole.getSubRoleId());
+                }
 
-                default:
-                    responseMap.put("role", hierarchyCode);
-                    break;
-            }
+                // Build product/subProduct list
+                List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
+                Map<String, List<Map<String, String>>> productSubMap = new LinkedHashMap<>();
+                Map<String, String> productIdToName = new HashMap<>();
 
-            try {
-                responseJson = objectMapper.writeValueAsString(
-                        new CommonResponse<>(200, "OTP verified successfully", responseMap)
-                );
-                commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
-                log.info("OTP verification log saved for user ID: {}", user.getHierarchyId());
-            } catch (JsonProcessingException e) {
-                log.error("Error logging OTP verification for user ID: {}", user.getHierarchyId(), e);
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(new CommonResponse<>(500, "Error logging OTP verification", null));
-            }
+                for (SchemeAllocation sa : schemes) {
+                    Optional<Products> productOpt = productsRepository.findByProductCode(sa.getProductCode());
+                    Optional<SubProducts> subProductOpt = subProductsRepository.findBySubProductCode(sa.getSubProductCode());
 
-            log.info("OTP verification completed successfully for user ID: {}", user.getHierarchyId());
-            return ResponseEntity.ok(new CommonResponse<>(200, "OTP verified successfully", responseMap));
+                    if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
+                        log.warn("Skipping scheme due to missing mapping for productCode={} or subProductCode={}",
+                                sa.getProductCode(), sa.getSubProductCode());
+                        continue;
+                    }
+
+                    String productId = String.valueOf(productOpt.get().getId());
+                    String productName = productOpt.get().getName();
+                    String subProductId = String.valueOf(subProductOpt.get().getId());
+                    String subProductName = subProductOpt.get().getSubProductTitle();
+
+                    productIdToName.putIfAbsent(productId, productName);
+
+                    Map<String, String> subProductMap = new HashMap<>();
+                    subProductMap.put("subProductId", subProductId);
+                    subProductMap.put("subProductName", subProductName);
+                    subProductMap.put("schemeCode", sa.getSchemeCode());
+
+                    productSubMap.computeIfAbsent(productId, k -> new ArrayList<>()).add(subProductMap);
+                }
+
+                List<Map<String, Object>> productList = new ArrayList<>();
+                for (Map.Entry<String, List<Map<String, String>>> entry : productSubMap.entrySet()) {
+                    Map<String, Object> product = new HashMap<>();
+                    product.put("productId", entry.getKey());
+                    product.put("productName", productIdToName.get(entry.getKey()));
+                    product.put("subProducts", entry.getValue());
+                    productList.add(product);
+                }
+
+                responseMap.put("products", productList);
+                responseMap.put("role", hierarchyCode);
+                break;
+
+            case "RU":
+                responseMap.put("role_id", user.getRole_id());
+                ImSubRole ruSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                if (ruSubRole != null) {
+                    responseMap.put("sub_role_id", ruSubRole.getSubRoleId());
+                }
+                responseMap.put("role", "RA");
+                break;
+
+            case "AU":
+                responseMap.put("permissions", user.getPermission());
+                responseMap.put("role", "AU");
+                break;
+
+            default:
+                responseMap.put("role", hierarchyCode);
+                break;
         }
 
-        log.error("Token generation failed for username: {}", loginRequestDto.getUserName());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error generating token: " + responseEntity.getBody());
-    }
+        // 9. Log login attempt
+        try {
+            responseJson = objectMapper.writeValueAsString(
+                    new CommonResponse<>(200, "OTP verified successfully", responseMap)
+            );
+            commonFunctions.saveLoginLogs(requestJson, requestTime, responseJson, LocalDateTime.now(), null);
+            log.info("OTP verification log saved for user ID: {}", user.getHierarchyId());
+        } catch (JsonProcessingException e) {
+            log.error("Error logging OTP verification for user ID: {}", user.getHierarchyId(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Error logging OTP verification", null));
+        }
 
+        log.info("OTP verification completed successfully for user ID: {}", user.getHierarchyId());
+        return ResponseEntity.ok(new CommonResponse<>(200, "OTP verified successfully", responseMap));
+    }
 
     @PostMapping("/forget-verify-otp")
     public ResponseEntity<?> verifyOTP(@RequestBody LoginRequestDto loginRequestDto) {

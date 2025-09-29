@@ -47,13 +47,13 @@ public class UserServiceImpl implements UserService {
     private SuperDistributorRepository superDistributorRepository;
 
     @Autowired
-    private  PartnerRepository partnerRepository;
+    private PartnerRepository partnerRepository;
 
     @Autowired
     private DistributorRepository distributorRepository;
 
     @Autowired
-    private  RetailerRepository retailerRepository;
+    private RetailerRepository retailerRepository;
 
     @Autowired
     private SuperAdminRepository superAdminRepository;
@@ -62,53 +62,48 @@ public class UserServiceImpl implements UserService {
     private CommonMethods commonMethods;
 
     @Override
-    public CommonResponse<List<UserDetailsResponseDTO>> updateUserBlockStatus(String idOrMobile, boolean block) {
-        log.info("Updating block status for users with hierarchyId or mobile: {}, block: {}", idOrMobile, block);
+    public CommonResponse<UserDetailsResponseDTO> updateUserBlockStatus(String idOrMobile, boolean block) {
+        log.info("Updating block status for user with hierarchyId or mobile: {}, block: {}", idOrMobile, block);
 
-        List<UserDetails> userList = userDetailsRepository.findByHierarchyIdOrMobileNumber(idOrMobile);
+        UserDetails user = userDetailsRepository.findByHierarchyIdOrMobileNumber(idOrMobile);
 
-        if (userList.isEmpty()) {
-            log.warn("No users found with hierarchyId or mobile number: {}", idOrMobile);
+        if (user == null) {
+            log.warn("No user found with hierarchyId or mobile number: {}", idOrMobile);
             throw new RuntimeException("User with hierarchyId or mobile number " + idOrMobile + " not found.");
         }
 
-        for (UserDetails user : userList) {
-            log.debug("Updating user: {} - current block status: {}", user.getHierarchyId(), user.getIsBlocked());
-            user.setIsBlocked(block);
-            user.setEditedDate(LocalDate.now());
-            user.setEditedTime(LocalTime.now());
-        }
+        log.debug("Updating user: {} - current block status: {}", user.getHierarchyId(), user.getIsBlocked());
+        user.setIsBlocked(block);
+        user.setEditedDate(LocalDate.now());
+        user.setEditedTime(LocalTime.now());
 
-        userDetailsRepository.saveAll(userList);
-        log.info("Saved updated block status for {} users", userList.size());
+        userDetailsRepository.save(user);
+        log.info("Saved updated block status for user: {}", user.getHierarchyId());
 
-        List<UserDetailsResponseDTO> dtoList = userList.stream().map(user -> {
-            UserDetailsResponseDTO dto = new UserDetailsResponseDTO();
-            dto.setMobileNumber(user.getMobileNumber());
-            dto.setHierarchyId(user.getHierarchyId());
-            dto.setHierarchyCode(user.getHierarchyCode());
-            dto.setLoginUserName(user.getLoginUserName());
-            dto.setUserLoginStatus(user.getUserLoginStatus());
-            dto.setLastLoginDate(user.getLastLoginDate());
-            dto.setLastLoginTime(user.getLastLoginTime());
-            dto.setUserStatus(user.getUserStatus());
-            dto.setEmailId(user.getEmailId());
-            dto.setCreatedDate(user.getCreatedDate());
-            dto.setCreatedTime(user.getCreatedTime());
-            dto.setCreatedBy(user.getCreatedBy());
-            dto.setEditedDate(user.getEditedDate());
-            dto.setEditedTime(user.getEditedTime());
-            dto.setEditedBy(user.getEditedBy());
-            dto.setRoleId(user.getRole_id());
-            dto.setIsBlocked(user.getIsBlocked());
-            return dto;
-        }).toList();
+        UserDetailsResponseDTO dto = new UserDetailsResponseDTO();
+        dto.setMobileNumber(user.getMobileNumber());
+        dto.setHierarchyId(user.getHierarchyId());
+        dto.setHierarchyCode(user.getHierarchyCode());
+        dto.setLoginUserName(user.getLoginUserName());
+        dto.setUserLoginStatus(user.getUserLoginStatus());
+        dto.setLastLoginDate(user.getLastLoginDate());
+        dto.setLastLoginTime(user.getLastLoginTime());
+        dto.setUserStatus(user.getUserStatus());
+        dto.setEmailId(user.getEmailId());
+        dto.setCreatedDate(user.getCreatedDate());
+        dto.setCreatedTime(user.getCreatedTime());
+        dto.setCreatedBy(user.getCreatedBy());
+        dto.setEditedDate(user.getEditedDate());
+        dto.setEditedTime(user.getEditedTime());
+        dto.setEditedBy(user.getEditedBy());
+        dto.setRoleId(user.getRole_id());
+        dto.setIsBlocked(user.getIsBlocked());
 
         String message = block ? "User blocked successfully." : "User unblocked successfully.";
         log.info("Returning response: {}", message);
-        return CommonResponse.success(dtoList, message);
-    }
 
+        return CommonResponse.success(dto, message);
+    }
 
 
     @Override
@@ -287,12 +282,18 @@ public class UserServiceImpl implements UserService {
                     log.debug("Resolving address for user with hierarchyId: {}, type: {}", user.getHierarchyId(), type);
 
                     switch (type) {
-                        case "RT" -> retailerRepository.findById(user.getHierarchyId()).ifPresent(rt -> setAddress(dto, rt.getAddress()));
-                        case "DT" -> distributorRepository.findById(user.getHierarchyId()).ifPresent(dt -> setAddress(dto, dt.getAddress()));
-                        case "PT" -> partnerRepository.findById(user.getHierarchyId()).ifPresent(pt -> setAddress(dto, pt.getAddress()));
-                        case "SD" -> superDistributorRepository.findById(user.getHierarchyId()).ifPresent(sd -> setAddress(dto, sd.getAddress()));
-                        case "WL" -> whiteLabelRepository.findById(user.getHierarchyId()).ifPresent(wl -> setAddress(dto, wl.getAddress()));
-                        case "ET" -> enterprisesRepository.findById(user.getHierarchyId()).ifPresent(et -> setAddress(dto, et.getAddress()));
+                        case "RT" ->
+                                retailerRepository.findById(user.getHierarchyId()).ifPresent(rt -> setAddress(dto, rt.getAddress()));
+                        case "DT" ->
+                                distributorRepository.findById(user.getHierarchyId()).ifPresent(dt -> setAddress(dto, dt.getAddress()));
+                        case "PT" ->
+                                partnerRepository.findById(user.getHierarchyId()).ifPresent(pt -> setAddress(dto, pt.getAddress()));
+                        case "SD" ->
+                                superDistributorRepository.findById(user.getHierarchyId()).ifPresent(sd -> setAddress(dto, sd.getAddress()));
+                        case "WL" ->
+                                whiteLabelRepository.findById(user.getHierarchyId()).ifPresent(wl -> setAddress(dto, wl.getAddress()));
+                        case "ET" ->
+                                enterprisesRepository.findById(user.getHierarchyId()).ifPresent(et -> setAddress(dto, et.getAddress()));
                         default -> log.warn("Unknown hierarchy type for ID: {}", user.getHierarchyId());
                     }
 

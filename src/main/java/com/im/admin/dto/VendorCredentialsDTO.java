@@ -16,6 +16,7 @@ public class VendorCredentialsDTO {
     private Long id;
     private Vendors vendorId;
     private Products productId;
+    private String callbackUrl;
     private String baseUrlUat;
     private String token;
     private String baseUrlProd;
@@ -32,6 +33,7 @@ public class VendorCredentialsDTO {
     private String userField1;
     private String userField2;
     private String userField3;
+    private String tokenType;
     private String createdBy;
     private String editedBy;
 

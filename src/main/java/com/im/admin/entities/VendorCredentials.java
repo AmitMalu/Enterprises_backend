@@ -36,6 +36,9 @@ public class VendorCredentials {
     @NotNull(message = "Product is required")
     private Products product;
 
+    @Column(name = "callback_url")
+    private String callbackUrl;
+
     @Column(name = "token_url_uat")
     private String tokenUrlUat;
 
@@ -83,6 +86,9 @@ public class VendorCredentials {
 
     @Column(name = "user_field_3")
     private String userField3;
+
+    @Column(name = "token_type")
+    private String tokenType;
 
     @CreationTimestamp
     @Column(name = "created_on", updatable = false)

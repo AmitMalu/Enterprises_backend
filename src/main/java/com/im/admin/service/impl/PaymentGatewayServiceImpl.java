@@ -3,6 +3,8 @@ package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.config.EncryptionService;
+import com.im.admin.controller.AESController;
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
@@ -14,6 +16,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.response.RunPaisaCallback;
 import com.im.admin.service.PaymentGatewayService;
 import com.im.admin.service.VendorCallbackParser;
+import com.im.admin.util.AESEncryptionUtil;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ParameterMode;
@@ -30,6 +33,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -109,6 +113,10 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     @Autowired
     private UserDetailsRepository userDetailsRepository;
 
+    @Autowired
+    private AESController aesController;
+
+
 
     @Override
     public String generateToken() {
@@ -140,74 +148,176 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             throw new RuntimeException("Failed to get token from Runpaisa");
         }
     }
+    @Override
+    @Transactional
+    public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req) {
+        log.info("Received createOrder request: {}", req);
 
-    public String generateTokenAsPerVendor(VendorCredentials vendorCredentials) {
-        LocalDateTime requestTime = LocalDateTime.now();
-        String responseBody = null;
+        LocalDateTime imRequestTime = LocalDateTime.now();
+        String imResponseBody = null;
 
         try {
-            // Set headers only
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("username", vendorCredentials.getUsername());
-            headers.set("password", vendorCredentials.getPassword());
-            headers.set("client_id", vendorCredentials.getClientId());
+            // ====== Vendor Routing & Credentials ======
+            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
-            HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
+            VendorCredentials credentials = vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-            String url = vendorCredentials.getTokenUrlUat();
-            log.info("Sending token request to URL: {} for vendor: {}", url, vendorCredentials.getVendor().getId());
+            log.debug("Vendor credentials retrieved: {}", credentials.getClientId());
 
-            // Capture request for logging
-            String requestLog = String.format("Headers: %s, Body: %s", headers, "null");
+            // ====== Check Vendor Type ======
+            if ("AES".equalsIgnoreCase(credentials.getTokenType())) {
+                // =========================
+                // AES Flow (Admin Panel)
+                // =========================
+                String token = generateTokenForAES(credentials);
 
-            ResponseEntity<PgTokenResponseDTO> response = restTemplate.postForEntity(
-                    url,
-                    requestEntity,
-                    PgTokenResponseDTO.class
-            );
+                // Build JSON request for AES admin panel
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("client_id", credentials.getClientId());
+                headers.set("token", token);
+                headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
 
-            LocalDateTime responseTime = LocalDateTime.now();
-            PgTokenResponseDTO tokenResponse = response.getBody();
+                CreateOrderRequest jsonBody = new CreateOrderRequest();
+                jsonBody.setOrderId("ORD" + commonMethods.generateBaseTransactionId());
+                jsonBody.setCallbackUrl(credentials.getCallbackUrl());
+                jsonBody.setAmount(req.getAmount());
+                jsonBody.setMerchantRef(req.getMerchantRef());
+                jsonBody.setUsername(credentials.getUsername());
 
-            // Convert response to JSON for logging
-            responseBody = tokenResponse != null ? tokenResponse.toString() : "null";
+                // Add transaction scheme placeholder if needed
+                TransactionSchemeDetailsRequestDto scheme = new TransactionSchemeDetailsRequestDto();
+                // TODO: fill required scheme fields
+                jsonBody.setTransactionScheme(scheme);
 
-            log.info("Bearer token response for vendor {}: {}", vendorCredentials.getVendor().getId(), tokenResponse);
+                HttpEntity<CreateOrderRequest> requestEntity = new HttpEntity<>(jsonBody, headers);
 
-            // Save vendor request/response logs
-            commonFunctions.saveVendorLogs(
-                    requestTime,
-                    requestLog,
-                    vendorCredentials.getVendor().getId(),
-                    responseTime,
-                    responseBody,
-                    null // method to fetch IP from request context
-            );
+                String url = credentials.getBaseUrlUat() + "/create-order";
+                log.info("AES Admin panel order URL: {}", url);
 
-            if (tokenResponse != null && tokenResponse.getData() != null) {
-                return tokenResponse.getData().getToken();
+                ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
+                imResponseBody = response.getBody();
+
+                commonFunctions.saveVendorLogs(
+                        LocalDateTime.now(),
+                        "AES order request",
+                        vendor.getId(),
+                        LocalDateTime.now(),
+                        imResponseBody,
+                        null
+                );
+
+                return ResponseEntity.status(response.getStatusCode())
+                        .body(CommonResponse.success(imResponseBody, "Order created via AES"));
+
             } else {
-                throw new RuntimeException("Failed to get token from Runpaisa, response: " + responseBody);
+                // =========================
+                // Old Vendor Flow (RunPaisa, Razorpay)
+                // =========================
+                String token = generateTokenForVendor(credentials);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+                headers.set("client_id", credentials.getClientId());
+                headers.set("token", token);
+
+                MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+                body.add("callbackurl", credentials.getCallbackUrl());
+                body.add("order_id", "ORD" + commonMethods.generateBaseTransactionId());
+                body.add("amount", String.valueOf(req.getAmount()));
+                if (req.getMerchantRef() != null) {
+                    body.add("merc_unq_ref", req.getMerchantRef());
+                }
+
+                HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+                String url = credentials.getBaseUrlUat() + "/order";
+                log.info("Old vendor order URL: {}", url);
+
+                ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
+                imResponseBody = response.getBody();
+
+                commonFunctions.saveVendorLogs(
+                        LocalDateTime.now(),
+                        "Old vendor order request",
+                        vendor.getId(),
+                        LocalDateTime.now(),
+                        imResponseBody,
+                        null
+                );
+
+                return ResponseEntity.status(response.getStatusCode())
+                        .body(CommonResponse.success(imResponseBody, "Order created via vendor"));
             }
-        } catch (Exception ex) {
-            LocalDateTime errorTime = LocalDateTime.now();
 
-            // Log failure
-            log.error("Error while generating token for vendor {}: {}", vendorCredentials.getVendor().getId(), ex.getMessage(), ex);
+        } catch (Exception e) {
+            log.error("Error while creating order for request: {}", req, e);
+            imResponseBody = "Order creation failed: " + e.getMessage();
+            commonFunctions.saveImLogs(req.toString(), imRequestTime, null, imResponseBody, LocalDateTime.now());
 
-            // Save error log
-            commonFunctions.saveVendorLogs(
-                    requestTime,
-                    "Token Request Failed",
-                    vendorCredentials.getVendor().getId(),
-                    errorTime,
-                    ex.getMessage(),
-                    null
-            );
-
-            throw ex; // rethrow so caller knows it failed
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.failure(imResponseBody));
         }
+    }
+
+    // =========================
+    // Token generation methods
+    // =========================
+
+    private String generateTokenForAES(VendorCredentials vendorCredentials) {
+        // Call AES encrypt service
+        ResponseEntity<?> responseEntity = aesController.encryptCredentials(
+                new EncryptDecryptCredentialsDto(vendorCredentials.getUsername(), vendorCredentials.getPassword())
+        );
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> encryptedMap = (Map<String, String>) responseEntity.getBody();
+        String encUser = encryptedMap.get("cipherUsername");
+        String encPass = encryptedMap.get("cipherPassword");
+        String salt = encryptedMap.get("salt");
+        String iv = encryptedMap.get("iv");
+
+        // Build JSON for token request
+        Map<String, String> jsonBody = new HashMap<>();
+        jsonBody.put("username", encUser);
+        jsonBody.put("password", encPass);
+        jsonBody.put("client_id", vendorCredentials.getClientId());
+        jsonBody.put("salt", salt);
+        jsonBody.put("ivBase64", iv);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlUat(), requestEntity, Map.class);
+        Map<String, Object> responseBodyMap = response.getBody();
+        if (responseBodyMap == null || responseBodyMap.get("token") == null) {
+            throw new RuntimeException("AES token generation failed: " + responseBodyMap);
+        }
+
+        return (String) responseBodyMap.get("token");
+    }
+
+    private String generateTokenForVendor(VendorCredentials vendorCredentials) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("username", vendorCredentials.getUsername());
+        headers.set("password", vendorCredentials.getPassword());
+        headers.set("client_id", vendorCredentials.getClientId());
+
+        HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+        ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlUat(), requestEntity, Map.class);
+
+        Map<String, Object> responseBodyMap = response.getBody();
+        if (responseBodyMap == null || !responseBodyMap.containsKey("data")) {
+            throw new RuntimeException("Old vendor token generation failed: " + responseBodyMap);
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> dataMap = (Map<String, Object>) responseBodyMap.get("data");
+        return (String) dataMap.get("token");
     }
 
 
@@ -267,100 +377,6 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         );
 
         return new CommonResponse<>(200, "Retailer commission fetched successfully", dto);
-    }
-
-
-    @Override
-    @Transactional
-    public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req) {
-        log.info("Received createOrder request: {}", req);
-
-        LocalDateTime imRequestTime = LocalDateTime.now();
-        String imResponseBody = null;
-
-        try {
-            // ====== Vendor Routing & Credentials ======
-            log.debug("Fetching vendor routing for subProductId: {}", req.getSubProductId());
-            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
-
-            log.debug("Extracting vendor from routing info");
-            Vendors vendor = CommonMethods.getVendors(vendorRouting);
-
-            log.debug("Fetching credentials for vendorId: {}, productId: {}", vendor.getId(), vendor.getProduct().getId());
-            VendorCredentials credentials = vendorCredentialsRepository
-                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
-
-            log.debug("Credentials retrieved: clientId={}, baseUrl={}", credentials.getClientId(), credentials.getBaseUrlUat());
-
-            // ====== Prepare Headers ======
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-            headers.set("client_id", credentials.getClientId());
-            String token = generateTokenAsPerVendor(credentials);
-            headers.set("token", token);
-            log.debug("Headers prepared: {}", headers);
-
-            // ====== Request Body ======
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("callbackurl", req.getCallbackUrl());
-            String baseTransactionId = commonMethods.generateBaseTransactionId();
-            String orderId = "ORD" + baseTransactionId;
-            body.add("order_id", orderId);
-            body.add("amount", String.valueOf(req.getAmount()));
-
-            if (req.getMerchantRef() != null) {
-                body.add("merc_unq_ref", req.getMerchantRef());
-            }
-
-            log.info("Final request body: {}", body);
-
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-            String url = credentials.getBaseUrlUat() + "/order";
-            log.info("Sending POST request to vendor URL: {}", url);
-
-            // ====== Vendor Call ======
-            LocalDateTime vendorRequestTime = LocalDateTime.now();
-            String vendorRequestStr = "Headers: " + headers + ", Body: " + body;
-
-            ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
-
-            LocalDateTime vendorResponseTime = LocalDateTime.now();
-            String vendorResponseStr = response.getBody();
-
-            log.info("Vendor response: status={}, body={}", response.getStatusCode(), vendorResponseStr);
-
-            // ====== Save Vendor Logs ======
-            commonFunctions.saveVendorLogs(
-                    vendorRequestTime,
-                    vendorRequestStr,
-                    vendor.getId(),
-                    vendorResponseTime,
-                    vendorResponseStr,
-                    null
-            );
-
-            // ====== Build Response for IM Caller ======
-            imResponseBody = vendorResponseStr;
-            LocalDateTime imResponseTime = LocalDateTime.now();
-
-            commonFunctions.saveImLogs(req.toString(), imRequestTime, null, imResponseBody, imResponseTime);
-
-            return ResponseEntity.status(response.getStatusCode())
-                    .body(CommonResponse.success(vendorResponseStr, "Order created successfully"));
-
-        } catch (Exception e) {
-            log.error("Error while creating order for request: {}", req, e);
-
-            imResponseBody = "Order creation failed: " + e.getMessage();
-            LocalDateTime imResponseTime = LocalDateTime.now();
-
-            // Save failed IM log
-            commonFunctions.saveImLogs(req.toString(), imRequestTime, null, imResponseBody, imResponseTime);
-
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResponse.failure(imResponseBody));
-        }
     }
 
 

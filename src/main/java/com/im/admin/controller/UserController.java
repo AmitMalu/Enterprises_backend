@@ -29,21 +29,30 @@ public class UserController {
     private UserService userService;
 
     @PutMapping("/block/{idOrMobile}")
-    public ResponseEntity<CommonResponse> updateBlockStatus(
+    public ResponseEntity<CommonResponse<UserDetailsResponseDTO>> updateBlockStatus(
             @PathVariable String idOrMobile,
             @RequestBody BlockStatusRequest request
     ) {
         log.info("Received request to update block status for ID/Mobile: {} to {}", idOrMobile, request.isBlock());
         try {
-            CommonResponse response = userService.updateUserBlockStatus(idOrMobile, request.isBlock());
+            CommonResponse<UserDetailsResponseDTO> response =
+                    userService.updateUserBlockStatus(idOrMobile, request.isBlock());
+
             log.info("Block status updated successfully for ID/Mobile: {}", idOrMobile);
             return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            // business-level error (user not found, etc.)
+            log.warn("Business error while updating block status for ID/Mobile: {}", idOrMobile, e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(CommonResponse.error(404, e.getMessage()));
         } catch (Exception e) {
+            // unexpected errors
             log.error("Error updating block status for ID/Mobile: {}", idOrMobile, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new CommonResponse(500, "Failed to update block status", null));
+                    .body(CommonResponse.error(500, "Failed to update block status"));
         }
     }
+
 
     @GetMapping("/status/{status}")
     public ResponseEntity<CommonResponse<List<StatusWiseUserFullDto>>> getUsersByStatus(@PathVariable String status) {
