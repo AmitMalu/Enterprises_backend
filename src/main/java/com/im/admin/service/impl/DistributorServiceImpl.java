@@ -15,6 +15,7 @@ import com.im.admin.repositories.DistributorRepository;
 import com.im.admin.service.DistributorService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
+import com.im.admin.util.ImageUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -64,6 +65,9 @@ public class DistributorServiceImpl implements DistributorService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private ImageUtil imageUtil;
 
 
     @Transactional
@@ -139,11 +143,20 @@ public class DistributorServiceImpl implements DistributorService {
 
             // Upload images
             log.info("Uploading distributor images...");
-            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, distributor::setAadhaarCardFrontImage);
-            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, distributor::setAadhaarCardBackImage);
-            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, distributor::setPanCardImage);
-            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, distributor::setShopImage);
-            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, distributor::setBusinessProofImage);
+            String aadhaarFrontFilePath = imageUtil.saveImage(aadhaarCardFrontImage, "Distributor");
+            distributor.setAadhaarCardFrontImage(aadhaarFrontFilePath);
+
+            String aadhaarBackFilePath = imageUtil.saveImage(aadhaarCardBackImage, "Distributor");
+            distributor.setAadhaarCardFrontImage(aadhaarBackFilePath);
+
+            String panCardFilePath = imageUtil.saveImage(panCardImage, "Distributor");
+            distributor.setAadhaarCardFrontImage(panCardFilePath);
+
+            String shopFilePath = imageUtil.saveImage(shopImage, "Distributor");
+            distributor.setAadhaarCardFrontImage(shopFilePath);
+
+            String businessFilePath = imageUtil.saveImage(businessProofImage, "Distributor");
+            distributor.setAadhaarCardFrontImage(businessFilePath);
 
             // Save distributor
             log.info("Saving Distributor entity...");
