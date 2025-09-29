@@ -20,7 +20,7 @@ public interface OperatorsService {
 
     Page<Operators> getAllOperators(Pageable pageable, List<String> id, String operatorCategory, String operatorCode,
                                     String operatorName, String operatorAlias, String alias, String productCode,
-                                    String productId, String subProductCode, String subProductId, String cardBinNo, Boolean isActive,
+                                    String productId, String subProductCode, String subProductId, Boolean isActive,
                                     String createdBy, String editedBy,
                                     LocalDate createdOn,
                                     LocalDate editedOn);

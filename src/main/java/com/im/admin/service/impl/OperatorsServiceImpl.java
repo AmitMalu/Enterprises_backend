@@ -90,17 +90,11 @@ public class OperatorsServiceImpl implements OperatorsService {
         existingOperator.setOperatorAlias(operator.getOperatorAlias());
         existingOperator.setAlias(operator.getAlias());
         existingOperator.setProductCode(product.getProductCode());
-//        existingOperator.setProductCode(operator.getProductCode());
         existingOperator.setSubProductCode(subProduct.getSubProductCode());
-//        existingOperator.setSubProductCode(operator.getSubProductCode());
         existingOperator.setIsActive(operator.getIsActive());
         existingOperator.setEditedBy(operator.getEditedBy());
         existingOperator.setProductId(String.valueOf(product.getId()));
         existingOperator.setSubProductId(String.valueOf(subProduct.getId()));
-
-
-
-
 
         Operators updatedOperator = operatorsRepository.save(existingOperator);
         log.info("Operator updated successfully: {}", updatedOperator);
@@ -122,7 +116,7 @@ public class OperatorsServiceImpl implements OperatorsService {
     @Override
     public Page<Operators>getAllOperators(Pageable pageable, List<String> id, String operatorCategory, String operatorCode,
                                           String operatorName, String operatorAlias, String alias, String productCode,
-                                          String productId, String subProductCode, String subProductId, String cardBinNo, Boolean isActive,
+                                          String productId, String subProductCode, String subProductId, Boolean isActive,
                                           String createdBy, String editedBy,
                                           LocalDate createdOn,
                                           LocalDate editedOn) {
@@ -130,7 +124,7 @@ public class OperatorsServiceImpl implements OperatorsService {
         Specification<Operators> spec = OperatorSpecification.getFilter(
                 id, operatorCategory, operatorCode, operatorName, operatorAlias,
                 alias, productCode, productId, subProductCode, subProductId,
-                cardBinNo, isActive, createdBy, editedBy, createdOn, editedOn
+                isActive, createdBy, editedBy, createdOn, editedOn
         );
 
         return operatorsRepository.findAll(spec, pageable);

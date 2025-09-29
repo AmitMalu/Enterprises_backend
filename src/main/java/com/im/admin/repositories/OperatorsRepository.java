@@ -23,7 +23,7 @@ public interface OperatorsRepository extends JpaRepository<Operators, String>, J
 
     Optional<Operators> findByOperatorName(String operatorName);
 
-    Optional<Operators> findByCardBinNo(String cardBinNo);
+    //Optional<Operators> findByCardBinNo(String cardBinNo);
 
     Optional<Operators> findByProductCodeAndSubProductCodeAndOperatorCode(
             String productCode, String subProductCode, String operatorCode

@@ -10,7 +10,7 @@ import java.util.Map;
 
 public interface TransactionService {
 
-    String getOperatorDetailsByCardBIN(CardTypeRequestDto cardTypeRequestDto);
+    //String getOperatorDetailsByCardBIN(CardTypeRequestDto cardTypeRequestDto);
 
     CommonResponse<CardBinDetailsResponseDto> getDetailsByCardBINNumber(CardTypeRequestDto cardTypeRequestDto);
 

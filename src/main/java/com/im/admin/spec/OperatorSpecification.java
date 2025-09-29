@@ -13,7 +13,7 @@ public class OperatorSpecification {
     public static Specification<Operators> getFilter(List<String> id, String operatorCategory,
             String operatorCode, String operatorName, String operatorAlias, String alias,
             String productCode, String productId,
-            String subProductCode, String subProductId, String cardBinNo,
+            String subProductCode, String subProductId,
             Boolean isActive, String createdBy, String editedBy,
             LocalDate createdOn,
             LocalDate editedOn
@@ -47,8 +47,6 @@ public class OperatorSpecification {
                 predicates.add(cb.like(cb.lower(root.get("subProductCode")), "%" + subProductCode.toLowerCase() + "%"));
             if (subProductId != null)
                 predicates.add(cb.like(cb.lower(root.get("subProductId")), "%" + subProductId.toLowerCase() + "%"));
-            if (cardBinNo != null)
-                predicates.add(cb.like(cb.lower(root.get("cardBinNo")), "%" + cardBinNo.toLowerCase() + "%"));
             if (isActive != null)
                 predicates.add(cb.equal(root.get("isActive"), isActive));
             if (createdBy != null)
