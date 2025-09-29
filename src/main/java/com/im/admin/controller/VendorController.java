@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -72,7 +73,7 @@ public class VendorController {
         log.info("Fetching vendors with filters - page: {}, size: {}, vendorName: {}, vendorCode: {}, productId: {}, subProductId: {}, isActive: {}",
                 page, size, vendorName, vendorCode, productId, subProductId, active);
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
         Page<VendorsDTO> dtoPage = vendorsService.getAllVendors(
                 pageable, id, vendorName, vendorCode, productId, productCode,
                 subProductId, subProductCode, modesSupported, active,
