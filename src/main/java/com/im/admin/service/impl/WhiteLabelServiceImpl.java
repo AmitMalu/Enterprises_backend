@@ -15,6 +15,7 @@ import com.im.admin.repositories.WhiteLabelRepository;
 import com.im.admin.service.WhiteLabelService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
+import com.im.admin.util.ImageUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -61,6 +62,9 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private ImageUtil imageUtil;
 
     @Transactional
     @Override
@@ -129,11 +133,12 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             whiteLabels.setWhiteLabelId(idGenerator.generateHierarchyEntityId(folder, whiteLabels.getAbbreviation()));
 
             // Upload Images
-            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, whiteLabels::setAadhaarCardFrontImage);
-            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, whiteLabels::setAadhaarCardBackImage);
-            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, whiteLabels::setPanCardImage);
-            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, whiteLabels::setShopImage);
-            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, whiteLabels::setBusinessProofImage);
+            whiteLabels.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, "whiteLabel"));
+            whiteLabels.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, "whiteLabel"));
+            whiteLabels.setPanCardImage(imageUtil.saveImage(panCardImage, "whiteLabel"));
+            whiteLabels.setShopImage(imageUtil.saveImage(shopImage, "whiteLabel"));
+            whiteLabels.setBusinessNumber( imageUtil.saveImage(businessProofImage, "whiteLabel"));
+
 
             // Save entity
             WhiteLabels savedWhiteLabel = whiteLabelRepository.save(whiteLabels);
@@ -231,21 +236,20 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             // Handle optional image updates
             String folder = "White Label";
             if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingWhiteLabels::setAadhaarCardFrontImage);
+                whiteLabels.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
             }
             if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingWhiteLabels::setAadhaarCardBackImage);
+                whiteLabels.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
             }
             if (panCardImage != null && !panCardImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingWhiteLabels::setPanCardImage);
+                whiteLabels.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
             }
             if (shopImage != null && !shopImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingWhiteLabels::setShopImage);
+                whiteLabels.setShopImage(imageUtil.saveImage(shopImage, folder));
             }
             if (businessProofImage != null && !businessProofImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingWhiteLabels::setBusinessProofImage);
+                whiteLabels.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
             }
-
             // Save updated entity
             WhiteLabels updatedWhiteLabel = whiteLabelRepository.save(existingWhiteLabels);
 

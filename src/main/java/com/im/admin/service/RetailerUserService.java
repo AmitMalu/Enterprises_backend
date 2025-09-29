@@ -7,9 +7,9 @@ import com.im.admin.spec.projectionFilter.RetailerUserProjection;
 import java.util.List;
 import java.util.Map;
 
-public interface RetailerAgentService {
+public interface RetailerUserService {
 
-    RetailerUser createAgent(RetailerUser retailerUser);
+    RetailerUser createRetailerUser(RetailerUser retailerUser);
 
     CommonResponse<Map<String, Object>> getFilteredUsers(
             String name,
@@ -23,9 +23,9 @@ public interface RetailerAgentService {
             String sortDir
     );
 
-    CommonResponse<Void> deleteRetailerAgent(String id);
+    CommonResponse<Void> deleteRetailerUser(String id);
 
-    RetailerUser updateAgent(String retailerUserId, RetailerUser retailerUser);
+    RetailerUser updateRetailerUser(String retailerUserId, RetailerUser retailerUser);
 
 
 }
