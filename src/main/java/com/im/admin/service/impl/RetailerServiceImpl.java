@@ -14,6 +14,7 @@ import com.im.admin.response.RetailerResponseDTO;
 import com.im.admin.service.RetailerService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
+import com.im.admin.util.ImageUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -66,6 +67,9 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Autowired
     private BankDetailsRepository bankDetailsRepository;
+
+    @Autowired
+    private ImageUtil imageUtil;
 
     @Transactional
     @Override
@@ -132,11 +136,15 @@ public class RetailerServiceImpl implements RetailerService {
         retailer.setRetailerId(idGenerator.generateHierarchyEntityId(folder, retailer.getAbbreviation()));
 
         // Upload Images
-        imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, retailer::setAadhaarCardFrontImage);
-        imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, retailer::setAadhaarCardBackImage);
-        imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, retailer::setPanCardImage);
-        imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, retailer::setShopImage);
-        imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, retailer::setBusinessProofImage);
+        retailer.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, "Retailer"));
+
+        retailer.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, "Retailer"));
+
+        retailer.setPanCardImage(imageUtil.saveImage(panCardImage, "Retailer"));
+
+        retailer.setShopImage(imageUtil.saveImage(shopImage, "Retailer"));
+
+        retailer.setBusinessNumber( imageUtil.saveImage(businessProofImage, "Retailer"));
 
         // Save Bank Details separately (Before retailer save)
         if (retailer.getBankDetails() != null) {
@@ -227,19 +235,19 @@ public class RetailerServiceImpl implements RetailerService {
         // Optional image updates
         String folder = "Retailer";
         if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingRetailer::setAadhaarCardFrontImage);
+            retailer.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
         }
         if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingRetailer::setAadhaarCardBackImage);
+            retailer.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
         }
         if (panCardImage != null && !panCardImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingRetailer::setPanCardImage);
+            retailer.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
         }
         if (shopImage != null && !shopImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingRetailer::setShopImage);
+            retailer.setShopImage(imageUtil.saveImage(shopImage, folder));
         }
         if (businessProofImage != null && !businessProofImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingRetailer::setBusinessProofImage);
+            retailer.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
         }
 
         Retailer updatedRetailer = retailerRepository.save(existingRetailer);
