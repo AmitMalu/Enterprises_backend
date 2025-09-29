@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,6 +47,8 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
     public VendorCredentials saveVendorCredentials(VendorCredentialsDTO dto) {
         log.info("Saving VendorCredentials for username: {}", dto.getUsername());
         VendorCredentials entity = mapToEntity(dto);
+        entity.setCreatedOn(LocalDateTime.now());
+        entity.setCreatedBy(dto.getCreatedBy());
         VendorCredentials saved = repository.save(entity);
         log.debug("Saved VendorCredentials entity: {}", saved);
         return saved;
@@ -97,6 +100,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         existing.setUserField2(dto.getUserField2());
         existing.setUserField3(dto.getUserField3());
         existing.setEditedBy(dto.getEditedBy());
+        existing.setEditedOn(LocalDateTime.now());
 
         VendorCredentials saved = repository.save(existing);
         log.debug("Updated VendorCredentials entity: {}", saved);
@@ -194,8 +198,6 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         entity.setUserField2(dto.getUserField2());
         entity.setUserField3(dto.getUserField3());
         entity.setTokenType(dto.getTokenType());
-        entity.setCreatedBy(dto.getCreatedBy());
-        entity.setEditedBy(dto.getEditedBy());
 
         return entity;
     }
@@ -224,7 +226,10 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         dto.setUserField1(entity.getUserField1());
         dto.setUserField2(entity.getUserField2());
         dto.setUserField3(entity.getUserField3());
+
+        dto.setCreatedOn(entity.getCreatedOn());
         dto.setCreatedBy(entity.getCreatedBy());
+        dto.setEditedOn(entity.getEditedOn());
         dto.setEditedBy(entity.getEditedBy());
 
         // Vendor info
