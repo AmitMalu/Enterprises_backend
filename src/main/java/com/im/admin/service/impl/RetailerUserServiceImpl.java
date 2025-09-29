@@ -6,7 +6,7 @@ import com.im.admin.repositories.RetailerRepository;
 import com.im.admin.repositories.RetailerUserRepository;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.service.RetailerAgentService;
+import com.im.admin.service.RetailerUserService;
 import com.im.admin.spec.projectionFilter.RetailerUserProjection;
 import com.im.admin.util.IdGenerator;
 import org.apache.catalina.User;
@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class RetailerAgentServiceImpl implements RetailerAgentService {
+public class RetailerUserServiceImpl implements RetailerUserService {
 
     @Autowired
     private RetailerUserRepository retailerUserRepository;
@@ -43,7 +43,7 @@ public class RetailerAgentServiceImpl implements RetailerAgentService {
 
     @Transactional
     @Override
-    public RetailerUser createAgent(RetailerUser retailerUser) {
+    public RetailerUser createRetailerUser(RetailerUser retailerUser) {
 
         String parentAccount = retailerUser.getParentAccount();
 
@@ -150,20 +150,20 @@ public class RetailerAgentServiceImpl implements RetailerAgentService {
 
     @Transactional
     @Override
-    public CommonResponse<Void> deleteRetailerAgent(String retailerUserId) {
+    public CommonResponse<Void> deleteRetailerUser(String retailerUserId) {
         return retailerUserRepository.findById(retailerUserId)
-                .map(agent -> {
+                .map(user -> {
                     try {
                         // 1. Delete subRoles first
-                        if (agent.getMobileNumber() != null) {
-                            imSubRoleRepository.deleteByMobileNumber(agent.getMobileNumber());
+                        if (user.getMobileNumber() != null) {
+                            imSubRoleRepository.deleteByMobileNumber(user.getMobileNumber());
                         }
 
                         // 2. Delete UserDetails next
-                        userDetailsRepository.deleteByHierarchyId(agent.getRetailerUserId());
+                        userDetailsRepository.deleteByHierarchyId(user.getRetailerUserId());
 
                         // 3. Finally delete RetailerUser
-                        retailerUserRepository.delete(agent);
+                        retailerUserRepository.delete(user);
 
                         return CommonResponse.<Void>builder()
                                 .statusCode(HttpStatus.OK.value())
@@ -188,36 +188,36 @@ public class RetailerAgentServiceImpl implements RetailerAgentService {
 
     @Transactional
     @Override
-    public RetailerUser updateAgent(String retailerUserId, RetailerUser retailerUser) {
-        RetailerUser existingAgent = retailerUserRepository.findById(retailerUserId)
-                .orElseThrow(() -> new RuntimeException("Retailer Agent not found with ID: " + retailerUserId));
+    public RetailerUser updateRetailerUser(String retailerUserId, RetailerUser retailerUser) {
+        RetailerUser existingUser = retailerUserRepository.findById(retailerUserId)
+                .orElseThrow(() -> new RuntimeException("Retailer User not found with ID: " + retailerUserId));
 
         // Update fields (avoid changing parentAccount or bankDetails)
-        existingAgent.setName(retailerUser.getName());
-        existingAgent.setMobileNumber(retailerUser.getMobileNumber());
-        existingAgent.setUsername(retailerUser.getUsername());
-        existingAgent.setPassword(retailerUser.getPassword());
-        existingAgent.setEmailId(retailerUser.getEmailId());
-        existingAgent.setEmailVerified(retailerUser.getEmailVerified());
-        existingAgent.setStatus(retailerUser.getStatus());
-        existingAgent.setDob(retailerUser.getDob());
-        existingAgent.setEditedBy(retailerUser.getEditedBy());
+        existingUser.setName(retailerUser.getName());
+        existingUser.setMobileNumber(retailerUser.getMobileNumber());
+        existingUser.setUsername(retailerUser.getUsername());
+        existingUser.setPassword(retailerUser.getPassword());
+        existingUser.setEmailId(retailerUser.getEmailId());
+        existingUser.setEmailVerified(retailerUser.getEmailVerified());
+        existingUser.setStatus(retailerUser.getStatus());
+        existingUser.setDob(retailerUser.getDob());
+        existingUser.setEditedBy(retailerUser.getEditedBy());
 
         // Update embedded address
         if (retailerUser.getAdd() != null) {
-            if (existingAgent.getAdd() == null) {
-                existingAgent.setAdd(new Address());
+            if (existingUser.getAdd() == null) {
+                existingUser.setAdd(new Address());
             }
-            existingAgent.getAdd().setOutletName(retailerUser.getAdd().getOutletName());
-            existingAgent.getAdd().setCompanyType(retailerUser.getAdd().getCompanyType());
-            existingAgent.getAdd().setCompanyName(retailerUser.getAdd().getCompanyName());
-            existingAgent.getAdd().setAddress(retailerUser.getAdd().getAddress());
-            existingAgent.getAdd().setCity(retailerUser.getAdd().getCity());
-            existingAgent.getAdd().setState(retailerUser.getAdd().getState());
-            existingAgent.getAdd().setZipCode(retailerUser.getAdd().getZipCode());
+            existingUser.getAdd().setOutletName(retailerUser.getAdd().getOutletName());
+            existingUser.getAdd().setCompanyType(retailerUser.getAdd().getCompanyType());
+            existingUser.getAdd().setCompanyName(retailerUser.getAdd().getCompanyName());
+            existingUser.getAdd().setAddress(retailerUser.getAdd().getAddress());
+            existingUser.getAdd().setCity(retailerUser.getAdd().getCity());
+            existingUser.getAdd().setState(retailerUser.getAdd().getState());
+            existingUser.getAdd().setZipCode(retailerUser.getAdd().getZipCode());
         }
 
-        RetailerUser updatedAgent = retailerUserRepository.save(existingAgent);
+        RetailerUser updatedAgent = retailerUserRepository.save(existingUser);
 
         // Update UserDetails
         userDetailsRepository.findByHierarchyId(retailerUserId).ifPresent(user -> {
@@ -230,9 +230,9 @@ public class RetailerAgentServiceImpl implements RetailerAgentService {
 
         // Update subRoles
         if (retailerUser.getSubRoleId() != null) {
-            imSubRoleRepository.deleteByMobileNumber(existingAgent.getMobileNumber()); // remove old
+            imSubRoleRepository.deleteByMobileNumber(existingUser.getMobileNumber()); // remove old
             ImSubRole imSubRole = new ImSubRole();
-            imSubRole.setMobileNumber(existingAgent.getMobileNumber());
+            imSubRole.setMobileNumber(existingUser.getMobileNumber());
             imSubRole.setSubRoleId(retailerUser.getSubRoleId());
             imSubRoleRepository.save(imSubRole);
         }

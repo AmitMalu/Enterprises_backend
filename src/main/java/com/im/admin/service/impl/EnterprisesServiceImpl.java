@@ -15,6 +15,7 @@ import com.im.admin.repositories.EnterprisesRepository;
 import com.im.admin.service.EnterprisesService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
+import com.im.admin.util.ImageUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -59,6 +60,9 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private ImageUtil imageUtil;
 
     @Transactional
     @Override
@@ -131,11 +135,11 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
         // ===== Image Upload =====
         log.info("Uploading images for Enterprise [{}]", enterprises.getEnterpriseId());
-        imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, enterprises::setAadhaarCardFrontImage);
-        imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, enterprises::setAadhaarCardBackImage);
-        imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, enterprises::setPanCardImage);
-        imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, enterprises::setShopImage);
-        imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, enterprises::setBusinessProofImage);
+        enterprises.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, "Enterprises"));
+        enterprises.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, "Enterprises"));
+        enterprises.setPanCardImage(imageUtil.saveImage(panCardImage, "Enterprises"));
+        enterprises.setShopImage(imageUtil.saveImage(shopImage, "Enterprises"));
+        enterprises.setBusinessNumber( imageUtil.saveImage(businessProofImage, "Enterprises"));
 
         // ===== Save Enterprise =====
         Enterprises savedEnterprise = enterpriseRepository.save(enterprises);
@@ -223,26 +227,20 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         // ===== Optional Image Uploads =====
         String folder = "Enterprises";
         if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingEnterprises::setAadhaarCardFrontImage);
-            log.info("Aadhaar Card Front image updated for Enterprise [{}]", id);
+            enterprises.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
         }
         if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingEnterprises::setAadhaarCardBackImage);
-            log.info("Aadhaar Card Back image updated for Enterprise [{}]", id);
+            enterprises.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
         }
         if (panCardImage != null && !panCardImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingEnterprises::setPanCardImage);
-            log.info("PAN Card image updated for Enterprise [{}]", id);
+            enterprises.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
         }
         if (shopImage != null && !shopImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingEnterprises::setShopImage);
-            log.info("Shop image updated for Enterprise [{}]", id);
+            enterprises.setShopImage(imageUtil.saveImage(shopImage, folder));
         }
         if (businessProofImage != null && !businessProofImage.isEmpty()) {
-            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingEnterprises::setBusinessProofImage);
-            log.info("Business Proof image updated for Enterprise [{}]", id);
+            enterprises.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
         }
-
         // ===== Save Updated Enterprise =====
         Enterprises updatedEnterprise = enterpriseRepository.save(existingEnterprises);
         log.info("Enterprise [{}] updated successfully.", updatedEnterprise.getEnterpriseId());

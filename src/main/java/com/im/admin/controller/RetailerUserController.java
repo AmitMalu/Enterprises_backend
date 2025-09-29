@@ -2,7 +2,7 @@ package com.im.admin.controller;
 
 import com.im.admin.entities.RetailerUser;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.service.RetailerAgentService;
+import com.im.admin.service.RetailerUserService;
 import com.im.admin.spec.projectionFilter.RetailerUserProjection;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,22 +16,22 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/retailer")
-public class RetailerAgentController {
+public class RetailerUserController {
 
     @Autowired
-    private RetailerAgentService retailerAgentService;
+    private RetailerUserService retailerUserService;
 
-    @PostMapping("/create-agent")
+    @PostMapping("/create-user")
     public ResponseEntity<CommonResponse<RetailerUser>> createAgent(@RequestBody RetailerUser retailerUser) {
         log.info("Received request to create Retailer Agent: {}", retailerUser);
 
-        RetailerUser savedAgent = retailerAgentService.createAgent(retailerUser);
+        RetailerUser savedAgent = retailerUserService.createRetailerUser(retailerUser);
 
-        log.info("Retailer Agent created successfully with ID: {}");
+        log.info("Retailer User created successfully with ID: {}");
 
         CommonResponse<RetailerUser> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.CREATED.value());
-        response.setMessage("Retailer Agent created successfully");
+        response.setMessage("Retailer User created successfully");
         response.setData(savedAgent);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -50,7 +50,7 @@ public class RetailerAgentController {
                 @RequestParam(defaultValue = "desc") String sortDir
         ) {
             return ResponseEntity.ok(
-                    retailerAgentService.getFilteredUsers(
+                    retailerUserService.getFilteredUsers(
                             name, mobileNumber, emailId, emailVerified, status,
                             page, size, sortBy, sortDir
                     )
@@ -58,20 +58,20 @@ public class RetailerAgentController {
         }
 
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<CommonResponse<Void>> deleteRetailerAgent(@PathVariable String id) {
-        return ResponseEntity.ok(retailerAgentService.deleteRetailerAgent(id));
+    public ResponseEntity<CommonResponse<Void>> deleteRetailerUser(@PathVariable String id) {
+        return ResponseEntity.ok(retailerUserService.deleteRetailerUser(id));
     }
 
-    @PutMapping("/update-agent/{id}")
+    @PutMapping("/update-user/{id}")
     public ResponseEntity<CommonResponse<RetailerUser>> updateAgent(
             @PathVariable String id,
             @RequestBody RetailerUser retailerUser) {
 
-        RetailerUser updatedAgent = retailerAgentService.updateAgent(id, retailerUser);
+        RetailerUser updatedAgent = retailerUserService.updateRetailerUser(id, retailerUser);
 
         CommonResponse<RetailerUser> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.OK.value());
-        response.setMessage("Retailer Agent updated successfully");
+        response.setMessage("Retailer User updated successfully");
         response.setData(updatedAgent);
 
         return ResponseEntity.ok(response);
