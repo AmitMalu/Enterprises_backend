@@ -48,6 +48,9 @@ public class DashboardServiceImpl implements DashboardService {
     @Autowired
     private EnterprisesRepository enterprisesRepository;
 
+    @Autowired
+    private AdminRepository adminRepository;
+
 
     @Override
     public DashboardResponseDto getAdminDashboard() {
@@ -134,6 +137,11 @@ public class DashboardServiceImpl implements DashboardService {
         MyProfileResponseDto response = null;
         String type = commonMethods.extractHierarchyType(hierarchyId);
         switch (type) {
+            case "AD" -> {
+                return adminRepository.findById(hierarchyId)
+                        .map(this::mapToUserDetails)
+                        .orElseThrow(() -> new RuntimeException("Admin profile not found"));
+            }
             case "EN" -> {
                 return enterprisesRepository.findByEnterpriseId(hierarchyId)
                         .map(this::mapToUserDetails)
@@ -178,6 +186,14 @@ public class DashboardServiceImpl implements DashboardService {
         OutletAddressDto outlet = new OutletAddressDto();
         MyBanksDto myBanksDto = new MyBanksDto();
         KycDocsDto docsDto = new KycDocsDto();
+
+        if (entity instanceof Admin ad) {
+            info.setName(ad.getName());
+            info.setMemberId(ad.getId());
+            info.setEmail(ad.getEmailId());
+            info.setMobileNumber(ad.getMobileNumber());
+            info.setStatus(ad.getStatus());
+        }
 
         if (entity instanceof Retailer r) {
 

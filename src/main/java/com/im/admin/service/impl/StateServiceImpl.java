@@ -241,6 +241,7 @@ public class StateServiceImpl implements StateService {
             // Return updated file
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
+            workbook.close();
             return new ByteArrayResource(out.toByteArray());
 
         } catch (IOException e) {

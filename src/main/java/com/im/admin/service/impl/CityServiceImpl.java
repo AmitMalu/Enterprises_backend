@@ -256,27 +256,26 @@ public class CityServiceImpl implements CityService {
 
 
     @Override
-    public String uploadCitiesFromExcel(MultipartFile file, String uploadedBy) throws IOException {
-        log.info("Uploading cities from Excel file: {} by user: {}", file.getOriginalFilename(), uploadedBy);
-
+    public ByteArrayResource uploadCitiesFromExcel(MultipartFile file, String uploadedBy) {
         if (file.isEmpty() || !file.getOriginalFilename().endsWith(".xlsx")) {
-            log.warn("Invalid file upload attempt: {}", file.getOriginalFilename());
-            return "Invalid file. Only .xlsx format supported.";
+            throw new IllegalArgumentException("Invalid file. Only .xlsx format supported.");
         }
-
-        int success = 0, skipped = 0;
-        List<String> errors = new ArrayList<>();
 
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
-            log.info("Processing sheet: {}", sheet.getSheetName());
+
+            // Add Status & Remark columns
+            Row header = sheet.getRow(0);
+            int statusCol = header.getLastCellNum();
+            header.createCell(statusCol).setCellValue("Status");
+            header.createCell(statusCol + 1).setCellValue("Remark");
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
-                if (row == null) {
-                    log.warn("Skipping empty row at index: {}", i);
-                    continue;
-                }
+                if (row == null) continue;
+
+                String status = "Success";
+                String remark = "Saved successfully";
 
                 try {
                     String cityName = getCellString(row, 0);
@@ -286,45 +285,46 @@ public class CityServiceImpl implements CityService {
                     String districtName = getCellString(row, 4);
 
                     if (cityRepository.existsByCityCode(cityCode)) {
-                        skipped++;
-                        log.info("Skipped duplicate city code: {} at row {}", cityCode, i + 1);
-                        continue;
+                        status = "Skipped";
+                        remark = "Duplicate city code";
+                    } else {
+                        Country country = countryRepository.findByCountryNameIgnoreCase(countryName)
+                                .orElseThrow(() -> new RuntimeException("Country not found: " + countryName));
+
+                        State state = stateRepository.findByStateNameIgnoreCaseAndCountry(stateName, country)
+                                .orElseThrow(() -> new RuntimeException("State not found: " + stateName));
+
+                        District district = districtRepository.findByDistrictNameIgnoreCaseAndState(districtName, state)
+                                .orElseThrow(() -> new RuntimeException("District not found: " + districtName));
+
+                        City city = new City();
+                        city.setCityName(cityName);
+                        city.setCityCode(cityCode);
+                        city.setCountry(country);
+                        city.setState(state);
+                        city.setDistrict(district);
+                        city.setCreatedBy(uploadedBy);
+                        city.setCreatedOn(LocalDateTime.now());
+
+                        cityRepository.save(city);
                     }
-
-                    Country country = countryRepository.findByCountryNameIgnoreCase(countryName)
-                            .orElseThrow(() -> new RuntimeException("Country not found: " + countryName));
-
-                    State state = stateRepository.findByStateNameIgnoreCaseAndCountry(stateName, country)
-                            .orElseThrow(() -> new RuntimeException("State not found: " + stateName));
-
-                    District district = districtRepository.findByDistrictNameIgnoreCaseAndState(districtName, state)
-                            .orElseThrow(() -> new RuntimeException("District not found: " + districtName));
-
-                    City city = new City();
-                    city.setCityName(cityName);
-                    city.setCityCode(cityCode);
-                    city.setCountry(country);
-                    city.setState(state);
-                    city.setDistrict(district);
-                    city.setCreatedBy(uploadedBy);
-                    city.setCreatedOn(LocalDateTime.now());
-
-                    cityRepository.save(city);
-                    success++;
-                    log.info("Inserted city: {} (Row {})", cityName, i + 1);
-
                 } catch (Exception e) {
-                    skipped++;
-                    errors.add("Row " + (i + 1) + ": " + e.getMessage());
-                    log.error("Error processing row {}: {}", i + 1, e.getMessage(), e);
+                    status = "Fail";
+                    remark = e.getMessage();
                 }
-            }
-        }
 
-        String resultMessage = "Upload complete. Inserted: " + success + ", Skipped: " + skipped +
-                (errors.isEmpty() ? "" : ". Errors: " + String.join("; ", errors));
-        log.info(resultMessage);
-        return resultMessage;
+                // Set Status & Remark
+                row.createCell(statusCol).setCellValue(status);
+                row.createCell(statusCol + 1).setCellValue(remark);
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
+            return new ByteArrayResource(out.toByteArray());
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to process Excel file", e);
+        }
     }
 
     private String getCellString(Row row, int index) {

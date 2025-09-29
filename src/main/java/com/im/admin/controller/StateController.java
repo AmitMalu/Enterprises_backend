@@ -126,8 +126,9 @@ public class StateController {
             ByteArrayResource processedFile = stateService.saveStatesFromExcel(file, createdBy);
             log.info("Bulk upload completed successfully");
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=state_upload_result.xlsx")
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"state_upload_result.xlsx\"")
+                    .contentType(MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .body(processedFile);
         } catch (Exception e) {
             log.error("Error during bulk upload", e);

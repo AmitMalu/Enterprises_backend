@@ -13,11 +13,15 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Slf4j
@@ -91,18 +95,35 @@ public class PinCodeController {
     }
 
     @PostMapping("/bulk-upload")
-    public ResponseEntity<CommonResponse<String>> uploadPinCodeExcel(
+    public ResponseEntity<byte[]> uploadPinCodeExcel(
             @RequestParam("file") MultipartFile file,
             @RequestParam("uploadedBy") String uploadedBy) {
 
         log.info("Uploading PinCode Excel file by: {}", uploadedBy);
         try {
-            String result = pinCodeService.uploadPinCodesFromExcel(file, uploadedBy);
-            log.info("PinCode Excel upload successful");
-            return ResponseEntity.ok(CommonResponse.success("Upload Result", result));
+            ByteArrayInputStream updatedFile = pinCodeService.uploadPinCodesFromExcel(file, uploadedBy);
+
+            String originalFileName = file.getOriginalFilename();
+            String baseName = (originalFileName != null && originalFileName.contains("."))
+                    ? originalFileName.substring(0, originalFileName.lastIndexOf('.'))
+                    : "Upload";
+
+            String returnFileName = baseName + "_Upload_Result.xlsx";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + returnFileName + "\"");
+
+            log.info("PinCode Excel upload processed successfully");
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentType(MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(updatedFile.readAllBytes());
+
         } catch (Exception e) {
             log.error("PinCode Excel upload failed", e);
-            return ResponseEntity.badRequest().body(CommonResponse.failure("Upload failed: " + e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(("Upload failed: " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
         }
     }
 

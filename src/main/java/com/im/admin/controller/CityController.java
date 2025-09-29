@@ -12,6 +12,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -83,18 +84,30 @@ public class CityController {
     }
 
     @PostMapping("/bulk-upload-city")
-    public ResponseEntity<CommonResponse<String>> uploadCityExcel(@RequestParam("file") MultipartFile file,
-                                                                  @RequestParam("uploadedBy") String uploadedBy) {
-        log.info("API Call: Bulk Upload Cities, uploadedBy={}", uploadedBy);
+    public ResponseEntity<Resource> uploadCityExcel(@RequestParam("file") MultipartFile file,
+                                                    @RequestParam("uploadedBy") String uploadedBy) {
+        log.info("Bulk uploading cities from Excel by user: {}", uploadedBy);
         try {
-            String result = cityService.uploadCitiesFromExcel(file, uploadedBy);
-            log.info("Bulk Upload Completed Successfully, uploadedBy={}, result={}", uploadedBy, result);
-            return ResponseEntity.ok(CommonResponse.success("Upload Result", result));
+            ByteArrayResource processedFile = cityService.uploadCitiesFromExcel(file, uploadedBy);
+
+            String originalFileName = file.getOriginalFilename();
+            String baseName = originalFileName != null && originalFileName.contains(".")
+                    ? originalFileName.substring(0, originalFileName.lastIndexOf('.'))
+                    : "city_upload";
+
+            String returnFileName = baseName + "_Upload_Result.xlsx";
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + returnFileName + "\"")
+                    .contentType(MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(processedFile);
         } catch (Exception e) {
-            log.error("Bulk Upload Failed, uploadedBy={}, error={}", uploadedBy, e.getMessage(), e);
-            return ResponseEntity.badRequest().body(CommonResponse.failure("Upload failed: " + e.getMessage()));
+            log.error("Bulk upload failed", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
 
 
 }
