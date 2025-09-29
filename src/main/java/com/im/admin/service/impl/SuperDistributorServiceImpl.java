@@ -11,6 +11,7 @@ import com.im.admin.repositories.SuperDistributorRepository;
 import com.im.admin.service.SuperDistributorService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
+import com.im.admin.util.ImageUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -57,6 +58,9 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private ImageUtil imageUtil;
 
 
     @Transactional
@@ -125,12 +129,13 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
                     idGenerator.generateHierarchyEntityId(folder, superDistributor.getAbbreviation())
             );
 
-            // Upload Images
-            imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, superDistributor::setAadhaarCardFrontImage);
-            imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, superDistributor::setAadhaarCardBackImage);
-            imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, superDistributor::setPanCardImage);
-            imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, superDistributor::setShopImage);
-            imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, superDistributor::setBusinessProofImage);
+            // 🔹 Upload images (clean & correct mapping)
+            log.info("Uploading distributor images...");
+            superDistributor.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
+            superDistributor.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
+            superDistributor.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
+            superDistributor.setShopImage(imageUtil.saveImage(shopImage, folder));
+            superDistributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
 
             // Save SuperDistributor
             SuperDistributor savedDistributor = superDistributorRepository.save(superDistributor);
@@ -265,20 +270,21 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
             // Image updates
             String folder = "Super Distributor";
             if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingSuperDistributor::setAadhaarCardFrontImage);
+                superDistributor.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
             }
             if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingSuperDistributor::setAadhaarCardBackImage);
+                superDistributor.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
             }
             if (panCardImage != null && !panCardImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingSuperDistributor::setPanCardImage);
+                superDistributor.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
             }
             if (shopImage != null && !shopImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingSuperDistributor::setShopImage);
+                superDistributor.setShopImage(imageUtil.saveImage(shopImage, folder));
             }
             if (businessProofImage != null && !businessProofImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingSuperDistributor::setBusinessProofImage);
+                superDistributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
             }
+
 
             // Save updated distributor
             SuperDistributor updatedDistributor = superDistributorRepository.save(existingSuperDistributor);

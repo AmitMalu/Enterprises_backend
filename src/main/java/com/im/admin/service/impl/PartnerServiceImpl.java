@@ -126,11 +126,12 @@ public class PartnerServiceImpl implements PartnerService {
 
         // 🔹 Upload images (clean & correct mapping)
         log.info("Uploading distributor images...");
-        partner.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, "Partner"));
-        partner.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, "Partner"));
-        partner.setPanCardImage(imageUtil.saveImage(panCardImage, "Partner"));
-        partner.setShopImage(imageUtil.saveImage(shopImage, "Partner"));
-        partner.setBusinessProofImage(imageUtil.saveImage(businessProofImage, "Partner"));
+        String folder = "Partner";
+        partner.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
+        partner.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
+        partner.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
+        partner.setShopImage(imageUtil.saveImage(shopImage, folder));
+        partner.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
 
         Partner savedPartner = partnerRepository.save(partner);
 
@@ -212,19 +213,19 @@ public class PartnerServiceImpl implements PartnerService {
             // Optional image updates
             String folder = "Partner";
             if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingPartner::setAadhaarCardFrontImage);
+                partner.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
             }
             if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingPartner::setAadhaarCardBackImage);
+                partner.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
             }
             if (panCardImage != null && !panCardImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingPartner::setPanCardImage);
+                partner.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
             }
             if (shopImage != null && !shopImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingPartner::setShopImage);
+                partner.setShopImage(imageUtil.saveImage(shopImage, folder));
             }
             if (businessProofImage != null && !businessProofImage.isEmpty()) {
-                imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingPartner::setBusinessProofImage);
+                partner.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
             }
 
             updatedPartner = partnerRepository.save(existingPartner);
