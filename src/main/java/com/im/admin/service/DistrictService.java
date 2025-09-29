@@ -8,6 +8,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
 
@@ -26,7 +27,7 @@ public interface DistrictService {
 
     ByteArrayResource generateSampleTemplate() throws IOException;
 
-    String uploadDistrictsFromExcel(MultipartFile file, String uploadedBy) throws IOException;
+    ByteArrayInputStream uploadDistrictsFromExcel(MultipartFile file, String uploadedBy) throws IOException;
 
 }
 

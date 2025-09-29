@@ -17,4 +17,5 @@ public class InfoDto {
     private String outletName;
     private Boolean isBlackList;
     private Boolean isBlocked;
+    private String status;
 }
