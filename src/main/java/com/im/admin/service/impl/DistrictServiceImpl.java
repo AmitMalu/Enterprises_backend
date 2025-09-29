@@ -21,6 +21,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -125,7 +126,7 @@ public class DistrictServiceImpl implements DistrictService {
         log.info("Fetching districts with filters - page: {}, size: {}, districtName: {}, districtCode: {}, blocked: {}, createdBy: {}, editedBy: {}",
                 page, size, districtName, districtCode, blocked, createdBy, editedBy);
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
 
         Specification<District> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
