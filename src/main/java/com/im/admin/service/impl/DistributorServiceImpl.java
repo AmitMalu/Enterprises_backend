@@ -141,22 +141,13 @@ public class DistributorServiceImpl implements DistributorService {
             // Serialize request before DB save
             distributorRequest = objectMapper.writeValueAsString(distributor);
 
-            // Upload images
+            // 🔹 Upload images (clean & correct mapping)
             log.info("Uploading distributor images...");
-            String aadhaarFrontFilePath = imageUtil.saveImage(aadhaarCardFrontImage, "Distributor");
-            distributor.setAadhaarCardFrontImage(aadhaarFrontFilePath);
-
-            String aadhaarBackFilePath = imageUtil.saveImage(aadhaarCardBackImage, "Distributor");
-            distributor.setAadhaarCardFrontImage(aadhaarBackFilePath);
-
-            String panCardFilePath = imageUtil.saveImage(panCardImage, "Distributor");
-            distributor.setAadhaarCardFrontImage(panCardFilePath);
-
-            String shopFilePath = imageUtil.saveImage(shopImage, "Distributor");
-            distributor.setAadhaarCardFrontImage(shopFilePath);
-
-            String businessFilePath = imageUtil.saveImage(businessProofImage, "Distributor");
-            distributor.setAadhaarCardFrontImage(businessFilePath);
+            distributor.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, "Distributor"));
+            distributor.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, "Distributor"));
+            distributor.setPanCardImage(imageUtil.saveImage(panCardImage, "Distributor"));
+            distributor.setShopImage(imageUtil.saveImage(shopImage, "Distributor"));
+            distributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, "Distributor"));
 
             // Save distributor
             log.info("Saving Distributor entity...");
@@ -261,24 +252,19 @@ public class DistributorServiceImpl implements DistributorService {
             // Optional image updates
             String folder = "Distributor";
             if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-                log.info("Updating Aadhaar Front Image for Distributor ID: {}", id);
-                imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, existingDistributor::setAadhaarCardFrontImage);
+                distributor.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
             }
             if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-                log.info("Updating Aadhaar Back Image for Distributor ID: {}", id);
-                imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, existingDistributor::setAadhaarCardBackImage);
+                distributor.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
             }
             if (panCardImage != null && !panCardImage.isEmpty()) {
-                log.info("Updating PAN Card Image for Distributor ID: {}", id);
-                imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, existingDistributor::setPanCardImage);
+                distributor.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
             }
             if (shopImage != null && !shopImage.isEmpty()) {
-                log.info("Updating Shop Image for Distributor ID: {}", id);
-                imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, existingDistributor::setShopImage);
+                distributor.setShopImage(imageUtil.saveImage(shopImage, folder));
             }
             if (businessProofImage != null && !businessProofImage.isEmpty()) {
-                log.info("Updating Business Proof Image for Distributor ID: {}", id);
-                imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, existingDistributor::setBusinessProofImage);
+                distributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
             }
 
             // Save updated distributor
