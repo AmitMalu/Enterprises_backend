@@ -90,7 +90,6 @@ public class OperatorsController {
             @RequestParam(required = false) String productId,
             @RequestParam(required = false) String subProductCode,
             @RequestParam(required = false) String subProductId,
-            @RequestParam(required = false) String cardBinNo,
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) String createdBy,
             @RequestParam(required = false) String editedBy,
@@ -104,7 +103,7 @@ public class OperatorsController {
         Page<Operators> operatorsPage = operatorsService.getAllOperators(
                 pageable, id, operatorCategory, operatorCode, operatorName,
                 operatorAlias, alias, productCode, productId, subProductCode,
-                subProductId, cardBinNo, isActive, createdBy, editedBy, createdOn, editedOn
+                subProductId, isActive, createdBy, editedBy, createdOn, editedOn
         );
 
         log.info("Fetched {} operators", operatorsPage.getTotalElements());
