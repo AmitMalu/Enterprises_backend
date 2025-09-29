@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -34,6 +36,8 @@ public class VendorRoutingRequestDTO {
 
     private String createdBy;
     private String editedBy;
+    private LocalDateTime createdOn;
+    private LocalDateTime editedOn;
 
 }
 

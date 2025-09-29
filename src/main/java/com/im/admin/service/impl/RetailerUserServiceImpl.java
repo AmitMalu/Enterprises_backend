@@ -70,7 +70,7 @@ public class RetailerUserServiceImpl implements RetailerUserService {
         // 1. Check if retailer has already 10 agents
         long existingAgentCount = retailerUserRepository.countByParentAccount(retailerId);
         if (existingAgentCount >= 10) {
-            throw new RuntimeException("Maximum 10 agents allowed per retailer");
+            throw new RuntimeException("Maximum 10 RetailerUser allowed per retailer");
         }
 
         // 2. Fetch retailer by ID
