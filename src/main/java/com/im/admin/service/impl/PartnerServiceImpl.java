@@ -15,6 +15,7 @@ import com.im.admin.repositories.PartnerRepository;
 import com.im.admin.service.PartnerService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
+import com.im.admin.util.ImageUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -59,6 +60,9 @@ public class PartnerServiceImpl implements PartnerService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private ImageUtil imageUtil;
 
 
     @Transactional
@@ -124,11 +128,20 @@ public class PartnerServiceImpl implements PartnerService {
         String folder = "Partner";
         partner.setPartnerId(idGenerator.generateHierarchyEntityId(folder, partner.getAbbreviation()));
 
-        imageHandlerUtil.handleImageUpload(aadhaarCardFrontImage, "Aadhaar Card Front", folder, partner::setAadhaarCardFrontImage);
-        imageHandlerUtil.handleImageUpload(aadhaarCardBackImage, "Aadhaar Card Back", folder, partner::setAadhaarCardBackImage);
-        imageHandlerUtil.handleImageUpload(panCardImage, "PAN Card", folder, partner::setPanCardImage);
-        imageHandlerUtil.handleImageUpload(shopImage, "Shop", folder, partner::setShopImage);
-        imageHandlerUtil.handleImageUpload(businessProofImage, "Business Proof", folder, partner::setBusinessProofImage);
+        String aadhaarFrontFilePath = imageUtil.saveImage(aadhaarCardFrontImage, "Partner");
+        partner.setAadhaarCardFrontImage(aadhaarFrontFilePath);
+
+        String aadhaarBackFilePath = imageUtil.saveImage(aadhaarCardBackImage, "Partner");
+        partner.setAadhaarCardFrontImage(aadhaarBackFilePath);
+
+        String panCardFilePath = imageUtil.saveImage(panCardImage, "Partner");
+        partner.setAadhaarCardFrontImage(panCardFilePath);
+
+        String shopFilePath = imageUtil.saveImage(shopImage, "Partner");
+        partner.setAadhaarCardFrontImage(shopFilePath);
+
+        String businessFilePath = imageUtil.saveImage(businessProofImage, "Partner");
+        partner.setAadhaarCardFrontImage(businessFilePath);
 
         Partner savedPartner = partnerRepository.save(partner);
 
