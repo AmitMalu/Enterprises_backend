@@ -34,8 +34,6 @@ public class AESFilter extends OncePerRequestFilter {
 			"/api/aes/validate-token", "/api/pg/generate-token", "/api/pg/payment/callback","/auth/forget-verify-otp", "/api/payout/callback",
 			"/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials");
 
-	private final UrlPathHelper pathHelper = new UrlPathHelper();
-
 	@Value("${app.security.base-secret}")
 	private String baseSecret;
 
