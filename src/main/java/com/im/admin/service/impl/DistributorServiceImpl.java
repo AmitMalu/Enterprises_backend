@@ -141,22 +141,13 @@ public class DistributorServiceImpl implements DistributorService {
             // Serialize request before DB save
             distributorRequest = objectMapper.writeValueAsString(distributor);
 
-            // Upload images
+            // 🔹 Upload images (clean & correct mapping)
             log.info("Uploading distributor images...");
-            String aadhaarFrontFilePath = imageUtil.saveImage(aadhaarCardFrontImage, "Distributor");
-            distributor.setAadhaarCardFrontImage(aadhaarFrontFilePath);
-
-            String aadhaarBackFilePath = imageUtil.saveImage(aadhaarCardBackImage, "Distributor");
-            distributor.setAadhaarCardFrontImage(aadhaarBackFilePath);
-
-            String panCardFilePath = imageUtil.saveImage(panCardImage, "Distributor");
-            distributor.setAadhaarCardFrontImage(panCardFilePath);
-
-            String shopFilePath = imageUtil.saveImage(shopImage, "Distributor");
-            distributor.setAadhaarCardFrontImage(shopFilePath);
-
-            String businessFilePath = imageUtil.saveImage(businessProofImage, "Distributor");
-            distributor.setAadhaarCardFrontImage(businessFilePath);
+            distributor.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, "Distributor"));
+            distributor.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, "Distributor"));
+            distributor.setPanCardImage(imageUtil.saveImage(panCardImage, "Distributor"));
+            distributor.setShopImage(imageUtil.saveImage(shopImage, "Distributor"));
+            distributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, "Distributor"));
 
             // Save distributor
             log.info("Saving Distributor entity...");
