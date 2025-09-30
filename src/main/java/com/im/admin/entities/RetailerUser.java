@@ -33,8 +33,9 @@ public class RetailerUser {
     @Column(name = "parent_account", nullable = false)
     private String parentAccount;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "retailer_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Retailer retailer;
 
     @Column(name = "abbreviation", length = 3)
@@ -79,7 +80,7 @@ public class RetailerUser {
     private Address add;
 
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.MERGE, CascadeType.PERSIST})
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bank_details_id", referencedColumnName = "id")
     private BanksDetailss bankDetails;
 
