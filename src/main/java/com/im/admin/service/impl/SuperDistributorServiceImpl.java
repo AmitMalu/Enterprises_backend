@@ -5,6 +5,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.SuperDistributorPostpaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorPrepaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorRepository;
@@ -61,6 +62,9 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 
     @Autowired
     private ImageUtil imageUtil;
+
+    @Autowired
+    private BankDetailsRepository bankDetailsRepository;
 
 
     @Transactional
@@ -136,6 +140,25 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
             superDistributor.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
             superDistributor.setShopImage(imageUtil.saveImage(shopImage, folder));
             superDistributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
+
+            // Save Bank Details separately (Before superDistributor save)
+            if (superDistributor.getBankDetails() != null) {
+                BanksDetailss bankDetails = superDistributor.getBankDetails();
+                bankDetails.setHierarchyId(superDistributor.getSuperDistributorId()); // set after ID is generated
+                bankDetails.setBankName(superDistributor.getBankDetails().getBankName());
+                bankDetails.setBankHolderName(superDistributor.getBankDetails().getBankHolderName());
+                bankDetails.setBankAccountNumber(superDistributor.getBankDetails().getBankAccountNumber());
+                bankDetails.setIsVerified(superDistributor.getBankDetails().getIsVerified());
+                bankDetails.setIfscCode(superDistributor.getBankDetails().getIfscCode());
+                bankDetails.setCreatedBy(superDistributor.getCreatedBy());
+
+                // Save bank details
+                BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+
+                // Attach it to superDistributor (foreign key)
+                superDistributor.setBankDetails(savedBankDetails);
+            }
+
 
             // Save SuperDistributor
             SuperDistributor savedDistributor = superDistributorRepository.save(superDistributor);

@@ -4,11 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
-import com.im.admin.entities.Distributor;
-import com.im.admin.entities.Enterprises;
-import com.im.admin.entities.EnterprisesPostpaidAmount;
-import com.im.admin.entities.EnterprisesPrepaidAmount;
+import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.EnterprisesPostpaidAmountRepository;
 import com.im.admin.repositories.EnterprisesPrepaidAmountRepository;
 import com.im.admin.repositories.EnterprisesRepository;
@@ -63,6 +61,9 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
     @Autowired
     private ImageUtil imageUtil;
+
+    @Autowired
+    private BankDetailsRepository bankDetailsRepository;
 
     @Transactional
     @Override
@@ -140,6 +141,24 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         enterprises.setPanCardImage(imageUtil.saveImage(panCardImage, "Enterprises"));
         enterprises.setShopImage(imageUtil.saveImage(shopImage, "Enterprises"));
         enterprises.setBusinessNumber( imageUtil.saveImage(businessProofImage, "Enterprises"));
+
+        // Save Bank Details separately (Before enterprises save)
+        if (enterprises.getBankDetails() != null) {
+            BanksDetailss bankDetails = enterprises.getBankDetails();
+            bankDetails.setHierarchyId(enterprises.getEnterpriseId()); // set after ID is generated
+            bankDetails.setBankName(enterprises.getBankDetails().getBankName());
+            bankDetails.setBankHolderName(enterprises.getBankDetails().getBankHolderName());
+            bankDetails.setBankAccountNumber(enterprises.getBankDetails().getBankAccountNumber());
+            bankDetails.setIsVerified(enterprises.getBankDetails().getIsVerified());
+            bankDetails.setIfscCode(enterprises.getBankDetails().getIfscCode());
+            bankDetails.setCreatedBy(enterprises.getCreatedBy());
+
+            // Save bank details
+            BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+
+            // Attach it to enterprises (foreign key)
+            enterprises.setBankDetails(savedBankDetails);
+        }
 
         // ===== Save Enterprise =====
         Enterprises savedEnterprise = enterpriseRepository.save(enterprises);

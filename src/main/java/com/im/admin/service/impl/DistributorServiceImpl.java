@@ -3,15 +3,9 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
-import com.im.admin.entities.Distributor;
-import com.im.admin.entities.DistributorGullakAmount;
-import com.im.admin.entities.DistributorPostpaidAmount;
-import com.im.admin.entities.DistributorPrepaidAmount;
+import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
-import com.im.admin.repositories.DistributorGullakAmountRepository;
-import com.im.admin.repositories.DistributorPostpaidAmountRepository;
-import com.im.admin.repositories.DistributorPrepaidAmountRepository;
-import com.im.admin.repositories.DistributorRepository;
+import com.im.admin.repositories.*;
 import com.im.admin.service.DistributorService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -68,6 +62,9 @@ public class DistributorServiceImpl implements DistributorService {
 
     @Autowired
     private ImageUtil imageUtil;
+
+    @Autowired
+    private BankDetailsRepository bankDetailsRepository;
 
 
     @Transactional
@@ -148,6 +145,24 @@ public class DistributorServiceImpl implements DistributorService {
             distributor.setPanCardImage(imageUtil.saveImage(panCardImage, "Distributor"));
             distributor.setShopImage(imageUtil.saveImage(shopImage, "Distributor"));
             distributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, "Distributor"));
+
+            // Save Bank Details separately (Before retailer save)
+            if (distributor.getBankDetails() != null) {
+                BanksDetailss bankDetails = distributor.getBankDetails();
+                bankDetails.setHierarchyId(distributor.getDistributorId()); // set after ID is generated
+                bankDetails.setBankName(distributor.getBankDetails().getBankName());
+                bankDetails.setBankHolderName(distributor.getBankDetails().getBankHolderName());
+                bankDetails.setBankAccountNumber(distributor.getBankDetails().getBankAccountNumber());
+                bankDetails.setIsVerified(distributor.getBankDetails().getIsVerified());
+                bankDetails.setIfscCode(distributor.getBankDetails().getIfscCode());
+                bankDetails.setCreatedBy(distributor.getCreatedBy());
+
+                // Save bank details
+                BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+
+                // Attach it to Distributor (foreign key)
+                distributor.setBankDetails(savedBankDetails);
+            }
 
             // Save distributor
             log.info("Saving Distributor entity...");

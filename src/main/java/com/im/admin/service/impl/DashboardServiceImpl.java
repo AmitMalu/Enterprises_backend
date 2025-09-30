@@ -14,8 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -51,6 +53,11 @@ public class DashboardServiceImpl implements DashboardService {
     @Autowired
     private AdminRepository adminRepository;
 
+    @Autowired
+    private RetailerUserRepository retailerUserRepository;
+
+    @Autowired
+    private BankDetailsRepository bankDetailsRepository;
 
     @Override
     public DashboardResponseDto getAdminDashboard() {
@@ -127,7 +134,7 @@ public class DashboardServiceImpl implements DashboardService {
     @Override
     public WalletBalanceResponseDto getWalletBalances(String hierarchyId) {
         BigDecimal prepaid = commonMethods.getCurrentBalance(hierarchyId, "PREPAID");
-        BigDecimal postpaid =commonMethods.getCurrentBalance(hierarchyId, "POSTPAID");
+        BigDecimal postpaid = commonMethods.getCurrentBalance(hierarchyId, "POSTPAID");
 
         return new WalletBalanceResponseDto(prepaid, postpaid);
     }
@@ -163,20 +170,24 @@ public class DashboardServiceImpl implements DashboardService {
                         .orElseThrow(() -> new RuntimeException("Partner profile not found"));  // Partner
             }
             case "DT" -> {
-                Distributor distributor = distributorRepository.findByDistributorId(hierarchyId)
+                return distributorRepository.findByDistributorId(hierarchyId)
+                        .map(this::mapToUserDetails)
                         .orElseThrow(() -> new RuntimeException("Distributor profile not found"));
-                response = mapToUserDetails(distributor);
 
             }
             case "RT" -> {
-                Retailer retailer = retailerRepository.findByRetailerId(hierarchyId)
+                return retailerRepository.findByRetailerId(hierarchyId)
+                        .map(this::mapToUserDetails)
                         .orElseThrow(() -> new RuntimeException("Retailer profile not found"));  // Retailer
-                response = mapToUserDetails(retailer);
 
+            }
+            case "RU" -> {
+                return retailerUserRepository.findById(hierarchyId)
+                        .map(this::mapToUserDetails)
+                        .orElseThrow(() -> new RuntimeException("Retailer User profile not found"));
             }
             default -> throw new RuntimeException("Unsupported hierarchy type: " + type);
         }
-        return response;
     }
 
     private MyProfileResponseDto mapToUserDetails(Object entity) {
@@ -219,6 +230,21 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletState(r.getOutletAddress().getState());
             outlet.setOutletPinCode(r.getOutletAddress().getZipCode());
 
+            // Bank Accounts (multiple)
+            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(r.getRetailerId());
+            List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
+                    .map(bank -> {
+                        MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setBankName(bank.getBankName());
+                        banksDto.setAccountName(bank.getBankHolderName() != null ? bank.getBankHolderName() : r.getName());
+                        banksDto.setAccountNo(bank.getBankAccountNumber());
+                        banksDto.setIFCSCode(bank.getIfscCode());
+                        return banksDto;
+                    })
+                    .collect(Collectors.toList());
+
+            response.setMyBanksList(myBanksDtoList);
+
             myBanksDto.setBankName(r.getBankDetails().getBankName());
             myBanksDto.setAccountName(r.getName());
             myBanksDto.setAccountNo(r.getBankDetails().getBankAccountNumber());
@@ -230,6 +256,14 @@ public class DashboardServiceImpl implements DashboardService {
             docsDto.setShopImage(r.getShopImage());
             docsDto.setBusinessProofImage(r.getBusinessProofImage());
 
+        }
+
+        if (entity instanceof RetailerUser ru) {
+            info.setName(ru.getName());
+            info.setMemberId(ru.getRetailerUserId());
+            info.setEmail(ru.getEmailId());
+            info.setMobileNumber(ru.getMobileNumber());
+            // info.setStatus(ru.get);
         }
 
         if (entity instanceof Distributor dt) {
@@ -255,10 +289,20 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletState(dt.getOutletAddress().getState());
             outlet.setOutletPinCode(dt.getOutletAddress().getZipCode());
 
-            myBanksDto.setBankName(dt.getBankDetails().getBankName());
-            myBanksDto.setAccountName(dt.getName());
-            myBanksDto.setAccountNo(dt.getBankDetails().getBankAccountNumber());
-            myBanksDto.setIFCSCode(dt.getBankDetails().getIfscCode());
+            // Bank Accounts (multiple)
+            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(dt.getDistributorId());
+            List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
+                    .map(bank -> {
+                        MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setBankName(bank.getBankName());
+                        banksDto.setAccountName(bank.getBankHolderName());
+                        banksDto.setAccountNo(bank.getBankAccountNumber());
+                        banksDto.setIFCSCode(bank.getIfscCode());
+                        return banksDto;
+                    })
+                    .collect(Collectors.toList());
+
+            response.setMyBanksList(myBanksDtoList);
 
             docsDto.setAadhaarCardFrontImage(dt.getAadhaarCardFrontImage());
             docsDto.setAadhaarCardBackImage(dt.getAadhaarCardBackImage());
@@ -291,10 +335,20 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletState(pt.getOutletAddress().getState());
             outlet.setOutletPinCode(pt.getOutletAddress().getZipCode());
 
-            myBanksDto.setBankName(pt.getBankDetails().getBankName());
-            myBanksDto.setAccountName(pt.getName());
-            myBanksDto.setAccountNo(pt.getBankDetails().getBankAccountNumber());
-            myBanksDto.setIFCSCode(pt.getBankDetails().getIfscCode());
+            // Bank Accounts (multiple)
+            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(pt.getPartnerId());
+            List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
+                    .map(bank -> {
+                        MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setBankName(bank.getBankName());
+                        banksDto.setAccountName(bank.getBankHolderName());
+                        banksDto.setAccountNo(bank.getBankAccountNumber());
+                        banksDto.setIFCSCode(bank.getIfscCode());
+                        return banksDto;
+                    })
+                    .collect(Collectors.toList());
+
+            response.setMyBanksList(myBanksDtoList);
 
             docsDto.setAadhaarCardFrontImage(pt.getAadhaarCardFrontImage());
             docsDto.setAadhaarCardBackImage(pt.getAadhaarCardBackImage());
@@ -327,10 +381,20 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletState(sd.getOutletAddress().getState());
             outlet.setOutletPinCode(sd.getOutletAddress().getZipCode());
 
-            myBanksDto.setBankName(sd.getBankDetails().getBankName());
-            myBanksDto.setAccountName(sd.getName());
-            myBanksDto.setAccountNo(sd.getBankDetails().getBankAccountNumber());
-            myBanksDto.setIFCSCode(sd.getBankDetails().getIfscCode());
+            // Bank Accounts (multiple)
+            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(sd.getSuperDistributorId());
+            List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
+                    .map(bank -> {
+                        MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setBankName(bank.getBankName());
+                        banksDto.setAccountName(bank.getBankHolderName());
+                        banksDto.setAccountNo(bank.getBankAccountNumber());
+                        banksDto.setIFCSCode(bank.getIfscCode());
+                        return banksDto;
+                    })
+                    .collect(Collectors.toList());
+
+            response.setMyBanksList(myBanksDtoList);
 
             docsDto.setAadhaarCardFrontImage(sd.getAadhaarCardFrontImage());
             docsDto.setAadhaarCardBackImage(sd.getAadhaarCardBackImage());
@@ -363,10 +427,20 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletState(wl.getOutletAddress().getState());
             outlet.setOutletPinCode(wl.getOutletAddress().getZipCode());
 
-            myBanksDto.setBankName(wl.getBankDetails().getBankName());
-            myBanksDto.setAccountName(wl.getName());
-            myBanksDto.setAccountNo(wl.getBankDetails().getBankAccountNumber());
-            myBanksDto.setIFCSCode(wl.getBankDetails().getIfscCode());
+            // Bank Accounts (multiple)
+            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(wl.getWhiteLabelId());
+            List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
+                    .map(bank -> {
+                        MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setBankName(bank.getBankName());
+                        banksDto.setAccountName(bank.getBankHolderName());
+                        banksDto.setAccountNo(bank.getBankAccountNumber());
+                        banksDto.setIFCSCode(bank.getIfscCode());
+                        return banksDto;
+                    })
+                    .collect(Collectors.toList());
+
+            response.setMyBanksList(myBanksDtoList);
 
             docsDto.setAadhaarCardFrontImage(wl.getAadhaarCardFrontImage());
             docsDto.setAadhaarCardBackImage(wl.getAadhaarCardBackImage());
@@ -399,10 +473,20 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletState(et.getOutletAddress().getState());
             outlet.setOutletPinCode(et.getOutletAddress().getZipCode());
 
-            myBanksDto.setBankName(et.getBankDetails().getBankName());
-            myBanksDto.setAccountName(et.getName());
-            myBanksDto.setAccountNo(et.getBankDetails().getBankAccountNumber());
-            myBanksDto.setIFCSCode(et.getBankDetails().getIfscCode());
+            // Bank Accounts (multiple)
+            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(et.getEnterpriseId());
+            List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
+                    .map(bank -> {
+                        MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setBankName(bank.getBankName());
+                        banksDto.setAccountName(bank.getBankHolderName());
+                        banksDto.setAccountNo(bank.getBankAccountNumber());
+                        banksDto.setIFCSCode(bank.getIfscCode());
+                        return banksDto;
+                    })
+                    .collect(Collectors.toList());
+
+            response.setMyBanksList(myBanksDtoList);
 
             docsDto.setAadhaarCardFrontImage(et.getAadhaarCardFrontImage());
             docsDto.setAadhaarCardBackImage(et.getAadhaarCardBackImage());
@@ -415,7 +499,6 @@ public class DashboardServiceImpl implements DashboardService {
         response.setInfo(info);
         response.setAddress(address);
         response.setOutletAddress(outlet);
-        response.setMyBanks(myBanksDto);
         response.setKycDocs(docsDto);
 
         return response;
