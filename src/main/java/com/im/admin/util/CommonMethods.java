@@ -2,6 +2,7 @@ package com.im.admin.util;
 
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.BillRechargeResponseDTO;
+import com.im.admin.entities.RetailerUser;
 import com.im.admin.entities.SchemeRate;
 import com.im.admin.entities.TransactionSequence;
 import com.im.admin.entities.VendorRouting;
@@ -262,19 +263,34 @@ public class CommonMethods {
     }
 
     public BigDecimal getCurrentBalance(String hierarchyId, String walletType) {
-        log.debug("Initiating balance retrieval for wallet type.");
+        log.debug("Initiating balance retrieval for wallet type: {}", walletType);
 
         try {
             String hierarchyType = extractHierarchyType(hierarchyId);
-            String amountTable = getAmountTable(hierarchyType, walletType);
-            String columnName = getHierarchyColumnName(hierarchyType);
 
-            log.trace("Preparing SQL query for balance lookup.");
+            String resolvedHierarchyId = hierarchyId;
+            String resolvedHierarchyType = hierarchyType;
+
+            // 🔹 Special handling for RetailerUser
+            if ("RU".equalsIgnoreCase(hierarchyType)) {
+                log.debug("Hierarchy is RetailerUser. Resolving parent Retailer ID.");
+
+                RetailerUser retailerUser = retailerUserRepository.findByIdWithRetailer(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("RetailerUser not found with ID: " + hierarchyId));
+
+                resolvedHierarchyId = retailerUser.getRetailer().getRetailerId();
+                resolvedHierarchyType = "RT";
+            }
+
+            String amountTable = getAmountTable(resolvedHierarchyType, walletType);
+            String columnName = getHierarchyColumnName(resolvedHierarchyType);
+
+            log.trace("Preparing SQL query for balance lookup: {}", amountTable);
 
             String sql = "SELECT available_balance FROM " + amountTable + " WHERE " + columnName + " = :hierarchyId";
 
             BigDecimal balance = (BigDecimal) entityManager.createNativeQuery(sql)
-                    .setParameter("hierarchyId", hierarchyId)
+                    .setParameter("hierarchyId", resolvedHierarchyId)  // use final variable
                     .getSingleResult();
 
             log.info("Balance retrieved successfully.");
