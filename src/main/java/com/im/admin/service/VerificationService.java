@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.im.admin.dto.BankVerificationRequest;
 import org.springframework.http.ResponseEntity;
 
 public interface VerificationService {
@@ -12,4 +13,7 @@ public interface VerificationService {
     ResponseEntity<?> validateVoterid(String voterid);
 
     ResponseEntity<?> AdharPanLink(String aadhaarNumber);
+
+    ResponseEntity<?> validateBank(BankVerificationRequest request);
+
 }

@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -22,6 +23,7 @@ import java.util.NoSuchElementException;
 @Service
 public class BankDetailsServiceImpl implements BankDetailsService {
 
+
     @Autowired
     private BankDetailsRepository repository;
 
@@ -29,6 +31,14 @@ public class BankDetailsServiceImpl implements BankDetailsService {
     public CommonResponse<BanksDetailss> save(BanksDetailss request) {
         log.info("Saving new bank details | HierarchyId={}, BankName={}, AccountNumber={}",
                 request.getHierarchyId(), request.getBankName(), request.getBankAccountNumber());
+
+        // Step 1: Check existing bank count for hierarchyId
+        long bankCount = repository.countByHierarchyId(request.getHierarchyId());
+
+        if (bankCount >= 2) {
+            log.warn("Max 2 banks already exist for HierarchyId={}", request.getHierarchyId());
+            return CommonResponse.error(400, "Only 2 banks are allowed per hierarchy.");
+        }
 
         BanksDetailss banksDetailss = new BanksDetailss();
 
@@ -111,6 +121,25 @@ public class BankDetailsServiceImpl implements BankDetailsService {
         log.info("Bank list loaded successfully | totalRecords={}", result.getTotalElements());
 
         return CommonResponse.success(result, "Bank list loaded");
+    }
+
+    @Override
+    public CommonResponse<String> delete(Long id) {
+        BanksDetailss bank = repository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Bank record not found with ID: " + id));
+
+        // Check if 90 days have passed since creation
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime createdOn = bank.getCreatedOn();
+
+        if (createdOn.plusDays(90).isAfter(now)) {
+            log.warn("Bank record ID={} cannot be deleted before 90 days", id);
+            return CommonResponse.error(400, "Bank record can only be deleted after 90 days of creation.");
+        }
+
+        repository.delete(bank);
+        log.info("Bank record deleted successfully | ID={}", id);
+        return CommonResponse.success("200","Bank record deleted successfully.");
     }
 
 }
