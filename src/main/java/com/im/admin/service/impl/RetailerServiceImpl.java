@@ -150,9 +150,12 @@ public class RetailerServiceImpl implements RetailerService {
         if (retailer.getBankDetails() != null) {
             BanksDetailss bankDetails = retailer.getBankDetails();
             bankDetails.setHierarchyId(retailer.getRetailerId()); // set after ID is generated
+            bankDetails.setBankName(retailer.getBankDetails().getBankName());
+            bankDetails.setBankHolderName(retailer.getBankDetails().getBankHolderName());
             bankDetails.setBankAccountNumber(retailer.getBankDetails().getBankAccountNumber());
+            bankDetails.setIsVerified(retailer.getBankDetails().getIsVerified());
+            bankDetails.setIfscCode(retailer.getBankDetails().getIfscCode());
             bankDetails.setCreatedBy(retailer.getCreatedBy());
-            bankDetails.setIsVerified(false);
 
             // Save bank details
             BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);

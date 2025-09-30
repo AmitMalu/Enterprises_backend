@@ -4,11 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.dto.WhiteLabelDropdownDTO;
-import com.im.admin.entities.Distributor;
-import com.im.admin.entities.WhiteLabelPostpaidAmount;
-import com.im.admin.entities.WhiteLabelPrepaidAmount;
-import com.im.admin.entities.WhiteLabels;
+import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.WhiteLabelPostpaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelPrepaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelRepository;
@@ -65,6 +63,9 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 
     @Autowired
     private ImageUtil imageUtil;
+
+    @Autowired
+    private BankDetailsRepository bankDetailsRepository;
 
     @Transactional
     @Override
@@ -139,6 +140,23 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             whiteLabels.setShopImage(imageUtil.saveImage(shopImage, "whiteLabel"));
             whiteLabels.setBusinessNumber( imageUtil.saveImage(businessProofImage, "whiteLabel"));
 
+            // Save Bank Details separately (Before whiteLabels save)
+            if (whiteLabels.getBankDetails() != null) {
+                BanksDetailss bankDetails = whiteLabels.getBankDetails();
+                bankDetails.setHierarchyId(whiteLabels.getWhiteLabelId()); // set after ID is generated
+                bankDetails.setBankName(whiteLabels.getBankDetails().getBankName());
+                bankDetails.setBankHolderName(whiteLabels.getBankDetails().getBankHolderName());
+                bankDetails.setBankAccountNumber(whiteLabels.getBankDetails().getBankAccountNumber());
+                bankDetails.setIsVerified(whiteLabels.getBankDetails().getIsVerified());
+                bankDetails.setIfscCode(whiteLabels.getBankDetails().getIfscCode());
+                bankDetails.setCreatedBy(whiteLabels.getCreatedBy());
+
+                // Save bank details
+                BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+
+                // Attach it to whiteLabels (foreign key)
+                whiteLabels.setBankDetails(savedBankDetails);
+            }
 
             // Save entity
             WhiteLabels savedWhiteLabel = whiteLabelRepository.save(whiteLabels);

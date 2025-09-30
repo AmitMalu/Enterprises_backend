@@ -75,14 +75,9 @@ public class Enterprises {
     })
     private Address outletAddress;
 
-    @Embedded
-    @AttributeOverrides({
-            @AttributeOverride(name = "bankName", column = @Column(name = "bank_name")),
-            @AttributeOverride(name = "bankAccountNumber", column = @Column(name = "bank_account_number")),
-            @AttributeOverride(name = "ifscCode", column = @Column(name = "IFSC_code")),
-            @AttributeOverride(name = "branchName", column = @Column(name = "branch_name"))
-    })
-    private BankDetails bankDetails;
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "bank_details_id", referencedColumnName = "id")
+    private BanksDetailss bankDetails;
 
     @ManyToOne
     @JoinColumn(name = "theme_id")
