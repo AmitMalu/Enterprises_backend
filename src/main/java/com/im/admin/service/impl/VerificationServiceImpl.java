@@ -11,6 +11,7 @@ import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
+import com.im.admin.response.BankVerificationResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.VerificationService;
 import jakarta.transaction.Transactional;
@@ -416,7 +417,9 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Override
     @Transactional
-    public ResponseEntity<?> AdharPanLink(String aadhaarNumber) {
+    public ResponseEntity<?>
+
+    AdharPanLink(String aadhaarNumber) {
         LocalDateTime requestDateTime = LocalDateTime.now();
         String requestJson = null;
         String responseJson = null;
@@ -506,8 +509,84 @@ public class VerificationServiceImpl implements VerificationService {
 
 
 
+    @Override
+    @Transactional
+    public ResponseEntity<?> validateBank(BankVerificationRequest request) {
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
 
+        try {
+            // 1. SubProduct lookup
+            SubProducts subProduct = subProductsRepository
+                    .findBySubProductTitle("Bank Verification")
+                    .orElseThrow(() -> new RuntimeException("SubProduct not found for Bank Verification"));
 
+            // 2. Vendor Routing
+            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
+            Vendors vendor = getVendors(vendorRouting);
+            vendorId = vendor.getId();
 
+            // 3. Vendor Credentials
+            VendorCredentials credentials = vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+            // 4. Prepare request
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + credentials.getToken());
+
+            requestJson = objectMapper.writeValueAsString(request);
+            HttpEntity<BankVerificationRequest> requestEntity = new HttpEntity<>(request, headers);
+
+            String url = credentials.getBaseUrlUat() + "/v1/bank-verification/";
+
+            // 5. Call API
+            ResponseEntity<BankVerificationResponse> response = restTemplate.postForEntity(
+                    url,
+                    requestEntity,
+                    BankVerificationResponse.class
+            );
+
+            BankVerificationResponse responseBody = response.getBody();
+            responseJson = objectMapper.writeValueAsString(responseBody);
+
+            // 6. Save logs
+            commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
+
+            String message = responseBody.getData() != null && responseBody.getData().getStatus() != null
+                    ? responseBody.getData().getStatus()
+                    : "Bank verification successful";
+
+            return ResponseEntity.ok(CommonResponse.success(responseBody, message));
+
+        } catch (HttpClientErrorException e) {
+            try {
+                BankVerificationResponse errorBody = objectMapper.readValue(
+                        e.getResponseBodyAsString(),
+                        BankVerificationResponse.class
+                );
+                responseJson = objectMapper.writeValueAsString(errorBody);
+
+                commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
+
+                String message = errorBody.getData() != null ? errorBody.getData().getStatus() : "Bank verification failed";
+                return ResponseEntity.ok(CommonResponse.success(errorBody, message));
+
+            } catch (Exception ex) {
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(CommonResponse.error(200, "Bank verification failed and response could not be parsed."));
+            }
+        } catch (Exception e) {
+            log.error("Unexpected error: ", e);
+
+            commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), e.getMessage(), null);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(CommonResponse.error(200, "Bank verification failed: " + e.getMessage()));
+        }
+    }
 
 }

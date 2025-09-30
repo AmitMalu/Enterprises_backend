@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.BankVerificationRequest;
 import com.im.admin.dto.EmailValidationRequest;
 import com.im.admin.service.VerificationService;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,14 @@ public class VerificationController {
         log.info("Linking Aadhaar with PAN for Aadhaar number: {}", aadhaarNumber);
         ResponseEntity<?> response = verificationService.AdharPanLink(aadhaarNumber);
         log.debug("Aadhaar-PAN link response: {}", response);
+        return response;
+    }
+
+    @PostMapping("/bank-validate")
+    public ResponseEntity<?> validateBank(@RequestBody BankVerificationRequest request) {
+        log.info("Validating Bank Account: {}", request.getId_number());
+        ResponseEntity<?> response = verificationService.validateBank(request);
+        log.debug("Bank validation response: {}", response);
         return response;
     }
 }
