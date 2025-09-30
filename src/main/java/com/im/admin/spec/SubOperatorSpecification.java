@@ -15,6 +15,7 @@ public class SubOperatorSpecification {
             String subOperatorName,
             String operatorCode,
             String operatorAlias,
+            String category,
             String operatorName,
             Boolean isBlocked,
             String createdBy,
@@ -44,6 +45,10 @@ public class SubOperatorSpecification {
 
             if (operatorName != null)
                 predicates.add(cb.like(cb.lower(root.get("operatorName")), "%" + operatorName.toLowerCase() + "%"));
+
+
+            if (category != null)
+                predicates.add(cb.like(cb.lower(root.get("category")), "%" + category.toLowerCase() + "%"));
 
             if (isBlocked != null)
                 predicates.add(cb.equal(root.get("isBlocked"), isBlocked));

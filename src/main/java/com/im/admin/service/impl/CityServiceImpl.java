@@ -22,6 +22,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -144,7 +145,7 @@ public class CityServiceImpl implements CityService {
         log.info("Fetching Cities | page={}, size={}, cityName={}, cityCode={}, blocked={}, createdBy={}, editedBy={}",
                 page, size, cityName, cityCode, blocked, createdBy, editedBy);
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
 
         Specification<City> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
