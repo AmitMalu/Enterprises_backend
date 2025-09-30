@@ -4,11 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
-import com.im.admin.entities.Distributor;
-import com.im.admin.entities.Partner;
-import com.im.admin.entities.PartnerPostpaidAmount;
-import com.im.admin.entities.PartnerPrepaidAmount;
+import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.PartnerPostpaidAmountRepository;
 import com.im.admin.repositories.PartnerPrepaidAmountRepository;
 import com.im.admin.repositories.PartnerRepository;
@@ -63,6 +61,9 @@ public class PartnerServiceImpl implements PartnerService {
 
     @Autowired
     private ImageUtil imageUtil;
+
+    @Autowired
+    private BankDetailsRepository bankDetailsRepository;
 
 
     @Transactional
@@ -132,6 +133,25 @@ public class PartnerServiceImpl implements PartnerService {
         partner.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
         partner.setShopImage(imageUtil.saveImage(shopImage, folder));
         partner.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
+
+        // Save Bank Details separately (Before partner save)
+        if (partner.getBankDetails() != null) {
+            BanksDetailss bankDetails = partner.getBankDetails();
+            bankDetails.setHierarchyId(partner.getPartnerId()); // set after ID is generated
+            bankDetails.setBankName(partner.getBankDetails().getBankName());
+            bankDetails.setBankHolderName(partner.getBankDetails().getBankHolderName());
+            bankDetails.setBankAccountNumber(partner.getBankDetails().getBankAccountNumber());
+            bankDetails.setIsVerified(partner.getBankDetails().getIsVerified());
+            bankDetails.setIfscCode(partner.getBankDetails().getIfscCode());
+            bankDetails.setCreatedBy(partner.getCreatedBy());
+
+            // Save bank details
+            BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+
+            // Attach it to partner (foreign key)
+            partner.setBankDetails(savedBankDetails);
+        }
+
 
         Partner savedPartner = partnerRepository.save(partner);
 
