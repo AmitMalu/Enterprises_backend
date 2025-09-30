@@ -56,5 +56,13 @@ public class BankDetailsController {
         log.info("Fetched all banks response: {}", response.getBody());
         return response;
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<CommonResponse<String>> deleteBank(@PathVariable Long id) {
+        log.info("Request received to delete bank record | ID={}", id);
+        CommonResponse<String> response = service.delete(id);
+        return ResponseEntity.status(response.getStatusCode()).body(response);
+    }
+
 }
 

@@ -113,7 +113,10 @@ public class OnboardingServiceImpl implements OnboardingService {
                 .filter(r -> mobileNumber == null || mobileNumber.isEmpty() || r.getMobileNumber().contains(mobileNumber))
                 .filter(r -> emailId == null || emailId.isEmpty() || r.getEmailId().toLowerCase().contains(emailId.toLowerCase()))
                 .filter(r -> parentAccount == null || parentAccount.isEmpty() || r.getParentAccount().toLowerCase().contains(parentAccount.toLowerCase()))
+                //  sort by createdOn descending (latest first)
+                .sorted((a, b) -> b.getCreatedOn().compareTo(a.getCreatedOn()))
                 .toList();
+
 
         Pageable pageable = PageRequest.of(page, size);
         int start = (int) pageable.getOffset();
