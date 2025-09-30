@@ -52,8 +52,12 @@ public class NetworkBankServiceImpl implements NetworkBankService {
         try {
             if (logoFile != null && !logoFile.isEmpty()) {
                 String imagePath = imageUtil.saveImage(logoFile, "Bank_Logos");
+                log.info("Saved logo path: {}", imagePath);
                 bank.setLogo(imagePath);
+            } else {
+                log.warn("Logo file is null or empty!");
             }
+
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
         }
@@ -76,6 +80,7 @@ public class NetworkBankServiceImpl implements NetworkBankService {
         bank.setEditedBy(dto.getEditedBy());
         bank.setIsBlocked(dto.getIsBlocked());
         bank.setMaxAccountNoLength(dto.getMaxAccountNoLength());
+        bank.setLogo(dto.getLogo());
         return bank;
     }
 
@@ -128,6 +133,7 @@ public class NetworkBankServiceImpl implements NetworkBankService {
         existing.setEditedBy(dto.getEditedBy());
         existing.setEditedOn(LocalDateTime.now());
         existing.setMaxAccountNoLength(dto.getMaxAccountNoLength());
+        existing.setBankCodeBI(dto.getBankCodeBi());
 
         // Optional: handle logo re-upload
         if (logoFile != null && !logoFile.isEmpty()) {

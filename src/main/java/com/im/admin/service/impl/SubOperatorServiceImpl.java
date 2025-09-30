@@ -110,6 +110,7 @@ public class SubOperatorServiceImpl implements SubOperatorService {
                                                 String subOperatorName,
                                                 String operatorCode,
                                                 String operatorAlias,
+                                                String category,
                                                 String operatorName,
                                                 Boolean isBlocked,
                                                 String createdBy,
@@ -118,7 +119,7 @@ public class SubOperatorServiceImpl implements SubOperatorService {
                                                 LocalDate editedOn) {
 
         Specification<SubOperator> spec = SubOperatorSpecification.getFilter(
-                id, subOperatorName, operatorCode, operatorAlias,
+                id, subOperatorName, operatorCode, operatorAlias,category,
                 operatorName, isBlocked, createdBy, editedBy,
                 createdOn, editedOn
         );

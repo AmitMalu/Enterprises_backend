@@ -21,6 +21,7 @@ public interface SubOperatorService {
                                          String subOperatorName,
                                          String operatorCode,
                                          String operatorAlias,
+                                         String category,
                                          String operatorName,
                                          Boolean isBlocked,
                                          String createdBy,
