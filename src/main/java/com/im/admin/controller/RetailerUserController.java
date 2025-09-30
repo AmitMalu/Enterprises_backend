@@ -27,8 +27,6 @@ public class RetailerUserController {
 
         RetailerUser savedAgent = retailerUserService.createRetailerUser(retailerUser);
 
-        log.info("Retailer User created successfully with ID: {}");
-
         CommonResponse<RetailerUser> response = new CommonResponse<>();
         response.setStatusCode(HttpStatus.CREATED.value());
         response.setMessage("Retailer User created successfully");
