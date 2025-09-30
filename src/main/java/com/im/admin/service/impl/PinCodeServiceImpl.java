@@ -16,6 +16,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -97,7 +98,7 @@ public class PinCodeServiceImpl implements PinCodeService {
     public CommonResponse<Page<PinCodeResponseDTO>> getAll(int page, int size,
                                                            String pinCode, Boolean blocked, String createdBy, String editedBy) {
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
 
         Specification<PinCode> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();

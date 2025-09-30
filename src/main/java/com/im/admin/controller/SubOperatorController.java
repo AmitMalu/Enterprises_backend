@@ -86,6 +86,7 @@ public class SubOperatorController {
             @RequestParam(required = false) String subOperatorName,
             @RequestParam(required = false) String operatorCode,
             @RequestParam(required = false) String operatorAlias,
+            @RequestParam(required = false) String category,
             @RequestParam(required = false) String operatorName,
             @RequestParam(required = false) Boolean isBlocked,
             @RequestParam(required = false) String createdBy,
@@ -99,7 +100,7 @@ public class SubOperatorController {
         try {
             Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
             Page<SubOperator> result = subOperatorService.getAllSubOperators(
-                    pageable, id, subOperatorName, operatorCode, operatorAlias, operatorName,
+                    pageable, id, subOperatorName, operatorCode, operatorAlias, category,operatorName,
                     isBlocked, createdBy, editedBy, createdOn, editedOn
             );
             log.info("Fetched {} SubOperators", result.getTotalElements());
