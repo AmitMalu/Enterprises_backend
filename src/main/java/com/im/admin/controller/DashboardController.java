@@ -29,11 +29,12 @@ public class DashboardController {
     }
 
     @GetMapping("/wallet-balance/{hierarchyId}")
-    public ResponseEntity<CommonResponse> getWalletBalances(@PathVariable String hierarchyId) {
-        log.info("API Call: getWalletBalances for hierarchyId: {}", hierarchyId);
+    public ResponseEntity<CommonResponse<WalletBalanceResponseDto>> getWalletBalances(@PathVariable String hierarchyId) {
+        log.debug("Fetching wallet balance for hierarchyId: {}", hierarchyId);
         WalletBalanceResponseDto response = dashboardService.getWalletBalances(hierarchyId);
         log.info("Wallet Balance fetched: {}", response);
-        return ResponseEntity.ok(new CommonResponse(201, "Wallet Balance", response));
+        return ResponseEntity.ok(
+                new CommonResponse<>(201, "Wallet balance retrieved successfully", response));
     }
 
     @GetMapping("/profile/{hierarchyId}")

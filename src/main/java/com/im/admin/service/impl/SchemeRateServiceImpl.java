@@ -286,8 +286,8 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         dto.setRateType(RateType.FLAT);
         dto.setSlabType(SlabType.FIXED);
         dto.setFixedSlabValue(0.0);
-        dto.setSlabStart(1.0);
-        dto.setSlabEnd(500.0);
+        dto.setSlabStart(0.0);
+        dto.setSlabEnd(0.0);
         dto.setGross(0.0);
         dto.setIm(0.0);
         dto.setEnterprise(allowedHierarchies.contains("enterprise") ? 0.0 : null);

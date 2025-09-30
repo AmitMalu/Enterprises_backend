@@ -33,6 +33,10 @@ public class RetailerUser {
     @Column(name = "parent_account", nullable = false)
     private String parentAccount;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "retailer_id", nullable = false)
+    private Retailer retailer;
+
     @Column(name = "abbreviation", length = 3)
     @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")
     @Pattern(regexp = "^[A-Z]{2,3}$", message = "Abbreviation must be 2 to 3 uppercase letters (no numbers or special characters)")

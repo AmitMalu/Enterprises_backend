@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Optional;
+
 public interface RetailerUserRepository extends JpaRepository<RetailerUser,String> {
 
     long countByParentAccount(String retailerId);
@@ -36,5 +38,9 @@ public interface RetailerUserRepository extends JpaRepository<RetailerUser,Strin
             @Param("status") Boolean status,
             Pageable pageable
     );
+
+
+    @Query("SELECT ru FROM RetailerUser ru LEFT JOIN FETCH ru.retailer WHERE ru.retailerUserId = :id")
+    Optional<RetailerUser> findByIdWithRetailer(@Param("id") String id);
 
 }
