@@ -24,6 +24,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -105,7 +106,8 @@ public class StateServiceImpl implements StateService {
 
 
     @Override
-    public Page<StateResponseDTO> getAllStates(int page, int size, String zone, String stateName, String stateCode, String regionType, Long countryId, Boolean blocked) {
+    public Page<StateResponseDTO> getAllStates(int page, int size, String zone, String stateName,
+                                               String stateCode, String regionType, Long countryId, Boolean blocked) {
         List<State> allStates = stateRepository.findAll();
 
         List<State> filtered = allStates.stream()
@@ -115,6 +117,7 @@ public class StateServiceImpl implements StateService {
                 .filter(s -> regionType == null || (s.getRegionType() != null && s.getRegionType().toLowerCase().contains(regionType.toLowerCase())))
                 .filter(s -> countryId == null || (s.getCountry() != null && s.getCountry().getId().equals(countryId)))
                 .filter(s -> blocked == null || (s.getBlocked() != null && s.getBlocked().equals(blocked)))
+                .sorted(Comparator.comparing(State::getCreatedOn).reversed()) //
                 .toList();
 
         int start = page * size;
@@ -125,6 +128,7 @@ public class StateServiceImpl implements StateService {
 
         return new PageImpl<>(dtoList, PageRequest.of(page, size), filtered.size());
     }
+
 
 
     @Override

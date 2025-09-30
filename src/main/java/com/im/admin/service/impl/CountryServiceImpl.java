@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -62,6 +63,7 @@ public class CountryServiceImpl implements CountryService {
                 .filter(c -> blocked == null || (c.getBlocked() != null && c.getBlocked().equals(blocked)))
                 .filter(c -> createdBy == null || (c.getCreatedBy() != null && c.getCreatedBy().toLowerCase().contains(createdBy.toLowerCase())))
                 .filter(c -> editedBy == null || (c.getEditedBy() != null && c.getEditedBy().toLowerCase().contains(editedBy.toLowerCase())))
+                .sorted(Comparator.comparing(Country::getCreatedOn).reversed())
                 .collect(Collectors.toList());
 
         log.info("Filtered countries count after applying filters: {}", filtered.size());

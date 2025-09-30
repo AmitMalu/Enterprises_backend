@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -74,7 +75,7 @@ public class NetworkBankController {
     ) {
         log.info("Fetching BankMaster list with filters - bankName: {}, bankCode: {}", bankName, bankCode);
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
         Page<NetworkBankMaster> banks = bankService.getAllBanks(
                 pageable, id, bankCode, bankName, bankBranchName, ifscCode,
                 imps, neft, rtgs, isActive,
