@@ -105,6 +105,9 @@ public class CommonMethods {
     @Autowired
     private TransactionSequenceRepository transactionSequenceRepository;
 
+    @Autowired
+    private AdminUserRepository adminUserRepository;
+
     public String generateNextIdForTables(String tableName, String idColumn) {
         log.debug("Generating next ID for table.");
 
@@ -343,6 +346,7 @@ public class CommonMethods {
             case "DT" -> distributorRepository.findById(hierarchyId);
             case "RT" -> retailerRepository.findById(hierarchyId);
             case "RU" -> retailerUserRepository.findById(hierarchyId);
+            case "AU" -> adminUserRepository.findById(hierarchyId);
             default -> {
                 log.warn("Unrecognized hierarchy type. Cannot resolve parent.");
                 yield Optional.empty();
