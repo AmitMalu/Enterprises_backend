@@ -16,6 +16,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.Query;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -357,11 +358,10 @@ public class CommonMethods {
 
     public String extractParentAccount(Object entity) {
         try {
-            Field parentField = entity.getClass().getDeclaredField("parentAccount");
+            Object unproxied = Hibernate.unproxy(entity);
+            Field parentField = unproxied.getClass().getDeclaredField("parentAccount");
             parentField.setAccessible(true);
-            String parentAccount = (String) parentField.get(entity);
-            log.debug("Parent account extracted successfully.");
-            return parentAccount;
+            return (String) parentField.get(unproxied);
         } catch (NoSuchFieldException e) {
             log.error("Entity class does not contain 'parentAccount' field: {}", entity.getClass().getSimpleName());
         } catch (IllegalAccessException e) {
