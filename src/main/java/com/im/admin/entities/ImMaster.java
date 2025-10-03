@@ -3,6 +3,8 @@ package com.im.admin.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Data
 @Table(name = "im_master")
@@ -18,5 +20,12 @@ public class ImMaster {
 
     @Column(name = "description")
     private String description;
+
+
+    @Column(name = "created_by")
+    private String createdBy;
+
+    @Column(name = "created_on")
+    private LocalDateTime createdOn;
 
 }

@@ -27,6 +27,7 @@ public class VendorsDTO {
 
     @NotNull(message = "Product ID is required")
     private Short productId;
+
     private String productName;
 
     private String modesSupported;

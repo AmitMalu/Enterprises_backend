@@ -8,6 +8,7 @@ import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.util.StringUtils;
 
 public class VendorSpecification {
     public static Specification<Vendors> getFilter(
@@ -44,46 +45,60 @@ public class VendorSpecification {
                 predicates.add(cb.like(cb.lower(root.get("vendorName")), "%" + vendorName.toLowerCase() + "%"));
             if (vendorCode != null)
                 predicates.add(cb.like(cb.lower(root.get("vendorCode")), "%" + vendorCode.toLowerCase() + "%"));
-            if (productId != null)
-                predicates.add(cb.like(cb.lower(root.get("productId")), "%" + productId.toLowerCase() + "%"));
-            if (productCode != null)
-                predicates.add(cb.like(cb.lower(root.get("productCode")), "%" + productCode.toLowerCase() + "%"));
-            if (subProductId != null)
-                predicates.add(cb.like(cb.lower(root.get("subProductId")), "%" + subProductId.toLowerCase() + "%"));
-            if (subProductCode != null)
-                predicates.add(cb.like(cb.lower(root.get("subProductCode")), "%" + subProductCode.toLowerCase() + "%"));
-            if (modesSupported != null)
-                predicates.add(cb.like(cb.lower(root.get("modesSupported")), "%" + modesSupported.toLowerCase() + "%"));
-
-            if (active != null) {
-                predicates.add(cb.equal(root.get("active"), active));
+            if (StringUtils.hasText(productId)) {
+                // product.id is Short
+                predicates.add(cb.equal(root.get("product").get("id"), Short.valueOf(productId)));
             }
 
-
-            if (bankType != null)
-                predicates.add(cb.like(cb.lower(root.get("bankType")), "%" + bankType.toLowerCase() + "%"));
-            if (website != null)
-                predicates.add(cb.like(cb.lower(root.get("website")), "%" + website.toLowerCase() + "%"));
-            if (logo != null)
-                predicates.add(cb.like(cb.lower(root.get("logo")), "%" + logo.toLowerCase() + "%"));
-            if (parameter != null)
-                predicates.add(cb.like(cb.lower(root.get("parameter")), "%" + parameter.toLowerCase() + "%"));
-            if (createdBy != null)
-                predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
-            if (editedBy != null)
-                predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
-
-            if (createdOn != null) {
-                predicates.add(cb.between(root.get("createdOn"),
-                        createdOn.atStartOfDay(), createdOn.atTime(23, 59, 59)));
+            if (StringUtils.hasText(productCode)) {
+                // product.productCode is String
+                predicates.add(cb.like(
+                        cb.lower(root.get("product").get("productCode")),
+                        "%" + productCode.toLowerCase() + "%"
+                ));
             }
 
-            if (editedOn != null) {
-                predicates.add(cb.between(root.get("editedOn"),
-                        editedOn.atStartOfDay(), editedOn.atTime(23, 59, 59)));
-            }
+//            if (productName != null) {
+//                // product.name is String
+//                predicates.add(cb.like(cb.lower(root.get("product").get("name")), "%" + productName.toLowerCase() + "%"));
+//            }
+                if (subProductId != null)
+                    predicates.add(cb.like(cb.lower(root.get("subProductId")), "%" + subProductId.toLowerCase() + "%"));
+                if (subProductCode != null)
+                    predicates.add(cb.like(cb.lower(root.get("subProductCode")), "%" + subProductCode.toLowerCase() + "%"));
+                if (modesSupported != null)
+                    predicates.add(cb.like(cb.lower(root.get("modesSupported")), "%" + modesSupported.toLowerCase() + "%"));
 
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-    }
+                if (active != null) {
+                    predicates.add(cb.equal(root.get("active"), active));
+                }
+
+
+                if (bankType != null)
+                    predicates.add(cb.like(cb.lower(root.get("bankType")), "%" + bankType.toLowerCase() + "%"));
+                if (website != null)
+                    predicates.add(cb.like(cb.lower(root.get("website")), "%" + website.toLowerCase() + "%"));
+                if (logo != null)
+                    predicates.add(cb.like(cb.lower(root.get("logo")), "%" + logo.toLowerCase() + "%"));
+                if (parameter != null)
+                    predicates.add(cb.like(cb.lower(root.get("parameter")), "%" + parameter.toLowerCase() + "%"));
+                if (createdBy != null)
+                    predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+                if (editedBy != null)
+                    predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
+
+                if (createdOn != null) {
+                    predicates.add(cb.between(root.get("createdOn"),
+                            createdOn.atStartOfDay(), createdOn.atTime(23, 59, 59)));
+                }
+
+                if (editedOn != null) {
+                    predicates.add(cb.between(root.get("editedOn"),
+                            editedOn.atStartOfDay(), editedOn.atTime(23, 59, 59)));
+                }
+
+                return cb.and(predicates.toArray(new Predicate[0]));
+            }
+            ;
+        }
 }

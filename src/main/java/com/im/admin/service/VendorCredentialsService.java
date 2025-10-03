@@ -6,6 +6,8 @@ import com.im.admin.entities.VendorCredentials;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
+
 public interface VendorCredentialsService {
 
     VendorCredentials saveVendorCredentials(VendorCredentialsDTO dto);
@@ -19,6 +21,9 @@ public interface VendorCredentialsService {
             String username,
             Boolean isActive,
             String createdBy,
+            String editedBy,
+            LocalDate createdOn,
+            LocalDate editedOn,
             Pageable pageable);
 
     VendorCredentialsResponseDTO getVendorCredentialsById(Long id);
