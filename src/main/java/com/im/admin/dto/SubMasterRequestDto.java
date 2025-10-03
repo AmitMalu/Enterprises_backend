@@ -8,4 +8,5 @@ import lombok.Data;
 public class SubMasterRequestDto {
     private Integer imMasterId;
     private String imSubMasterName;
+    private String createdBy;
 }

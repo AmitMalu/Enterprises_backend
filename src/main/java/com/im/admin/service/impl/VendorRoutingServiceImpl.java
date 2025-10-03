@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -149,6 +150,24 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
                     case "routingPriority3Name" -> {
                         Join<Object, Object> v3Join = root.join("routingPriority3", JoinType.INNER);
                         predicates.add(cb.like(cb.lower(v3Join.get("vendorName")), "%" + value.toLowerCase() + "%"));
+                    }
+
+                    case "createdOn" -> {
+                        try {
+                            LocalDate date = LocalDate.parse(value);
+                            predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("createdOn")), date));
+                        } catch (Exception e) {
+                            log.warn("Invalid createdOn filter value: {}", value, e);
+                        }
+                    }
+
+                    case "editedOn" -> {
+                        try {
+                            LocalDate date = LocalDate.parse(value);
+                            predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("editedOn")), date));
+                        } catch (Exception e) {
+                            log.warn("Invalid editedOn filter value: {}", value, e);
+                        }
                     }
 
 

@@ -18,12 +18,16 @@ public interface ImSubMasterRepository extends JpaRepository<ImSubMaster, Intege
     boolean existsByImMasterIdAndImSubMasterName(Integer imMasterId, String imSubMasterName);
 
     @Query(
-            value = "SELECT m.im_master_id, m.im_master_name, s.im_sub_master_id, s.im_sub_master_name " +
-                    "FROM im_master m JOIN im_sub_master s ON m.im_master_id = s.im_master_id " +
+            value = "SELECT m.im_master_id, m.im_master_name, " +
+                    "s.im_sub_master_id, s.im_sub_master_name, " +
+                    "s.created_by, s.created_on " +
+                    "FROM im_master m " +
+                    "JOIN im_sub_master s ON m.im_master_id = s.im_master_id " +
                     "ORDER BY m.im_master_id, s.im_sub_master_id",
             countQuery = "SELECT COUNT(*) FROM im_master m JOIN im_sub_master s ON m.im_master_id = s.im_master_id",
             nativeQuery = true
     )
     Page<Object[]> getAllDropdowns(Pageable pageable);
+
 
 }

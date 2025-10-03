@@ -14,10 +14,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -79,13 +82,26 @@ public class PayoutController {
 
     @GetMapping("/all")
     public ResponseEntity<CommonResponse<Page<BeneficiaryBankAccount>>> getAllBeneficiaries(
-            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Long id,
+            @RequestParam(required = false) String retailerId,
+            @RequestParam(required = false) String bankName,
+            @RequestParam(required = false) String bankHolderName,
+            @RequestParam(required = false) String accountNumber,
+            @RequestParam(required = false) String ifscCode,
+            @RequestParam(required = false) String paymentMode,
+            @RequestParam(required = false) Boolean isVerified,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createdOn,
+            @RequestParam(required = false) String createdBy
+    ) {
+        log.info("Fetching beneficiaries with filters, page: {}, size: {}", page, size);
 
-        log.info("Fetching all beneficiaries with search: {}, page: {}, size: {}", search, page, size);
-        Pageable pageable = PageRequest.of(page, size);
-        CommonResponse<Page<BeneficiaryBankAccount>> response = payoutService.getAllFiltered(search, pageable);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
+        CommonResponse<Page<BeneficiaryBankAccount>> response =
+                payoutService.getAllFiltered(id, retailerId, bankName, bankHolderName, accountNumber,
+                        ifscCode, paymentMode, isVerified, createdOn, createdBy, pageable);
+
         log.info("Fetched {} beneficiaries", response.getData().getTotalElements());
         return ResponseEntity.ok(response);
     }

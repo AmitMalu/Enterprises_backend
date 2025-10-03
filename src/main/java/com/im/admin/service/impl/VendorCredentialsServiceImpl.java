@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -110,7 +111,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
     @Override
     public Page<VendorCredentialsResponseDTO> getAllVendorCredentials(
             String productName, String vendorName, String whiteLabelAdminName,
-            String username, Boolean isActive, String createdBy, Pageable pageable) {
+            String username, Boolean isActive, String createdBy, String editedBy, LocalDate createdOn, LocalDate editedOn, Pageable pageable) {
 
         log.info("Fetching VendorCredentials with filters - username: {}, isActive: {}, createdBy: {}, productName: {}, vendorName: {}, whiteLabelAdminName: {}",
                 username, isActive, createdBy, productName, vendorName, whiteLabelAdminName);
@@ -128,6 +129,18 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
 
             if (StringUtils.hasText(createdBy)) {
                 predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+            }
+
+            if (StringUtils.hasText(editedBy)) {
+                predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
+            }
+
+            if (createdOn != null) {
+                predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("createdOn")), createdOn));
+            }
+
+            if (editedOn != null) {
+                predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("editedOn")), editedOn));
             }
 
             if (StringUtils.hasText(productName)) {

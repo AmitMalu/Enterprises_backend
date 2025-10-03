@@ -36,6 +36,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -256,24 +257,7 @@ public class PayoutServiceImpl implements PayoutService {
         return CommonResponse.success(saved, "Bank account saved successfully");
     }
 
-    @Override
-    public CommonResponse<Page<BeneficiaryBankAccount>> getAllFiltered(String search, Pageable pageable) {
 
-        Page<BeneficiaryBankAccount> results = beneficiaryBankAccountRepository.findAll((root, query, cb) -> {
-            if (search != null && !search.isBlank()) {
-                String likeSearch = "%" + search.toLowerCase() + "%";
-                Predicate p1 = cb.like(cb.lower(root.get("bankHolderName")), likeSearch);
-                Predicate p2 = cb.like(cb.lower(root.get("accountNumber")), likeSearch);
-                Predicate p3 = cb.like(cb.lower(root.get("ifscCode")), likeSearch);
-                Predicate p4 = cb.like(cb.lower(root.get("bankName")), likeSearch);
-
-                return cb.or(p1, p2, p3, p4);
-            }
-            return cb.conjunction(); // no filtering
-        }, pageable);
-
-        return CommonResponse.success(results, "Filtered results");
-    }
 
 
     @Override
@@ -294,6 +278,50 @@ public class PayoutServiceImpl implements PayoutService {
         }
 
         return CommonResponse.success(message, "Processed IDs: " + ids);
+    }
+
+    @Override
+    public CommonResponse<Page<BeneficiaryBankAccount>> getAllFiltered(Long id, String retailerId, String bankName, String bankHolderName, String accountNumber, String ifscCode, String paymentMode, Boolean isVerified, LocalDate createdOn, String createdBy, Pageable pageable) {
+
+            Page<BeneficiaryBankAccount> results =
+                    beneficiaryBankAccountRepository.findAll((root, query, cb) -> {
+                        List<Predicate> predicates = new ArrayList<>();
+
+                        if (id != null) {
+                            predicates.add(cb.equal(root.get("id"), id));
+                        }
+                        if (retailerId != null && !retailerId.isBlank()) {
+                            predicates.add(cb.like(cb.lower(root.get("retailerId")), "%" + retailerId.toLowerCase() + "%"));
+                        }
+                        if (bankName != null && !bankName.isBlank()) {
+                            predicates.add(cb.like(cb.lower(root.get("bankName")), "%" + bankName.toLowerCase() + "%"));
+                        }
+                        if (bankHolderName != null && !bankHolderName.isBlank()) {
+                            predicates.add(cb.like(cb.lower(root.get("bankHolderName")), "%" + bankHolderName.toLowerCase() + "%"));
+                        }
+                        if (accountNumber != null && !accountNumber.isBlank()) {
+                            predicates.add(cb.like(cb.lower(root.get("accountNumber")), "%" + accountNumber.toLowerCase() + "%"));
+                        }
+                        if (ifscCode != null && !ifscCode.isBlank()) {
+                            predicates.add(cb.like(cb.lower(root.get("ifscCode")), "%" + ifscCode.toLowerCase() + "%"));
+                        }
+                        if (paymentMode != null && !paymentMode.isBlank()) {
+                            predicates.add(cb.like(cb.lower(root.get("paymentMode")), "%" + paymentMode.toLowerCase() + "%"));
+                        }
+                        if (isVerified != null) {
+                            predicates.add(cb.equal(root.get("isVerified"), isVerified));
+                        }
+                        if (createdOn != null) {
+                            predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("createdOn")), createdOn));
+                        }
+                        if (createdBy != null && !createdBy.isBlank()) {
+                            predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+                        }
+
+                        return cb.and(predicates.toArray(new Predicate[0]));
+                    }, pageable);
+
+            return CommonResponse.success(results, "Filtered results");
     }
 
 

@@ -11,11 +11,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -81,16 +83,21 @@ public class ProductsController {
             @RequestParam(required = false) Boolean reverseTx,
             @RequestParam(required = false) Boolean clusterMode,
             @RequestParam(required = false) Boolean blocked,
-            @RequestParam(required = false) Boolean active
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String editedBy,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdOn,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate editedOn
     ) {
 
         log.info("Received request to fetch all products with pagination - Page: {}, Size: {}", page, size);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
-        Page<Products> productsPage = productsService.getAllProducts(pageable,id,name, productCode, productCodeForScheme,
+
+        Page<Products> productsPage = productsService.getAllProducts(pageable, id, name, productCode, productCodeForScheme,
                 productGroup, isShow, hasCharges, isCommissions, isInventory,
                 isSettlement, isVirtual, isVisible, reverseTx, clusterMode,
-                blocked, active);
+                blocked, active, createdBy, editedBy, createdOn, editedOn);
 
         CommonResponse<Page<Products>> response = new CommonResponse<>(
                 200, "Products fetched successfully", productsPage
