@@ -12,10 +12,14 @@ import lombok.Setter;
 @NoArgsConstructor
 public class BeneficiaryBankAccountDTO {
 
+
+    private Long id;
     private String retailerId;
     private String bankName;
     private String bankHolderName;
     private String accountNumber;
     private String ifscCode;
+    private String paymentMode;
+    private Boolean isVerified;
     private String createdBy;
 }

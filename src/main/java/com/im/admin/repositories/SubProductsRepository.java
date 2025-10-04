@@ -1,6 +1,7 @@
 package com.im.admin.repositories;
 
 import com.im.admin.entities.SubProducts;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -28,6 +29,8 @@ public interface SubProductsRepository extends JpaRepository<SubProducts, String
 
 
     List<SubProducts> findByProductIdAndIsActiveTrueAndIsSettlement(Short productId, Boolean isSettlement);
+
+    Optional<SubProducts> findBySubProductCodeAndIsVisibleTrue(@NotBlank(message = "Sub-product code is required") String subProductCode);
 
 }
 
