@@ -412,7 +412,7 @@ public class AuthController {
 
                 for (SchemeAllocation sa : schemes) {
                     Optional<Products> productOpt = productsRepository.findByProductCode(sa.getProductCode());
-                    Optional<SubProducts> subProductOpt = subProductsRepository.findBySubProductCode(sa.getSubProductCode());
+                    Optional<SubProducts> subProductOpt = subProductsRepository.findBySubProductCodeAndIsVisibleTrue(sa.getSubProductCode());
 
                     if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
                         log.warn("Skipping scheme due to missing mapping for productCode={} or subProductCode={}",

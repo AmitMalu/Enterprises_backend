@@ -186,7 +186,8 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
                 .filter(dto -> (createdOn == null || createdOn.isEmpty() ||
                         dto.getCreatedOn().toString().toLowerCase().contains(createdOn.toLowerCase())))
                 .filter(dto -> (editedBy == null || editedBy.isEmpty() ||
-                        dto.getEditedBy().toLowerCase().contains(editedBy.toLowerCase())))
+                        (dto.getEditedBy() != null &&
+                                dto.getEditedBy().toLowerCase().contains(editedBy.toLowerCase()))))
                 .filter(dto -> (editedOn == null || editedOn.isEmpty() ||
                         dto.getEditedOn().toString().toLowerCase().contains(editedOn.toLowerCase())))
                 .toList();

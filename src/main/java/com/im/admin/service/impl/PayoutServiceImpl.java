@@ -324,5 +324,45 @@ public class PayoutServiceImpl implements PayoutService {
             return CommonResponse.success(results, "Filtered results");
     }
 
+    @Override
+    public CommonResponse<BeneficiaryBankAccountDTO> updateBeneficiary(Long id, BeneficiaryBankAccountDTO requestDto) {
+        Optional<BeneficiaryBankAccount> optional = beneficiaryBankAccountRepository.findById(id);
+
+        if (optional.isEmpty()) {
+            return CommonResponse.error(HttpStatus.BAD_REQUEST.value(),
+                    "Beneficiary Bank Account not found for ID: " + id);
+        }
+
+
+        BeneficiaryBankAccount entity = optional.get();
+
+        // Update fields
+        if (requestDto.getRetailerId() != null) entity.setRetailerId(requestDto.getRetailerId());
+        if (requestDto.getBankName() != null) entity.setBankName(requestDto.getBankName());
+        if (requestDto.getBankHolderName() != null) entity.setBankHolderName(requestDto.getBankHolderName());
+        if (requestDto.getAccountNumber() != null) entity.setAccountNumber(requestDto.getAccountNumber());
+        if (requestDto.getIfscCode() != null) entity.setIfscCode(requestDto.getIfscCode());
+        if (requestDto.getPaymentMode() != null) entity.setPaymentMode(requestDto.getPaymentMode());
+        if (requestDto.getIsVerified() != null) entity.setIsVerified(requestDto.getIsVerified());
+        if (requestDto.getCreatedBy() != null) entity.setCreatedBy(requestDto.getCreatedBy());
+
+        beneficiaryBankAccountRepository.save(entity);
+
+        // Convert updated entity to DTO
+        BeneficiaryBankAccountDTO responseDto = new BeneficiaryBankAccountDTO(
+                entity.getId(),
+                entity.getRetailerId(),
+                entity.getBankName(),
+                entity.getBankHolderName(),
+                entity.getAccountNumber(),
+                entity.getIfscCode(),
+                entity.getPaymentMode(),
+                entity.getIsVerified(),
+                entity.getCreatedBy()
+        );
+
+        return CommonResponse.success(responseDto, "Beneficiary Bank Account updated successfully");
+    }
+
 
 }

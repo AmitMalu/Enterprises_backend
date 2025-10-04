@@ -26,6 +26,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -154,8 +155,13 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
 
                     case "createdOn" -> {
                         try {
-                            LocalDate date = LocalDate.parse(value);
-                            predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("createdOn")), date));
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+                            LocalDate date = LocalDate.parse(value, formatter);
+                            predicates.add(cb.between(
+                                    root.get("createdOn"),
+                                    date.atStartOfDay(),
+                                    date.atTime(23, 59, 59)
+                            ));
                         } catch (Exception e) {
                             log.warn("Invalid createdOn filter value: {}", value, e);
                         }
@@ -163,12 +169,18 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
 
                     case "editedOn" -> {
                         try {
-                            LocalDate date = LocalDate.parse(value);
-                            predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("editedOn")), date));
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+                            LocalDate date = LocalDate.parse(value, formatter);
+                            predicates.add(cb.between(
+                                    root.get("editedOn"),
+                                    date.atStartOfDay(),
+                                    date.atTime(23, 59, 59)
+                            ));
                         } catch (Exception e) {
                             log.warn("Invalid editedOn filter value: {}", value, e);
                         }
                     }
+
 
 
                     default -> {

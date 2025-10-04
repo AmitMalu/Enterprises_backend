@@ -114,5 +114,19 @@ public class PayoutController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/update-beneficiaries/{id}")
+    public ResponseEntity<CommonResponse<BeneficiaryBankAccountDTO>> updateBeneficiary(
+            @PathVariable Long id,
+            @RequestBody BeneficiaryBankAccountDTO requestDto) {
+
+        log.info("Updating BeneficiaryBankAccount with ID: {}", id);
+
+        CommonResponse<BeneficiaryBankAccountDTO> response = payoutService.updateBeneficiary(id, requestDto);
+
+        log.info("BeneficiaryBankAccount updated successfully for ID: {}", id);
+        return ResponseEntity.ok(response);
+    }
+
+
 
 }
