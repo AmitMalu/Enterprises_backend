@@ -245,6 +245,16 @@ public class PayoutServiceImpl implements PayoutService {
 
     @Override
     public CommonResponse<BeneficiaryBankAccount> saveBeneficiary(BeneficiaryBankAccountDTO dto) {
+
+        // Count existing records
+        long count = beneficiaryBankAccountRepository.count();
+
+        //Check limit (max 200)
+        if (count >= 200) {
+            return CommonResponse.handleErrors("Maximum limit of 200 beneficiary records reached. Cannot add more.");
+        }
+
+        //   Map DTO to Entity
         BeneficiaryBankAccount entity = new BeneficiaryBankAccount();
         entity.setRetailerId(dto.getRetailerId());
         entity.setBankName(dto.getBankName());
@@ -253,9 +263,13 @@ public class PayoutServiceImpl implements PayoutService {
         entity.setIfscCode(dto.getIfscCode());
         entity.setCreatedBy(dto.getCreatedBy());
 
+        //   Save entity
         BeneficiaryBankAccount saved = beneficiaryBankAccountRepository.save(entity);
+
+        //   Return success response
         return CommonResponse.success(saved, "Bank account saved successfully");
     }
+
 
 
 
