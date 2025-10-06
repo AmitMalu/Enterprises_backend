@@ -234,20 +234,17 @@ public class DashboardServiceImpl implements DashboardService {
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setId(bank.getId());
                         banksDto.setBankName(bank.getBankName());
                         banksDto.setAccountName(bank.getBankHolderName() != null ? bank.getBankHolderName() : r.getName());
                         banksDto.setAccountNo(bank.getBankAccountNumber());
                         banksDto.setIFCSCode(bank.getIfscCode());
+                        banksDto.setVerified(bank.getIsVerified());
                         return banksDto;
                     })
                     .collect(Collectors.toList());
 
             response.setMyBanksList(myBanksDtoList);
-
-            myBanksDto.setBankName(r.getBankDetails().getBankName());
-            myBanksDto.setAccountName(r.getName());
-            myBanksDto.setAccountNo(r.getBankDetails().getBankAccountNumber());
-            myBanksDto.setIFCSCode(r.getBankDetails().getIfscCode());
 
             docsDto.setAadhaarCardFrontImage(r.getAadhaarCardFrontImage());
             docsDto.setAadhaarCardBackImage(r.getAadhaarCardBackImage());

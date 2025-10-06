@@ -10,9 +10,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class MyBanksDto {
 
+    private Long id;
     private String bankName;
     private String accountName;
     private String accountNo;
     private String IFCSCode;
-    private String verified;
+    private Boolean verified;
 }
