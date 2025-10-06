@@ -115,7 +115,7 @@ public class PayoutServiceImpl implements PayoutService {
 
         HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
 
-        String url = vendorCredentials.getTokenUrlUat();
+        String url = vendorCredentials.getTokenUrlProd();
         log.info("Sending token request to URL: {}", url);
 
         ResponseEntity<PayoutTokenResponseDTO> response = restTemplate.postForEntity(

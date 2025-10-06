@@ -14,4 +14,6 @@ public interface BankDetailsRepository extends JpaRepository<BanksDetails, Long>
 
     long countByHierarchyId(String hierarchyId);
 
+    List<BanksDetails> findByHierarchyIdAndIsVerifiedTrue(String hierarchyId);
+
 }
