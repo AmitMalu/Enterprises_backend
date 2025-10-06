@@ -43,4 +43,7 @@ public interface RetailerUserRepository extends JpaRepository<RetailerUser,Strin
     @Query("SELECT ru FROM RetailerUser ru LEFT JOIN FETCH ru.retailer WHERE ru.retailerUserId = :id")
     Optional<RetailerUser> findByIdWithRetailer(@Param("id") String id);
 
+    Page<RetailerUser> findByParentAccount(String retailerId, Pageable pageable);
+
+
 }

@@ -6,6 +6,7 @@ import com.im.admin.repositories.RetailerRepository;
 import com.im.admin.repositories.RetailerUserRepository;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.RetailerUserResponseDTO;
 import com.im.admin.service.RetailerUserService;
 import com.im.admin.spec.projectionFilter.RetailerUserProjection;
 import com.im.admin.util.IdGenerator;
@@ -19,9 +20,24 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import jakarta.persistence.criteria.Predicate;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class RetailerUserServiceImpl implements RetailerUserService {
@@ -240,5 +256,44 @@ public class RetailerUserServiceImpl implements RetailerUserService {
 
         return updatedAgent;
     }
+
+    @Override
+    public CommonResponse<Page<RetailerUserResponseDTO>> getRetailerUsersByRetailerId(String retailerId, int page, int size) {
+        if (retailerId == null || retailerId.isBlank()) {
+            return CommonResponse.handleErrors("Retailer ID cannot be blank");
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<RetailerUser> retailerUsers = retailerUserRepository.findByParentAccount(retailerId, pageable);
+
+        if (retailerUsers.isEmpty()) {
+            return CommonResponse.failure("No Retailer Users found for Retailer ID: " + retailerId);
+        }
+
+        // Convert entities to DTOs
+        Page<RetailerUserResponseDTO> dtoPage = retailerUsers.map(user -> new RetailerUserResponseDTO(
+                user.getRetailerUserId(),
+                user.getParentAccount(),
+                user.getAbbreviation(),
+                user.getName(),
+                user.getMobileNumber(),
+                user.getUsername(),
+                user.getEmailId(),
+                user.getEmailVerified(),
+                user.getDob(),
+                user.getStatus(),
+                user.getCreatedOn(),
+                user.getCreatedBy(),
+                user.getLastEditedOn(),
+                user.getEditedBy(),
+                user.getCreatedByIPAddress(),
+                user.getRole_id(),
+                user.getSubRoleId()
+        ));
+
+        return CommonResponse.success(dtoPage, "Retailer Users fetched successfully");
+    }
+
 }
 

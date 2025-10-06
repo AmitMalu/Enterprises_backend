@@ -2,8 +2,11 @@ package com.im.admin.service;
 
 import com.im.admin.entities.RetailerUser;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.RetailerUserResponseDTO;
 import com.im.admin.spec.projectionFilter.RetailerUserProjection;
+import org.springframework.data.domain.Page;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -28,4 +31,5 @@ public interface RetailerUserService {
     RetailerUser updateRetailerUser(String retailerUserId, RetailerUser retailerUser);
 
 
+    CommonResponse<Page<RetailerUserResponseDTO>> getRetailerUsersByRetailerId(String retailerId, int page, int size);
 }

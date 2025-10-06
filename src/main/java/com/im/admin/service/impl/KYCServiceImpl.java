@@ -9,6 +9,7 @@ import com.im.admin.response.KYCResponseDto;
 import com.im.admin.response.KycDocumentDto;
 import com.im.admin.service.KYCService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.ImageUtil;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -61,6 +62,9 @@ public class KYCServiceImpl implements KYCService {
 
     @Autowired
     private CommonMethods commonMethods;
+
+    @Autowired
+    private ImageUtil imageUtil;
 
 
     @Override
@@ -217,7 +221,7 @@ public class KYCServiceImpl implements KYCService {
         try {
             if (imageFile != null && !imageFile.isEmpty()) {
                 String folder = "KYC_" + request.getCategory().toUpperCase();
-                imagePath = saveImage(imageFile, folder);
+                imagePath = imageUtil.saveImage(imageFile, folder);
             }
         } catch (IOException e) {
             e.printStackTrace();
