@@ -233,7 +233,8 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 }
 
                 HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-                String url = credentials.getBaseUrlUat() + "/order";
+                //String url = credentials.getBaseUrlUat() + "/order";
+                String url = credentials.getBaseUrlProd() + "/order";
                 log.info("Old vendor order URL: {}", url);
 
                 ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);

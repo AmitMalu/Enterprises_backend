@@ -1,7 +1,9 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.controller.AESController;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.BeneficiaryBankAccountDTO;
+import com.im.admin.dto.EncryptDecryptCredentialsDto;
 import com.im.admin.dto.PayoutTokenResponseDTO;
 import com.im.admin.entities.BeneficiaryBankAccount;
 import com.im.admin.entities.SubProducts;
@@ -57,6 +59,9 @@ public class PayoutServiceImpl implements PayoutService {
 
     @Autowired
     private SubProductsRepository subProductsRepository;
+
+    @Autowired
+    private AESController aesController;
 
     RestTemplate restTemplate = new RestTemplate();
 
@@ -133,6 +138,9 @@ public class PayoutServiceImpl implements PayoutService {
     @Transactional
     public CommonResponse<PayoutResponseDto> sendPayoutRequest(SendPayoutRequest sendPayoutRequest) {
         try {
+
+            String baseTransactionId = commonMethods.generateBaseTransactionId();
+
             Optional<SubProducts> subProducts = subProductsRepository.findById(sendPayoutRequest.getSubProductId());
             WalletType walletType = WalletType.valueOf(subProducts.get().getWalletType());
 
@@ -141,11 +149,6 @@ public class PayoutServiceImpl implements PayoutService {
                 return new CommonResponse<>(400, "Insufficient Balance", null);
             }
 
-            String baseTransactionId = commonMethods.generateBaseTransactionId();
-
-            AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), sendPayoutRequest.getRetailerId());
-            commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR PENDING", "DEBIT");
-
             VendorRouting routing = vendorRoutingRepository.findBySubProductId(sendPayoutRequest.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(routing);
 
@@ -153,65 +156,150 @@ public class PayoutServiceImpl implements PayoutService {
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("token", generateTokenForPayout(credentials));
+            log.debug("Vendor credentials retrieved: {}", credentials.getVendor().getVendorName());
 
-            Map<String, Object> payout = new LinkedHashMap<>();
-            payout.put("account_number", String.valueOf(sendPayoutRequest.getAccountNumber()));  // "026291800001191"
-            payout.put("ifsc_code", String.valueOf(sendPayoutRequest.getIfscCode()));            // "YESB0000001"
-            payout.put("amount", String.format("%.2f", sendPayoutRequest.getAmount()));          // "11.00"
-            payout.put("order_id", "TXN" + baseTransactionId);                                   // "TXN25082012270100272"
-            payout.put("beneficiary_name", String.valueOf(sendPayoutRequest.getBeneficiaryName()));
-            payout.put("payment_mode", String.valueOf(sendPayoutRequest.getPaymentMode()));      // "IMPS"
+            // ====== Check Vendor Type ======
+            if ("AES".equalsIgnoreCase(credentials.getTokenType())) {
+                // =========================
+                // AES Flow (Admin Panel)
+                // =========================
+                String token = generateTokenForAES(credentials);
 
-            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payout, headers);
+                // Build JSON request for AES admin panel
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("client_id", credentials.getClientId());
+                headers.set("token", token);
+                headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
 
-            String url = credentials.getBaseUrlUat() + "/payment";
-            log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, headers, payout);
+                SendPayoutRequest payoutJsonRequestBody = new SendPayoutRequest();
 
-            ResponseEntity<PayoutResponseDto> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    requestEntity,
-                    PayoutResponseDto.class
-            );
+                payoutJsonRequestBody.setAccountNumber(sendPayoutRequest.getAccountNumber());
+                payoutJsonRequestBody.setIfscCode(sendPayoutRequest.getIfscCode());
+                payoutJsonRequestBody.setAmount(sendPayoutRequest.getAmount());
+                payoutJsonRequestBody.setOrderId("TXN" + baseTransactionId);
+                payoutJsonRequestBody.setBeneficiaryName(sendPayoutRequest.getBeneficiaryName());
+                payoutJsonRequestBody.setPaymentMode(sendPayoutRequest.getPaymentMode());
+                payoutJsonRequestBody.setCallbackurl(sendPayoutRequest.getCallbackurl());
 
-            PayoutResponseDto payoutResponse = response.getBody();
-            assert payoutResponse != null;
-            log.info("RunPaisa payout response: {}", payoutResponse.getMessage());
+                HttpEntity<SendPayoutRequest> requestEntity = new HttpEntity<>(payoutJsonRequestBody, headers);
 
+                String url = credentials.getBaseUrlUat() + "/payment";
+                log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, requestEntity, String.class);
 
-            if (payoutResponse != null && "ACCEPTED".equalsIgnoreCase(payoutResponse.getStatus())) {
-                return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
+                ResponseEntity<String> response = restTemplate.exchange(
+                        url,
+                        HttpMethod.POST,
+                        requestEntity,
+                        String.class
+                );
+
             } else {
-                String errorMsg = payoutResponse != null ? payoutResponse.getMessage() : "Null response from vendor";
-                return new CommonResponse<>(400, errorMsg, payoutResponse);
+
+                AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), sendPayoutRequest.getRetailerId());
+                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR PENDING", "DEBIT");
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("token", generateTokenForPayout(credentials));
+
+                Map<String, Object> payout = new LinkedHashMap<>();
+                payout.put("account_number", String.valueOf(sendPayoutRequest.getAccountNumber()));  // "026291800001191"
+                payout.put("ifsc_code", String.valueOf(sendPayoutRequest.getIfscCode()));            // "YESB0000001"
+                payout.put("amount", String.format("%.2f", sendPayoutRequest.getAmount()));          // "11.00"
+                payout.put("order_id", "TXN" + baseTransactionId);                                   // "TXN25082012270100272"
+                payout.put("beneficiary_name", String.valueOf(sendPayoutRequest.getBeneficiaryName()));
+                payout.put("payment_mode", String.valueOf(sendPayoutRequest.getPaymentMode()));      // "IMPS"
+
+                HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payout, headers);
+
+                String url = credentials.getBaseUrlUat() + "/payment";
+                log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, headers, payout);
+
+                ResponseEntity<PayoutResponseDto> response = restTemplate.exchange(
+                        url,
+                        HttpMethod.POST,
+                        requestEntity,
+                        PayoutResponseDto.class
+                );
+
+                PayoutResponseDto payoutResponse = response.getBody();
+                assert payoutResponse != null;
+                log.info("RunPaisa payout response: {}", payoutResponse.getMessage());
+
+
+                if (payoutResponse != null && "ACCEPTED".equalsIgnoreCase(payoutResponse.getStatus())) {
+                    return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
+                } else {
+                    String errorMsg = payoutResponse != null ? payoutResponse.getMessage() : "Null response from vendor";
+                    return new CommonResponse<>(400, errorMsg, payoutResponse);
+                }
             }
 
-        }  catch (HttpStatusCodeException e) {
-        log.error("Vendor returned HTTP error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
-        return new CommonResponse<>(e.getStatusCode().value(), "Vendor Error", null);
-    } catch (RestClientException e) {
-        log.error("Vendor communication error: {}", e.getMessage(), e);
-        return new CommonResponse<>(500, "Vendor communication failed", null);
-    } catch (Exception e) {
-        log.error("General exception: {}", e.getMessage(), e);
-        return new CommonResponse<>(500, "Exception occurred during payout", null);
+        } catch (HttpStatusCodeException e) {
+            log.error("Vendor returned HTTP error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return new CommonResponse<>(e.getStatusCode().value(), "Vendor Error", null);
+        } catch (RestClientException e) {
+            log.error("Vendor communication error: {}", e.getMessage(), e);
+            return new CommonResponse<>(500, "Vendor communication failed", null);
+        } catch (Exception e) {
+            log.error("General exception: {}", e.getMessage(), e);
+            return new CommonResponse<>(500, "Exception occurred during payout", null);
+        }
+        return new CommonResponse<>(500, "Something went wrong", null);
+
     }
 
-}
+    private String generateTokenForAES(VendorCredentials vendorCredentials) {
+        // Call AES encrypt service
+        ResponseEntity<?> responseEntity = aesController.encryptCredentials(
+                new EncryptDecryptCredentialsDto(vendorCredentials.getUsername(), vendorCredentials.getPassword())
+        );
 
-    @Override
-    public PayoutMerchantCallbackResponse updateMerchantCallbackUrl(PayoutMerchantCallbackRequest request) {
-        String token = generateToken();
+        @SuppressWarnings("unchecked")
+        Map<String, String> encryptedMap = (Map<String, String>) responseEntity.getBody();
+        String encUser = encryptedMap.get("cipherUsername");
+        String encPass = encryptedMap.get("cipherPassword");
+        String salt = encryptedMap.get("salt");
+        String iv = encryptedMap.get("iv");
+
+        // Build JSON for token request
+        Map<String, String> jsonBody = new HashMap<>();
+        jsonBody.put("username", encUser);
+        jsonBody.put("password", encPass);
+        jsonBody.put("client_id", vendorCredentials.getClientId());
+        jsonBody.put("salt", salt);
+        jsonBody.put("ivBase64", iv);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("token", token);
+        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlUat(), requestEntity, Map.class);
+        Map<String, Object> responseBodyMap = response.getBody();
+        if (responseBodyMap == null || responseBodyMap.get("token") == null) {
+            throw new RuntimeException("AES token generation failed: " + responseBodyMap);
+        }
+
+        return (String) responseBodyMap.get("token");
+    }
+
+
+    @Override
+    public PayoutMerchantCallbackResponse updateMerchantCallbackUrl(SendPayoutRequest request) {
+        VendorRouting routing = vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+        Vendors vendor = CommonMethods.getVendors(routing);
+
+        VendorCredentials credentials = vendorCredentialsRepository
+                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("token", generateTokenForPayout(credentials));
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("callback_url", request.getCallbackUrl());
+        body.add("callback_url", credentials.getCallbackUrl());
 
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
@@ -271,9 +359,6 @@ public class PayoutServiceImpl implements PayoutService {
     }
 
 
-
-
-
     @Override
     public CommonResponse<String> deleteMultipleBeneficiaries(List<Long> ids) {
         List<Long> notFound = new ArrayList<>();
@@ -297,45 +382,45 @@ public class PayoutServiceImpl implements PayoutService {
     @Override
     public CommonResponse<Page<BeneficiaryBankAccount>> getAllFiltered(Long id, String retailerId, String bankName, String bankHolderName, String accountNumber, String ifscCode, String paymentMode, Boolean isVerified, LocalDate createdOn, String createdBy, Pageable pageable) {
 
-            Page<BeneficiaryBankAccount> results =
-                    beneficiaryBankAccountRepository.findAll((root, query, cb) -> {
-                        List<Predicate> predicates = new ArrayList<>();
+        Page<BeneficiaryBankAccount> results =
+                beneficiaryBankAccountRepository.findAll((root, query, cb) -> {
+                    List<Predicate> predicates = new ArrayList<>();
 
-                        if (id != null) {
-                            predicates.add(cb.equal(root.get("id"), id));
-                        }
-                        if (retailerId != null && !retailerId.isBlank()) {
-                            predicates.add(cb.like(cb.lower(root.get("retailerId")), "%" + retailerId.toLowerCase() + "%"));
-                        }
-                        if (bankName != null && !bankName.isBlank()) {
-                            predicates.add(cb.like(cb.lower(root.get("bankName")), "%" + bankName.toLowerCase() + "%"));
-                        }
-                        if (bankHolderName != null && !bankHolderName.isBlank()) {
-                            predicates.add(cb.like(cb.lower(root.get("bankHolderName")), "%" + bankHolderName.toLowerCase() + "%"));
-                        }
-                        if (accountNumber != null && !accountNumber.isBlank()) {
-                            predicates.add(cb.like(cb.lower(root.get("accountNumber")), "%" + accountNumber.toLowerCase() + "%"));
-                        }
-                        if (ifscCode != null && !ifscCode.isBlank()) {
-                            predicates.add(cb.like(cb.lower(root.get("ifscCode")), "%" + ifscCode.toLowerCase() + "%"));
-                        }
-                        if (paymentMode != null && !paymentMode.isBlank()) {
-                            predicates.add(cb.like(cb.lower(root.get("paymentMode")), "%" + paymentMode.toLowerCase() + "%"));
-                        }
-                        if (isVerified != null) {
-                            predicates.add(cb.equal(root.get("isVerified"), isVerified));
-                        }
-                        if (createdOn != null) {
-                            predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("createdOn")), createdOn));
-                        }
-                        if (createdBy != null && !createdBy.isBlank()) {
-                            predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
-                        }
+                    if (id != null) {
+                        predicates.add(cb.equal(root.get("id"), id));
+                    }
+                    if (retailerId != null && !retailerId.isBlank()) {
+                        predicates.add(cb.like(cb.lower(root.get("retailerId")), "%" + retailerId.toLowerCase() + "%"));
+                    }
+                    if (bankName != null && !bankName.isBlank()) {
+                        predicates.add(cb.like(cb.lower(root.get("bankName")), "%" + bankName.toLowerCase() + "%"));
+                    }
+                    if (bankHolderName != null && !bankHolderName.isBlank()) {
+                        predicates.add(cb.like(cb.lower(root.get("bankHolderName")), "%" + bankHolderName.toLowerCase() + "%"));
+                    }
+                    if (accountNumber != null && !accountNumber.isBlank()) {
+                        predicates.add(cb.like(cb.lower(root.get("accountNumber")), "%" + accountNumber.toLowerCase() + "%"));
+                    }
+                    if (ifscCode != null && !ifscCode.isBlank()) {
+                        predicates.add(cb.like(cb.lower(root.get("ifscCode")), "%" + ifscCode.toLowerCase() + "%"));
+                    }
+                    if (paymentMode != null && !paymentMode.isBlank()) {
+                        predicates.add(cb.like(cb.lower(root.get("paymentMode")), "%" + paymentMode.toLowerCase() + "%"));
+                    }
+                    if (isVerified != null) {
+                        predicates.add(cb.equal(root.get("isVerified"), isVerified));
+                    }
+                    if (createdOn != null) {
+                        predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("createdOn")), createdOn));
+                    }
+                    if (createdBy != null && !createdBy.isBlank()) {
+                        predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+                    }
 
-                        return cb.and(predicates.toArray(new Predicate[0]));
-                    }, pageable);
+                    return cb.and(predicates.toArray(new Predicate[0]));
+                }, pageable);
 
-            return CommonResponse.success(results, "Filtered results");
+        return CommonResponse.success(results, "Filtered results");
     }
 
     @Override
@@ -377,6 +462,5 @@ public class PayoutServiceImpl implements PayoutService {
 
         return CommonResponse.success(responseDto, "Beneficiary Bank Account updated successfully");
     }
-
 
 }

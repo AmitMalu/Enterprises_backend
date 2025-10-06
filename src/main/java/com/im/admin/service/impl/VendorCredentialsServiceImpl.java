@@ -87,6 +87,7 @@ public class VendorCredentialsServiceImpl implements VendorCredentialsService {
         existing.setBaseUrlProd(dto.getBaseUrlProd());
         existing.setTokenUrlUat(dto.getTokenUrlUat());
         existing.setTokenUrlProd(dto.getTokenUrlProd());
+        existing.setCallbackUrl(dto.getCallbackUrl());
         existing.setToken(dto.getToken());
         existing.setTokenType(dto.getTokenType());
         existing.setClientId(dto.getClientId());

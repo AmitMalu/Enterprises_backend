@@ -1,6 +1,6 @@
 package com.im.admin.repositories;
 
-import com.im.admin.entities.BanksDetailss;
+import com.im.admin.entities.BanksDetails;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -8,9 +8,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface BankDetailsRepository extends JpaRepository<BanksDetailss, Long>, JpaSpecificationExecutor<BanksDetailss> {
+public interface BankDetailsRepository extends JpaRepository<BanksDetails, Long>, JpaSpecificationExecutor<BanksDetails> {
 
-    List<BanksDetailss> findByHierarchyId(String hierarchyId);
+    List<BanksDetails> findByHierarchyId(String hierarchyId);
 
     long countByHierarchyId(String hierarchyId);
 

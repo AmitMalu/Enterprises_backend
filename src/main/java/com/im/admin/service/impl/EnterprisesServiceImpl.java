@@ -144,7 +144,7 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
         // Save Bank Details separately (Before enterprises save)
         if (enterprises.getBankDetails() != null) {
-            BanksDetailss bankDetails = enterprises.getBankDetails();
+            BanksDetails bankDetails = enterprises.getBankDetails();
             bankDetails.setHierarchyId(enterprises.getEnterpriseId()); // set after ID is generated
             bankDetails.setBankName(enterprises.getBankDetails().getBankName());
             bankDetails.setBankHolderName(enterprises.getBankDetails().getBankHolderName());
@@ -154,7 +154,7 @@ public class EnterprisesServiceImpl implements EnterprisesService {
             bankDetails.setCreatedBy(enterprises.getCreatedBy());
 
             // Save bank details
-            BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+            BanksDetails savedBankDetails = bankDetailsRepository.save(bankDetails);
 
             // Attach it to enterprises (foreign key)
             enterprises.setBankDetails(savedBankDetails);

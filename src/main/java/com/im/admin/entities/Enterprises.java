@@ -77,7 +77,7 @@ public class Enterprises {
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bank_details_id", referencedColumnName = "id")
-    private BanksDetailss bankDetails;
+    private BanksDetails bankDetails;
 
     @ManyToOne
     @JoinColumn(name = "theme_id")

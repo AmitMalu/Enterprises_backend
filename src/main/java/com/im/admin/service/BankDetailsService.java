@@ -1,18 +1,18 @@
 package com.im.admin.service;
 
-import com.im.admin.entities.BanksDetailss;
+import com.im.admin.entities.BanksDetails;
 import com.im.admin.response.CommonResponse;
 import org.springframework.data.domain.Page;
 
 public interface BankDetailsService {
 
-    CommonResponse<BanksDetailss> save(BanksDetailss request);
+    CommonResponse<BanksDetails> save(BanksDetails request);
 
-    CommonResponse<BanksDetailss> update(Long id, BanksDetailss request);
+    CommonResponse<BanksDetails> update(Long id, BanksDetails request);
 
-    CommonResponse<BanksDetailss> getById(Long id);
+    CommonResponse<BanksDetails> getById(Long id);
 
-    CommonResponse<Page<BanksDetailss>> getAll(String hierarchyId, String bankName, Boolean isVerified, int page, int size);
+    CommonResponse<Page<BanksDetails>> getAll(String hierarchyId, String bankName, Boolean isVerified, int page, int size);
 
     CommonResponse<String> delete(Long id);
 }
