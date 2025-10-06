@@ -24,7 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -150,6 +152,35 @@ public class VendorRoutingServiceImpl implements VendorRoutingService {
                         Join<Object, Object> v3Join = root.join("routingPriority3", JoinType.INNER);
                         predicates.add(cb.like(cb.lower(v3Join.get("vendorName")), "%" + value.toLowerCase() + "%"));
                     }
+
+                    case "createdOn" -> {
+                        try {
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+                            LocalDate date = LocalDate.parse(value, formatter);
+                            predicates.add(cb.between(
+                                    root.get("createdOn"),
+                                    date.atStartOfDay(),
+                                    date.atTime(23, 59, 59)
+                            ));
+                        } catch (Exception e) {
+                            log.warn("Invalid createdOn filter value: {}", value, e);
+                        }
+                    }
+
+                    case "editedOn" -> {
+                        try {
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+                            LocalDate date = LocalDate.parse(value, formatter);
+                            predicates.add(cb.between(
+                                    root.get("editedOn"),
+                                    date.atStartOfDay(),
+                                    date.atTime(23, 59, 59)
+                            ));
+                        } catch (Exception e) {
+                            log.warn("Invalid editedOn filter value: {}", value, e);
+                        }
+                    }
+
 
 
                     default -> {

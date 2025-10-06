@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -111,7 +112,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                                                       String bankHolderName, String bankAccountName, String bankAccountNumber,
                                                       String bankTranId, String paymentMode, String narration, String ipAddress,
                                                       LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks, String depositType) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createDateTime"));
         Specification<PrefundRequest> spec = PrefundRequestSpecification.getFilter(
                 id, hierarchyId, mobileNumber, depositAmount, status, depositDate,
                 createDateTime, bankHolderName, bankAccountName, bankAccountNumber,

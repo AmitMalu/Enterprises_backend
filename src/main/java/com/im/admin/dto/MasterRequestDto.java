@@ -7,4 +7,5 @@ import lombok.Data;
 public class MasterRequestDto {
     private String imMasterName;       // e.g., Currency
     private String imSubMasterName;     // e.g., Rs, AED, USD
+    private String createdBy;
 }

@@ -14,6 +14,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -105,21 +106,24 @@ public class ProductsServiceImpl implements ProductsService {
     }
 
     @Override
-    public Page<Products> getAllProducts(Pageable pageable,List<Short> id, String name, String productCode, String productCodeForScheme,
-                                         String productGroup, Boolean isShow, Boolean hasCharges,
-                                         Boolean isCommissions, Boolean isInventory, Boolean isSettlement,
-                                         Boolean isVirtual, Boolean isVisible, Boolean reverseTx,
-                                         Boolean clusterMode, Boolean blocked, Boolean active) {
+    public Page<Products> getAllProducts(Pageable pageable, List<Short> id, String name, String productCode,
+                                  String productCodeForScheme, String productGroup, Boolean isShow,
+                                  Boolean hasCharges, Boolean isCommissions, Boolean isInventory,
+                                  Boolean isSettlement, Boolean isVirtual, Boolean isVisible,
+                                  Boolean reverseTx, Boolean clusterMode, Boolean blocked, Boolean active,
+                                  String createdBy, String editedBy, LocalDate createdOn, LocalDate editedOn) {
 
         Specification<Products> spec = ProductsSpecification.getFilter(
-                id,name, productCode, productCodeForScheme, productGroup,
+                id, name, productCode, productCodeForScheme, productGroup,
                 isShow, hasCharges, isCommissions, isInventory,
                 isSettlement, isVirtual, isVisible, reverseTx,
-                clusterMode, blocked, active
+                clusterMode, blocked, active,
+                createdBy, editedBy, createdOn, editedOn
         );
 
         return productsRepository.findAll(spec, pageable);
     }
+
 
 
 

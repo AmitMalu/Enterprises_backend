@@ -9,11 +9,14 @@ import com.im.admin.service.MasterService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -51,14 +54,21 @@ public class MasterController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Integer imMasterId,
-            @RequestParam(required = false) String imMasterName
+            @RequestParam(required = false) String imMasterName,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createdOn
     ) {
-        log.info("API Call: getAllMasters with page: {}, size: {}, imMasterId: {}, imMasterName: {}",
-                page, size, imMasterId, imMasterName);
-        Page<MasterResponseDto> result = masterService.getAllMasters(page, size, imMasterId, imMasterName);
-        log.info("Fetched all masters successfully");
+        log.info("API Call: getAllMasters with page: {}, size: {}, imMasterId: {}, imMasterName: {}, createdBy: {}, createdOn: {}",
+                page, size, imMasterId, imMasterName, createdBy, createdOn);
+
+        Page<MasterResponseDto> result =
+                masterService.getAllMasters(page, size, imMasterId, imMasterName, createdBy, createdOn);
+
+        log.info("Fetched all masters successfully, count={}", result.getTotalElements());
         return ResponseEntity.ok(new CommonResponse<>(200, "Success", result));
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse<MasterResponseDto>> getMasterById(@PathVariable Integer id) {
@@ -98,15 +108,21 @@ public class MasterController {
             @RequestParam(required = false) Integer imMasterId,
             @RequestParam(required = false) String imMasterName,
             @RequestParam(required = false) Integer imSubMasterId,
-            @RequestParam(required = false) String imSubMasterName
+            @RequestParam(required = false) String imSubMasterName,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createdOn
     ) {
-        log.info("API Call: getAllSubMaster with page: {}, size: {}, imMasterId: {}, imMasterName: {}, imSubMasterId: {}, imSubMasterName: {}",
-                page, size, imMasterId, imMasterName, imSubMasterId, imSubMasterName);
+        log.info("API Call: getAllSubMaster with page: {}, size: {}, imMasterId: {}, imMasterName: {}, imSubMasterId: {}, imSubMasterName: {}, createdBy: {}, createdOn: {}",
+                page, size, imMasterId, imMasterName, imSubMasterId, imSubMasterName, createdBy, createdOn);
+
         Page<DropdownResponseDto> result = masterService.getAllSubMaster(
-                page, size, imMasterId, imMasterName, imSubMasterId, imSubMasterName);
-        log.info("Fetched all sub masters successfully");
+                page, size, imMasterId, imMasterName, imSubMasterId, imSubMasterName, createdBy, createdOn
+        );
+
+        log.info("Fetched all sub masters successfully, count={}", result.getTotalElements());
         return ResponseEntity.ok(new CommonResponse<>(200, "Success", result));
     }
+
 
     @GetMapping("/im-sub-master-details")
     public List<ImSubMasterResponseDto> getSubMasterDetails(@RequestParam Integer masterId) {
