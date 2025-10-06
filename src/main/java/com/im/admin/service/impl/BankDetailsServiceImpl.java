@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.BankDetailsResponseDto;
 import com.im.admin.entities.BanksDetails;
 import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.response.CommonResponse;
@@ -140,6 +141,23 @@ public class BankDetailsServiceImpl implements BankDetailsService {
         repository.delete(bank);
         log.info("Bank record deleted successfully | ID={}", id);
         return CommonResponse.success("200","Bank record deleted successfully.");
+    }
+
+    @Override
+    public CommonResponse<List<BankDetailsResponseDto>> getVerifiedBankDetails(String hierarchyId) {
+        List<BanksDetails> verifiedBanks = repository.findByHierarchyIdAndIsVerifiedTrue(hierarchyId);
+
+        List<BankDetailsResponseDto> responseDtos = verifiedBanks.stream()
+                .map(bank -> new BankDetailsResponseDto(
+                        bank.getId(),
+                        bank.getBankName(),
+                        bank.getBankHolderName(),
+                        bank.getBankAccountNumber(),
+                        bank.getIfscCode()
+                ))
+                .toList();
+
+        return new CommonResponse<>(200, "Verified Bank Details Fetched Successfully", responseDtos);
     }
 
 }

@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.BankDetailsResponseDto;
 import com.im.admin.entities.BanksDetails;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.BankDetailsService;
@@ -8,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -62,6 +65,13 @@ public class BankDetailsController {
         log.info("Request received to delete bank record | ID={}", id);
         CommonResponse<String> response = service.delete(id);
         return ResponseEntity.status(response.getStatusCode()).body(response);
+    }
+
+    @GetMapping("/verified/{hierarchyId}")
+    public ResponseEntity<CommonResponse<List<BankDetailsResponseDto>>> getVerifiedBanks(
+            @PathVariable String hierarchyId) {
+        CommonResponse<List<BankDetailsResponseDto>> response = service.getVerifiedBankDetails(hierarchyId);
+        return ResponseEntity.ok(response);
     }
 
 }
