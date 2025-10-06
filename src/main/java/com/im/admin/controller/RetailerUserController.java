@@ -2,14 +2,18 @@ package com.im.admin.controller;
 
 import com.im.admin.entities.RetailerUser;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.RetailerUserResponseDTO;
 import com.im.admin.service.RetailerUserService;
 import com.im.admin.spec.projectionFilter.RetailerUserProjection;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -35,25 +39,25 @@ public class RetailerUserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-        @GetMapping("/get-all/filter")
-        public ResponseEntity<CommonResponse<Map<String, Object>>> getFilteredUsers(
-                @RequestParam(required = false) String name,
-                @RequestParam(required = false) String mobileNumber,
-                @RequestParam(required = false) String emailId,
-                @RequestParam(required = false) Boolean emailVerified,
-                @RequestParam(required = false) Boolean status,
-                @RequestParam(defaultValue = "0") int page,
-                @RequestParam(defaultValue = "10") int size,
-                @RequestParam(defaultValue = "createdOn") String sortBy,
-                @RequestParam(defaultValue = "desc") String sortDir
-        ) {
-            return ResponseEntity.ok(
-                    retailerUserService.getFilteredUsers(
-                            name, mobileNumber, emailId, emailVerified, status,
-                            page, size, sortBy, sortDir
-                    )
-            );
-        }
+    @GetMapping("/get-all/filter")
+    public ResponseEntity<CommonResponse<Map<String, Object>>> getFilteredUsers(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String mobileNumber,
+            @RequestParam(required = false) String emailId,
+            @RequestParam(required = false) Boolean emailVerified,
+            @RequestParam(required = false) Boolean status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdOn") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                retailerUserService.getFilteredUsers(
+                        name, mobileNumber, emailId, emailVerified, status,
+                        page, size, sortBy, sortDir
+                )
+        );
+    }
 
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<CommonResponse<Void>> deleteRetailerUser(@PathVariable String id) {
@@ -74,4 +78,22 @@ public class RetailerUserController {
 
         return ResponseEntity.ok(response);
     }
+
+
+    @GetMapping("/users/{retailerId}")
+    public ResponseEntity<CommonResponse<Page<RetailerUserResponseDTO>>> getRetailerUsersByRetailerId(
+            @PathVariable String retailerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        log.info("Fetching Retailer Users for Retailer ID: {} (page: {}, size: {})", retailerId, page, size);
+
+        CommonResponse<Page<RetailerUserResponseDTO>> response = retailerUserService.getRetailerUsersByRetailerId(retailerId, page, size);
+
+        return ResponseEntity.ok(response);
+    }
+
+
+
 }
+
