@@ -20,13 +20,11 @@ public interface PayoutService {
 
     CommonResponse<PayoutResponseDto> sendPayoutRequest(SendPayoutRequest sendPayoutRequest);
 
-    PayoutMerchantCallbackResponse updateMerchantCallbackUrl(PayoutMerchantCallbackRequest request);
+    PayoutMerchantCallbackResponse updateMerchantCallbackUrl(SendPayoutRequest request);
 
     String handlePayoutCallback(Map<String, Object> payload);
 
     CommonResponse<BeneficiaryBankAccount> saveBeneficiary(BeneficiaryBankAccountDTO dto);
-
-
 
     CommonResponse<String> deleteMultipleBeneficiaries(List<Long> ids);
 

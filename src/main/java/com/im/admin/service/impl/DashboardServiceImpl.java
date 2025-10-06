@@ -9,7 +9,6 @@ import com.im.admin.response.*;
 import com.im.admin.service.DashboardService;
 import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.formula.functions.T;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -231,7 +230,7 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletPinCode(r.getOutletAddress().getZipCode());
 
             // Bank Accounts (multiple)
-            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(r.getRetailerId());
+            List<BanksDetails> banksDetailssList = bankDetailsRepository.findByHierarchyId(r.getRetailerId());
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
@@ -290,7 +289,7 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletPinCode(dt.getOutletAddress().getZipCode());
 
             // Bank Accounts (multiple)
-            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(dt.getDistributorId());
+            List<BanksDetails> banksDetailssList = bankDetailsRepository.findByHierarchyId(dt.getDistributorId());
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
@@ -336,7 +335,7 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletPinCode(pt.getOutletAddress().getZipCode());
 
             // Bank Accounts (multiple)
-            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(pt.getPartnerId());
+            List<BanksDetails> banksDetailssList = bankDetailsRepository.findByHierarchyId(pt.getPartnerId());
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
@@ -382,7 +381,7 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletPinCode(sd.getOutletAddress().getZipCode());
 
             // Bank Accounts (multiple)
-            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(sd.getSuperDistributorId());
+            List<BanksDetails> banksDetailssList = bankDetailsRepository.findByHierarchyId(sd.getSuperDistributorId());
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
@@ -428,7 +427,7 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletPinCode(wl.getOutletAddress().getZipCode());
 
             // Bank Accounts (multiple)
-            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(wl.getWhiteLabelId());
+            List<BanksDetails> banksDetailssList = bankDetailsRepository.findByHierarchyId(wl.getWhiteLabelId());
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
@@ -474,7 +473,7 @@ public class DashboardServiceImpl implements DashboardService {
             outlet.setOutletPinCode(et.getOutletAddress().getZipCode());
 
             // Bank Accounts (multiple)
-            List<BanksDetailss> banksDetailssList = bankDetailsRepository.findByHierarchyId(et.getEnterpriseId());
+            List<BanksDetails> banksDetailssList = bankDetailsRepository.findByHierarchyId(et.getEnterpriseId());
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();

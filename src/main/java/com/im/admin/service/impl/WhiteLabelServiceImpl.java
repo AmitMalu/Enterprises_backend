@@ -142,7 +142,7 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 
             // Save Bank Details separately (Before whiteLabels save)
             if (whiteLabels.getBankDetails() != null) {
-                BanksDetailss bankDetails = whiteLabels.getBankDetails();
+                BanksDetails bankDetails = whiteLabels.getBankDetails();
                 bankDetails.setHierarchyId(whiteLabels.getWhiteLabelId()); // set after ID is generated
                 bankDetails.setBankName(whiteLabels.getBankDetails().getBankName());
                 bankDetails.setBankHolderName(whiteLabels.getBankDetails().getBankHolderName());
@@ -152,7 +152,7 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
                 bankDetails.setCreatedBy(whiteLabels.getCreatedBy());
 
                 // Save bank details
-                BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+                BanksDetails savedBankDetails = bankDetailsRepository.save(bankDetails);
 
                 // Attach it to whiteLabels (foreign key)
                 whiteLabels.setBankDetails(savedBankDetails);

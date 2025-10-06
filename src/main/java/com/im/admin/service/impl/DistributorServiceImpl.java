@@ -148,7 +148,7 @@ public class DistributorServiceImpl implements DistributorService {
 
             // Save Bank Details separately (Before retailer save)
             if (distributor.getBankDetails() != null) {
-                BanksDetailss bankDetails = distributor.getBankDetails();
+                BanksDetails bankDetails = distributor.getBankDetails();
                 bankDetails.setHierarchyId(distributor.getDistributorId()); // set after ID is generated
                 bankDetails.setBankName(distributor.getBankDetails().getBankName());
                 bankDetails.setBankHolderName(distributor.getBankDetails().getBankHolderName());
@@ -158,7 +158,7 @@ public class DistributorServiceImpl implements DistributorService {
                 bankDetails.setCreatedBy(distributor.getCreatedBy());
 
                 // Save bank details
-                BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+                BanksDetails savedBankDetails = bankDetailsRepository.save(bankDetails);
 
                 // Attach it to Distributor (foreign key)
                 distributor.setBankDetails(savedBankDetails);

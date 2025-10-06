@@ -136,7 +136,7 @@ public class PartnerServiceImpl implements PartnerService {
 
         // Save Bank Details separately (Before partner save)
         if (partner.getBankDetails() != null) {
-            BanksDetailss bankDetails = partner.getBankDetails();
+            BanksDetails bankDetails = partner.getBankDetails();
             bankDetails.setHierarchyId(partner.getPartnerId()); // set after ID is generated
             bankDetails.setBankName(partner.getBankDetails().getBankName());
             bankDetails.setBankHolderName(partner.getBankDetails().getBankHolderName());
@@ -146,7 +146,7 @@ public class PartnerServiceImpl implements PartnerService {
             bankDetails.setCreatedBy(partner.getCreatedBy());
 
             // Save bank details
-            BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+            BanksDetails savedBankDetails = bankDetailsRepository.save(bankDetails);
 
             // Attach it to partner (foreign key)
             partner.setBankDetails(savedBankDetails);

@@ -2,12 +2,10 @@ package com.im.admin.entities;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -80,7 +78,7 @@ public class SuperDistributor {
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bank_details_id", referencedColumnName = "id")
-    private BanksDetailss bankDetails;
+    private BanksDetails bankDetails;
 
     @Column(name = "status")
     private String status = "PENDING";
