@@ -82,7 +82,7 @@ public class RetailerUser {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bank_details_id", referencedColumnName = "id")
-    private BanksDetailss bankDetails;
+    private BanksDetails bankDetails;
 
     @Column(name = "status")
     private Boolean status = true;

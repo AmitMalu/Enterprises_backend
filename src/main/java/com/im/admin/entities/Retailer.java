@@ -81,7 +81,7 @@ public class Retailer {
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bank_details_id", referencedColumnName = "id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    private BanksDetailss bankDetails;
+    private BanksDetails bankDetails;
 
     @Column(name = "status")
     private String status = "PENDING";

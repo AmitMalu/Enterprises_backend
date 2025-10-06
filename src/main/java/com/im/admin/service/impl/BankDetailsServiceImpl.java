@@ -1,6 +1,6 @@
 package com.im.admin.service.impl;
 
-import com.im.admin.entities.BanksDetailss;
+import com.im.admin.entities.BanksDetails;
 import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.BankDetailsService;
@@ -28,7 +28,7 @@ public class BankDetailsServiceImpl implements BankDetailsService {
     private BankDetailsRepository repository;
 
     @Override
-    public CommonResponse<BanksDetailss> save(BanksDetailss request) {
+    public CommonResponse<BanksDetails> save(BanksDetails request) {
         log.info("Saving new bank details | HierarchyId={}, BankName={}, AccountNumber={}",
                 request.getHierarchyId(), request.getBankName(), request.getBankAccountNumber());
 
@@ -40,7 +40,7 @@ public class BankDetailsServiceImpl implements BankDetailsService {
             return CommonResponse.error(400, "Only 2 banks are allowed per hierarchy.");
         }
 
-        BanksDetailss banksDetailss = new BanksDetailss();
+        BanksDetails banksDetailss = new BanksDetails();
 
         banksDetailss.setHierarchyId(request.getHierarchyId());
         banksDetailss.setBankName(request.getBankName());
@@ -50,18 +50,18 @@ public class BankDetailsServiceImpl implements BankDetailsService {
         banksDetailss.setIsVerified(request.getIsVerified());
         banksDetailss.setCreatedBy(request.getCreatedBy());
 
-        BanksDetailss saved = repository.save(banksDetailss);
+        BanksDetails saved = repository.save(banksDetailss);
         log.info("Bank details saved successfully | ID={}", saved.getId());
 
         return CommonResponse.success(saved, "Bank details saved successfully");
     }
 
     @Override
-    public CommonResponse<BanksDetailss> update(Long id, BanksDetailss request) {
+    public CommonResponse<BanksDetails> update(Long id, BanksDetails request) {
         log.info("Updating bank details | ID={}, HierarchyId={}, BankName={}",
                 id, request.getHierarchyId(), request.getBankName());
 
-        BanksDetailss existing = repository.findById(id)
+        BanksDetails existing = repository.findById(id)
                 .orElseThrow(() -> {
                     log.error("Bank record not found with ID={}", id);
                     return new NoSuchElementException("Bank record not found with ID: " + id);
@@ -74,7 +74,7 @@ public class BankDetailsServiceImpl implements BankDetailsService {
         existing.setIfscCode(request.getIfscCode());
         existing.setIsVerified(request.getIsVerified());
 
-        BanksDetailss updated = repository.save(existing);
+        BanksDetails updated = repository.save(existing);
         log.info("Bank details updated successfully | ID={}", updated.getId());
 
         return CommonResponse.success(updated, "Bank details updated successfully");
@@ -82,10 +82,10 @@ public class BankDetailsServiceImpl implements BankDetailsService {
 
 
     @Override
-    public CommonResponse<BanksDetailss> getById(Long id) {
+    public CommonResponse<BanksDetails> getById(Long id) {
         log.info("Fetching bank details by ID={}", id);
 
-        BanksDetailss data = repository.findById(id)
+        BanksDetails data = repository.findById(id)
                 .orElseThrow(() -> {
                     log.error("Bank record not found with ID={}", id);
                     return new NoSuchElementException("Bank record not found with ID: " + id);
@@ -96,13 +96,13 @@ public class BankDetailsServiceImpl implements BankDetailsService {
     }
 
     @Override
-    public CommonResponse<Page<BanksDetailss>> getAll(String hierarchyId, String bankName, Boolean isVerified, int page, int size) {
+    public CommonResponse<Page<BanksDetails>> getAll(String hierarchyId, String bankName, Boolean isVerified, int page, int size) {
         log.info("Fetching all banks | hierarchyId={}, bankName={}, isVerified={}, page={}, size={}",
                 hierarchyId, bankName, isVerified, page, size);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdOn").descending());
 
-        Specification<BanksDetailss> spec = (root, query, cb) -> {
+        Specification<BanksDetails> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
             if (hierarchyId != null && !hierarchyId.isEmpty())
@@ -117,7 +117,7 @@ public class BankDetailsServiceImpl implements BankDetailsService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        Page<BanksDetailss> result = repository.findAll(spec, pageable);
+        Page<BanksDetails> result = repository.findAll(spec, pageable);
         log.info("Bank list loaded successfully | totalRecords={}", result.getTotalElements());
 
         return CommonResponse.success(result, "Bank list loaded");
@@ -125,7 +125,7 @@ public class BankDetailsServiceImpl implements BankDetailsService {
 
     @Override
     public CommonResponse<String> delete(Long id) {
-        BanksDetailss bank = repository.findById(id)
+        BanksDetails bank = repository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Bank record not found with ID: " + id));
 
         // Check if 90 days have passed since creation

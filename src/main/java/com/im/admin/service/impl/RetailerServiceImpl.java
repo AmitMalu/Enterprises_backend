@@ -6,7 +6,6 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.AddressDTO;
 import com.im.admin.dto.BankDetailsDTO;
 import com.im.admin.dto.FieldErrorDetailsDTO;
-import com.im.admin.dto.RetailerDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
 import com.im.admin.repositories.*;
@@ -148,7 +147,7 @@ public class RetailerServiceImpl implements RetailerService {
 
         // Save Bank Details separately (Before retailer save)
         if (retailer.getBankDetails() != null) {
-            BanksDetailss bankDetails = retailer.getBankDetails();
+            BanksDetails bankDetails = retailer.getBankDetails();
             bankDetails.setHierarchyId(retailer.getRetailerId()); // set after ID is generated
             bankDetails.setBankName(retailer.getBankDetails().getBankName());
             bankDetails.setBankHolderName(retailer.getBankDetails().getBankHolderName());
@@ -158,7 +157,7 @@ public class RetailerServiceImpl implements RetailerService {
             bankDetails.setCreatedBy(retailer.getCreatedBy());
 
             // Save bank details
-            BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+            BanksDetails savedBankDetails = bankDetailsRepository.save(bankDetails);
 
             // Attach it to retailer (foreign key)
             retailer.setBankDetails(savedBankDetails);
@@ -351,7 +350,7 @@ public class RetailerServiceImpl implements RetailerService {
         dto.setOutletAddress(mapAddress(retailer.getOutletAddress()));
 
         if (retailer.getBankDetails() != null) {
-            BanksDetailss bank = retailer.getBankDetails();
+            BanksDetails bank = retailer.getBankDetails();
             BankDetailsDTO bankDto = new BankDetailsDTO();
             bankDto.setBankName(bank.getBankName());
             bankDto.setBankAccountNumber(bank.getBankAccountNumber());

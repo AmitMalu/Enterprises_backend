@@ -81,7 +81,7 @@ public class WhiteLabels {
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bank_details_id", referencedColumnName = "id")
-    private BanksDetailss bankDetails;
+    private BanksDetails bankDetails;
 
     @Column(name = "domain_url")
     private String domainURL;

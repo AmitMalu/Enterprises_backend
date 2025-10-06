@@ -143,7 +143,7 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 
             // Save Bank Details separately (Before superDistributor save)
             if (superDistributor.getBankDetails() != null) {
-                BanksDetailss bankDetails = superDistributor.getBankDetails();
+                BanksDetails bankDetails = superDistributor.getBankDetails();
                 bankDetails.setHierarchyId(superDistributor.getSuperDistributorId()); // set after ID is generated
                 bankDetails.setBankName(superDistributor.getBankDetails().getBankName());
                 bankDetails.setBankHolderName(superDistributor.getBankDetails().getBankHolderName());
@@ -153,7 +153,7 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
                 bankDetails.setCreatedBy(superDistributor.getCreatedBy());
 
                 // Save bank details
-                BanksDetailss savedBankDetails = bankDetailsRepository.save(bankDetails);
+                BanksDetails savedBankDetails = bankDetailsRepository.save(bankDetails);
 
                 // Attach it to superDistributor (foreign key)
                 superDistributor.setBankDetails(savedBankDetails);
