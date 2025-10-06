@@ -143,7 +143,7 @@ public class RetailerServiceImpl implements RetailerService {
 
         retailer.setShopImage(imageUtil.saveImage(shopImage, "Retailer"));
 
-        retailer.setBusinessNumber( imageUtil.saveImage(businessProofImage, "Retailer"));
+        retailer.setBusinessProofImage(imageUtil.saveImage(businessProofImage, "Retailer"));
 
         // Save Bank Details separately (Before retailer save)
         if (retailer.getBankDetails() != null) {
