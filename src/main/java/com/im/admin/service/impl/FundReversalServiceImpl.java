@@ -40,6 +40,17 @@ public class FundReversalServiceImpl implements FundReversalService {
     @Override
     public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request) {
 
+        try {
+            CheckBalanceRequestDto balanceRequest = new CheckBalanceRequestDto();
+            balanceRequest.setHierarchyId(request.getChildHierarchyId());
+            balanceRequest.setWalletType(request.getWalletType());
+            balanceRequest.setAmount(request.getReversalAmount());
+
+            checkBalance(balanceRequest);
+        } catch (RuntimeException e) {
+            return new CommonResponse<>(400, e.getMessage(), null);
+        }
+
         if (request.getOtp() == null || request.getOtp().isEmpty()) {
             // Step 1: Generate OTP
             String otp = OtpUtil.generateOtp();
