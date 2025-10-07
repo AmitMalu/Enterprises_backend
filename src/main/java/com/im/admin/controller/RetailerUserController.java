@@ -79,19 +79,35 @@ public class RetailerUserController {
         return ResponseEntity.ok(response);
     }
 
-
     @GetMapping("/users/{retailerId}")
     public ResponseEntity<CommonResponse<Page<RetailerUserResponseDTO>>> getRetailerUsersByRetailerId(
             @PathVariable String retailerId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String retailerUserId,
+            @RequestParam(required = false) String abbreviation,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String mobileNumber,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String emailId,
+            @RequestParam(required = false) Boolean emailVerified,
+            @RequestParam(required = false) Boolean status,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String editedBy,
+            @RequestParam(required = false) String role_id,
+            @RequestParam(required = false) String subRoleId,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate createdOn
+    ) {
         log.info("Fetching Retailer Users for Retailer ID: {} (page: {}, size: {})", retailerId, page, size);
 
-        CommonResponse<Page<RetailerUserResponseDTO>> response = retailerUserService.getRetailerUsersByRetailerId(retailerId, page, size);
+        CommonResponse<Page<RetailerUserResponseDTO>> response = retailerUserService.getRetailerUsersByRetailerId(
+                retailerId, retailerUserId, abbreviation, name, mobileNumber, username, emailId,
+                emailVerified, status, createdBy, editedBy, role_id, subRoleId, createdOn, page, size
+        );
 
         return ResponseEntity.ok(response);
     }
+
 
 
 
