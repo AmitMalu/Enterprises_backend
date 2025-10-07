@@ -1,6 +1,8 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
+import com.im.admin.exception.CustomValidationException;
 import com.im.admin.repositories.ImSubRoleRepository;
 import com.im.admin.repositories.RetailerRepository;
 import com.im.admin.repositories.RetailerUserRepository;
@@ -10,6 +12,8 @@ import com.im.admin.response.RetailerUserResponseDTO;
 import com.im.admin.service.RetailerUserService;
 import com.im.admin.spec.projectionFilter.RetailerUserProjection;
 import com.im.admin.util.IdGenerator;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import org.apache.catalina.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -21,9 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import jakarta.persistence.criteria.Predicate;
 
@@ -36,8 +38,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class RetailerUserServiceImpl implements RetailerUserService {
@@ -57,9 +59,32 @@ public class RetailerUserServiceImpl implements RetailerUserService {
     @Autowired
     private IdGenerator idGenerator;
 
+    @Autowired
+    private PhoneNumberValidationService phoneNumberValidationService;
+
+    @Autowired
+    private Validator validator;
+
     @Transactional
     @Override
     public RetailerUser createRetailerUser(RetailerUser retailerUser) {
+
+        // Field Validation
+        Set<ConstraintViolation<RetailerUser>> violations = validator.validate(retailerUser);
+        List<FieldErrorDetailsDTO> errors = violations.stream()
+                .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
+                .collect(Collectors.toList());
+
+        // Phone validation
+        try {
+            phoneNumberValidationService.validatePhoneNumber(retailerUser.getMobileNumber());
+        } catch (IllegalArgumentException ex) {
+            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+        }
+
+        if (!errors.isEmpty()) {
+            throw new CustomValidationException(errors);
+        }
 
         String parentAccount = retailerUser.getParentAccount();
 

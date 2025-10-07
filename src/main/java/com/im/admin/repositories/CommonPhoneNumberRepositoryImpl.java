@@ -25,6 +25,8 @@ public class CommonPhoneNumberRepositoryImpl implements CommonPhoneNumberReposit
                 WHEN EXISTS (SELECT 1 FROM partner WHERE mobile_number = :phoneNumber) THEN 'Partner'
                 WHEN EXISTS (SELECT 1 FROM distributor WHERE mobile_number = :phoneNumber) THEN 'Distributor'
                 WHEN EXISTS (SELECT 1 FROM retailer WHERE mobile_number = :phoneNumber) THEN 'Retailer'
+                WHEN EXISTS (SELECT 1 FROM retailer_users WHERE mobile_number =:phoneNumber) THEN 'Retailer User'
+                WHEN EXISTS (SELECT 1 FROM admin_users WHERE mobile_number =:phoneNumber) THEN 'Admin User'
                 ELSE NULL END
         """;
 
