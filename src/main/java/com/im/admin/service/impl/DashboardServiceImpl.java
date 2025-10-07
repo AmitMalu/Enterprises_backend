@@ -194,7 +194,6 @@ public class DashboardServiceImpl implements DashboardService {
         InfoDto info = new InfoDto();
         AddressDto address = new AddressDto();
         OutletAddressDto outlet = new OutletAddressDto();
-        MyBanksDto myBanksDto = new MyBanksDto();
         KycDocsDto docsDto = new KycDocsDto();
 
         if (entity instanceof Admin ad) {
@@ -290,10 +289,12 @@ public class DashboardServiceImpl implements DashboardService {
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setId(bank.getId());
                         banksDto.setBankName(bank.getBankName());
                         banksDto.setAccountName(bank.getBankHolderName());
                         banksDto.setAccountNo(bank.getBankAccountNumber());
                         banksDto.setIFCSCode(bank.getIfscCode());
+                        banksDto.setVerified(bank.getIsVerified());
                         return banksDto;
                     })
                     .collect(Collectors.toList());
@@ -336,10 +337,12 @@ public class DashboardServiceImpl implements DashboardService {
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setId(bank.getId());
                         banksDto.setBankName(bank.getBankName());
                         banksDto.setAccountName(bank.getBankHolderName());
                         banksDto.setAccountNo(bank.getBankAccountNumber());
                         banksDto.setIFCSCode(bank.getIfscCode());
+                        banksDto.setVerified(bank.getIsVerified());
                         return banksDto;
                     })
                     .collect(Collectors.toList());
@@ -382,10 +385,12 @@ public class DashboardServiceImpl implements DashboardService {
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setId(bank.getId());
                         banksDto.setBankName(bank.getBankName());
                         banksDto.setAccountName(bank.getBankHolderName());
                         banksDto.setAccountNo(bank.getBankAccountNumber());
                         banksDto.setIFCSCode(bank.getIfscCode());
+                        banksDto.setVerified(bank.getIsVerified());
                         return banksDto;
                     })
                     .collect(Collectors.toList());
@@ -428,10 +433,12 @@ public class DashboardServiceImpl implements DashboardService {
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setId(bank.getId());
                         banksDto.setBankName(bank.getBankName());
                         banksDto.setAccountName(bank.getBankHolderName());
                         banksDto.setAccountNo(bank.getBankAccountNumber());
                         banksDto.setIFCSCode(bank.getIfscCode());
+                        banksDto.setVerified(bank.getIsVerified());
                         return banksDto;
                     })
                     .collect(Collectors.toList());
@@ -474,10 +481,12 @@ public class DashboardServiceImpl implements DashboardService {
             List<MyBanksDto> myBanksDtoList = banksDetailssList.stream()
                     .map(bank -> {
                         MyBanksDto banksDto = new MyBanksDto();
+                        banksDto.setId(bank.getId());
                         banksDto.setBankName(bank.getBankName());
                         banksDto.setAccountName(bank.getBankHolderName());
                         banksDto.setAccountNo(bank.getBankAccountNumber());
                         banksDto.setIFCSCode(bank.getIfscCode());
+                        banksDto.setVerified(bank.getIsVerified());
                         return banksDto;
                     })
                     .collect(Collectors.toList());

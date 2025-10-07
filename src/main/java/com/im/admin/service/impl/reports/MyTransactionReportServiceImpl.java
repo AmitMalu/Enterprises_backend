@@ -25,9 +25,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -60,20 +58,24 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                 ? Arrays.asList(WalletType.PREPAID, WalletType.POSTPAID)
                 : List.of(request.getWalletType());
 
+        long totalCount = 0;
         for (WalletType walletType : walletTypes) {
-            allData.addAll(fetchTransactionsForWallet(walletType, request, from, to, subProducts, pageable));
+            Map<String, Object> walletData = fetchTransactionsForWalletWithCount(walletType, request, from, to, subProducts, pageable);
+            allData.addAll((List<MyTransactionReportResponse>) walletData.get("results"));
+            totalCount += (Long) walletData.get("totalCount");
         }
 
         Page<MyTransactionReportResponse> page = new PageImpl<>(
                 allData,
                 pageable,
-                pageable.getOffset() + allData.size() + 1
+                totalCount
         );
 
         return new CommonResponse<>(200, "Report fetched successfully", page);
     }
 
-    private List<MyTransactionReportResponse> fetchTransactionsForWallet(
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> fetchTransactionsForWalletWithCount(
             WalletType walletType,
             MyTransactionReportRequest request,
             LocalDate from,
@@ -81,10 +83,11 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             List<String> subProducts,
             Pageable pageable
     ) {
-        String hierarchyType = commonMethods.extractHierarchyType(request.getHierarchyId());
+        String hierarchyType = request.getHierarchyType();
         String tableName = commonMethods.getTransactionTable(hierarchyType, walletType.name());
         String columnName = commonMethods.getHierarchyColumnName(hierarchyType);
 
+        // Create stored procedure query
         StoredProcedureQuery query = entityManager.createStoredProcedureQuery("my_transaction_report");
 
         query.registerStoredProcedureParameter("p_table_name", String.class, ParameterMode.IN);
@@ -98,7 +101,7 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
 
         query.setParameter("p_table_name", tableName);
-        query.setParameter("p_hierarchy_id", request.getHierarchyId());
+        query.setParameter("p_hierarchy_id", StringUtils.hasText(request.getHierarchyId()) ? request.getHierarchyId() : null);
         query.setParameter("p_from_date", from);
         query.setParameter("p_to_date", to);
         query.setParameter("p_sub_products", String.join(",", subProducts));
@@ -107,29 +110,46 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         query.setParameter("p_offset", pageable.getPageNumber() * pageable.getPageSize());
         query.setParameter("p_page_size", pageable.getPageSize());
 
-        List<Object[]> resultList = query.getResultList();
+        // Execute procedure
+        boolean hasResult = query.execute();
 
         List<MyTransactionReportResponse> results = new ArrayList<>();
+        Long totalCount = 0L;
 
-        for (Object[] row : resultList) {
-            MyTransactionReportResponse dto = new MyTransactionReportResponse();
-            dto.setId((Integer) row[0]);
-            dto.setTransactionDate(((Date) row[1]).toLocalDate());
-            dto.setTransactionTime(((Time) row[2]).toLocalTime());
-            dto.setBalBefore((BigDecimal) row[3]);
-            dto.setAmount((BigDecimal) row[4]);
-            dto.setBalAfter((BigDecimal) row[5]);
-            dto.setSubProductName((String) row[6]);
-            dto.setActionOnBalanceAmount((String) row[7]);
-            dto.setStatus(Status.valueOf((String) row[8]));
-            dto.setTranxId((String) row[9]);
-            dto.setNarration((String) row[10]);
-            //dto.setWalletType(walletType);
-            results.add(dto);
+        if (hasResult) {
+            List<Object[]> dataRows = query.getResultList();
+            for (Object[] row : dataRows) {
+                MyTransactionReportResponse dto = new MyTransactionReportResponse();
+                dto.setId((Integer) row[0]);
+                dto.setTransactionDate(((Date) row[1]).toLocalDate());
+                dto.setTransactionTime(((Time) row[2]).toLocalTime());
+                dto.setBalBefore((BigDecimal) row[3]);
+                dto.setAmount((BigDecimal) row[4]);
+                dto.setBalAfter((BigDecimal) row[5]);
+                dto.setSubProductName((String) row[6]);
+                dto.setActionOnBalanceAmount((String) row[7]);
+                dto.setStatus(Status.valueOf((String) row[8]));
+                dto.setTranxId((String) row[9]);
+                dto.setNarration((String) row[10]);
+                results.add(dto);
+            }
+            // Move to next result set for total count
+            if (query.hasMoreResults()) {
+                Object countObj = ((List<Object>) query.getResultList()).get(0);
+                if (countObj instanceof Object[]) {
+                    totalCount = ((Number) ((Object[]) countObj)[0]).longValue();
+                } else {
+                    totalCount = ((Number) countObj).longValue();
+                }
+            }
         }
 
-        return results;
+        Map<String, Object> map = new HashMap<>();
+        map.put("results", results);
+        map.put("totalCount", totalCount);
+        return map;
     }
+
 
     @Override
     public ByteArrayInputStream downloadExcel(MyTransactionReportRequest request) throws IOException {
