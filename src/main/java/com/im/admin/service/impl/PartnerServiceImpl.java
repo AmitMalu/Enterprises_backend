@@ -125,9 +125,12 @@ public class PartnerServiceImpl implements PartnerService {
 
         partner.setAbbreviation(abbreviation);
 
-        // 🔹 Upload images (clean & correct mapping)
-        log.info("Uploading distributor images...");
+        // Generate ID
         String folder = "Partner";
+        partner.setPartnerId(idGenerator.generateHierarchyEntityId(folder, partner.getAbbreviation()));
+
+        // Upload images (clean & correct mapping)
+        log.info("Uploading distributor images...");
         partner.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
         partner.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
         partner.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
