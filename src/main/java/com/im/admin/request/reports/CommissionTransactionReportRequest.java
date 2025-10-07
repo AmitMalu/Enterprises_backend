@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CommissionTransactionReportRequest {
 
+    private String hierarchyType;
     private String hierarchyId;
     private WalletType walletType;
     private String fromDate;   // Format: yyyy-MM-dd

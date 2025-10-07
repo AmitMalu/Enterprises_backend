@@ -258,14 +258,79 @@ public class RetailerUserServiceImpl implements RetailerUserService {
     }
 
     @Override
-    public CommonResponse<Page<RetailerUserResponseDTO>> getRetailerUsersByRetailerId(String retailerId, int page, int size) {
+    public CommonResponse<Page<RetailerUserResponseDTO>> getRetailerUsersByRetailerId(
+            String retailerId,
+            String retailerUserId,
+            String abbreviation,
+            String name,
+            String mobileNumber,
+            String username,
+            String emailId,
+            Boolean emailVerified,
+            Boolean status,
+            String createdBy,
+            String editedBy,
+            String role_id,
+            String subRoleId,
+            LocalDate createdOn,
+            int page,
+            int size) {
+
         if (retailerId == null || retailerId.isBlank()) {
             return CommonResponse.handleErrors("Retailer ID cannot be blank");
         }
 
         Pageable pageable = PageRequest.of(page, size);
 
-        Page<RetailerUser> retailerUsers = retailerUserRepository.findByParentAccount(retailerId, pageable);
+        Page<RetailerUser> retailerUsers = retailerUserRepository.findAll((root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // mandatory filter
+            predicates.add(cb.equal(root.get("parentAccount"), retailerId));
+
+            // optional filters
+            if (retailerUserId != null && !retailerUserId.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("retailerUserId")), "%" + retailerUserId.toLowerCase() + "%"));
+            }
+            if (abbreviation != null && !abbreviation.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("abbreviation")), "%" + abbreviation.toLowerCase() + "%"));
+            }
+            if (name != null && !name.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%"));
+            }
+            if (mobileNumber != null && !mobileNumber.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("mobileNumber")), "%" + mobileNumber.toLowerCase() + "%"));
+            }
+            if (username != null && !username.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("username")), "%" + username.toLowerCase() + "%"));
+            }
+            if (emailId != null && !emailId.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("emailId")), "%" + emailId.toLowerCase() + "%"));
+            }
+            if (emailVerified != null) {
+                predicates.add(cb.equal(root.get("emailVerified"), emailVerified));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (createdBy != null && !createdBy.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+            }
+            if (editedBy != null && !editedBy.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
+            }
+            if (role_id != null && !role_id.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("role_id")), "%" + role_id.toLowerCase() + "%"));
+            }
+            if (subRoleId != null && !subRoleId.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("subRoleId")), "%" + subRoleId.toLowerCase() + "%"));
+            }
+            if (createdOn != null) {
+                predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("createdOn")), createdOn));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        }, pageable);
 
         if (retailerUsers.isEmpty()) {
             return CommonResponse.failure("No Retailer Users found for Retailer ID: " + retailerId);

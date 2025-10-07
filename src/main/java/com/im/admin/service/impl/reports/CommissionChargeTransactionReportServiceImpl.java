@@ -44,10 +44,8 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), Sort.by("transactionTime").descending());
 
         // 1. Parse dates
-        LocalDate from = StringUtils.hasText(request.getFromDate())
-                ? LocalDate.parse(request.getFromDate()) : null;
-        LocalDate to = StringUtils.hasText(request.getToDate())
-                ? LocalDate.parse(request.getToDate()) : null;
+        LocalDate from = StringUtils.hasText(request.getFromDate()) ? LocalDate.parse(request.getFromDate()) : null;
+        LocalDate to = StringUtils.hasText(request.getToDate()) ? LocalDate.parse(request.getToDate()) : null;
 
         // 2. Parse sub-product names
         List<String> subProducts = new ArrayList<>();
@@ -57,14 +55,19 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                     .collect(Collectors.toList());
         }
 
-        // 3. Build dynamic table name
-        String hierarchyType = commonMethods.extractHierarchyType(request.getHierarchyId());
-        String tableName = commonMethods.getTransactionTable(hierarchyType, request.getWalletType().name());
-        String columnName = commonMethods.getHierarchyColumnName(hierarchyType);
+        // 3. Resolve hierarchy type for table name
+        String hierarchyTypeForTable = null;
+        if (StringUtils.hasText(request.getHierarchyId())) {
+            hierarchyTypeForTable = commonMethods.extractHierarchyType(request.getHierarchyId());
+        } else if (StringUtils.hasText(request.getHierarchyType())) {
+            hierarchyTypeForTable = request.getHierarchyType();
+        }
 
-        // 4. Prepare stored procedure call
+        String tableName = commonMethods.getTransactionTable(hierarchyTypeForTable, request.getWalletType().name());
+        String columnName = commonMethods.getHierarchyColumnName(hierarchyTypeForTable);
+
+        // 4. Prepare stored procedure
         StoredProcedureQuery query = entityManager.createStoredProcedureQuery("commission_charge_transaction_report");
-
         query.registerStoredProcedureParameter("p_table_name", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_hierarchy_id", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_from_date", Date.class, ParameterMode.IN);
@@ -76,12 +79,15 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
 
         query.setParameter("p_table_name", tableName);
-        query.setParameter("p_hierarchy_id", request.getHierarchyId());
+
+        // 🟩 If hierarchyId is provided → fetch that ID, else fetch all for hierarchyType
+        query.setParameter("p_hierarchy_id", StringUtils.hasText(request.getHierarchyId()) ? request.getHierarchyId() : null);
+
+        query.setParameter("p_column_name", columnName);
         query.setParameter("p_from_date", from);
         query.setParameter("p_to_date", to);
         query.setParameter("p_sub_products", String.join(",", subProducts));
-        query.setParameter("p_transaction_type",request.getReportType());
-        query.setParameter("p_column_name", columnName);
+        query.setParameter("p_transaction_type", request.getReportType());
         query.setParameter("p_offset", pageable.getPageNumber() * pageable.getPageSize());
         query.setParameter("p_page_size", pageable.getPageSize());
 
@@ -100,14 +106,10 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                     dto.setAmount((BigDecimal) record[0]);
                     dto.setBalAfter((BigDecimal) record[1]);
                     dto.setOperator((String) record[20]);
-                    //dto.setNarration();
                     dto.setTxId((String) record[30]);
-
-                    // Map more fields if needed
                     return dto;
                 }).collect(Collectors.toList());
 
-        // Since stored procedures don’t return count, fake Page manually
         Page<CommissionTransactionReportResponse> page = new PageImpl<>(
                 dataList,
                 pageable,
@@ -116,6 +118,7 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
         return new CommonResponse<>(200, "Records fetched successfully", page);
     }
+
 
     @Override
     public ByteArrayInputStream downloadExcel(CommissionTransactionReportRequest request) throws IOException {

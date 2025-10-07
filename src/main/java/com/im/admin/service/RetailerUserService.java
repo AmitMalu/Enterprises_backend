@@ -31,5 +31,5 @@ public interface RetailerUserService {
     RetailerUser updateRetailerUser(String retailerUserId, RetailerUser retailerUser);
 
 
-    CommonResponse<Page<RetailerUserResponseDTO>> getRetailerUsersByRetailerId(String retailerId, int page, int size);
+    CommonResponse<Page<RetailerUserResponseDTO>> getRetailerUsersByRetailerId(String retailerId, String retailerUserId, String abbreviation, String name, String mobileNumber, String username, String emailId, Boolean emailVerified, Boolean status, String createdBy, String editedBy, String roleId, String subRoleId, LocalDate createdOn, int page, int size);
 }
