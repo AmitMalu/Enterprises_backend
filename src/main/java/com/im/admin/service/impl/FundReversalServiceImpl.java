@@ -126,9 +126,10 @@ public class FundReversalServiceImpl implements FundReversalService {
             return new CommonResponse<>(400, "OTP already verified. Cannot resend.", null);
         }
 
-        long minutesSinceGenerated = Duration.between(fundReversal.getOtpGeneratedTime(), LocalDateTime.now()).toMinutes();
-        if (minutesSinceGenerated < 5) {
-            return new CommonResponse<>(400, "Current OTP is still valid. Please wait until it expires.", null);
+        // Allow resend after 30 seconds
+        long secondsSinceGenerated = Duration.between(fundReversal.getOtpGeneratedTime(), LocalDateTime.now()).toSeconds();
+        if (secondsSinceGenerated < 30) {
+            return new CommonResponse<>(400, "Please wait seconds before requesting a new OTP.", null);
         }
 
         // Generate new OTP
