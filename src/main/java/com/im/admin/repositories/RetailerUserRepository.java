@@ -1,16 +1,18 @@
 package com.im.admin.repositories;
 
+import com.im.admin.entities.BeneficiaryBankAccount;
 import com.im.admin.entities.RetailerUser;
 import com.im.admin.spec.projectionFilter.RetailerUserProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
-public interface RetailerUserRepository extends JpaRepository<RetailerUser,String> {
+public interface RetailerUserRepository extends JpaRepository<RetailerUser,String>,JpaSpecificationExecutor<RetailerUser> {
 
     long countByParentAccount(String retailerId);
 
