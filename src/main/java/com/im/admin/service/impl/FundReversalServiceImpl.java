@@ -40,6 +40,17 @@ public class FundReversalServiceImpl implements FundReversalService {
     @Override
     public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request) {
 
+        try {
+            CheckBalanceRequestDto balanceRequest = new CheckBalanceRequestDto();
+            balanceRequest.setHierarchyId(request.getChildHierarchyId());
+            balanceRequest.setWalletType(request.getWalletType());
+            balanceRequest.setAmount(request.getReversalAmount());
+
+            checkBalance(balanceRequest);
+        } catch (RuntimeException e) {
+            return new CommonResponse<>(400, e.getMessage(), null);
+        }
+
         if (request.getOtp() == null || request.getOtp().isEmpty()) {
             // Step 1: Generate OTP
             String otp = OtpUtil.generateOtp();
@@ -126,9 +137,10 @@ public class FundReversalServiceImpl implements FundReversalService {
             return new CommonResponse<>(400, "OTP already verified. Cannot resend.", null);
         }
 
-        long minutesSinceGenerated = Duration.between(fundReversal.getOtpGeneratedTime(), LocalDateTime.now()).toMinutes();
-        if (minutesSinceGenerated < 5) {
-            return new CommonResponse<>(400, "Current OTP is still valid. Please wait until it expires.", null);
+        // Allow resend after 30 seconds
+        long secondsSinceGenerated = Duration.between(fundReversal.getOtpGeneratedTime(), LocalDateTime.now()).toSeconds();
+        if (secondsSinceGenerated < 30) {
+            return new CommonResponse<>(400, "Please wait seconds before requesting a new OTP.", null);
         }
 
         // Generate new OTP
