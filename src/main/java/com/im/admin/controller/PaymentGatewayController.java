@@ -60,7 +60,6 @@ public class PaymentGatewayController {
         return response;
     }
 
-
     @PostMapping("/order-status")
     @Transactional
     public ResponseEntity<?> orderStatus(@RequestParam("orderId") String orderId) {

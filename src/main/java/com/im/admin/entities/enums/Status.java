@@ -10,5 +10,6 @@ public enum Status {
     ACTIVE,
     INACTIVE,
     ALL,
-    SETTLEMENT_PENDING
+    SETTLEMENT_PENDING,
+    VENDOR_PENDING
 }

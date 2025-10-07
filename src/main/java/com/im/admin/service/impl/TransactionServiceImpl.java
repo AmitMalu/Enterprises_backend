@@ -213,7 +213,7 @@ public class TransactionServiceImpl implements TransactionService {
 
             // Vendor SUCCESS, but settlement = true → mark as pending for future processing
             if (Boolean.TRUE.equals(isSettlement)) {
-                insertTransaction(wallet, "SETTLEMENT PENDING", tranxAmount,
+                insertTransaction(wallet, "SETTLEMENT_PENDING", tranxAmount,
                         wallet.getAvailableBalance(), wallet.getAvailableBalance(),
                         "Settlement Pending - Credit " + walletType.toUpperCase(), buildTransactionId("TXN", baseTransactionId), "CREDIT", dto);
                 return "Transaction marked as pending for settlement";
@@ -255,7 +255,7 @@ public class TransactionServiceImpl implements TransactionService {
 
             if (Boolean.TRUE.equals(isSettlement)) {
                 // Vendor SUCCESS, but settlement = true → mark as pending
-                updateTransactionStatus("TXN" + baseTransactionId, "SETTLEMENT PENDING", walletType);
+                updateTransactionStatus("TXN" + baseTransactionId, "SETTLEMENT_PENDING", walletType);
                 return "Transaction marked as pending for settlement";
             }
 

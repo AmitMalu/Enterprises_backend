@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class MyTransactionReportRequest {
 
+    private String hierarchyType;
     private String hierarchyId;   //ABC-RT-001 or RUT-DT-908 any hirarhcy id will come
     private String fromDate;   // Format: yyyy-MM-dd
     private String toDate;     // Format: yyyy-MM-dd

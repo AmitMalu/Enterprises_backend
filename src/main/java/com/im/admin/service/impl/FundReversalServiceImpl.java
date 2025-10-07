@@ -7,6 +7,8 @@ import com.im.admin.entities.FundReversal;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.FundReversalRepository;
+import com.im.admin.response.CommonResponse;
+import com.im.admin.response.FundReversalResponseDto;
 import com.im.admin.service.FundReversalService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.OtpUtil;
@@ -36,7 +38,7 @@ public class FundReversalServiceImpl implements FundReversalService {
     private CommonMethods commonMethods;
 
     @Override
-    public String takeActionOnFundReversal(FundReversalRequestDto request) {
+    public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request) {
 
         if (request.getOtp() == null || request.getOtp().isEmpty()) {
             // Step 1: Generate OTP
@@ -48,80 +50,105 @@ public class FundReversalServiceImpl implements FundReversalService {
             reversal.setWalletType(request.getWalletType());
             reversal.setOtp(otp);
             reversal.setOtpGeneratedTime(LocalDateTime.now());
+            reversal.setStatus(Status.PENDING);
 
             fundReversalRepository.save(reversal);
 
-            // TODO: Send OTP to child via SMS/Email
+            // TODO: Send OTP via SMS/Email
 
-            return "OTP sent successfully. It will expire in 5 minutes. OTP: " + otp + ";";
-        } else {
-            // Step 2: Validate OTP
-            Optional<FundReversal> optTxn = fundReversalRepository
-                    .findTopByParentHierarchyIdAndChildHierarchyIdAndStatusOrderByIdDesc(
-                            request.getParentHierarchyId(), request.getChildHierarchyId(), Status.PENDING);
+            FundReversalResponseDto responseDto = new FundReversalResponseDto(
+                    reversal.getId(),
+                    otp,
+                    null
+            );
 
-            if (optTxn.isEmpty()) return "No pending transaction found.";
-            FundReversal fundReversal = optTxn.get();
-
-            if (!fundReversal.getOtp().equals(request.getOtp())) {
-                return "Invalid OTP.";
-            }
-
-            if (Duration.between(fundReversal.getOtpGeneratedTime(), LocalDateTime.now()).toMinutes() > 5) {
-                return "OTP expired.";
-            }
-
-            String baseTransactionId = commonMethods.generateBaseTransactionId();
-
-            AbstractWalletAmountTable fromWalletTable = commonMethods.getWalletByType(request.getWalletType().name(), request.getChildHierarchyId());
-            commonMethods.updateWallet(fromWalletTable, request.getChildHierarchyId(), request.getWalletType(), request.getReversalAmount(), "Debit", "TXN"+baseTransactionId, "SUCCESS","DEBIT");
-
-            AbstractWalletAmountTable toWalletTable = commonMethods.getWalletByType(request.getWalletType().name(), request.getParentHierarchyId());
-            commonMethods.updateWallet(toWalletTable, request.getParentHierarchyId(), request.getWalletType(), request.getReversalAmount(), "Credit", "TXN"+baseTransactionId, "SUCCESS","CREDIT");
-
-            fundReversal.setStatus(Status.APPROVED);
-            fundReversal.setOtpVerified(true);
-            fundReversal.setActionDate(LocalDate.now());
-            fundReversal.setActionTime(LocalTime.now());
-            fundReversalRepository.save(fundReversal);
-
-            return "Transaction successful. Amount debited.";
+            return new CommonResponse<>(200, "OTP sent successfully. It will expire in 5 minutes.", responseDto);
         }
+
+        // Step 2: Validate OTP
+        Optional<FundReversal> optTxn = fundReversalRepository
+                .findTopByParentHierarchyIdAndChildHierarchyIdAndStatusOrderByIdDesc(
+                        request.getParentHierarchyId(), request.getChildHierarchyId(), Status.PENDING);
+
+        if (optTxn.isEmpty()) {
+            return new CommonResponse<>(404, "No pending transaction found.", null);
+        }
+
+        FundReversal fundReversal = optTxn.get();
+
+        if (!fundReversal.getOtp().equals(request.getOtp())) {
+            return new CommonResponse<>(400, "Invalid OTP.", null);
+        }
+
+        if (Duration.between(fundReversal.getOtpGeneratedTime(), LocalDateTime.now()).toMinutes() > 5) {
+            return new CommonResponse<>(400, "OTP expired.", null);
+        }
+
+        // OTP Valid -> process transaction
+        String baseTransactionId = commonMethods.generateBaseTransactionId();
+
+        AbstractWalletAmountTable fromWalletTable =
+                commonMethods.getWalletByType(request.getWalletType().name(), request.getChildHierarchyId());
+        commonMethods.updateWallet(fromWalletTable, request.getChildHierarchyId(), request.getWalletType(),
+                request.getReversalAmount(), "Debit", "TXN" + baseTransactionId, "SUCCESS", "DEBIT");
+
+        AbstractWalletAmountTable toWalletTable =
+                commonMethods.getWalletByType(request.getWalletType().name(), request.getParentHierarchyId());
+        commonMethods.updateWallet(toWalletTable, request.getParentHierarchyId(), request.getWalletType(),
+                request.getReversalAmount(), "Credit", "TXN" + baseTransactionId, "SUCCESS", "CREDIT");
+
+        fundReversal.setStatus(Status.APPROVED);
+        fundReversal.setOtpVerified(true);
+        fundReversal.setActionDate(LocalDate.now());
+        fundReversal.setActionTime(LocalTime.now());
+        fundReversalRepository.save(fundReversal);
+
+        FundReversalResponseDto responseDto = new FundReversalResponseDto(
+                fundReversal.getId(),
+                null,
+                "TXN" + baseTransactionId
+        );
+
+        return new CommonResponse<>(200, "Transaction successful. Amount debited.", responseDto);
     }
 
     @Override
-    public String resendOtpById(Long id) {
+    public CommonResponse<FundReversalResponseDto> resendOtpById(Long id) {
         Optional<FundReversal> optReversal = fundReversalRepository.findById(id);
 
         if (optReversal.isEmpty()) {
-            return "No fund reversal request found with the given ID.";
+            return new CommonResponse<>(404, "No fund reversal request found with the given ID.", null);
         }
 
         FundReversal fundReversal = optReversal.get();
 
-//        if (fundReversal.getStatus() != ConstantStatus.PENDING) {
-//            return "Cannot resend OTP. Transaction is already " + fundReversal.getStatus().name() + ".";
-//        }
-
         if (Boolean.TRUE.equals(fundReversal.getOtpVerified())) {
-            return "OTP already verified. Cannot resend.";
+            return new CommonResponse<>(400, "OTP already verified. Cannot resend.", null);
         }
 
         long minutesSinceGenerated = Duration.between(fundReversal.getOtpGeneratedTime(), LocalDateTime.now()).toMinutes();
         if (minutesSinceGenerated < 5) {
-            return "Current OTP is still valid. Please wait until it expires.";
+            return new CommonResponse<>(400, "Current OTP is still valid. Please wait until it expires.", null);
         }
 
-        // Generate new OTP and update the record
+        // Generate new OTP
         String newOtp = OtpUtil.generateOtp();
         fundReversal.setOtp(newOtp);
         fundReversal.setOtpGeneratedTime(LocalDateTime.now());
         fundReversalRepository.save(fundReversal);
 
-        // TODO: Send new OTP to child via SMS/Email
+        // TODO: Send new OTP via SMS/Email
 
-        return "New OTP sent successfully. It will expire in 5 minutes. OTP: " + newOtp + ";";
+        FundReversalResponseDto responseDto = new FundReversalResponseDto(
+                fundReversal.getId(),
+                newOtp,
+                null
+        );
+
+        return new CommonResponse<>(200, "New OTP sent successfully. It will expire in 5 minutes.", responseDto);
     }
+
+
 
     @Override
     public String checkBalance(CheckBalanceRequestDto checkBalanceRequestDto) {
