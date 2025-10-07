@@ -24,5 +24,6 @@ public class FundReversalRequestDto {
     private Status status; // APPROVED or REJECTED
     private String remarks;
     private String otp;
+    private Boolean isResendOtp = false;
 }
 

@@ -119,7 +119,7 @@ public class PayoutServiceImpl implements PayoutService {
         log.info("Sending token request to URL: {}", url);
 
         ResponseEntity<PayoutTokenResponseDTO> response = restTemplate.postForEntity(
-                url + "/token",
+                url,
                 requestEntity,
                 PayoutTokenResponseDTO.class
         );
@@ -197,7 +197,7 @@ public class PayoutServiceImpl implements PayoutService {
             } else {
 
                 AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), sendPayoutRequest.getRetailerId());
-                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR PENDING", "DEBIT");
+                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR_PENDING", "DEBIT");
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);

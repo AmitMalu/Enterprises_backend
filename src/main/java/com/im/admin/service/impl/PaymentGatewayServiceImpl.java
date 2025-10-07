@@ -309,7 +309,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         headers.set("client_id", vendorCredentials.getClientId());
 
         HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-        ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlProd(), requestEntity, Map.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlUat(), requestEntity, Map.class);
 
         Map<String, Object> responseBodyMap = response.getBody();
         if (responseBodyMap == null || !responseBodyMap.containsKey("data")) {

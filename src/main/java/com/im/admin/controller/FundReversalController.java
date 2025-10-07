@@ -2,6 +2,8 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.CheckBalanceRequestDto;
 import com.im.admin.dto.FundReversalRequestDto;
+import com.im.admin.response.CommonResponse;
+import com.im.admin.response.FundReversalResponseDto;
 import com.im.admin.service.FundReversalService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,16 +27,16 @@ public class FundReversalController {
     }
 
     @PostMapping
-    public ResponseEntity<String> takeActionOnFundReversal(@RequestBody FundReversalRequestDto request) {
-        String result = fundReversalService.takeActionOnFundReversal(request);
-        return ResponseEntity.ok(result);
+    public ResponseEntity<CommonResponse<FundReversalResponseDto>> takeActionOnFundReversal(@RequestBody FundReversalRequestDto request) {
+        CommonResponse<FundReversalResponseDto> response = fundReversalService.takeActionOnFundReversal(request);
+        return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
-    @PostMapping("/fund-reversal/resend-otp/{id}")
-    public ResponseEntity<String> resendOtp(@PathVariable Long id) {
+    @PostMapping("/resend-otp/{id}")
+    public ResponseEntity<CommonResponse<FundReversalResponseDto>> resendOtp(@PathVariable Long id) {
         log.info("API Call: resendOtp for fundReversalId: {}", id);
-        String result = fundReversalService.resendOtpById(id);
-        log.info("OTP resent for fundReversalId {}: {}", id, result);
-        return ResponseEntity.ok(result);
+        CommonResponse<FundReversalResponseDto> response = fundReversalService.resendOtpById(id);
+        log.info("OTP resent for fundReversalId {}: {}", id, response.getMessage());
+        return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 }
