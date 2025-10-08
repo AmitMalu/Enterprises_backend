@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -32,21 +33,44 @@ import java.util.List;
 public class LedgerReportController {
 
     @Autowired
-    private LedgerReportService service;
+    private LedgerReportService ledgerReportService;
 
     @GetMapping("/view")
     public ResponseEntity<CommonResponse<Page<LedgerReportDto>>> getLedgerReports(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String transactionId,
+            @RequestParam(required = false) String hierarchyId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateOfTransaction,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) String timeOfTransaction,
+            @RequestParam(required = false) BigDecimal balBeforeTran,
+            @RequestParam(required = false) BigDecimal amount,
+            @RequestParam(required = false) BigDecimal balAfterTran,
+            @RequestParam(required = false) BigDecimal finalBalance,
+            @RequestParam(required = false) String tranStatus,
+            @RequestParam(required = false) String actionOnBalanceAmount,
+            @RequestParam(required = false) String service,
+            @RequestParam(required = false) String mobileNo,
+            @RequestParam(required = false) String subProductName,
+            @RequestParam(required = false) String remarks,
+            @RequestParam(required = false) String narration,
+            @RequestParam(required = false) String sourceTable,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size
     ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.unsorted());  // Important: Unsored Pageable
+        Pageable pageable = PageRequest.of(page, size);
 
-        Page<LedgerReportDto> reports = service.getLedgerReports(fromDate, toDate, pageable);
+        Page<LedgerReportDto> reports = ledgerReportService.getLedgerReports(
+                id, transactionId, hierarchyId, dateOfTransaction, fromDate, toDate, timeOfTransaction,
+                balBeforeTran, amount, balAfterTran, finalBalance,
+                tranStatus, actionOnBalanceAmount, service, mobileNo,
+                subProductName, remarks, narration, sourceTable, pageable
+        );
 
         return ResponseEntity.ok(CommonResponse.success(reports, "Ledger reports fetched successfully"));
     }
+
 
 
     @GetMapping("/download")
@@ -55,7 +79,7 @@ public class LedgerReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
     ) throws IOException {
 
-        List<LedgerReportDto> reports = service.getLedgerReportsForDownload(fromDate, toDate);
+        List<LedgerReportDto> reports = ledgerReportService.getLedgerReportsForDownload(fromDate, toDate);
 
         // Create Excel
         XSSFWorkbook workbook = new XSSFWorkbook();

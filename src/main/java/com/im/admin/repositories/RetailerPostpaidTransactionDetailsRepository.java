@@ -18,20 +18,43 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
 
     Optional<RetailerPostpaidTransactionDetails> findByTransactionId(String transactionId);
 
-    @Query("SELECT r FROM RetailerPostpaidTransactionDetails r " +
-            "WHERE (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate) " +
-            "AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate) " +
-            "AND r.subProductName = :subProductName " +
-            "AND (:vendorName IS NULL OR r.vendorName = :vendorName) " +
-            "AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)")
+    @Query("""
+        SELECT r FROM RetailerPostpaidTransactionDetails r
+        WHERE (:id IS NULL OR r.id = :id)
+        AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate)
+        AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
+        AND (:subProductName IS NULL OR r.subProductName = :subProductName)
+        AND (:vendorName IS NULL OR r.vendorName = :vendorName)
+        AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)
+        AND (:userId IS NULL OR r.retailerId LIKE %:userId%)
+        AND (:mobileNo IS NULL OR r.mobileNo LIKE %:mobileNo%)
+        AND (:schemeName IS NULL OR r.schemeName LIKE %:schemeName%)
+        AND (:amount IS NULL OR r.amount = :amount)
+        AND (:txId IS NULL OR r.transactionId LIKE %:txId%)
+        AND (:remarks IS NULL OR r.remarks LIKE %:remarks%)
+        AND (:medium IS NULL OR r.medium LIKE %:medium%)
+        AND (:txType IS NULL OR r.transactionType LIKE %:txType%)
+        AND (:txStatus IS NULL OR r.tranStatus = :txStatus)
+    """)
     Page<RetailerPostpaidTransactionDetails> findFilteredTransactions(
+            @Param("id") Integer id,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             @Param("subProductName") String subProductName,
             @Param("vendorName") String vendorName,
             @Param("tranStatusList") List<String> tranStatusList,
+            @Param("userId") String userId,
+            @Param("mobileNo") String mobileNo,
+            @Param("schemeName") String schemeName,
+            @Param("amount") Double amount,
+            @Param("txId") String txId,
+            @Param("remarks") String remarks,
+            @Param("medium") String medium,
+            @Param("txType") String txType,
+            @Param("txStatus") String txStatus,
             Pageable pageable
     );
+
 
     @Query("SELECT t FROM RetailerPostpaidTransactionDetails t " +
             "WHERE t.transactionId LIKE %:txnId% AND t.retailerId = :hierarchyId")
