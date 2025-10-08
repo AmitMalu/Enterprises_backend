@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Time;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -41,32 +42,26 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
     @Override
     public CommonResponse<Page<CommissionTransactionReportResponse>> getReport(CommissionTransactionReportRequest request) {
-        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), Sort.by("transactionTime").descending());
 
-        // 1. Parse dates
+        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), Sort.by("transactionTime").descending());
         LocalDate from = StringUtils.hasText(request.getFromDate()) ? LocalDate.parse(request.getFromDate()) : null;
         LocalDate to = StringUtils.hasText(request.getToDate()) ? LocalDate.parse(request.getToDate()) : null;
+        LocalDate transactionDate = StringUtils.hasText(request.getTransactionDate()) ? LocalDate.parse(request.getTransactionDate()) : null;
+        LocalTime transactionTime = StringUtils.hasText(request.getTransactionTime()) ? LocalTime.parse(request.getTransactionTime()) : null;
 
-        // 2. Parse sub-product names
         List<String> subProducts = new ArrayList<>();
         if (StringUtils.hasText(request.getSubProductName())) {
             subProducts = Arrays.stream(request.getSubProductName().split(","))
-                    .map(String::trim)
-                    .collect(Collectors.toList());
+                    .map(String::trim).collect(Collectors.toList());
         }
 
-        // 3. Resolve hierarchy type for table name
-        String hierarchyTypeForTable = null;
-        if (StringUtils.hasText(request.getHierarchyId())) {
-            hierarchyTypeForTable = commonMethods.extractHierarchyType(request.getHierarchyId());
-        } else if (StringUtils.hasText(request.getHierarchyType())) {
-            hierarchyTypeForTable = request.getHierarchyType();
-        }
+        String hierarchyTypeForTable = StringUtils.hasText(request.getHierarchyId())
+                ? commonMethods.extractHierarchyType(request.getHierarchyId())
+                : request.getHierarchyType();
 
         String tableName = commonMethods.getTransactionTable(hierarchyTypeForTable, request.getWalletType().name());
         String columnName = commonMethods.getHierarchyColumnName(hierarchyTypeForTable);
 
-        // 4. Prepare stored procedure
         StoredProcedureQuery query = entityManager.createStoredProcedureQuery("commission_charge_transaction_report");
         query.registerStoredProcedureParameter("p_table_name", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_hierarchy_id", String.class, ParameterMode.IN);
@@ -77,12 +72,18 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         query.registerStoredProcedureParameter("p_column_name", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_offset", Integer.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_id", Integer.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_tx_id", String.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_tx_type", String.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_operator", String.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_amount", Double.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_bal_before", Double.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_bal_after", Double.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_transaction_date", Date.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_transaction_time", Time.class, ParameterMode.IN);
 
         query.setParameter("p_table_name", tableName);
-
-        // 🟩 If hierarchyId is provided → fetch that ID, else fetch all for hierarchyType
         query.setParameter("p_hierarchy_id", StringUtils.hasText(request.getHierarchyId()) ? request.getHierarchyId() : null);
-
         query.setParameter("p_column_name", columnName);
         query.setParameter("p_from_date", from);
         query.setParameter("p_to_date", to);
@@ -90,34 +91,38 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         query.setParameter("p_transaction_type", request.getReportType());
         query.setParameter("p_offset", pageable.getPageNumber() * pageable.getPageSize());
         query.setParameter("p_page_size", pageable.getPageSize());
+        query.setParameter("p_id", request.getId());
+        query.setParameter("p_tx_id", request.getTxId());
+        query.setParameter("p_tx_type", request.getTxType());
+        query.setParameter("p_operator", request.getOperator());
+        query.setParameter("p_amount", request.getAmount());
+        query.setParameter("p_bal_before", request.getBalBefore());
+        query.setParameter("p_bal_after", request.getBalAfter());
+        query.setParameter("p_transaction_date", transactionDate != null ? Date.valueOf(transactionDate) : null);
+        query.setParameter("p_transaction_time", transactionTime != null ? Time.valueOf(transactionTime) : null);
 
-        // 5. Execute and map results
         List<Object[]> results = query.getResultList();
 
-        List<CommissionTransactionReportResponse> dataList = results.stream()
-                .map(record -> {
-                    CommissionTransactionReportResponse dto = new CommissionTransactionReportResponse();
-                    dto.setId(((Number) record[5]).intValue());
-                    dto.setTransactionDate(((Date) record[3]).toLocalDate());
-                    dto.setTransactionTime(((Time) record[6]).toLocalTime());
-                    dto.setSubProductName((String) record[28]);
-                    dto.setTxType((String) record[31]);
-                    dto.setBalBefore((BigDecimal) record[2]);
-                    dto.setAmount((BigDecimal) record[0]);
-                    dto.setBalAfter((BigDecimal) record[1]);
-                    dto.setOperator((String) record[20]);
-                    dto.setTxId((String) record[30]);
-                    return dto;
-                }).collect(Collectors.toList());
+        List<CommissionTransactionReportResponse> dataList = results.stream().map(record -> {
+            CommissionTransactionReportResponse dto = new CommissionTransactionReportResponse();
+            dto.setId(((Number) record[5]).intValue());
+            dto.setTransactionDate(((Date) record[3]).toLocalDate());
+            dto.setTransactionTime(((Time) record[6]).toLocalTime());
+            dto.setSubProductName((String) record[28]);
+            dto.setTxType((String) record[31]);
+            dto.setBalBefore((BigDecimal) record[2]);
+            dto.setAmount((BigDecimal) record[0]);
+            dto.setBalAfter((BigDecimal) record[1]);
+            dto.setOperator((String) record[20]);
+            dto.setTxId((String) record[30]);
+            return dto;
+        }).collect(Collectors.toList());
 
-        Page<CommissionTransactionReportResponse> page = new PageImpl<>(
-                dataList,
-                pageable,
-                pageable.getOffset() + dataList.size() + 1 // Approximate
-        );
-
+        Page<CommissionTransactionReportResponse> page = new PageImpl<>(dataList, pageable, pageable.getOffset() + dataList.size() + 1);
         return new CommonResponse<>(200, "Records fetched successfully", page);
     }
+
+
 
 
     @Override
