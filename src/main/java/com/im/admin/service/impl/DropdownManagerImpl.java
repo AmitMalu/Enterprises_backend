@@ -6,16 +6,10 @@ import com.im.admin.repositories.*;
 import com.im.admin.service.DropdownManagerService;
 import com.im.admin.util.CommonMethods;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -208,13 +202,17 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 .filter(u -> createdOn == null || (u.getCreatedOn() != null && u.getCreatedOn().toLocalDate().toString().equals(createdOn)))
                 .collect(Collectors.toList());
 
-        // Step 3: Pagination
-        Pageable pageable = PageRequest.of(page, size);
+        // Step 3: Sort by createdOn (latest first)
+        filtered.sort(Comparator.comparing(ChildUserDto::getCreatedOn, Comparator.nullsLast(Comparator.reverseOrder())));
+
+// Step 4: Apply pagination (with Sort metadata)
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), filtered.size());
         List<ChildUserDto> paginated = (start >= filtered.size()) ? Collections.emptyList() : filtered.subList(start, end);
 
         return new PageImpl<>(paginated, pageable, filtered.size());
+
     }
 
     //  Helper method for safe string matching

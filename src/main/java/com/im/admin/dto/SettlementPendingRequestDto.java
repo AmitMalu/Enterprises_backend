@@ -16,4 +16,15 @@ public class SettlementPendingRequestDto {
     private String subProductId;
     private String vendorId;
     private String tranStatus;
+
+    private Integer id;
+    private String userId;
+    private String mobileNo;
+    private String schemeName;
+    private Double amount;
+    private String txId;
+    private String remarks;
+    private String medium;
+    private String txType;
+    private String txStatus;
 }

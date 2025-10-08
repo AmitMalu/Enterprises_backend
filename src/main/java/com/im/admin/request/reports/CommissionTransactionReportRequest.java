@@ -18,6 +18,17 @@ public class CommissionTransactionReportRequest {
     private String subProductName;
     private String reportType;   //COM, CHG
 
+    private Integer id;
+    private String txId;
+    private String txType;
+    private String operator;
+    private Double amount;
+    private Double balBefore;
+    private Double balAfter;
+
+    private String transactionDate;   // Format: yyyy-MM-dd
+    private String transactionTime;
+
     private int page = 0;
     private int size = 10;
 }
