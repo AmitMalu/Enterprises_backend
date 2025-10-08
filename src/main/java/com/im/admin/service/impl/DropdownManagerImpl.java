@@ -217,12 +217,12 @@ public class DropdownManagerImpl implements DropdownManagerService {
         return new PageImpl<>(paginated, pageable, filtered.size());
     }
 
-    // ✅ Helper method for safe string matching
+    //  Helper method for safe string matching
     private boolean containsIgnoreCase(String source, String target) {
         return source != null && target != null && source.toLowerCase().contains(target.toLowerCase());
     }
 
-    // ✅ Updated hierarchy mapping
+    //  Updated hierarchy mapping
     private static final Map<String, List<String>> hierarchyChildren = Map.of(
             "ET", List.of("white_labels", "super_distributor", "partner", "distributor", "retailer"),
             "WL", List.of("super_distributor", "partner", "distributor", "retailer"),
