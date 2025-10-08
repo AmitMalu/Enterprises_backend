@@ -5,13 +5,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.AddressDTO;
 import com.im.admin.dto.AdminUserRequestDTO;
+import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
+import com.im.admin.exception.CustomValidationException;
 import com.im.admin.repositories.AdminRepository;
 import com.im.admin.repositories.AdminUserRepository;
 import com.im.admin.repositories.ImSubRoleRepository;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.service.AdminUserService;
 import com.im.admin.util.IdGenerator;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -28,6 +32,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -52,6 +58,12 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private PhoneNumberValidationService phoneNumberValidationService;
+
+    @Autowired
+    private Validator validator;
+
     @Override
     @Transactional
     public AdminUser createAdminUser(AdminUserRequestDTO dto) throws JsonProcessingException {
@@ -62,6 +74,23 @@ public class AdminUserServiceImpl implements AdminUserService {
         LocalDateTime responseDateTime = null;
 
         try {
+
+            // Field Validation
+            Set<ConstraintViolation<AdminUserRequestDTO>> violations = validator.validate(dto);
+            List<FieldErrorDetailsDTO> errors = violations.stream()
+                    .map(violation -> new FieldErrorDetailsDTO(violation.getPropertyPath().toString(), violation.getMessage()))
+                    .collect(Collectors.toList());
+
+            // Phone validation
+            try {
+                phoneNumberValidationService.validatePhoneNumber(dto.getMobileNumber());
+            } catch (IllegalArgumentException ex) {
+                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+            }
+
+            if (!errors.isEmpty()) {
+                throw new CustomValidationException(errors);
+            }
             request = objectMapper.writeValueAsString(dto);
             log.info("Received AdminUser creation request: {}", request);
 
