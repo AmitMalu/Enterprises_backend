@@ -97,6 +97,17 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         query.registerStoredProcedureParameter("p_sub_products", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_status", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_column_name", String.class, ParameterMode.IN);
+
+        query.registerStoredProcedureParameter("p_id", Integer.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_transaction_date", Date.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_transaction_time", Time.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_bal_before", BigDecimal.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_amount", BigDecimal.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_bal_after", BigDecimal.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_action_on_balance_amount", String.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_tranx_id", String.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_narration", String.class, ParameterMode.IN);
+
         query.registerStoredProcedureParameter("p_offset", Integer.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
 
@@ -107,6 +118,19 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         query.setParameter("p_sub_products", String.join(",", subProducts));
         query.setParameter("p_status", request.getStatus().name());
         query.setParameter("p_column_name", columnName);
+
+        query.setParameter("p_id", request.getId());
+        query.setParameter("p_transaction_date",
+                StringUtils.hasText(request.getTransactionDate()) ? Date.valueOf(request.getTransactionDate()) : null);
+        query.setParameter("p_transaction_time",
+                StringUtils.hasText(request.getTransactionTime()) ? Time.valueOf(request.getTransactionTime()) : null);
+        query.setParameter("p_bal_before", request.getBalBefore());
+        query.setParameter("p_amount", request.getAmount());
+        query.setParameter("p_bal_after", request.getBalAfter());
+        query.setParameter("p_action_on_balance_amount", request.getActionOnBalanceAmount());
+        query.setParameter("p_tranx_id", request.getTranxId());
+        query.setParameter("p_narration", request.getNarration());
+
         query.setParameter("p_offset", pageable.getPageNumber() * pageable.getPageSize());
         query.setParameter("p_page_size", pageable.getPageSize());
 

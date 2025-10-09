@@ -1,5 +1,6 @@
 package com.im.admin.dto;
 
+import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -7,6 +8,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Setter
 @Getter
@@ -26,5 +28,8 @@ public class RetailerTransactionResponseDto {
     private String txId;
     private String medium;
     private String subProductName;
-
+    private LocalDate dateOfTransaction;
+    private LocalTime timeOfTransaction;
+    private LocalDate updatedDateOfTransaction;
+    private LocalDate updatedTimeOfTransaction;
 }

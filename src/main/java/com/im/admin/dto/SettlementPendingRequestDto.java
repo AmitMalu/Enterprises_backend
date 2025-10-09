@@ -1,10 +1,12 @@
 package com.im.admin.dto;
 
+import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Data
 @AllArgsConstructor
@@ -27,4 +29,8 @@ public class SettlementPendingRequestDto {
     private String medium;
     private String txType;
     private String txStatus;
+    private LocalDate dateOfTransaction;
+    private LocalTime timeOfTransaction;
+    private LocalDate updatedDateOfTransaction;
+    private LocalTime updatedTimeOfTransaction;
 }
