@@ -30,7 +30,7 @@ public interface SchemeRateRepository extends JpaRepository<SchemeRate, Long> {
 
     @Query("SELECT sr FROM SchemeRate sr " +
             "WHERE sr.operatorName = :operatorName " +
-            "AND sr.slabType = 'VARIABLE' " +
+            //"AND sr.slabType = 'VARIABLE' " +
             "AND :amount BETWEEN sr.slabStart AND sr.slabEnd")
     Optional<SchemeRate> findVariableSlabByOperatorAndAmount(@Param("operatorName") String operatorName,
                                                              @Param("amount") Double amount);

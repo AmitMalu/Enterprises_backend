@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.BeneficiaryBankAccountDTO;
 import com.im.admin.entities.BeneficiaryBankAccount;
 import com.im.admin.request.PayoutMerchantCallbackRequest;
@@ -9,6 +10,7 @@ import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PayoutMerchantCallbackResponse;
 import com.im.admin.service.PayoutService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -65,9 +67,9 @@ public class PayoutController {
     }
 
     @PostMapping("/callback")
-    public ResponseEntity<String> payoutCallback(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<String> payoutCallback(@RequestBody Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException {
         log.info("Received callback request with payload: {}", payload);
-        String response = payoutService.handlePayoutCallback(payload);
+        String response = payoutService.handlePayoutCallback(payload, request);
         log.info("Callback response: {}", response);
         return ResponseEntity.ok(response);
     }

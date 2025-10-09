@@ -177,23 +177,35 @@ public class BBPSServiceImpl implements BBPSService {
     @Override
     @Transactional
     public CommonResponse<BillRechargeResponseDTO> processRecharge(BillRechargeRequestDTO request) {
+        log.info("Starting bill recharge process for retailerId: {}, subProductId: {}, amount: {}",
+                request.getRetailerId(), request.getSubProductId(), request.getAmount());
         try {
             Optional<SubProducts> subProducts = subProductsRepository.findById(request.getSubProductId());
+            if (subProducts.isEmpty()) {
+                log.error("SubProduct not found for ID: {}", request.getSubProductId());
+                return CommonResponse.error(404, "SubProduct not found");
+            }
             WalletType walletType = WalletType.valueOf(subProducts.get().getWalletType());
-
             BigDecimal availableBalance = commonMethods.getCurrentBalance(request.getRetailerId(), walletType.name());
+            log.info("Available balance for retailerId {} in wallet {}: {}", request.getRetailerId(), walletType.name(), availableBalance);
+
             if (availableBalance.compareTo(request.getAmount()) < 0) {
+                log.warn("Insufficient balance. Required: {}, Available: {}", request.getAmount(), availableBalance);
                 return CommonResponse.error(400, "Insufficient Balance");
             }
 
             String baseTransactionId = commonMethods.generateBaseTransactionId();
+            log.info("Generated baseTransactionId: {}", baseTransactionId);
 
             VendorRouting routing = vendorRoutingRepository.findBySubProductId(request.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(routing);
+            log.info("Vendor selected: {}", vendor.getVendorName());
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+            log.debug("Vendor credentials retrieved for vendorId: {}", vendor.getId());
 
             // Build form parameters
             MultiValueMap<String, String> formParams = new LinkedMultiValueMap<>();
@@ -203,7 +215,7 @@ public class BBPSServiceImpl implements BBPSService {
             formParams.add("number", request.getNumber());
             formParams.add("provider", String.valueOf(request.getProvider()));
             formParams.add("amount", request.getAmount().toString());
-            formParams.add("clientId", request.getClientId());
+            formParams.add("clientId", baseTransactionId);
 
             // Optional fields
             if (request.getContext() != null) formParams.add("context", request.getContext());
@@ -224,13 +236,19 @@ public class BBPSServiceImpl implements BBPSService {
             Double amount = request.getAmount().doubleValue();
 
             Optional<BbpsProviderList> optionalProvider = bbpsProviderListRepository.findByVendorId(request.getProvider());
+            if (optionalProvider.isEmpty()) {
+                log.error("BBPS Provider not found for vendorId: {}", request.getProvider());
+                return CommonResponse.error(404, "BBPS Provider not found");
+            }
 
             BbpsProviderList bbpsProviderRecord = optionalProvider.get();
-
             String operator = bbpsProviderRecord.getOperator();
+            log.info("Operator identified: {}", operator);
+
             // Fetch scheme rate (variable slab example)
             Optional<SchemeRate> schemeRateOpt = schemeRateRepository.findVariableSlabByOperatorAndAmount(operator, amount);
             SchemeRate schemeRate = schemeRateOpt.orElseThrow(() -> new RuntimeException("SchemeRate not found for operator: " + operator));
+            log.info("SchemeRate found: {}", schemeRate.getSchemeCode());
 
             // Find scheme using scheme code
             Scheme scheme = schemeRepository.findBySchemeCode(schemeRate.getSchemeCode())
@@ -239,6 +257,7 @@ public class BBPSServiceImpl implements BBPSService {
             // Extract productId from schemeCombinationHashCode
             String hashCode = scheme.getSchemeCombinationHashCode();
             if (hashCode == null || hashCode.isEmpty()) {
+                log.error("Scheme combination hash code missing for schemeCode: {}", scheme.getSchemeCode());
                 throw new RuntimeException("Scheme combination hash code is missing for scheme: " + scheme.getSchemeCode());
             }
             String productIdStr = hashCode.split("-")[0];
@@ -256,25 +275,27 @@ public class BBPSServiceImpl implements BBPSService {
             commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT");
             bbpsRelatedTransactions.processCharges(bbpsTranactionRequestDto, walletAmountTable);
 
-//            ResponseEntity<BillRechargeResponseDTO> response = restTemplate.exchange(
-//                    credentials.getBaseUrlUat() + "/v3/bill-recharge",
-//                    HttpMethod.POST,
-//                    entity,
-//                    BillRechargeResponseDTO.class
-//            );
-//
-//            BillRechargeResponseDTO apiResponse = response.getBody();
-//
-//            if (apiResponse == null) {
-//                return CommonResponse.error(500, "Null response from external API");
-//            }
+            log.info("Wallet updated and charges processed for transactionId: {}", baseTransactionId);
 
-            BillRechargeResponseDTO apiResponse = new BillRechargeResponseDTO();
-//            apiResponse.setStatus("SUCCESS");
-//            apiResponse.setStatusId(1);
+            ResponseEntity<BillRechargeResponseDTO> response = restTemplate.exchange(
+                    credentials.getBaseUrlUat() + "/v3/bill-recharge",
+                    HttpMethod.POST,
+                    entity,
+                    BillRechargeResponseDTO.class
+            );
 
-            apiResponse.setStatus("FAILURE");
-            apiResponse.setStatusId(2);
+            BillRechargeResponseDTO apiResponse = response.getBody();
+
+            if (apiResponse == null) {
+                return CommonResponse.error(500, "Null response from external API");
+            }
+
+            //BillRechargeResponseDTO apiResponse = new BillRechargeResponseDTO();
+            apiResponse.setStatus(apiResponse.getStatus());
+            apiResponse.setStatusId(apiResponse.getStatusId());
+
+//            apiResponse.setStatus("FAILURE");
+//            apiResponse.setStatusId(2);
 
             if (apiResponse.getStatusId() == 1 || "SUCCESS".equalsIgnoreCase(apiResponse.getStatus())) {
                 bbpsRelatedTransactions.updateTransactionStatus(retailerId, walletType.name(), baseTransactionId);
@@ -301,21 +322,21 @@ public class BBPSServiceImpl implements BBPSService {
                     requestParams.add("api_token", credentials.getToken());
                     requestParams.add("userId", String.valueOf(credentials.getUsername()));
                     requestParams.add("secretKey", credentials.getClientSecret());
-                    requestParams.add("clientId", request.getClientId());
+                    requestParams.add("clientId", baseTransactionId);
 
                     HttpHeaders header = new HttpHeaders();
                     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-                    HttpEntity<MultiValueMap<String, String>> entitys = new HttpEntity<>(requestParams, header);
+                    HttpEntity<MultiValueMap<String, String>> checkStatusRequest = new HttpEntity<>(requestParams, header);
 
-                    ResponseEntity<BillRechargeResponseDTO> response = restTemplate.exchange(
+                    ResponseEntity<BillRechargeResponseDTO> checkStatusResponse = restTemplate.exchange(
                             credentials.getBaseUrlUat() + "/v3/check-status",
                             HttpMethod.POST,
-                            entity,
+                            checkStatusRequest,
                             BillRechargeResponseDTO.class
                     );
 
-                    BillRechargeResponseDTO vendorResponse = response.getBody();
+                    BillRechargeResponseDTO vendorResponse = checkStatusResponse.getBody();
 
                     if (vendorResponse == null) {
                         return CommonResponse.error(500, "Null response from external API");
