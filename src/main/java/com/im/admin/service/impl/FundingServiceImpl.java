@@ -326,7 +326,11 @@ public class FundingServiceImpl implements FundingService {
                 request.getRemarks(),
                 request.getMedium(),
                 request.getTxType(),
-                request.getTxStatus(),  // Added txStatus
+                request.getTxStatus(),
+                request.getDateOfTransaction(),
+                request.getTimeOfTransaction(),
+                request.getUpdatedDateOfTransaction(),
+                request.getUpdatedTimeOfTransaction(),
                 pageable
         ).map(txn -> new RetailerTransactionResponseDto(
                 txn.getId(),
@@ -340,7 +344,11 @@ public class FundingServiceImpl implements FundingService {
                 txn.getRemarks(),
                 txn.getTransactionId(),
                 txn.getMedium(),
-                txn.getSubProductName()
+                txn.getSubProductName(),
+                txn.getDateOfTransaction(),
+                txn.getTimeOfTransaction(),
+                txn.getUpdatedDateOfTransaction(),
+                txn.getUpdatedTimeOfTransaction()
         ));
     }
 
@@ -366,6 +374,10 @@ public class FundingServiceImpl implements FundingService {
                 request.getMedium(),
                 request.getTxType(),
                 request.getTxStatus(),  // Added txStatus
+                request.getDateOfTransaction(),
+                request.getTimeOfTransaction(),
+                request.getUpdatedDateOfTransaction(),
+                request.getUpdatedTimeOfTransaction(),
                 pageable
         ).map(txn -> new RetailerTransactionResponseDto(
                 txn.getId(),
@@ -379,9 +391,11 @@ public class FundingServiceImpl implements FundingService {
                 txn.getRemarks(),
                 txn.getTransactionId(),
                 txn.getMedium(),
-                txn.getSubProductName()
+                txn.getSubProductName(),
+                txn.getDateOfTransaction(),
+                txn.getTimeOfTransaction(),
+                txn.getUpdatedDateOfTransaction(),
+                txn.getUpdatedTimeOfTransaction()
         ));
     }
-
-
 }

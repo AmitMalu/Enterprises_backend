@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +35,11 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
     AND (:medium IS NULL OR r.medium LIKE %:medium%)
     AND (:txType IS NULL OR r.transactionType LIKE %:txType%)
     AND (:txStatus IS NULL OR r.tranStatus = :txStatus)
+     AND (:dateOfTransaction IS NULL OR r.dateOfTransaction = :dateOfTransaction)
+    AND (:timeOfTransaction IS NULL OR r.timeOfTransaction = :timeOfTransaction)
+     AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
+       AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
+      
 """)
     Page<RetailerPrepaidTransactionDetails> findFilteredTransactions(
             @Param("id") Integer id,
@@ -51,6 +57,10 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
             @Param("medium") String medium,
             @Param("txType") String txType,
             @Param("txStatus") String txStatus,
+            @Param("dateOfTransaction") LocalDate dateOfTransaction,
+            @Param("timeOfTransaction") LocalTime timeOfTransaction,
+            @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction,
+            @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction,
             Pageable pageable
     );
 
