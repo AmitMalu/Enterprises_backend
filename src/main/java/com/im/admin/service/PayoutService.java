@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.BeneficiaryBankAccountDTO;
 import com.im.admin.entities.BeneficiaryBankAccount;
 import com.im.admin.request.PayoutMerchantCallbackRequest;
@@ -7,6 +8,7 @@ import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PayoutMerchantCallbackResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -22,7 +24,7 @@ public interface PayoutService {
 
     PayoutMerchantCallbackResponse updateMerchantCallbackUrl(SendPayoutRequest request);
 
-    String handlePayoutCallback(Map<String, Object> payload);
+    String handlePayoutCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException;
 
     CommonResponse<BeneficiaryBankAccount> saveBeneficiary(BeneficiaryBankAccountDTO dto);
 
