@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class BbpsTranactionRequestDto {
 
+
     private SchemeRate schemeRate;
     private Double txnAmount;
     private String walletType;
