@@ -9,6 +9,7 @@ import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
+import com.im.admin.response.BillRechargeCheckStatusResponseDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.BBPSService;
 import com.im.admin.util.BBPSRelatedTransactions;
@@ -60,6 +61,9 @@ public class BBPSServiceImpl implements BBPSService {
 
     @Autowired
     private ProductsRepository productsRepository;
+
+    @Autowired
+    private BBPSPendingTransactionsRepository bbpsPendingTransactionsRepository;
 
     @Override
     public CommonResponse<List<ProviderListResponseDTO.ProviderDTO>> getProviderList(ProviderListRequestDTO requestDTO) {
@@ -176,7 +180,7 @@ public class BBPSServiceImpl implements BBPSService {
 
     @Override
     @Transactional
-    public CommonResponse<BillRechargeResponseDTO> processRecharge(BillRechargeRequestDTO request) {
+    public CommonResponse<?> processRecharge(BillRechargeRequestDTO request) {
         log.info("Starting bill recharge process for retailerId: {}, subProductId: {}, amount: {}",
                 request.getRetailerId(), request.getSubProductId(), request.getAmount());
         try {
@@ -272,7 +276,7 @@ public class BBPSServiceImpl implements BBPSService {
             BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "PENDING", baseTransactionId, operator, subProducts.get().getSubProductTitle());
 
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
-            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT");
+            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.get().getSubProductTitle());
             bbpsRelatedTransactions.processCharges(bbpsTranactionRequestDto, walletAmountTable);
 
             log.info("Wallet updated and charges processed for transactionId: {}", baseTransactionId);
@@ -284,35 +288,38 @@ public class BBPSServiceImpl implements BBPSService {
                     BillRechargeResponseDTO.class
             );
 
-            BillRechargeResponseDTO apiResponse = response.getBody();
+            BillRechargeResponseDTO billRechargeResponse = response.getBody();
 
-            if (apiResponse == null) {
-                return CommonResponse.error(500, "Null response from external API");
+            if (billRechargeResponse == null) {
+                return CommonResponse.error(500, "No response from external API");
             }
 
             //BillRechargeResponseDTO apiResponse = new BillRechargeResponseDTO();
-            apiResponse.setStatus(apiResponse.getStatus());
-            apiResponse.setStatusId(apiResponse.getStatusId());
+            billRechargeResponse.setStatus(billRechargeResponse.getStatus());
+            billRechargeResponse.setStatusId(billRechargeResponse.getStatusId());
 
-//            apiResponse.setStatus("FAILURE");
-//            apiResponse.setStatusId(2);
+            BillRechargeCheckStatusResponseDto checkStatusResp = null;
 
-            if (apiResponse.getStatusId() == 1 || "SUCCESS".equalsIgnoreCase(apiResponse.getStatus())) {
+            if (billRechargeResponse.getStatusId() == 1 || "SUCCESS".equalsIgnoreCase(billRechargeResponse.getStatus())) {
                 bbpsRelatedTransactions.updateTransactionStatus(retailerId, walletType.name(), baseTransactionId);
                 bbpsRelatedTransactions.processCommission(bbpsTranactionRequestDto);
-                return CommonResponse.success(apiResponse, "Transaction Successful");
+                return CommonResponse.success(billRechargeResponse, "Transaction Successful");
 
-            } else if (apiResponse.getStatusId() == 2 || "FAILURE".equalsIgnoreCase(apiResponse.getStatus())) {
+            } else if (billRechargeResponse.getStatusId() == 2 || "FAILURE".equalsIgnoreCase(billRechargeResponse.getStatus())) {
                 bbpsRelatedTransactions.reverseTransactionsAndUpdateWallet(retailerId, walletType.name(), baseTransactionId);
-                return CommonResponse.success(apiResponse, "Transaction is Fail");
+                return CommonResponse.success(billRechargeResponse, "Transaction is Fail");
 
             } else if (
-                    (apiResponse.getStatusId() == 3 || "PENDING".equalsIgnoreCase(apiResponse.getStatus())) ||
-                            (apiResponse.getStatusId() == 34 || "ACCEPTED".equalsIgnoreCase(apiResponse.getStatus())) ||
-                            (apiResponse.getStatusId() == 24 || "SUCCESSFULLY SUBMITTED".equalsIgnoreCase(apiResponse.getStatus()))
+                    (billRechargeResponse.getStatusId() == 3 || "PENDING".equalsIgnoreCase(billRechargeResponse.getStatus())) ||
+                            (billRechargeResponse.getStatusId() == 34 || "ACCEPTED".equalsIgnoreCase(billRechargeResponse.getStatus())) ||
+                            (billRechargeResponse.getStatusId() == 24 || "SUCCESSFULLY SUBMITTED".equalsIgnoreCase(billRechargeResponse.getStatus()) ||
+                                    (billRechargeResponse.getStatusId() == 59 || "INPROCESS".equalsIgnoreCase(billRechargeResponse.getStatus())) ||
+                                    (billRechargeResponse.getStatusId() == 33 || "PROCESSING".equalsIgnoreCase(billRechargeResponse.getStatus())) ||
+                                    (billRechargeResponse.getStatusId() == 90 || "INITIATED".equalsIgnoreCase(billRechargeResponse.getStatus())))
             ) {
                 int maxRetries = 3;
                 boolean successFound = false;
+
 
                 for (int attempt = 1; attempt <= maxRetries; attempt++) {
                     log.info("Pending detected. Attempt {}/{} to check vendor status...", attempt, maxRetries);
@@ -329,20 +336,21 @@ public class BBPSServiceImpl implements BBPSService {
 
                     HttpEntity<MultiValueMap<String, String>> checkStatusRequest = new HttpEntity<>(requestParams, header);
 
-                    ResponseEntity<BillRechargeResponseDTO> checkStatusResponse = restTemplate.exchange(
+                    ResponseEntity<BillRechargeCheckStatusResponseDto> checkStatusResponse = restTemplate.exchange(
                             credentials.getBaseUrlUat() + "/v3/check-status",
                             HttpMethod.POST,
                             checkStatusRequest,
-                            BillRechargeResponseDTO.class
+                            BillRechargeCheckStatusResponseDto.class
                     );
 
-                    BillRechargeResponseDTO vendorResponse = checkStatusResponse.getBody();
+                    checkStatusResp = checkStatusResponse.getBody();
 
-                    if (vendorResponse == null) {
+                    if (checkStatusResp == null) {
                         return CommonResponse.error(500, "Null response from external API");
                     }
 
-                    if ("SUCCESS".equalsIgnoreCase(vendorResponse.getStatus()) || vendorResponse.getStatusId() == 1) {
+                    if ("SUCCESS".equalsIgnoreCase(checkStatusResp.getMessage()) ||
+                            checkStatusResp.getStatus() != null && checkStatusResp.getStatus() == 43) {
 
                         log.info("Vendor reported SUCCESS on attempt {}", attempt);
 
@@ -351,6 +359,11 @@ public class BBPSServiceImpl implements BBPSService {
 
                         successFound = true;
                         break;
+                    } else if ("FAILED".equalsIgnoreCase(checkStatusResp.getMessage()) ||
+                            (checkStatusResp.getStatus() != null && checkStatusResp.getStatus() == 55)) {
+
+                        bbpsRelatedTransactions.reverseTransactionsAndUpdateWallet(retailerId, walletType.name(), baseTransactionId);
+                        return CommonResponse.success(null, "Transaction Failed: " + checkStatusResp.getDescription());
                     }
 
                     // Wait before retrying
@@ -364,14 +377,35 @@ public class BBPSServiceImpl implements BBPSService {
 
                 if (!successFound) {
                     log.info("Transaction still pending after {} attempts. Leaving for cron job to handle.", maxRetries);
+
+                    BBPSPendingTransactions pending = new BBPSPendingTransactions();
+                    pending.setTransactionId(baseTransactionId);
+                    pending.setRetailerId(retailerId);
+                    pending.setWalletType(walletType.name());
+                    pending.setAmount(request.getAmount());
+                    pending.setSchemeRate(schemeRate);
+                    pending.setGst(gstValue);
+                    pending.setTds(tdsValue);
+                    pending.setOperatorName(operator);
+                    pending.setSubProductName(subProducts.get().getSubProductTitle());
+                    pending.setVendorBaseUrl(credentials.getBaseUrlUat());
+                    pending.setToken(credentials.getToken());
+                    pending.setUsername(credentials.getUsername());
+                    pending.setClientSecret(credentials.getClientSecret());
+                    pending.setStatus("PENDING");                // default status
+                    bbpsPendingTransactionsRepository.save(pending);
+
+                    log.info("Saved pending transaction: {}", baseTransactionId);
+
+                    return CommonResponse.success(checkStatusResp, "Transaction still pending. Will complete shortly.");
+
                 }
 
-                return CommonResponse.success(apiResponse, "Transaction is Pending");
+                return CommonResponse.success(checkStatusResp, "Transaction is Successful");
 
             } else {
-                return CommonResponse.error(401, apiResponse.getMessage());
+                return CommonResponse.error(401, checkStatusResp.getMessage());
             }
-
 
         } catch (Exception ex) {
             return CommonResponse.error(500, "Error: " + ex.getMessage());
