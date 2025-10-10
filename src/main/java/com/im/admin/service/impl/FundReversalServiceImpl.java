@@ -1,12 +1,15 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.commons.SMSGatewayAPI;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.CheckBalanceRequestDto;
 import com.im.admin.dto.FundReversalRequestDto;
 import com.im.admin.entities.FundReversal;
+import com.im.admin.entities.UserDetails;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.FundReversalRepository;
+import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.FundReversalResponseDto;
 import com.im.admin.service.FundReversalService;
@@ -30,12 +33,17 @@ import java.util.Optional;
 @Transactional
 @Slf4j
 public class FundReversalServiceImpl implements FundReversalService {
+    @Autowired
+    private UserDetailsRepository userDetailsRepository;
 
     @Autowired
     private FundReversalRepository fundReversalRepository;
 
     @Autowired
     private CommonMethods commonMethods;
+
+    @Autowired
+    private SMSGatewayAPI smsGatewayAPI;
 
     @Override
     public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request) {
@@ -65,7 +73,11 @@ public class FundReversalServiceImpl implements FundReversalService {
 
             fundReversalRepository.save(reversal);
 
-            // TODO: Send OTP via SMS/Email
+           // Send OTP via SMS/Email
+            Optional<UserDetails> HierarchyId = userDetailsRepository.findByHierarchyId(request.getChildHierarchyId());
+            UserDetails userDetails = HierarchyId.get();
+
+            smsGatewayAPI.sendOTPSms(userDetails.getMobileNumber(), otp);
 
             FundReversalResponseDto responseDto = new FundReversalResponseDto(
                     reversal.getId(),
@@ -150,6 +162,10 @@ public class FundReversalServiceImpl implements FundReversalService {
         fundReversalRepository.save(fundReversal);
 
         // TODO: Send new OTP via SMS/Email
+        Optional<UserDetails> HierarchyId = userDetailsRepository.findByHierarchyId(fundReversal.getChildHierarchyId());
+        UserDetails userDetails = HierarchyId.get();
+
+        smsGatewayAPI.sendOTPSms(userDetails.getMobileNumber(), newOtp);
 
         FundReversalResponseDto responseDto = new FundReversalResponseDto(
                 fundReversal.getId(),
