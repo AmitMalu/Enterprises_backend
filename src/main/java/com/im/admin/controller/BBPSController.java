@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 
 import com.im.admin.dto.*;
+import com.im.admin.response.BillRechargeCheckStatusResponseDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.BBPSService;
 import jakarta.validation.Valid;
@@ -59,10 +60,10 @@ public class BBPSController {
     }
 
     @PostMapping("/transaction")
-    public ResponseEntity<CommonResponse<BillRechargeResponseDTO>> recharge(
+    public ResponseEntity<CommonResponse<?>> recharge(
             @RequestBody BillRechargeRequestDTO request) {
         log.info("Received recharge request: {}", request);
-        CommonResponse<BillRechargeResponseDTO> response = bbpsService.processRecharge(request);
+        CommonResponse<?> response = bbpsService.processRecharge(request);
         log.info("Recharge response: {}", response);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }

@@ -357,7 +357,6 @@ public class BBPSRelatedTransactions {
 
     public void processCommission(BbpsTranactionRequestDto bbpsTranactionRequestDto) {
 
-
         BbpsTranactionRequestDto request = new BbpsTranactionRequestDto();
         request.setVendorResponse("SUCCESS");
         // 1. Commission to Retailer
@@ -612,12 +611,13 @@ public class BBPSRelatedTransactions {
                 transactionTable, service, amount, remarks, hierarchyId, beforeTransactionBalance, afterTransactionBalance, actionOnBalance);
 
         String hierarchyColumnName = getHierarchyColumnName(commonMethods.extractHierarchyType(hierarchyId));
+        String subProductName = request.getSubProductName();
 
         String sql = "INSERT INTO " + transactionTable +
                 " (" + hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name) " +
                 "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName)";
 
         entityManager.createNativeQuery(sql)
                 .setParameter("hierarchyId", hierarchyId)
@@ -632,6 +632,7 @@ public class BBPSRelatedTransactions {
                 .setParameter("finalBalance", afterTransactionBalance)
                 .setParameter("tranxId", tranxId)
                 .setParameter("tranStatus", tranStatus)
+                .setParameter("subProductName", subProductName)
                 .executeUpdate();
     }
 
