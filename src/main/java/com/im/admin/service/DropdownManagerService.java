@@ -14,4 +14,6 @@ public interface DropdownManagerService {
                                      String name, String mobileNumber, String emailId,
                                      String dob, String status, Boolean isBlocked,
                                      String network, String createdOn);
+
+    Page<ChildUserDto> getChildUsersList(String hierarchyId, int page, int size, String userId, String parentAccount, String abbreviation, String title, String name, String mobileNumber, String emailId, String dob, String status, Boolean isBlocked, String network, String createdOn);
 }
