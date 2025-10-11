@@ -242,7 +242,7 @@ public class PayoutServiceImpl implements PayoutService {
 
                 HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payout, headers);
 
-                String url = credentials.getBaseUrlUat() + "/payment";
+                String url = credentials.getBaseUrlProd() + "/payment";
                 log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, headers, payout);
 
                 ResponseEntity<PayoutResponseDto> response = restTemplate.exchange(
@@ -258,7 +258,9 @@ public class PayoutServiceImpl implements PayoutService {
 
                 if (payoutResponse != null && "ACCEPTED".equalsIgnoreCase(payoutResponse.getStatus())) {
                     return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
-                } else {
+                } else if (payoutResponse != null && "SUCCESS".equalsIgnoreCase(payoutResponse.getStatus())) {
+                    return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
+                }else {
                     String errorMsg = payoutResponse != null ? payoutResponse.getMessage() : "Null response from vendor";
                     return new CommonResponse<>(400, errorMsg, payoutResponse);
                 }
