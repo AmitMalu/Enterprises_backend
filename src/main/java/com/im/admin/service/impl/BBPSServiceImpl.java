@@ -307,7 +307,7 @@ public class BBPSServiceImpl implements BBPSService {
 
             } else if (billRechargeResponse.getStatusId() == 2 || "FAILURE".equalsIgnoreCase(billRechargeResponse.getStatus())) {
                 bbpsRelatedTransactions.reverseTransactionsAndUpdateWallet(retailerId, walletType.name(), baseTransactionId);
-                return CommonResponse.success(billRechargeResponse, "Transaction is Fail");
+                return CommonResponse.error(400, "Transaction is Fail");
 
             } else if (
                     (billRechargeResponse.getStatusId() == 3 || "PENDING".equalsIgnoreCase(billRechargeResponse.getStatus())) ||
