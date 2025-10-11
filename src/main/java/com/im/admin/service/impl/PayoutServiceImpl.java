@@ -256,13 +256,12 @@ public class PayoutServiceImpl implements PayoutService {
                 assert payoutResponse != null;
                 log.info("RunPaisa payout response: {}", payoutResponse.getMessage());
 
-                if (payoutResponse != null && "ACCEPTED".equalsIgnoreCase(payoutResponse.getStatus())) {
+                if ("ACCEPTED".equalsIgnoreCase(payoutResponse.getStatus())) {
                     return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
-                } else if (payoutResponse != null && "SUCCESS".equalsIgnoreCase(payoutResponse.getStatus())) {
+                } else if ("SUCCESS".equalsIgnoreCase(payoutResponse.getStatus())) {
                     return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
                 }else {
-                    String errorMsg = payoutResponse != null ? payoutResponse.getMessage() : "Null response from vendor";
-                    return new CommonResponse<>(400, errorMsg, payoutResponse);
+                    return new CommonResponse<>(400, "Null response from vendor", payoutResponse);
                 }
             }
 
@@ -339,10 +338,10 @@ public class PayoutServiceImpl implements PayoutService {
 
         log.debug("Successfully Generated token for payout");
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("callback_url", credentials.getCallbackUrl());
+        Map<String, Object> body = new HashMap<>();
+        body.put("callback_url", credentials.getCallbackUrl());
 
-        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
         log.info("Sending request to update callback URL: url={}, headers={}, body={}", credentials.getBaseUrlProd(), headers, body);
 
         String url = credentials.getBaseUrlProd();
