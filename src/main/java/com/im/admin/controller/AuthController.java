@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.commons.SMSGatewayAPI;
 import com.im.admin.dto.ChangePasswordRequestDto;
 import com.im.admin.dto.LoginRequestDto;
 import com.im.admin.entities.*;
@@ -83,6 +84,9 @@ public class AuthController {
 
     @Autowired
     private AESEncryptionUtil aesEncryptionUtil;
+
+    @Autowired
+    private SMSGatewayAPI smsGatewayAPI;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
@@ -194,6 +198,7 @@ public class AuthController {
         resetFailedAttempts(user);
         String otp = generateOtpForUser(user);
 
+
         Map<String, String> otpData = Map.of("otp", otp);
         CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData);
         logLoginAttempt(requestJson, requestTime, response);
@@ -233,8 +238,18 @@ public class AuthController {
         user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
         userDetailsRepository.save(user);
         log.info("OTP generated for user ID: {}", user.getHierarchyId());
+
+        try {
+            //  Send OTP via SMS
+            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
+            log.info("OTP sent via SMS to: {}", user.getMobileNumber());
+        } catch (Exception e) {
+            log.error("Failed to send OTP via SMS to {}", user.getMobileNumber(), e);
+        }
+
         return otp;
     }
+
 
     public boolean isUrlValidForUserHierarchy(String hierarchyId, String requestUrl) {
         String currentId = hierarchyId;
@@ -564,7 +579,7 @@ public class AuthController {
         // Hook: Send OTP via SMS or Email
         if (loginRequestDto.getUserName().matches("\\d{10}")) {
             log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
-            // smsService.sendOtp(user.getMobileNumber(), newOtp);
+            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), newOtp);
         } else {
             log.debug("Sending OTP via Email to email ID: {}", user.getEmailId());
             // emailService.sendOtp(user.getEmail(), newOtp);
@@ -686,7 +701,7 @@ public class AuthController {
         // Optional: Hook for sending OTP
         if (loginRequestDto.getUserName().matches("\\d{10}")) {
             log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
-            // smsService.sendOtp(user.getMobileNumber(), otp);
+            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
         } else {
             log.debug("Sending OTP via Email to email ID: {}", user.getEmailId());
             // emailService.sendOtp(user.getEmail(), otp);

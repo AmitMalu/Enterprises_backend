@@ -24,6 +24,8 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -54,9 +56,10 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
 
         List<MyTransactionReportResponse> allData = new ArrayList<>();
 
-        List<WalletType> walletTypes = (request.getWalletType() == WalletType.BOTH)
+        List<WalletType> walletTypes = (request.getWalletType() == null || request.getWalletType() == WalletType.BOTH)
                 ? Arrays.asList(WalletType.PREPAID, WalletType.POSTPAID)
                 : List.of(request.getWalletType());
+
 
         long totalCount = 0;
         for (WalletType walletType : walletTypes) {
@@ -116,12 +119,32 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         query.setParameter("p_from_date", from);
         query.setParameter("p_to_date", to);
         query.setParameter("p_sub_products", String.join(",", subProducts));
-        query.setParameter("p_status", request.getStatus().name());
-        query.setParameter("p_column_name", columnName);
+//        query.setParameter("p_status", request.getStatus().name());
+        String statusValue =
+                (request.getStatus() != null && !request.getStatus().toString().trim().isEmpty())
+                        ? request.getStatus().name()
+                        : "ALL";
 
+        query.setParameter("p_status", statusValue);
+        query.setParameter("p_column_name", columnName);
         query.setParameter("p_id", request.getId());
-        query.setParameter("p_transaction_date",
-                StringUtils.hasText(request.getTransactionDate()) ? Date.valueOf(request.getTransactionDate()) : null);
+
+        Date transactionDateParam = null;
+        if (StringUtils.hasText(request.getTransactionDate())) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+                java.util.Date parsed = sdf.parse(request.getTransactionDate());
+                transactionDateParam = new Date(parsed.getTime());
+            } catch (ParseException e) {
+                // optional: log warning
+                transactionDateParam = null;
+            }
+        }
+        query.setParameter("p_transaction_date", transactionDateParam);
+
+//        query.setParameter("p_transaction_date",
+//                StringUtils.hasText(request.getTransactionDate()) ? Date.valueOf(request.getTransactionDate()) : null);
+//
         query.setParameter("p_transaction_time",
                 StringUtils.hasText(request.getTransactionTime()) ? Time.valueOf(request.getTransactionTime()) : null);
         query.setParameter("p_bal_before", request.getBalBefore());

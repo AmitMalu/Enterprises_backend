@@ -1,5 +1,9 @@
 package com.im.admin.request.reports;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.im.admin.dto.StatusDeserializer;
+import com.im.admin.dto.WalletTypeDeserializer;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import lombok.AllArgsConstructor;
@@ -18,10 +22,14 @@ public class MyTransactionReportRequest {
     private String fromDate;   // Format: yyyy-MM-dd
     private String toDate;     // Format: yyyy-MM-dd
     private String subProductName;   //  PG, BBPS or ALL anything will come single subproduct or multiple or ALLs
+    @JsonDeserialize(using = WalletTypeDeserializer.class)
     private WalletType walletType;   //PREPAID or POSTPAID or BOTH could be there
+    @JsonDeserialize(using = StatusDeserializer.class)
     private Status status;  //PENDING or FAILURE or SUCCESS or ALL
 
     private Integer id;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private String transactionDate;
     private String transactionTime;
     private BigDecimal balBefore;
