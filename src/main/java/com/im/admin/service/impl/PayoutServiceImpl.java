@@ -314,34 +314,47 @@ public class PayoutServiceImpl implements PayoutService {
         return (String) responseBodyMap.get("token");
     }
 
-
     @Override
     public PayoutMerchantCallbackResponse updateMerchantCallbackUrl(SendPayoutRequest request) {
+        log.info("Initiating callback URL update for subProductId={}", request.getSubProductId());
+
         VendorRouting routing = vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+        log.debug("VendorRouting retrieved: {}", routing);
+
         Vendors vendor = CommonMethods.getVendors(routing);
+        log.debug("Vendor resolved: id={}, productId={}", vendor.getId(), vendor.getProduct().getId());
 
         VendorCredentials credentials = vendorCredentialsRepository
                 .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+                .orElseThrow(() -> {
+                    log.error("No credentials found for vendorId={}, productId={}", vendor.getId(), vendor.getProduct().getId());
+                    return new RuntimeException("No credentials found for selected vendor");
+                });
+
+        log.debug("VendorCredentials retrieved: {}", credentials);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("token", generateTokenForPayout(credentials));
 
+        log.debug("Successfully Generated token for payout");
+
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("callback_url", credentials.getCallbackUrl());
 
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+        log.info("Sending request to update callback URL: url={}, headers={}, body={}", credentials.getBaseUrlProd(), headers, body);
 
-        log.info("Update Merchant Callback Url: headers={}, body={}", headers, body);
+        String url = credentials.getBaseUrlProd();
 
         ResponseEntity<PayoutMerchantCallbackResponse> response = restTemplate.exchange(
-                baseUrl + "/updatemerchantcallback",
+                url + "/updatemerchantcallback",
                 HttpMethod.POST,
                 requestEntity,
                 PayoutMerchantCallbackResponse.class
         );
 
+        log.info("Received response: statusCode={}, body={}", response.getStatusCode(), response.getBody());
         return response.getBody();
     }
 
