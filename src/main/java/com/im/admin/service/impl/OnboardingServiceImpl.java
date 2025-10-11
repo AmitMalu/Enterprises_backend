@@ -6,6 +6,7 @@ import com.im.admin.entities.*;
 import com.im.admin.exception.NoPendingRecordsFoundException;
 import com.im.admin.repositories.*;
 import com.im.admin.response.GenericPendingResponseDto;
+import com.im.admin.service.EmailService;
 import com.im.admin.service.OnboardingService;
 import com.im.admin.service.asyncMethods.AsyncPendingFetcher;
 import com.im.admin.util.CommonMethods;
@@ -67,6 +68,10 @@ public class OnboardingServiceImpl implements OnboardingService {
 
     @Autowired
     private ImSubRoleRepository imSubRoleRepository;
+
+    @Autowired
+    EmailService emailService;
+
 
     @Override
     @Transactional(readOnly = true)
@@ -277,8 +282,11 @@ public class OnboardingServiceImpl implements OnboardingService {
             imSubRoleRepository.save(imSubRole);
         }
 
-
         userDetailsRepository.save(user);
+
+        //Send email with credentials
+        String emailBody = emailService.buildWelcomeEmail(name, mobileNo, randomPassword);
+        emailService.sendSimpleEmail(email, "Welcome to NFT – Your Login Credentials", emailBody);
 
         log.info("User created for hierarchy: " + hierarchyType + ", mobile: " + mobileNo);
         log.info("SMS (mock) sent to mobile: " + mobileNo + " with password: " + randomPassword);
