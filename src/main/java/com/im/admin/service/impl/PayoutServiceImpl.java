@@ -242,7 +242,7 @@ public class PayoutServiceImpl implements PayoutService {
 
                 HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payout, headers);
 
-                String url = credentials.getBaseUrlUat() + "/payment";
+                String url = credentials.getBaseUrlProd() + "/payment";
                 log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, headers, payout);
 
                 ResponseEntity<PayoutResponseDto> response = restTemplate.exchange(
@@ -256,11 +256,12 @@ public class PayoutServiceImpl implements PayoutService {
                 assert payoutResponse != null;
                 log.info("RunPaisa payout response: {}", payoutResponse.getMessage());
 
-                if (payoutResponse != null && "ACCEPTED".equalsIgnoreCase(payoutResponse.getStatus())) {
+                if ("ACCEPTED".equalsIgnoreCase(payoutResponse.getStatus())) {
                     return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
-                } else {
-                    String errorMsg = payoutResponse != null ? payoutResponse.getMessage() : "Null response from vendor";
-                    return new CommonResponse<>(400, errorMsg, payoutResponse);
+                } else if ("SUCCESS".equalsIgnoreCase(payoutResponse.getStatus())) {
+                    return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
+                }else {
+                    return new CommonResponse<>(400, "Null response from vendor", payoutResponse);
                 }
             }
 
@@ -312,34 +313,47 @@ public class PayoutServiceImpl implements PayoutService {
         return (String) responseBodyMap.get("token");
     }
 
-
     @Override
     public PayoutMerchantCallbackResponse updateMerchantCallbackUrl(SendPayoutRequest request) {
+        log.info("Initiating callback URL update for subProductId={}", request.getSubProductId());
+
         VendorRouting routing = vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+        log.debug("VendorRouting retrieved: {}", routing);
+
         Vendors vendor = CommonMethods.getVendors(routing);
+        log.debug("Vendor resolved: id={}, productId={}", vendor.getId(), vendor.getProduct().getId());
 
         VendorCredentials credentials = vendorCredentialsRepository
                 .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+                .orElseThrow(() -> {
+                    log.error("No credentials found for vendorId={}, productId={}", vendor.getId(), vendor.getProduct().getId());
+                    return new RuntimeException("No credentials found for selected vendor");
+                });
+
+        log.debug("VendorCredentials retrieved: {}", credentials);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("token", generateTokenForPayout(credentials));
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("callback_url", credentials.getCallbackUrl());
+        log.debug("Successfully Generated token for payout");
 
-        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+        Map<String, Object> body = new HashMap<>();
+        body.put("callback_url", credentials.getCallbackUrl());
 
-        log.info("Update Merchant Callback Url: headers={}, body={}", headers, body);
+        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+        log.info("Sending request to update callback URL: url={}, headers={}, body={}", credentials.getBaseUrlProd(), headers, body);
+
+        String url = credentials.getBaseUrlProd();
 
         ResponseEntity<PayoutMerchantCallbackResponse> response = restTemplate.exchange(
-                baseUrl + "/updatemerchantcallback",
+                url + "/updatemerchantcallback",
                 HttpMethod.POST,
                 requestEntity,
                 PayoutMerchantCallbackResponse.class
         );
 
+        log.info("Received response: statusCode={}, body={}", response.getStatusCode(), response.getBody());
         return response.getBody();
     }
 

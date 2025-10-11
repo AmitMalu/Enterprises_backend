@@ -62,8 +62,10 @@ public class PayoutController {
 
     @PostMapping("/update-callback-url")
     public ResponseEntity<CommonResponse<PayoutMerchantCallbackResponse>> updateCallbackUrl(@RequestBody SendPayoutRequest request) {
+        log.info("Received request to update callback URL: {}", request);
         PayoutMerchantCallbackResponse responseDTO = payoutService.updateMerchantCallbackUrl(request);
-        return ResponseEntity.ok(new CommonResponse<>(200, "Callback URL updated", responseDTO));
+        log.info("Callback URL updated successfully for merchant: {}", responseDTO.getMessage());
+        return ResponseEntity.ok(new CommonResponse<>(200, "Transaction Initiated", responseDTO));
     }
 
     @PostMapping("/callback")
