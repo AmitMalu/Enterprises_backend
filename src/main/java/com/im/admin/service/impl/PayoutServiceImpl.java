@@ -561,98 +561,91 @@ public class PayoutServiceImpl implements PayoutService {
         TransactionSchemeDetailsRequestDto dto = null;
 
         try {
-            //  Only process successful callbacks
-            if ("SUCCESS".equalsIgnoreCase(callback.getStatus())) {
-                log.info("[1] Status is SUCCESS. Starting transaction data processing...");
+            // Fetch pending transaction (for all statuses)
+            log.info("[1] Fetching pending transaction for ORDER_ID: {}", callback.getOrderId());
+            PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository
+                    .findByTransactionIdAndStatus(callback.getOrderId(), callback.getStatus())
+                    .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + callback.getOrderId()));
 
-                // 1️ Fetch pending transaction from DB
-                log.info("[2] Fetching pending transaction for ORDER_ID: {}", callback.getOrderId());
-                PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository
-                        .findByTransactionIdAndStatus(callback.getOrderId(), callback.getStatus())
-                        .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + callback.getOrderId()));
+            log.info("[1.1] PendingTxn fetched successfully: ID={}, SchemeCode={}, TxnType={}, Amount={}, Status={}",
+                    pendingTxn.getId(), pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(),
+                    pendingTxn.getAmount(), pendingTxn.getStatus());
 
-                log.info("[2.1] PendingTxn fetched successfully: ID={}, SchemeCode={}, TxnType={}, Amount={}",
-                        pendingTxn.getId(), pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(), pendingTxn.getAmount());
+            Double txnAmt = Double.valueOf(callback.getTxnAmount());
 
-                Double txnAmt = Double.valueOf(callback.getTxnAmount());
+            // Fetch matching SchemeRate
+            log.info("[2] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
+                    pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(), txnAmt);
 
-                // 2️ Fetch matching SchemeRate
-                log.info("[3] Searching matching SchemeRate for schemeCode={}, operatorName={}, amount={}",
-                        pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(), txnAmt);
+            SchemeRate selectedScheme = schemeRateRepository
+                    .findSchemeRateByCodeAndOperatorAndAmount(
+                            pendingTxn.getSchemeCode(),
+                            pendingTxn.getTransactionType(),
+                            txnAmt)
+                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + txnAmt));
 
-                SchemeRate selectedScheme = schemeRateRepository
-                        .findSchemeRateByCodeAndOperatorAndAmount(
-                                pendingTxn.getSchemeCode(),
-                                pendingTxn.getTransactionType(),
-                                txnAmt)
-                        .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + txnAmt));
+            log.info("[2.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
+                    selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
+                    selectedScheme.getGross(), selectedScheme.getRetailer());
 
-                log.info("[3.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
-                        selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
-                        selectedScheme.getGross(), selectedScheme.getRetailer());
+            // Fetch scheme entity
+            log.info("[3] Fetching Scheme entity for SchemeCode={}", selectedScheme.getSchemeCode());
+            Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                    .orElseThrow(() -> new RuntimeException("Scheme Not Found with code: " + selectedScheme.getSchemeCode()));
 
-                // 3️ Fetch scheme entity
-                log.info("[4] Fetching Scheme entity for SchemeCode={}", selectedScheme.getSchemeCode());
-                Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
-                        .orElseThrow(() -> new RuntimeException("Scheme Not Found with code: " + selectedScheme.getSchemeCode()));
+            log.info("[3.1] Scheme fetched successfully: HashCode={}", scheme.getSchemeCombinationHashCode());
 
-                log.info("[4.1] Scheme fetched successfully: HashCode={}", scheme.getSchemeCombinationHashCode());
-                // 4️ Parse scheme combination hash code
-                String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
-                if (hashParts.length < 2) {
-                    throw new RuntimeException("Invalid schemeCombinationHashCode format: " + scheme.getSchemeCombinationHashCode());
-                }
-
-                short productId = Short.parseShort(hashParts[0]);
-                String subProductIdStr = hashParts[1];
-
-                log.info("[5] Extracted ProductID={}, SubProductID={} from SchemeCombinationHashCode", productId, subProductIdStr);
-
-                // 5️ Fetch product and subproduct
-                Products product = productsRepository.findById(productId)
-                        .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
-                SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
-                        .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
-
-                log.info("[5.1] Produt/SubProduct fetched successfully: Product={}, SubProduct={}",
-                        product.getName(), subProduct.getSubProductTitle());
-
-                // 6️ Prepare DTO
-                log.info("[6] Constructing TransactionSchemeDetailsRequestDto...");
-                dto = new TransactionSchemeDetailsRequestDto();
-                dto.setAmount(txnAmt);
-                dto.setConfirmAmount(txnAmt);
-                dto.setOperatorName(pendingTxn.getTransactionType());
-                dto.setOperatorCode(selectedScheme.getOperatorCode());
-                dto.setSchemeRate(selectedScheme);
-                dto.setTransactionType(product.getTransactionType());
-                dto.setWalletType(subProduct.getWalletType());
-                dto.setGstValue(String.valueOf(product.getSgst()));
-                dto.setTdsRate(String.valueOf(product.getTds()));
-                dto.setProductCode(product.getProductCode());
-                dto.setSubProductCode(subProduct.getSubProductCode());
-                dto.setIsCommission(product.getIsCommissions());
-                dto.setHasCharge(product.getHasCharges());
-
-                // 7️ Get hierarchy ID
-                log.info("[7] Fetching user by mobile number: {}", callback.getCustomerPhone());
-                String hierarchyId = userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
-                        .orElseThrow(() -> new RuntimeException("No User Found with mobile: " + callback.getCustomerPhone()))
-                        .getHierarchyId();
-                dto.setHierarchyId(hierarchyId);
-
-                log.info("[7.1] Hierarchy ID fetched successfully: {}", hierarchyId);
-                log.info("[8] DTO ready for transaction processing: {}", dto);
-
-                // 8️ Process transaction
-                transactionServiceImpl.processTransaction(dto, callback.getStatus());
-                log.info("[9] Transaction processed successfully for ORDER_ID: {}", callback.getOrderId());
-
-            } else {
-                //  FAILED
-                log.warn("[Callback] Payment not successful. STATUS={}, ORDER_ID={}", callback.getStatus(), callback.getOrderId());
-                transactionServiceImpl.processTransaction(dto, callback.getStatus());
+            // Parse scheme combination hash code
+            String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+            if (hashParts.length < 2) {
+                throw new RuntimeException("Invalid schemeCombinationHashCode format: " + scheme.getSchemeCombinationHashCode());
             }
+
+            short productId = Short.parseShort(hashParts[0]);
+            String subProductIdStr = hashParts[1];
+
+            log.info("[4] Extracted ProductID={}, SubProductID={} from SchemeCombinationHashCode", productId, subProductIdStr);
+
+            // Fetch product and subproduct
+            Products product = productsRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+            SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
+                    .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
+
+            log.info("[4.1] Product/SubProduct fetched successfully: Product={}, SubProduct={}",
+                    product.getName(), subProduct.getSubProductTitle());
+
+            // Prepare DTO (common for all statuses)
+            log.info("[5] Constructing TransactionSchemeDetailsRequestDto...");
+            dto = new TransactionSchemeDetailsRequestDto();
+            dto.setAmount(txnAmt);
+            dto.setConfirmAmount(txnAmt);
+            dto.setOperatorName(pendingTxn.getTransactionType());
+            dto.setOperatorCode(selectedScheme.getOperatorCode());
+            dto.setSchemeRate(selectedScheme);
+            dto.setTransactionType(product.getTransactionType());
+            dto.setWalletType(subProduct.getWalletType());
+            dto.setGstValue(String.valueOf(product.getSgst()));
+            dto.setTdsRate(String.valueOf(product.getTds()));
+            dto.setProductCode(product.getProductCode());
+            dto.setSubProductCode(subProduct.getSubProductCode());
+            dto.setIsCommission(product.getIsCommissions());
+            dto.setHasCharge(product.getHasCharges());
+
+            // Get hierarchy ID
+            log.info("[6] Fetching user by mobile number: {}", callback.getCustomerPhone());
+            String hierarchyId = userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
+                    .orElseThrow(() -> new RuntimeException("No User Found with mobile: " + callback.getCustomerPhone()))
+                    .getHierarchyId();
+            dto.setHierarchyId(hierarchyId);
+
+            log.info("[6.1] Hierarchy ID fetched successfully: {}", hierarchyId);
+            log.info("[7] DTO ready for transaction processing: {}", dto);
+
+            // Process transaction for any status (SUCCESS, FAILED, PENDING, etc.)
+            transactionServiceImpl.processTransaction(dto, callback.getStatus());
+            log.info("[8] Transaction processed successfully for ORDER_ID: {}, STATUS={}",
+                    callback.getOrderId(), callback.getStatus());
 
         } catch (Exception ex) {
             log.error("[ERROR] Exception while processing callback for ORDER_ID={} | Error={}",
