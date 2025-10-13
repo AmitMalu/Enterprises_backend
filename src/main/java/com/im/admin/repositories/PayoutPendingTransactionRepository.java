@@ -9,6 +9,6 @@ import java.util.Optional;
 @Repository
 public interface PayoutPendingTransactionRepository extends JpaRepository<PayoutPendingTransactions, Long> {
 
-    Optional<PayoutPendingTransactions> findByTransactionIdAndStatus(String transactionId, String status);
+    Optional<PayoutPendingTransactions> findByTransactionId(String transactionId);
 
 }
