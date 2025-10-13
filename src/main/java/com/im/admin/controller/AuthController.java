@@ -240,8 +240,18 @@ public class AuthController {
         log.info("OTP generated for user ID: {}", user.getHierarchyId());
 
         try {
-            //  Send OTP via SMS
-//            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
+//            //  Send OTP via SMS
+//            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
+//
+//            //Save SMS logs
+//            commonFunctions.saveSmsLogs(
+//                    LocalDateTime.now(),
+//                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + otp,
+//                    LocalDateTime.now(),
+//                    smsResponse,
+//                    null // You can replace null with real IP if available
+//            );
+
             log.info("OTP sent via SMS to: {}", user.getMobileNumber());
         } catch (Exception e) {
             log.error("Failed to send OTP via SMS to {}", user.getMobileNumber(), e);
@@ -579,7 +589,17 @@ public class AuthController {
         // Hook: Send OTP via SMS or Email
         if (loginRequestDto.getUserName().matches("\\d{10}")) {
             log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
-//            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), newOtp);
+//            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), newOtp);
+//
+//            // Save SMS logs
+//            commonFunctions.saveSmsLogs(
+//                    LocalDateTime.now(),
+//                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + newOtp,
+//                    LocalDateTime.now(),
+//                    smsResponse,
+//                    null // You can replace null with real IP if available
+//            );
+
         } else {
             log.debug("Sending OTP via Email to email ID: {}", user.getEmailId());
             // emailService.sendOtp(user.getEmail(), newOtp);
@@ -701,7 +721,17 @@ public class AuthController {
         // Optional: Hook for sending OTP
         if (loginRequestDto.getUserName().matches("\\d{10}")) {
             log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
-//            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
+//            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
+//
+//            // Save SMS logs
+//            commonFunctions.saveSmsLogs(
+//                    LocalDateTime.now(),
+//                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + otp,
+//                    LocalDateTime.now(),
+//                    smsResponse,
+//                    null // You can replace null with real IP if available
+//            );
+
         } else {
             log.debug("Sending OTP via Email to email ID: {}", user.getEmailId());
             // emailService.sendOtp(user.getEmail(), otp);
