@@ -1,5 +1,6 @@
 package com.im.admin.repositories;
 
+import aj.org.objectweb.asm.commons.Remapper;
 import com.im.admin.entities.WhiteLabelPrepaidAmount;
 import com.im.admin.entities.WhiteLabels;
 import org.springframework.data.jpa.repository.JpaRepository;
