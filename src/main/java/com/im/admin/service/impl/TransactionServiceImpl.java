@@ -204,7 +204,7 @@ public class TransactionServiceImpl implements TransactionService {
                 return "Transaction pending - no wallet update";
             }
 
-            if ("FAILURE".equalsIgnoreCase(vendorCallbackStatus)) {
+            if ("FAILURE".equalsIgnoreCase(vendorCallbackStatus) || "FAILED".equalsIgnoreCase(vendorCallbackStatus)) {
                 insertTransaction(wallet, "FAILURE", tranxAmount,
                         wallet.getAvailableBalance(), wallet.getAvailableBalance(),
                         "Vendor Failure - No Credit", buildTransactionId("FLD", baseTransactionId), "CREDIT", dto);
