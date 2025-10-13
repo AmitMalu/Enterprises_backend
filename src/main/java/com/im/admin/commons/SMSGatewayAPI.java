@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 @Service
 public class SMSGatewayAPI {
 
+    @Autowired
     private CommonFunctions commonFunctions;
 
     public String sendOTPSms(String mobileNumber, String otp) {

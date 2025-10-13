@@ -5,11 +5,12 @@ import com.im.admin.repositories.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
-@Component
 @Slf4j
+@Service
 public class CommonFunctions {
 
     @Autowired
@@ -29,6 +30,9 @@ public class CommonFunctions {
 
     @Autowired
     private CallbackEventLogRepository callbackEventLogRepository;
+
+    @Autowired
+    private SmsLogsRepository smsLogRepository;
 
 
     public void saveImLogs(String request, LocalDateTime imRequestDateTime, String ipAddress, String response,
@@ -99,6 +103,17 @@ public class CommonFunctions {
         callbackEventLog.setResponse(response);
         callbackEventLog.setResponseDateTime(responseDateTime);
         callbackEventLogRepository.save(callbackEventLog);
+    }
+
+    public SmsLog saveSmsLogs(LocalDateTime smsRequestDateTime, String request, LocalDateTime smsResponseDateTime, String response, String ipAddress) {
+        SmsLog smsLog = new SmsLog();
+        smsLog.setRequest(request);
+        smsLog.setRequestDateTime(smsRequestDateTime);
+        smsLog.setResponse(response);
+        smsLog.setResponseDateTime(smsResponseDateTime);
+        smsLog.setIpAddress(null);
+        smsLog = smsLogRepository.save(smsLog);
+        return smsLog;
     }
 
 }
