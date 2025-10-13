@@ -43,5 +43,20 @@ public interface SchemeRateRepository extends JpaRepository<SchemeRate, Long> {
     Optional<SchemeRate> findFixedSlabByOperatorAndAmount(@Param("operatorName") String operatorName,
                                                           @Param("amount") Double amount);
 
+    @Query("""
+        SELECT sr FROM SchemeRate sr
+        WHERE sr.schemeCode = :schemeCode
+          AND sr.operatorName = :operatorName
+          AND (
+                (sr.slabType = 'FIXED' AND :amount = sr.fixedSlabValue)
+             OR (sr.slabType = 'VARIABLE' AND :amount BETWEEN sr.slabStart AND sr.slabEnd)
+          )
+    """)
+    Optional<SchemeRate> findSchemeRateByCodeAndOperatorAndAmount(
+            @Param("schemeCode") String schemeCode,
+            @Param("operatorName") String operatorName,
+            @Param("amount") Double amount
+    );
+
 
 }
