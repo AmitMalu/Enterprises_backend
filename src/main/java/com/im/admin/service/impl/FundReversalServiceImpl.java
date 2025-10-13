@@ -77,7 +77,7 @@ public class FundReversalServiceImpl implements FundReversalService {
             Optional<UserDetails> HierarchyId = userDetailsRepository.findByHierarchyId(request.getChildHierarchyId());
             UserDetails userDetails = HierarchyId.get();
 
-            smsGatewayAPI.sendOTPSms(userDetails.getMobileNumber(), otp);
+//            smsGatewayAPI.sendOTPSms(userDetails.getMobileNumber(), otp);
 
             FundReversalResponseDto responseDto = new FundReversalResponseDto(
                     reversal.getId(),
@@ -165,7 +165,7 @@ public class FundReversalServiceImpl implements FundReversalService {
         Optional<UserDetails> HierarchyId = userDetailsRepository.findByHierarchyId(fundReversal.getChildHierarchyId());
         UserDetails userDetails = HierarchyId.get();
 
-        smsGatewayAPI.sendOTPSms(userDetails.getMobileNumber(), newOtp);
+//        smsGatewayAPI.sendOTPSms(userDetails.getMobileNumber(), newOtp);
 
         FundReversalResponseDto responseDto = new FundReversalResponseDto(
                 fundReversal.getId(),

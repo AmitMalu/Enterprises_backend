@@ -241,7 +241,7 @@ public class AuthController {
 
         try {
             //  Send OTP via SMS
-            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
+//            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
             log.info("OTP sent via SMS to: {}", user.getMobileNumber());
         } catch (Exception e) {
             log.error("Failed to send OTP via SMS to {}", user.getMobileNumber(), e);
@@ -579,7 +579,7 @@ public class AuthController {
         // Hook: Send OTP via SMS or Email
         if (loginRequestDto.getUserName().matches("\\d{10}")) {
             log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
-            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), newOtp);
+//            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), newOtp);
         } else {
             log.debug("Sending OTP via Email to email ID: {}", user.getEmailId());
             // emailService.sendOtp(user.getEmail(), newOtp);
@@ -701,7 +701,7 @@ public class AuthController {
         // Optional: Hook for sending OTP
         if (loginRequestDto.getUserName().matches("\\d{10}")) {
             log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
-            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
+//            smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
         } else {
             log.debug("Sending OTP via Email to email ID: {}", user.getEmailId());
             // emailService.sendOtp(user.getEmail(), otp);
