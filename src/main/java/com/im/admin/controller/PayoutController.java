@@ -70,7 +70,7 @@ public class PayoutController {
 
     @PostMapping("/callback")
     public ResponseEntity<String> payoutCallback(@RequestBody Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException {
-        log.info("Received callback request with payload: {}", payload);
+        log.info("<---------------- Received callback request with payload: {} --------------------->", payload);
         String response = payoutService.handlePayoutCallback(payload, request);
         log.info("Callback response: {}", response);
         return ResponseEntity.ok(response);

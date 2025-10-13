@@ -555,16 +555,15 @@ public class PayoutServiceImpl implements PayoutService {
     //@Override
     public void processCallback(RunPaisaCallback callback) {
         log.info("========== [RunPaisa CALLBACK RECEIVED] ==========");
-        log.info("ORDER_ID: {}, STATUS: {}, TXN_AMOUNT: {}, CUSTOMER_PHONE: {}",
-                callback.getOrderId(), callback.getStatus(), callback.getTxnAmount(), callback.getCustomerPhone());
+        log.info("========== ORDER_ID: {}, STATUS: {}, TXN_AMOUNT: {}",
+                callback.getOrderId(), callback.getStatus(), callback.getTxnAmount());
 
         TransactionSchemeDetailsRequestDto dto = null;
 
         try {
             // Fetch pending transaction (for all statuses)
             log.info("[1] Fetching pending transaction for ORDER_ID: {}", callback.getOrderId());
-            PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository
-                    .findByTransactionIdAndStatus(callback.getOrderId(), callback.getStatus())
+            PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository.findByTransactionId(callback.getOrderId())
                     .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + callback.getOrderId()));
 
             log.info("[1.1] PendingTxn fetched successfully: ID={}, SchemeCode={}, TxnType={}, Amount={}, Status={}",
@@ -634,12 +633,12 @@ public class PayoutServiceImpl implements PayoutService {
 
             // Get hierarchy ID
             log.info("[6] Fetching user by mobile number: {}", callback.getCustomerPhone());
-            String hierarchyId = userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
-                    .orElseThrow(() -> new RuntimeException("No User Found with mobile: " + callback.getCustomerPhone()))
-                    .getHierarchyId();
-            dto.setHierarchyId(hierarchyId);
+//            String hierarchyId = userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
+//                    .orElseThrow(() -> new RuntimeException("No User Found with mobile: " + callback.getCustomerPhone()))
+//                    .getHierarchyId();
+            dto.setHierarchyId(pendingTxn.getRetailerId());
 
-            log.info("[6.1] Hierarchy ID fetched successfully: {}", hierarchyId);
+            log.info("[6.1] Hierarchy ID fetched successfully: {}", pendingTxn.getRetailerId());
             log.info("[7] DTO ready for transaction processing: {}", dto);
 
             // Process transaction for any status (SUCCESS, FAILED, PENDING, etc.)
