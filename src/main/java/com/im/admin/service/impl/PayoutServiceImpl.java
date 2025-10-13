@@ -89,6 +89,9 @@ public class PayoutServiceImpl implements PayoutService {
     @Autowired
     private ProductsRepository productsRepository;
 
+    @Autowired
+    private PayoutPendingTransactionRepository payoutPendingTransactionRepository;
+
     RestTemplate restTemplate = new RestTemplate();
 
     ObjectMapper mapper = new ObjectMapper();
@@ -169,6 +172,7 @@ public class PayoutServiceImpl implements PayoutService {
         try {
 
             String baseTransactionId = commonMethods.generateBaseTransactionId();
+            String txnId = "TXN" + baseTransactionId;
 
             Optional<SubProducts> subProducts = subProductsRepository.findById(sendPayoutRequest.getSubProductId());
             WalletType walletType = WalletType.valueOf(subProducts.get().getWalletType());
@@ -206,7 +210,7 @@ public class PayoutServiceImpl implements PayoutService {
                 payoutJsonRequestBody.setAccountNumber(sendPayoutRequest.getAccountNumber());
                 payoutJsonRequestBody.setIfscCode(sendPayoutRequest.getIfscCode());
                 payoutJsonRequestBody.setAmount(sendPayoutRequest.getAmount());
-                payoutJsonRequestBody.setOrderId("TXN" + baseTransactionId);
+                payoutJsonRequestBody.setOrderId(txnId);
                 payoutJsonRequestBody.setBeneficiaryName(sendPayoutRequest.getBeneficiaryName());
                 payoutJsonRequestBody.setPaymentMode(sendPayoutRequest.getPaymentMode());
                 payoutJsonRequestBody.setCallbackurl(sendPayoutRequest.getCallbackurl());
@@ -236,14 +240,14 @@ public class PayoutServiceImpl implements PayoutService {
                 payout.put("account_number", String.valueOf(sendPayoutRequest.getAccountNumber()));  // "026291800001191"
                 payout.put("ifsc_code", String.valueOf(sendPayoutRequest.getIfscCode()));            // "YESB0000001"
                 payout.put("amount", String.format("%.2f", sendPayoutRequest.getAmount()));          // "11.00"
-                payout.put("order_id", "TXN" + baseTransactionId);                                   // "TXN25082012270100272"
+                payout.put("order_id", txnId);                                   // "TXN25082012270100272"
                 payout.put("beneficiary_name", String.valueOf(sendPayoutRequest.getBeneficiaryName()));
                 payout.put("payment_mode", String.valueOf(sendPayoutRequest.getPaymentMode()));      // "IMPS"
 
                 HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payout, headers);
 
                 String url = credentials.getBaseUrlProd() + "/payment";
-                log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, headers, payout);
+                log.info("Sending payout request to Run Paisa. URL: {}, Headers: {}, Body: {}", url, headers, payout);
 
                 ResponseEntity<PayoutResponseDto> response = restTemplate.exchange(
                         url,
@@ -254,15 +258,35 @@ public class PayoutServiceImpl implements PayoutService {
 
                 PayoutResponseDto payoutResponse = response.getBody();
                 assert payoutResponse != null;
-                log.info("RunPaisa payout response: {}", payoutResponse.getMessage());
 
-                if ("ACCEPTED".equalsIgnoreCase(payoutResponse.getStatus())) {
-                    return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
-                } else if ("SUCCESS".equalsIgnoreCase(payoutResponse.getStatus())) {
-                    return new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
-                }else {
-                    return new CommonResponse<>(400, "Null response from vendor", payoutResponse);
-                }
+                String vendorStatus = payoutResponse.getStatus() != null ? payoutResponse.getStatus().toUpperCase() : "UNKNOWN";
+
+                log.info("Run Paisa payout response received for TXN_ID={}, STATUS={}, MESSAGE={}",
+                        txnId, vendorStatus, payoutResponse.getMessage());
+
+                // Always save transaction irrespective of status
+                PayoutPendingTransactions pending = new PayoutPendingTransactions();
+                pending.setTransactionId(txnId);
+                pending.setSchemeCode(sendPayoutRequest.getSchemeCode());
+                pending.setRetailerId(sendPayoutRequest.getRetailerId());
+                pending.setAmount(sendPayoutRequest.getAmount());
+                pending.setTransactionType(sendPayoutRequest.getPaymentMode());
+                pending.setStatus(vendorStatus); // store vendor response status
+                pending.setCreatedAt(LocalDateTime.now());
+
+                payoutPendingTransactionRepository.save(pending);
+
+                log.info("Payout transaction saved in DB: [TxnID={}, RetailerID={}, Amount={}, Status={}]",
+                        txnId, sendPayoutRequest.getRetailerId(), sendPayoutRequest.getAmount(), vendorStatus);
+
+                // Return appropriate response to frontend
+                return switch (vendorStatus) {
+                    case "SUCCESS" -> new CommonResponse<>(200, payoutResponse.getMessage(), payoutResponse);
+                    case "FAILED" -> new CommonResponse<>(400, payoutResponse.getMessage(), payoutResponse);
+                    case "PENDING", "ACCEPTED" ->
+                            new CommonResponse<>(200, "Transaction accepted, pending confirmation", payoutResponse);
+                    default -> new CommonResponse<>(400, "Unknown vendor response", payoutResponse);
+                };
             }
 
         } catch (HttpStatusCodeException e) {
@@ -357,6 +381,7 @@ public class PayoutServiceImpl implements PayoutService {
         return response.getBody();
     }
 
+    //{code=RP001, status=FAILED, message=Transaction Failed, order_id=TXN25101118122900973, utr_no=null, txn_amount=1}
     @Override
     public String handlePayoutCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException {
 
@@ -365,32 +390,22 @@ public class PayoutServiceImpl implements PayoutService {
 
         log.info("---- [PAYOUT CALLBACK] Payload received: {}", payload);
 
-        // Deserialize the raw payload into the payout DTO
+        // Convert directly to your DTO
         RunpaisaPayoutCallback payoutCallback = mapper.convertValue(payload, RunpaisaPayoutCallback.class);
-
         log.info("---- [PAYOUT CALLBACK] Parsed DTO: {}", payoutCallback);
 
-        // Extract the partner_json (nested transaction info)
-        String partnerJsonStr = payoutCallback.getTxn_method().getPartner_json();
-        Map<String, Object> partnerJson = mapper.readValue(partnerJsonStr, new TypeReference<>() {});
+        // Create a unified callback object
+        RunPaisaCallback callback = new RunPaisaCallback();
+        callback.setOrderId(payoutCallback.getOrder_id());
+        callback.setTxnAmount(payoutCallback.getTxn_amount());
+        callback.setStatus(payoutCallback.getStatus());
+        callback.setStatusCode(payoutCallback.getCode());
+        callback.setTxnInfo(payoutCallback.getMessage());
+        callback.setBankTxnId(payoutCallback.getUtr_no());
 
-        log.info("---- [PAYOUT CALLBACK] Partner JSON: {}", partnerJson);
-
-        // Convert partner_json to your existing RunPaisaCallback (PG-style) DTO
-        RunPaisaCallback callback = convertPartnerJsonToRunPaisaCallback(partnerJson);
-
-        // Optional: add some mapping from payout top-level
-        callback.setStatusCode(callback.getStatusCode());
-        callback.setOrderId(payoutCallback.getRef_id());
-        callback.setPgPartner(payoutCallback.getPartner());
-        callback.setCardType(payoutCallback.getTxn_method().getCard_type());
-        callback.setCardNumber(payoutCallback.getTxn_method().getCard_number());
-        callback.setTxnMode(payoutCallback.getTxn_method().getMode());
-
-        // Process as before
+        log.info("<------------------ Calling Process Callback Method ------------------>");
         processCallback(callback);
 
-        // Save callback event log
         try {
             commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
                     "Payout callback processed successfully", LocalDateTime.now());
@@ -401,34 +416,6 @@ public class PayoutServiceImpl implements PayoutService {
             commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, e.getMessage(), LocalDateTime.now());
             throw new RuntimeException("Payout callback processing failed");
         }
-    }
-
-    private RunPaisaCallback convertPartnerJsonToRunPaisaCallback(Map<String, Object> partnerJson) {
-        RunPaisaCallback callback = new RunPaisaCallback();
-
-        callback.setStatus((String) partnerJson.get("STATUS"));
-        callback.setStatusCode((String) partnerJson.get("STATUS_CODE"));
-        callback.setOrderId((String) partnerJson.get("ORDER_ID"));
-        callback.setTxnMode((String) partnerJson.get("TXN_MODE"));
-        callback.setTxnAmount(String.valueOf(partnerJson.get("TXN_AMOUNT")));
-        callback.setCardCategory((String) partnerJson.get("CARD_CATEGORY"));
-        callback.setTxnDate((String) partnerJson.get("TXN_DATE"));
-        callback.setTxnInfo((String) partnerJson.get("TXN_INFO"));
-        callback.setCustomerName((String) partnerJson.get("CUSTOMER_NAME"));
-        callback.setCustomerEmail((String) partnerJson.get("CUSTOMER_EMAIL"));
-        callback.setCustomerPhone((String) partnerJson.get("CUSTOMER_PHONE"));
-        callback.setBankTxnId((String) partnerJson.get("BANK_TXNID"));
-        callback.setBankCode((String) partnerJson.get("BANK_CODE"));
-        callback.setErrorId((String) partnerJson.get("ERROR_ID"));
-        callback.setErrorDesc((String) partnerJson.get("ERROR_DESC"));
-        callback.setCardNumber((String) partnerJson.get("CARD_NUMBER"));
-        callback.setCardType((String) partnerJson.get("CARD_TYPE"));
-        callback.setUnmappedStatus((String) partnerJson.get("UNMAPPED_STATUS"));
-        callback.setPgPartner((String) partnerJson.get("PG_PARTNER"));
-        callback.setMercUnqRef((String) partnerJson.get("MERC_UNQ_REF"));
-
-        log.info("---- [PAYOUT CALLBACK] Converted partner_json to RunPaisaCallback: {}", callback);
-        return callback;
     }
 
 
@@ -564,92 +551,108 @@ public class PayoutServiceImpl implements PayoutService {
         return CommonResponse.success(responseDto, "Beneficiary Bank Account updated successfully");
     }
 
+    //{code=RP001, status=FAILED, message=Transaction Failed, order_id=TXN25101118122900973, utr_no=null, txn_amount=1}
     //@Override
     public void processCallback(RunPaisaCallback callback) {
-        log.info("---- [Callback] Processing for Order ID: {}, Status: {}", callback.getOrderId(), callback.getStatus());
+        log.info("========== [RunPaisa CALLBACK RECEIVED] ==========");
+        log.info("ORDER_ID: {}, STATUS: {}, TXN_AMOUNT: {}, CUSTOMER_PHONE: {}",
+                callback.getOrderId(), callback.getStatus(), callback.getTxnAmount(), callback.getCustomerPhone());
 
         TransactionSchemeDetailsRequestDto dto = null;
 
-        if ("SUCCESS".equalsIgnoreCase(callback.getStatus())) {
-            log.info("---- [Callback] Status is SUCCESS. Fetching saved transaction data...");
+        try {
+            // Fetch pending transaction (for all statuses)
+            log.info("[1] Fetching pending transaction for ORDER_ID: {}", callback.getOrderId());
+            PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository
+                    .findByTransactionIdAndStatus(callback.getOrderId(), callback.getStatus())
+                    .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + callback.getOrderId()));
 
-            // Construct operatorName (e.g., dth_tatasky)
-            String callbackOperatorName = callback.getCardType().toLowerCase().replace(" ", "_") + "_" + callback.getPgPartner().toLowerCase();
+            log.info("[1.1] PendingTxn fetched successfully: ID={}, SchemeCode={}, TxnType={}, Amount={}, Status={}",
+                    pendingTxn.getId(), pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(),
+                    pendingTxn.getAmount(), pendingTxn.getStatus());
 
             Double txnAmt = Double.valueOf(callback.getTxnAmount());
 
-            List<SchemeRate> matchingSchemes = schemeRateRepository.findSchemeByOperatorName(callbackOperatorName);
+            // Fetch matching SchemeRate
+            log.info("[2] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
+                    pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(), txnAmt);
 
-            if (!matchingSchemes.isEmpty()) {
-                SchemeRate selectedScheme = null;
-                for (SchemeRate scheme : matchingSchemes) {
-                    if (scheme.getSlabType() == SlabType.FIXED && Objects.equals(scheme.getFixedSlabValue(), txnAmt)) {
-                        selectedScheme = scheme;
-                        break;
-                    } else if (scheme.getSlabType() == SlabType.VARIABLE && txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd()) {
-                        selectedScheme = scheme;
-                        break;
-                    }
-                }
+            SchemeRate selectedScheme = schemeRateRepository
+                    .findSchemeRateByCodeAndOperatorAndAmount(
+                            pendingTxn.getSchemeCode(),
+                            pendingTxn.getTransactionType(),
+                            txnAmt)
+                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + txnAmt));
 
-                if (selectedScheme != null) {
-                    log.info("---- [Callback] Matching scheme found: {}", selectedScheme.getSchemeCode());
+            log.info("[2.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
+                    selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
+                    selectedScheme.getGross(), selectedScheme.getRetailer());
 
-                    // 1. Fetch the Scheme using schemeCode
-                    Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
-                            .orElseThrow(() -> new RuntimeException("Scheme Not Found"));
+            // Fetch scheme entity
+            log.info("[3] Fetching Scheme entity for SchemeCode={}", selectedScheme.getSchemeCode());
+            Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                    .orElseThrow(() -> new RuntimeException("Scheme Not Found with code: " + selectedScheme.getSchemeCode()));
 
-                    // 2. Parse schemeCombinationHashCode (e.g., 10-01-02-001-00001)
-                    String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+            log.info("[3.1] Scheme fetched successfully: HashCode={}", scheme.getSchemeCombinationHashCode());
 
-                    short productId = Short.parseShort(hashParts[0]);
-                    String subProductIdStr = hashParts[1];
-
-                    // 3. Fetch Product and SubProduct
-                    Products product = productsRepository.findById(productId)
-                            .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
-
-                    SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
-                            .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
-
-                    // Fill DTO completely
-                    dto = new TransactionSchemeDetailsRequestDto();
-                    dto.setAmount(txnAmt);
-                    dto.setConfirmAmount(txnAmt);
-                    dto.setOperatorName(callbackOperatorName);
-                    dto.setOperatorCode(selectedScheme.getOperatorCode());
-                    dto.setSchemeRate(selectedScheme);
-                    dto.setTransactionType(product.getTransactionType());
-                    dto.setWalletType(subProduct.getWalletType());
-                    dto.setGstValue(String.valueOf(product.getSgst()));
-                    dto.setTdsRate(String.valueOf(product.getTds()));
-
-                    dto.setHierarchyId(
-                            userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
-                                    .orElseThrow(() -> new RuntimeException("No User Found"))
-                                    .getHierarchyId()
-                    );
-
-                    dto.setProductCode(product.getProductCode());
-                    dto.setSubProductCode(subProduct.getSubProductCode());
-
-                    dto.setIsCommission(product.getIsCommissions());
-                    dto.setHasCharge(product.getHasCharges());
-                } else {
-                    log.warn("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
-                }
-            } else {
-                log.warn("---- [Callback] No schemes configured for operatorName: {}", callbackOperatorName);
+            // Parse scheme combination hash code
+            String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+            if (hashParts.length < 2) {
+                throw new RuntimeException("Invalid schemeCombinationHashCode format: " + scheme.getSchemeCombinationHashCode());
             }
 
-            log.info("---- [Callback] Deserialized Transaction DTO: {}", dto);
-            assert dto != null;
-            transactionServiceImpl.processTransaction(dto, callback.getStatus());
+            short productId = Short.parseShort(hashParts[0]);
+            String subProductIdStr = hashParts[1];
 
-        } else {
-            log.warn("---- [Callback] Payment FAILED or PENDING for Order ID: {}", callback.getOrderId());
-            transactionServiceImpl.processTransaction(dto, callback.getStatus()); // Optional
+            log.info("[4] Extracted ProductID={}, SubProductID={} from SchemeCombinationHashCode", productId, subProductIdStr);
+
+            // Fetch product and subproduct
+            Products product = productsRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+            SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
+                    .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
+
+            log.info("[4.1] Product/SubProduct fetched successfully: Product={}, SubProduct={}",
+                    product.getName(), subProduct.getSubProductTitle());
+
+            // Prepare DTO (common for all statuses)
+            log.info("[5] Constructing TransactionSchemeDetailsRequestDto...");
+            dto = new TransactionSchemeDetailsRequestDto();
+            dto.setAmount(txnAmt);
+            dto.setConfirmAmount(txnAmt);
+            dto.setOperatorName(pendingTxn.getTransactionType());
+            dto.setOperatorCode(selectedScheme.getOperatorCode());
+            dto.setSchemeRate(selectedScheme);
+            dto.setTransactionType(product.getTransactionType());
+            dto.setWalletType(subProduct.getWalletType());
+            dto.setGstValue(String.valueOf(product.getSgst()));
+            dto.setTdsRate(String.valueOf(product.getTds()));
+            dto.setProductCode(product.getProductCode());
+            dto.setSubProductCode(subProduct.getSubProductCode());
+            dto.setIsCommission(product.getIsCommissions());
+            dto.setHasCharge(product.getHasCharges());
+
+            // Get hierarchy ID
+            log.info("[6] Fetching user by mobile number: {}", callback.getCustomerPhone());
+            String hierarchyId = userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
+                    .orElseThrow(() -> new RuntimeException("No User Found with mobile: " + callback.getCustomerPhone()))
+                    .getHierarchyId();
+            dto.setHierarchyId(hierarchyId);
+
+            log.info("[6.1] Hierarchy ID fetched successfully: {}", hierarchyId);
+            log.info("[7] DTO ready for transaction processing: {}", dto);
+
+            // Process transaction for any status (SUCCESS, FAILED, PENDING, etc.)
+            transactionServiceImpl.processTransaction(dto, callback.getStatus());
+            log.info("[8] Transaction processed successfully for ORDER_ID: {}, STATUS={}",
+                    callback.getOrderId(), callback.getStatus());
+
+        } catch (Exception ex) {
+            log.error("[ERROR] Exception while processing callback for ORDER_ID={} | Error={}",
+                    callback.getOrderId(), ex.getMessage(), ex);
         }
+
+        log.info("========== [RunPaisa CALLBACK PROCESSING COMPLETED] ORDER_ID={} ==========", callback.getOrderId());
     }
 
 
@@ -664,7 +667,7 @@ public class PayoutServiceImpl implements PayoutService {
             String callback = payload.get("CALLBACK");
             log.info("---- [Callback] CALLBACK found (Cashfree): {}", callback);
             return callback;
-        }  else if (payload.containsKey("txn_method")) {
+        } else if (payload.containsKey("txn_method")) {
             log.info("---- [Callback] Detected Runpaisa payout callback format.");
             // Serialize the Map to JSON and return for parsing
             try {

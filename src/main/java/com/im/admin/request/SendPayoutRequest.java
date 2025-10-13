@@ -20,5 +20,6 @@ public class SendPayoutRequest {
     private String paymentMode;
     private String subProductId;
     private String callbackurl;
+    private String schemeCode;
 
 }
