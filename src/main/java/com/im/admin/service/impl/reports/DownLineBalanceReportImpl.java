@@ -3,13 +3,17 @@ package com.im.admin.service.impl.reports;
 import com.im.admin.dto.DownlineBalanceDto;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.DownLineBalanceReportService;
 import com.im.admin.util.CommonMethods;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -74,7 +78,20 @@ public class DownLineBalanceReportImpl implements DownLineBalanceReportService {
     private EnterprisesPostpaidAmountRepository enterprisesPostpaidAmountRepository;
 
     @Override
-    public List<DownlineBalanceDto> getDownlineBalanceReport(String hierarchyId) {
+    public CommonResponse<List<DownlineBalanceDto>> getDownlineBalanceReport(
+            String hierarchyId,
+            String userId,
+            String name,
+            String parentAccount,
+            LocalDate fromDate,
+            LocalDate toDate,
+            BigDecimal minPrepaidBalance,
+            BigDecimal maxPrepaidBalance,
+            BigDecimal minPostpaidBalance,
+            BigDecimal maxPostpaidBalance,
+            int page,
+            int size
+    ) {
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
 
         List<String> childEntities = hierarchyChildren.get(hierarchyType);
@@ -87,7 +104,7 @@ public class DownLineBalanceReportImpl implements DownLineBalanceReportService {
         for (String childEntity : childEntities) {
             switch (childEntity) {
 
-               // ================= ENTERPRISE =================
+
                 case "enterprise" -> enterprisesRepository.findByParentAccount(hierarchyId)
                         .forEach(et -> {
                             BigDecimal prepaid = enterprisesPrepaidAmountRepository
@@ -103,14 +120,14 @@ public class DownLineBalanceReportImpl implements DownLineBalanceReportService {
                             result.add(new DownlineBalanceDto(
                                     et.getEnterpriseId(),
                                     et.getName(),
-                                    null, // Enterprise parent usually null
+                                    et.getParentAccount(),
                                     prepaid,
                                     postpaid,
                                     et.getCreatedOn()
                             ));
                         });
 
-                // ================= WHITE LABEL =================
+
                 case "white_label" -> whiteLabelRepository.findByParentAccount(hierarchyId)
                         .forEach(wl -> {
                             BigDecimal prepaid = whiteLabelPrepaidAmountRepository
@@ -133,7 +150,7 @@ public class DownLineBalanceReportImpl implements DownLineBalanceReportService {
                             ));
                         });
 
-                // ================= SUPER DISTRIBUTOR =================
+
                 case "super_distributor" -> superDistributorRepository.findByParentAccount(hierarchyId)
                         .forEach(sd -> {
                             BigDecimal prepaid = superDistributorPrepaidAmountRepository
@@ -156,7 +173,7 @@ public class DownLineBalanceReportImpl implements DownLineBalanceReportService {
                             ));
                         });
 
-                // ================= DISTRIBUTOR =================
+
                 case "distributor" -> distributorRepository.findByParentAccount(hierarchyId)
                         .forEach(d -> {
                             BigDecimal prepaid = distributorPrepaidAmountRepository
@@ -179,7 +196,7 @@ public class DownLineBalanceReportImpl implements DownLineBalanceReportService {
                             ));
                         });
 
-                // ================= PARTNER =================
+
                 case "partner" -> partnerRepository.findByParentAccount(hierarchyId)
                         .forEach(p -> {
                             BigDecimal prepaid = partnerPrepaidAmountRepository
@@ -202,7 +219,7 @@ public class DownLineBalanceReportImpl implements DownLineBalanceReportService {
                             ));
                         });
 
-                // ================= RETAILER =================
+
                 case "retailer" -> retailerRepository.findByParentAccount(hierarchyId)
                         .forEach(r -> {
                             BigDecimal prepaid = retailerPrepaidAmountRepository
@@ -227,10 +244,29 @@ public class DownLineBalanceReportImpl implements DownLineBalanceReportService {
             }
         }
 
-        return result;
+
+        List<DownlineBalanceDto> filteredList = result.stream()
+                .filter(u -> userId == null || (u.getUserId() != null && u.getUserId().toLowerCase().contains(userId.toLowerCase())))
+                .filter(u -> name == null || (u.getName() != null && u.getName().toLowerCase().contains(name.toLowerCase())))
+                .filter(u -> parentAccount == null || (u.getParentAccount() != null && u.getParentAccount().toLowerCase().contains(parentAccount.toLowerCase())))
+                .filter(u -> fromDate == null || (u.getCreatedOn() != null && !u.getCreatedOn().toLocalDate().isBefore(fromDate)))
+                .filter(u -> toDate == null || (u.getCreatedOn() != null && !u.getCreatedOn().toLocalDate().isAfter(toDate)))
+                .filter(u -> minPrepaidBalance == null || (u.getPrepaidBalance() != null && u.getPrepaidBalance().compareTo(minPrepaidBalance) >= 0))
+                .filter(u -> maxPrepaidBalance == null || (u.getPrepaidBalance() != null && u.getPrepaidBalance().compareTo(maxPrepaidBalance) <= 0))
+                .filter(u -> minPostpaidBalance == null || (u.getPostpaidBalance() != null && u.getPostpaidBalance().compareTo(minPostpaidBalance) >= 0))
+                .filter(u -> maxPostpaidBalance == null || (u.getPostpaidBalance() != null && u.getPostpaidBalance().compareTo(maxPostpaidBalance) <= 0))
+                .toList();
+
+        // --- Pagination with Sorting ---
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), filteredList.size());
+        List<DownlineBalanceDto> paginatedList = (start >= filteredList.size()) ? Collections.emptyList() : filteredList.subList(start, end);
+
+        return new CommonResponse<>(200, "Success", paginatedList);
     }
 
-    // ================= Updated hierarchy mapping =================
+
     private static final Map<String, List<String>> hierarchyChildren = Map.of(
             "ET", List.of("enterprise", "white_label", "super_distributor", "partner", "distributor", "retailer"),
             "WL", List.of("super_distributor", "partner", "distributor", "retailer"),

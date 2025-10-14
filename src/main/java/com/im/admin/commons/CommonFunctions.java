@@ -34,6 +34,9 @@ public class CommonFunctions {
     @Autowired
     private SmsLogsRepository smsLogRepository;
 
+    @Autowired
+    private EmailLogRepository emailLogRepository;
+
 
     public void saveImLogs(String request, LocalDateTime imRequestDateTime, String ipAddress, String response,
                            LocalDateTime imResponseDateTime) {
@@ -114,6 +117,18 @@ public class CommonFunctions {
         smsLog.setIpAddress(null);
         smsLog = smsLogRepository.save(smsLog);
         return smsLog;
+    }
+
+
+    public EmailLog saveEmailLogs(LocalDateTime smsRequestDateTime, String request, LocalDateTime smsResponseDateTime, String response, String ipAddress) {
+        EmailLog emailLog = new EmailLog();
+        emailLog.setRequest(request);
+        emailLog.setRequestDateTime(smsRequestDateTime);
+        emailLog.setResponse(response);
+        emailLog.setResponseDateTime(smsResponseDateTime);
+        emailLog.setIpAddress(null);
+        emailLog = emailLogRepository.save(emailLog);
+        return emailLog;
     }
 
 }

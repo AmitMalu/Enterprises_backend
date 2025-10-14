@@ -5,12 +5,12 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.DownLineBalanceReportService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -23,17 +23,29 @@ public class DownLineBalanceReportController {
 
     @GetMapping("/report/{hierarchyId}")
     public ResponseEntity<CommonResponse<List<DownlineBalanceDto>>> getDownlineBalanceReport(
-            @PathVariable String hierarchyId) {
+            @PathVariable String hierarchyId,
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String parentAccount,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) BigDecimal minPrepaidBalance,
+            @RequestParam(required = false) BigDecimal maxPrepaidBalance,
+            @RequestParam(required = false) BigDecimal minPostpaidBalance,
+            @RequestParam(required = false) BigDecimal maxPostpaidBalance,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-        log.info("Fetching Downline Balance Report for hierarchyId: {}", hierarchyId);
+        log.info("Fetching Downline Balance Report for hierarchyId: {} | page: {} | size: {}", hierarchyId, page, size);
 
-        List<DownlineBalanceDto> report = downLineBalanceReportService.getDownlineBalanceReport(hierarchyId);
+        var paginatedResponse = downLineBalanceReportService.getDownlineBalanceReport(
+                hierarchyId, userId, name, parentAccount, fromDate, toDate,
+                minPrepaidBalance, maxPrepaidBalance, minPostpaidBalance, maxPostpaidBalance,
+                page, size);
 
-        if (report.isEmpty()) {
-            return ResponseEntity.ok(new CommonResponse<>(404, "No downline records found", report));
-        }
-
-        return ResponseEntity.ok(new CommonResponse<>(200, "Fetched Downline Balance Report successfully", report));
+        return ResponseEntity.ok(paginatedResponse);
     }
 
 }
