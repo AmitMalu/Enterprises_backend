@@ -1,9 +1,26 @@
 package com.im.admin.service.reports;
 
 import com.im.admin.dto.DownlineBalanceDto;
+import com.im.admin.response.CommonResponse;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface DownLineBalanceReportService {
-    List<DownlineBalanceDto> getDownlineBalanceReport(String hierarchyId);
+    CommonResponse<List<DownlineBalanceDto>> getDownlineBalanceReport(
+            String hierarchyId,
+            String userId,
+            String name,
+            String parentAccount,
+            LocalDate fromDate,
+            LocalDate toDate,
+            BigDecimal minPrepaidBalance,
+            BigDecimal maxPrepaidBalance,
+            BigDecimal minPostpaidBalance,
+            BigDecimal maxPostpaidBalance,
+            int page,
+            int size);
+
 }
+

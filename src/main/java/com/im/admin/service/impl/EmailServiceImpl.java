@@ -1,11 +1,16 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.entities.EmailLog;
+import com.im.admin.repositories.EmailLogRepository;
 import com.im.admin.service.EmailService;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 @Service
 public class EmailServiceImpl implements EmailService {
@@ -13,32 +18,57 @@ public class EmailServiceImpl implements EmailService {
     @Autowired
     private JavaMailSender mailSender;
 
+    @Autowired
+    private EmailLogRepository emailLogRepository;
+
     @Value("${spring.mail.username}")
     private String fromEmail;
 
     @Override
+    @Transactional
     public void sendSimpleEmail(String toEmail, String subject, String body) {
+        LocalDateTime requestTime = LocalDateTime.now();
+        String request = "To: " + toEmail + "\nSubject: " + subject + "\nBody: " + body;
+        String response = "";
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(fromEmail);
-        message.setTo(toEmail);
-        message.setSubject(subject);
-        message.setText(body);
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(body);
 
-        mailSender.send(message);
-        System.out.println(" Mail sent successfully to " + toEmail);
+            mailSender.send(message);
+            response = "Mail sent successfully to " + toEmail;
+
+        } catch (Exception e) {
+            response = "Failed to send email: " + e.getMessage();
+        }
+
+        LocalDateTime responseTime = LocalDateTime.now();
+
+        // Save email log
+        EmailLog emailLog = new EmailLog();
+        emailLog.setRequest(request);
+        emailLog.setResponse(response);
+        emailLog.setRequestDateTime(requestTime);
+        emailLog.setResponseDateTime(responseTime);
+        emailLog.setIpAddress(null); // You can set actual IP if available
+        emailLogRepository.save(emailLog);
+
+        System.out.println(response);
     }
 
+    @Override
     public String buildWelcomeEmail(String userName, String mobileNo, String password) {
         return "Dear " + userName + ",\n\n" +
                 "We’re delighted to welcome you to NFT!\n" +
                 "Your account has been successfully created, and you can now log in to your dashboard to start doing business with us.\n\n" +
                 "Below are your login credentials:\n\n" +
-                "Portal Link: https://uat.decipay.in/enterprise-portal/login:\n\n"  +
+                "Portal Link: https://uat.decipay.in/enterprise-portal/login\n\n" +
                 "User ID: " + mobileNo + "\n" +
                 "Password: " + password + "\n\n" +
                 "For security reasons, we recommend changing your password after your first login.\n\n" +
                 "Best Regards,\nNFT Team";
     }
-    }
-
+}

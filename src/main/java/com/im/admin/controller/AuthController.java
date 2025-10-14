@@ -88,6 +88,9 @@ public class AuthController {
     @Autowired
     private SMSGatewayAPI smsGatewayAPI;
 
+    @Autowired
+    private RetailerRepository retailerRepository;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
         LocalDateTime requestTime = LocalDateTime.now();
@@ -429,6 +432,19 @@ public class AuthController {
                 if (rtSubRole != null) {
                     responseMap.put("sub_role_id", rtSubRole.getSubRoleId());
                 }
+
+                // Fetch outlet name
+                Retailer retailer = retailerRepository.findByMobileNumber(user.getMobileNumber());
+                if (retailer != null) {
+                    if (retailer.getOutletAddress() != null && retailer.getOutletAddress().getOutletName() != null) {
+                        responseMap.put("outletName", retailer.getOutletAddress().getOutletName());
+                    } else {
+                        responseMap.put("outletName", "N/A");
+                    }
+                } else {
+                    responseMap.put("outletName", "N/A");
+                }
+
 
                 // Build product/subProduct list
                 List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
