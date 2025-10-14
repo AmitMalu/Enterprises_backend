@@ -10,10 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -64,6 +61,15 @@ public class BBPSController {
             @RequestBody BillRechargeRequestDTO request) {
         log.info("Received recharge request: {}", request);
         CommonResponse<?> response = bbpsService.processRecharge(request);
+        log.info("Recharge response: {}", response);
+        return ResponseEntity.status(response.getStatusCode()).body(response);
+    }
+
+    @PostMapping("/receipt/{txnId}")
+    public ResponseEntity<CommonResponse<FetchReceiptResponseDto>> fetchReceipt(
+            @PathVariable String txnId) {
+        log.info("Received receipt request: {}", txnId);
+        CommonResponse<FetchReceiptResponseDto> response = bbpsService.fetchReceipt(txnId);
         log.info("Recharge response: {}", response);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }

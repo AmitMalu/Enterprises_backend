@@ -14,4 +14,6 @@ public interface BBPSService {
 
     CommonResponse<?> processRecharge(BillRechargeRequestDTO request);
 
+    CommonResponse<FetchReceiptResponseDto> fetchReceipt(String  txnId);
+
 }
