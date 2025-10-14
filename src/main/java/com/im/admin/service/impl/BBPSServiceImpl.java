@@ -329,7 +329,7 @@ public class BBPSServiceImpl implements BBPSService {
                     requestParams.add("api_token", credentials.getToken());
                     requestParams.add("userId", String.valueOf(credentials.getUsername()));
                     requestParams.add("secretKey", credentials.getClientSecret());
-                    requestParams.add("clientId", baseTransactionId);
+                    requestParams.add("clientId", "TXN"+baseTransactionId);
 
                     HttpHeaders header = new HttpHeaders();
                     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -363,7 +363,7 @@ public class BBPSServiceImpl implements BBPSService {
                             (checkStatusResp.getStatus() != null && checkStatusResp.getStatus() == 55)) {
 
                         bbpsRelatedTransactions.reverseTransactionsAndUpdateWallet(retailerId, walletType.name(), baseTransactionId);
-                        return CommonResponse.success(null, "Transaction Failed: " + checkStatusResp.getDescription());
+                        return CommonResponse.error(400, "Transaction Failed: " + checkStatusResp.getDescription());
                     }
 
                     // Wait before retrying
