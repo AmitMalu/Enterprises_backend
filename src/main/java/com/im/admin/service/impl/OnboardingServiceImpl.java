@@ -131,10 +131,6 @@ public class OnboardingServiceImpl implements OnboardingService {
         return new PageImpl<>(paginatedList, pageable, filteredRecords.size());
     }
 
-
-
-
-
     @Override
     @Transactional
     public String approveOrRejectHierarchy(OnboardingHierarchyRequestDto hierarchyRequestDto) {

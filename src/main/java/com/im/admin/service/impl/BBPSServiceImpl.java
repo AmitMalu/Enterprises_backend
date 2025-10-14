@@ -219,7 +219,7 @@ public class BBPSServiceImpl implements BBPSService {
             formParams.add("number", request.getNumber());
             formParams.add("provider", String.valueOf(request.getProvider()));
             formParams.add("amount", request.getAmount().toString());
-            formParams.add("clientId", baseTransactionId);
+            formParams.add("clientId", "TXN"+baseTransactionId);
 
             // Optional fields
             if (request.getContext() != null) formParams.add("context", request.getContext());
