@@ -16,7 +16,7 @@ public class BBPSRechargeCheckStatusScheduler {
     @Autowired
     private RechargeStatusService rechargeStatusService;
 
-    @Scheduled(cron = "0 */5 * * * *")  // every 5 minutes
+    @Scheduled(cron = "0 */59 * * * *")  // every 5 minutes
     @Transactional
     public void processPendingTransactions() {
         log.info("Cron job triggered to check pending recharge transactions...");

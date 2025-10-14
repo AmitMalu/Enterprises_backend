@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.callbacks.RunpaisaPayoutCallback;
 import com.im.admin.commons.CommonFunctions;
@@ -390,30 +391,36 @@ public class PayoutServiceImpl implements PayoutService {
 
         log.info("---- [PAYOUT CALLBACK] Payload received: {}", payload);
 
-        // Convert directly to your DTO
-        RunpaisaPayoutCallback payoutCallback = mapper.convertValue(payload, RunpaisaPayoutCallback.class);
-        log.info("---- [PAYOUT CALLBACK] Parsed DTO: {}", payoutCallback);
-
-        // Create a unified callback object
-        RunPaisaCallback callback = new RunPaisaCallback();
-        callback.setOrderId(payoutCallback.getOrder_id());
-        callback.setTxnAmount(payoutCallback.getTxn_amount());
-        callback.setStatus(payoutCallback.getStatus());
-        callback.setStatusCode(payoutCallback.getCode());
-        callback.setTxnInfo(payoutCallback.getMessage());
-        callback.setBankTxnId(payoutCallback.getUtr_no());
-
-        log.info("<------------------ Calling Process Callback Method ------------------>");
-        processCallback(callback);
-
         try {
+            // Enable case-insensitive conversion just for this operation
+            mapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
+
+            // Convert directly to DTO (case-insensitive)
+            RunpaisaPayoutCallback payoutCallback = mapper.convertValue(payload, RunpaisaPayoutCallback.class);
+            log.info("---- [PAYOUT CALLBACK] Parsed DTO: {}", payoutCallback);
+
+            // Create a unified callback object
+            RunPaisaCallback callback = new RunPaisaCallback();
+            callback.setOrderId(payoutCallback.getOrder_id());
+            callback.setTxnAmount(payoutCallback.getTxn_amount());
+            callback.setStatus(payoutCallback.getStatus());
+            callback.setStatusCode(payoutCallback.getCode());
+            callback.setTxnInfo(payoutCallback.getMessage());
+            callback.setBankTxnId(payoutCallback.getUtr_no());
+
+            log.info("<------------------ Calling Process Callback Method ------------------>");
+            processCallback(callback);
+
+            // Save callback log
             commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
                     "Payout callback processed successfully", LocalDateTime.now());
             log.info("---- [PAYOUT CALLBACK] Successfully logged callback event");
             return "Payout callback processed successfully";
+
         } catch (Exception e) {
-            log.error("---- [PAYOUT CALLBACK] Error while saving log: {}", e.getMessage(), e);
-            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, e.getMessage(), LocalDateTime.now());
+            log.error("---- [PAYOUT CALLBACK] Error while processing payout callback: {}", e.getMessage(), e);
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
+                    e.getMessage(), LocalDateTime.now());
             throw new RuntimeException("Payout callback processing failed");
         }
     }
@@ -555,16 +562,15 @@ public class PayoutServiceImpl implements PayoutService {
     //@Override
     public void processCallback(RunPaisaCallback callback) {
         log.info("========== [RunPaisa CALLBACK RECEIVED] ==========");
-        log.info("ORDER_ID: {}, STATUS: {}, TXN_AMOUNT: {}, CUSTOMER_PHONE: {}",
-                callback.getOrderId(), callback.getStatus(), callback.getTxnAmount(), callback.getCustomerPhone());
+        log.info("========== ORDER_ID: {}, STATUS: {}, TXN_AMOUNT: {}",
+                callback.getOrderId(), callback.getStatus(), callback.getTxnAmount());
 
         TransactionSchemeDetailsRequestDto dto = null;
 
         try {
             // Fetch pending transaction (for all statuses)
             log.info("[1] Fetching pending transaction for ORDER_ID: {}", callback.getOrderId());
-            PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository
-                    .findByTransactionIdAndStatus(callback.getOrderId(), callback.getStatus())
+            PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository.findByTransactionId(callback.getOrderId())
                     .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + callback.getOrderId()));
 
             log.info("[1.1] PendingTxn fetched successfully: ID={}, SchemeCode={}, TxnType={}, Amount={}, Status={}",
@@ -634,12 +640,12 @@ public class PayoutServiceImpl implements PayoutService {
 
             // Get hierarchy ID
             log.info("[6] Fetching user by mobile number: {}", callback.getCustomerPhone());
-            String hierarchyId = userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
-                    .orElseThrow(() -> new RuntimeException("No User Found with mobile: " + callback.getCustomerPhone()))
-                    .getHierarchyId();
-            dto.setHierarchyId(hierarchyId);
+//            String hierarchyId = userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
+//                    .orElseThrow(() -> new RuntimeException("No User Found with mobile: " + callback.getCustomerPhone()))
+//                    .getHierarchyId();
+            dto.setHierarchyId(pendingTxn.getRetailerId());
 
-            log.info("[6.1] Hierarchy ID fetched successfully: {}", hierarchyId);
+            log.info("[6.1] Hierarchy ID fetched successfully: {}", pendingTxn.getRetailerId());
             log.info("[7] DTO ready for transaction processing: {}", dto);
 
             // Process transaction for any status (SUCCESS, FAILED, PENDING, etc.)

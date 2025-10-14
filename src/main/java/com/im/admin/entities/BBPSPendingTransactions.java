@@ -68,5 +68,11 @@ public class BBPSPendingTransactions {
     @Column(nullable = false)
     private String status;
 
+    @Column(nullable = false)
+    private String actualVendorStatus;
+
+    @Column(nullable = false)
+    private String consumerNumber;
+
 
 }
