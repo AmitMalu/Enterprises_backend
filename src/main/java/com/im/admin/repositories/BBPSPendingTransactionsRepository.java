@@ -9,4 +9,6 @@ public interface BBPSPendingTransactionsRepository extends JpaRepository<BBPSPen
 
     List<BBPSPendingTransactions> findByStatus(String status);
 
+    BBPSPendingTransactions findByTransactionId(String transactionId);
+
 }

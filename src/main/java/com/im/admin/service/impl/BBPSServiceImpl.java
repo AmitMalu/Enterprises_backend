@@ -379,7 +379,7 @@ public class BBPSServiceImpl implements BBPSService {
                     log.info("Transaction still pending after {} attempts. Leaving for cron job to handle.", maxRetries);
 
                     BBPSPendingTransactions pending = new BBPSPendingTransactions();
-                    pending.setTransactionId(baseTransactionId);
+                    pending.setTransactionId("TXN"+baseTransactionId);
                     pending.setRetailerId(retailerId);
                     pending.setWalletType(walletType.name());
                     pending.setAmount(request.getAmount());
@@ -393,6 +393,8 @@ public class BBPSServiceImpl implements BBPSService {
                     pending.setUsername(credentials.getUsername());
                     pending.setClientSecret(credentials.getClientSecret());
                     pending.setStatus("PENDING");                // default status
+                    pending.setActualVendorStatus(checkStatusResp.getMessage());
+                    pending.setConsumerNumber(request.getNumber());
                     bbpsPendingTransactionsRepository.save(pending);
 
                     log.info("Saved pending transaction: {}", baseTransactionId);
@@ -410,6 +412,37 @@ public class BBPSServiceImpl implements BBPSService {
         } catch (Exception ex) {
             return CommonResponse.error(500, "Error: " + ex.getMessage());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommonResponse<FetchReceiptResponseDto> fetchReceipt(String txnId) {
+        try {
+            BBPSPendingTransactions transaction = bbpsPendingTransactionsRepository.findByTransactionId(txnId);
+
+            if (transaction == null) {
+                return CommonResponse.failure("Transaction not found");
+            }
+
+            FetchReceiptResponseDto dto = getFetchReceiptResponseDto(transaction);
+            return CommonResponse.success(dto, "Transaction fetched successfully");
+
+        } catch (Exception e) {
+            log.error("Error fetching transaction receipt", e);
+            throw new RuntimeException("Failed to fetch receipt", e);
+        }
+    }
+
+    private static FetchReceiptResponseDto getFetchReceiptResponseDto(BBPSPendingTransactions transaction) {
+        FetchReceiptResponseDto dto = new FetchReceiptResponseDto();
+        dto.setRetailerId(transaction.getRetailerId());
+        dto.setCreatedDateTime(transaction.getCreatedAt());
+        dto.setTxnId(transaction.getTransactionId());
+        dto.setTxnStatus(transaction.getActualVendorStatus());
+        dto.setTxnAmount(transaction.getAmount());
+        dto.setConsumerNumber(transaction.getConsumerNumber());
+        dto.setRefNo(null); // Or any other reference you want
+        return dto;
     }
 
 }
