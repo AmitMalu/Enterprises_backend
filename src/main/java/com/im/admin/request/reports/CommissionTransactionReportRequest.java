@@ -1,5 +1,6 @@
 package com.im.admin.request.reports;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.im.admin.entities.enums.WalletType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -26,6 +27,7 @@ public class CommissionTransactionReportRequest {
     private Double balBefore;
     private Double balAfter;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private String transactionDate;   // Format: yyyy-MM-dd
     private String transactionTime;
 
