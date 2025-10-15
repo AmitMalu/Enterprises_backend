@@ -23,8 +23,11 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Time;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -46,7 +49,8 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), Sort.by("transactionTime").descending());
         LocalDate from = StringUtils.hasText(request.getFromDate()) ? LocalDate.parse(request.getFromDate()) : null;
         LocalDate to = StringUtils.hasText(request.getToDate()) ? LocalDate.parse(request.getToDate()) : null;
-        LocalDate transactionDate = StringUtils.hasText(request.getTransactionDate()) ? LocalDate.parse(request.getTransactionDate()) : null;
+////        LocalDate transactionDate = StringUtils.hasText(request.getTransactionDate()) ? LocalDate.parse(request.getTransactionDate()) : null;
+//        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
         LocalTime transactionTime = StringUtils.hasText(request.getTransactionTime()) ? LocalTime.parse(request.getTransactionTime()) : null;
 
         List<String> subProducts = new ArrayList<>();
@@ -98,7 +102,20 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         query.setParameter("p_amount", request.getAmount());
         query.setParameter("p_bal_before", request.getBalBefore());
         query.setParameter("p_bal_after", request.getBalAfter());
-        query.setParameter("p_transaction_date", transactionDate != null ? Date.valueOf(transactionDate) : null);
+//        query.setParameter("p_transaction_date", transactionDate != null ? Date.valueOf(transactionDate) : null);
+        Date transactionDateParam = null;
+        if (StringUtils.hasText(request.getTransactionDate())) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+                java.util.Date parsed = sdf.parse(request.getTransactionDate());
+                transactionDateParam = new Date(parsed.getTime());
+            } catch (ParseException e) {
+                log.warn("Invalid transactionDate format (expected dd-MM-yyyy): {}", request.getTransactionDate());
+            }
+        }
+        query.setParameter("p_transaction_date", transactionDateParam);
+
+
         query.setParameter("p_transaction_time", transactionTime != null ? Time.valueOf(transactionTime) : null);
 
         List<Object[]> results = query.getResultList();

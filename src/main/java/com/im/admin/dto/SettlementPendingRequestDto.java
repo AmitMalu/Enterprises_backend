@@ -1,5 +1,6 @@
 package com.im.admin.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -29,6 +30,7 @@ public class SettlementPendingRequestDto {
     private String medium;
     private String txType;
     private String txStatus;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate dateOfTransaction;
     private LocalTime timeOfTransaction;
     private LocalDate updatedDateOfTransaction;
