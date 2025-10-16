@@ -19,6 +19,7 @@ public class SettlementPendingRequestDto {
     private String subProductId;
     private String vendorId;
     private String tranStatus;
+    private String vendor;
 
     private Integer id;
     private String userId;
