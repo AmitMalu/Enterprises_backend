@@ -16,8 +16,6 @@ public interface ProductsService {
 
     void deleteProduct(Short id);
 
-  
-
     Products getProductById(Short id);
 
     List<ProductDropdownResponseDto> getAllActiveProducts();

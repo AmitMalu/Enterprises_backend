@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CreateOrderRequest {
 
+    private String initiatedBy;
     private String username;
     private String orderId;
     private double amount;
