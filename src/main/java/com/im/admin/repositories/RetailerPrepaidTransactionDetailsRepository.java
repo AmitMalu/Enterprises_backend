@@ -23,23 +23,22 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
     WHERE (:id IS NULL OR r.id = :id)
     AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate)
     AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
-    AND (:subProductName IS NULL OR r.subProductName = :subProductName)
-    AND (:vendorName IS NULL OR r.vendorName = :vendorName)
+    AND (:subProductName IS NULL OR LOWER(r.subProductName) LIKE LOWER(CONCAT('%', :subProductName, '%')))
+    AND (:vendorName IS NULL OR LOWER(r.vendorName) LIKE LOWER(CONCAT('%', :vendorName, '%')))
     AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)
-    AND (:userId IS NULL OR r.retailerId LIKE %:userId%)
-    AND (:mobileNo IS NULL OR r.mobileNo LIKE %:mobileNo%)
-    AND (:schemeName IS NULL OR r.schemeName LIKE %:schemeName%)
+    AND (:userId IS NULL OR LOWER(r.retailerId) LIKE LOWER(CONCAT('%', :userId, '%')))
+    AND (:mobileNo IS NULL OR LOWER(r.mobileNo) LIKE LOWER(CONCAT('%', :mobileNo, '%')))
+    AND (:schemeName IS NULL OR LOWER(r.schemeName) LIKE LOWER(CONCAT('%', :schemeName, '%')))
     AND (:amount IS NULL OR r.amount = :amount)
-    AND (:txId IS NULL OR r.transactionId LIKE %:txId%)
-    AND (:remarks IS NULL OR r.remarks LIKE %:remarks%)
-    AND (:medium IS NULL OR r.medium LIKE %:medium%)
-    AND (:txType IS NULL OR r.transactionType LIKE %:txType%)
-    AND (:txStatus IS NULL OR r.tranStatus = :txStatus)
-     AND (:dateOfTransaction IS NULL OR r.dateOfTransaction = :dateOfTransaction)
+    AND (:txId IS NULL OR LOWER(r.transactionId) LIKE LOWER(CONCAT('%', :txId, '%')))
+    AND (:remarks IS NULL OR LOWER(r.remarks) LIKE LOWER(CONCAT('%', :remarks, '%')))
+    AND (:medium IS NULL OR LOWER(r.medium) LIKE LOWER(CONCAT('%', :medium, '%')))
+    AND (:txType IS NULL OR LOWER(r.transactionType) LIKE LOWER(CONCAT('%', :txType, '%')))
+    AND (:txStatus IS NULL OR LOWER(r.tranStatus) LIKE LOWER(CONCAT('%', :txStatus, '%')))
+    AND (:dateOfTransaction IS NULL OR r.dateOfTransaction = :dateOfTransaction)
     AND (:timeOfTransaction IS NULL OR r.timeOfTransaction = :timeOfTransaction)
-     AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
-       AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
-      
+    AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
+    AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
 """)
     Page<RetailerPrepaidTransactionDetails> findFilteredTransactions(
             @Param("id") Integer id,
@@ -63,7 +62,6 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
             @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction,
             Pageable pageable
     );
-
 
     // Search by normalized transactionId + retailerId
     @Query("SELECT t FROM RetailerPrepaidTransactionDetails t " +

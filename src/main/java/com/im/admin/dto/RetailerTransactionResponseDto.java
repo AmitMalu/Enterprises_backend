@@ -28,6 +28,7 @@ public class RetailerTransactionResponseDto {
     private String txId;
     private String medium;
     private String subProductName;
+    private String vendor;
     private LocalDate dateOfTransaction;
     private LocalTime timeOfTransaction;
     private LocalDate updatedDateOfTransaction;

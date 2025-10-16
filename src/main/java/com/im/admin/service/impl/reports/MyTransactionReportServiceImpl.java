@@ -1,7 +1,11 @@
 package com.im.admin.service.impl.reports;
 
+import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
+import com.im.admin.entities.product.Products;
+import com.im.admin.repositories.ProductsRepository;
+import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.request.reports.MyTransactionReportRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.reports.MyTransactionReportResponse;
@@ -39,6 +43,12 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
 
     @Autowired
     private EntityManager entityManager;
+    @Autowired
+    private ProductsRepository productsRepository;
+
+    @Autowired
+    private SubProductsRepository subProductsRepository;
+
 
     @Override
     public CommonResponse<Page<MyTransactionReportResponse>> getReport(MyTransactionReportRequest request) {
@@ -47,11 +57,32 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         LocalDate from = StringUtils.hasText(request.getFromDate()) ? LocalDate.parse(request.getFromDate()) : null;
         LocalDate to = StringUtils.hasText(request.getToDate()) ? LocalDate.parse(request.getToDate()) : null;
 
-        List<String> subProducts = new ArrayList<>();
+        // Fetch the product
+        Optional<Products> productOpt = productsRepository.findById(request.getProductId());
+        Products product = productOpt.orElseThrow(() -> new IllegalArgumentException("Invalid productId"));
+
+        // Fetch all sub-products for this product
+        List<String> allSubProducts = subProductsRepository.findByProduct(product)
+                .stream()
+                .map(SubProducts::getSubProductTitle)
+                .collect(Collectors.toList());
+
+        // Filter sub-products based on request
+        List<String> filteredSubProducts = new ArrayList<>();
         if (StringUtils.hasText(request.getSubProductName()) && !request.getSubProductName().equalsIgnoreCase("ALL")) {
-            subProducts = Arrays.stream(request.getSubProductName().split(","))
+            List<String> requestedSubs = Arrays.stream(request.getSubProductName().split(","))
                     .map(String::trim)
                     .collect(Collectors.toList());
+            for (String sub : requestedSubs) {
+                if (allSubProducts.contains(sub)) {
+                    filteredSubProducts.add(sub);
+                }
+            }
+        }
+
+        // If no sub-products were specified or matched, use all
+        if (filteredSubProducts.isEmpty()) {
+            filteredSubProducts = allSubProducts;
         }
 
         List<MyTransactionReportResponse> allData = new ArrayList<>();
@@ -61,9 +92,10 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                 : List.of(request.getWalletType());
 
 
+
         long totalCount = 0;
         for (WalletType walletType : walletTypes) {
-            Map<String, Object> walletData = fetchTransactionsForWalletWithCount(walletType, request, from, to, subProducts, pageable);
+            Map<String, Object> walletData = fetchTransactionsForWalletWithCount(walletType, request, from, to, filteredSubProducts, pageable);
             allData.addAll((List<MyTransactionReportResponse>) walletData.get("results"));
             totalCount += (Long) walletData.get("totalCount");
         }
