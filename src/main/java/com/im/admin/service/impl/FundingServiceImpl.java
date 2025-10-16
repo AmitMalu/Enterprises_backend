@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -261,11 +262,14 @@ public class FundingServiceImpl implements FundingService {
 
         // Get vendorName from vendorId
         String vendorName = null;
-        if (request.getVendorId() != null && !request.getVendorId().isBlank()) {
+        if (StringUtils.hasText(request.getVendorId())) {
             vendorName = vendorRepository.findById(request.getVendorId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid vendorId"))
                     .getVendorName();
+        } else if (StringUtils.hasText(request.getVendor())) {
+            vendorName = request.getVendor();
         }
+
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("updatedDateOfTransaction").descending());
 
@@ -346,6 +350,7 @@ public class FundingServiceImpl implements FundingService {
                 txn.getTransactionId(),
                 txn.getMedium(),
                 txn.getSubProductName(),
+                txn.getVendorName(),
                 txn.getDateOfTransaction(),
                 txn.getTimeOfTransaction(),
                 txn.getUpdatedDateOfTransaction(),
@@ -393,6 +398,7 @@ public class FundingServiceImpl implements FundingService {
                 txn.getTransactionId(),
                 txn.getMedium(),
                 txn.getSubProductName(),
+                txn.getVendorName(),
                 txn.getDateOfTransaction(),
                 txn.getTimeOfTransaction(),
                 txn.getUpdatedDateOfTransaction(),

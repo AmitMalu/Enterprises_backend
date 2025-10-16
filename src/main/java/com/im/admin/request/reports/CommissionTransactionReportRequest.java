@@ -18,6 +18,7 @@ public class CommissionTransactionReportRequest {
     private String toDate;     // Format: yyyy-MM-dd
     private String subProductName;
     private String reportType;   //COM, CHG
+    private Short productId;
 
     private Integer id;
     private String txId;

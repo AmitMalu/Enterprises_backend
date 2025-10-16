@@ -28,6 +28,7 @@ public class MyTransactionReportRequest {
     private Status status;  //PENDING or FAILURE or SUCCESS or ALL
 
     private Integer id;
+    private Short productId;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private String transactionDate;
