@@ -34,4 +34,8 @@ public class CommonResponse<T> {
     public static <T> CommonResponse<T> handleErrors(String message) {
         return new CommonResponse<>(HttpStatus.BAD_REQUEST.value(), message, null);
     }
+
+    public static <T> CommonResponse<T> failedResponse(int code, String message, T data) {
+        return new CommonResponse<>(code, message, data);
+    }
 }
