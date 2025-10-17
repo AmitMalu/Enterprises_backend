@@ -114,7 +114,8 @@ public class FundingServiceImpl implements FundingService {
                 txnId,
                 transactionType.name(),
                 dto.getRemarks(),
-                "Fund Credit/Debit"
+                "Fund Credit/Debit",
+                "Fund Credit"
         );
 
         log.info("Transaction {} successful for user {} with txnId {}", transactionType.name(), userId, txnId);

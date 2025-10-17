@@ -276,7 +276,7 @@ public class BBPSServiceImpl implements BBPSService {
             BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "PENDING", baseTransactionId, operator, subProducts.get().getSubProductTitle());
 
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
-            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.get().getSubProductTitle());
+            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.get().getSubProductTitle(), "Tx Amount for A2Z Billpay For " + operator +"#"+ bbpsProviderRecord.getSubOperator() ,"A2Z Billpay Transaction from " + walletType.name());
             bbpsRelatedTransactions.processCharges(bbpsTranactionRequestDto, walletAmountTable);
 
             log.info("Wallet updated and charges processed for transactionId: {}", baseTransactionId);
