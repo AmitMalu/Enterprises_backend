@@ -948,7 +948,7 @@ public class BBPSRelatedTransactions {
 
             entityManager.createNativeQuery(insertSql)
                     .setParameter("hierarchyId", hierarchyId)
-                    .setParameter("service", service)
+                    .setParameter("service", service.equalsIgnoreCase("CREDIT") ? "DEBIT" : "CREDIT")
                     .setParameter("amount", amount)
                     .setParameter("remarks", "Reversal of " + originalTxnId + " | " + remarks)
                     .setParameter("dateOfTransaction", new java.sql.Date(System.currentTimeMillis()))
