@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,77 +42,37 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
                 ? commonMethods.extractHierarchyType(request.getHierarchyId())
                 : request.getHierarchyType();
 
-        String tableName = commonMethods.getTransactionTable(hierarchyTypeForTable, request.getWalletType());
-        String columnName = commonMethods.getHierarchyColumnName(hierarchyTypeForTable);
+        //  Wallet Type Logic
+        List<Object[]> allResults = new ArrayList<>();
+        long totalElements = 0;
 
-        // Base SQL with dynamic filters
-        StringBuilder sql = new StringBuilder(String.format("""
-            SELECT 
-                date_of_transaction, 
-                time_of_transaction, 
-                bal_before_tran, 
-                amount, 
-                bal_after_tran, 
-                final_balance, 
-                service, 
-                transaction_id,
-                transaction_type
-            FROM %s 
-            WHERE 1=1
-              AND date_of_transaction BETWEEN :fromDate AND :toDate
-        """, tableName));
+        if (!StringUtils.hasText(request.getWalletType())) {
+            //  Fetch both prepaid + postpaid
+            String prepaidTable = commonMethods.getTransactionTable(hierarchyTypeForTable, "PREPAID");
+            String postpaidTable = commonMethods.getTransactionTable(hierarchyTypeForTable, "POSTPAID");
 
-        // Conditional hierarchy filter
-        if (StringUtils.hasText(request.getHierarchyId())) {
-            sql.append(" AND ").append(columnName).append(" = :hierarchyId");
-        }
+            allResults.addAll(executeTransactionQuery(prepaidTable, request));
+            allResults.addAll(executeTransactionQuery(postpaidTable, request));
 
-        // Optional filters
-        if (request.getDateOfTransaction() != null) {
-            sql.append(" AND date_of_transaction = :dateOfTransaction");
-        }
-        if (request.getTimeOfTransaction() != null) {
-            sql.append(" AND time_of_transaction = :timeOfTransaction");
-        }
-        if (StringUtils.hasText(request.getService())) {
-            sql.append(" AND service = :service");
-        }
-        if (StringUtils.hasText(request.getTransactionId())) {
-            sql.append(" AND transaction_id LIKE :transactionId");
-        }
-        if (StringUtils.hasText(request.getTransactionType())) {
-            sql.append(" AND transaction_type = :transactionType");
-        }
-        if (request.getAmount() != null) {
-            sql.append(" AND amount = :amount");
-        }
-        if (request.getBalBeforeTran() != null) {
-            sql.append(" AND bal_before_tran = :balBeforeTran");
-        }
-        if (request.getBalAfterTran() != null) {
-            sql.append(" AND bal_after_tran = :balAfterTran");
-        }
-        if (request.getFinalBalance() != null) {
-            sql.append(" AND final_balance = :finalBalance");
+            totalElements = allResults.size();
+
+            // Merge + sort by date & time DESC
+            allResults.sort(Comparator.comparing((Object[] o) -> ((Date) o[0]))
+                    .thenComparing(o -> ((Time) o[1]))
+                    .reversed());
+
+            // Pagination manually
+            int start = Math.min(page * size, allResults.size());
+            int end = Math.min(start + size, allResults.size());
+            allResults = allResults.subList(start, end);
+        } else {
+            //  Single wallet type (Prepaid or Postpaid)
+            String tableName = commonMethods.getTransactionTable(hierarchyTypeForTable, request.getWalletType());
+            allResults = executeTransactionQuery(tableName, request);
+            totalElements = allResults.size();
         }
 
-        sql.append(" ORDER BY date_of_transaction DESC, time_of_transaction DESC");
-
-        // Count query for total elements
-        String countSql = "SELECT COUNT(*) FROM (" + sql + ") AS count_query";
-        Query countQuery = entityManager.createNativeQuery(countSql);
-        setQueryParameters(countQuery, request);
-        long totalElements = ((Number) countQuery.getSingleResult()).longValue();
-
-        // Pagination query
-        Query query = entityManager.createNativeQuery(sql.toString());
-        setQueryParameters(query, request);
-        query.setFirstResult(page * size);
-        query.setMaxResults(size);
-
-        List<Object[]> results = query.getResultList();
-
-        List<DebitCreditReportResponse> content = results.stream()
+        List<DebitCreditReportResponse> content = allResults.stream()
                 .map(obj -> new DebitCreditReportResponse(
                         ((Date) obj[0]).toLocalDate(),
                         ((Time) obj[1]).toLocalTime(),
@@ -127,11 +89,62 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
         return new PageImpl<>(content, PageRequest.of(page, size), totalElements);
     }
 
-    // Helper method to bind query parameters
-    private void setQueryParameters(Query query, DebitCreditReportRequest request) {
+    private List<Object[]> executeTransactionQuery(String tableName, DebitCreditReportRequest request) {
+        String hierarchyTypeForTable = StringUtils.hasText(request.getHierarchyId())
+                ? commonMethods.extractHierarchyType(request.getHierarchyId())
+                : request.getHierarchyType();
+
+        String columnName = commonMethods.getHierarchyColumnName(hierarchyTypeForTable);
+
+        StringBuilder sql = new StringBuilder(String.format("""
+            SELECT 
+                date_of_transaction, 
+                time_of_transaction, 
+                bal_before_tran, 
+                amount, 
+                bal_after_tran, 
+                final_balance, 
+                service, 
+                transaction_id,
+                transaction_type
+            FROM %s 
+            WHERE 1=1
+              AND date_of_transaction BETWEEN :fromDate AND :toDate
+        """, tableName));
+
         if (StringUtils.hasText(request.getHierarchyId())) {
-            query.setParameter("hierarchyId", request.getHierarchyId());
+            sql.append(" AND ").append(columnName).append(" = :hierarchyId");
         }
+
+        if (request.getDateOfTransaction() != null)
+            sql.append(" AND date_of_transaction = :dateOfTransaction");
+        if (request.getTimeOfTransaction() != null)
+            sql.append(" AND time_of_transaction = :timeOfTransaction");
+        if (StringUtils.hasText(request.getService()))
+            sql.append(" AND service = :service");
+        if (StringUtils.hasText(request.getTransactionId()))
+            sql.append(" AND transaction_id LIKE :transactionId");
+        if (StringUtils.hasText(request.getTransactionType()))
+            sql.append(" AND transaction_type = :transactionType");
+        if (request.getAmount() != null)
+            sql.append(" AND amount = :amount");
+        if (request.getBalBeforeTran() != null)
+            sql.append(" AND bal_before_tran = :balBeforeTran");
+        if (request.getBalAfterTran() != null)
+            sql.append(" AND bal_after_tran = :balAfterTran");
+        if (request.getFinalBalance() != null)
+            sql.append(" AND final_balance = :finalBalance");
+
+        sql.append(" ORDER BY date_of_transaction DESC, time_of_transaction DESC");
+
+        Query query = entityManager.createNativeQuery(sql.toString());
+        setQueryParameters(query, request);
+        return query.getResultList();
+    }
+
+    private void setQueryParameters(Query query, DebitCreditReportRequest request) {
+        if (StringUtils.hasText(request.getHierarchyId()))
+            query.setParameter("hierarchyId", request.getHierarchyId());
 
         query.setParameter("fromDate", request.getFromDate());
         query.setParameter("toDate", request.getToDate());
