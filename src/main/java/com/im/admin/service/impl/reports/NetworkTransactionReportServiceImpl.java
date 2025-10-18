@@ -75,11 +75,18 @@ public class NetworkTransactionReportServiceImpl implements NetworkTransactionRe
             return new CommonResponse<>(204, "No transactions found for the given criteria", Page.empty(pageable));
         }
 
-        Page<NetworkTransactionReportResponse> resultPage = new PageImpl<>(
-                combinedResults,
-                pageable,
-                pageable.getOffset() + combinedResults.size()
-        );
+//        Page<NetworkTransactionReportResponse> resultPage = new PageImpl<>(
+//                combinedResults,
+//                pageable,
+//                pageable.getOffset() + combinedResults.size()
+//        );
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), combinedResults.size());
+        List<NetworkTransactionReportResponse> pagedList = combinedResults.subList(start, end);
+
+        Page<NetworkTransactionReportResponse> resultPage =
+                new PageImpl<>(pagedList, pageable, combinedResults.size());
+
 
         return new CommonResponse<>(200, "Network transaction report fetched successfully", resultPage);
     }
