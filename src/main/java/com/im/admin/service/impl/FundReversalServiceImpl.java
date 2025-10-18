@@ -113,12 +113,12 @@ public class FundReversalServiceImpl implements FundReversalService {
         AbstractWalletAmountTable fromWalletTable =
                 commonMethods.getWalletByType(request.getWalletType().name(), request.getChildHierarchyId());
         commonMethods.updateWallet(fromWalletTable, request.getChildHierarchyId(), request.getWalletType(),
-                request.getReversalAmount(), "Debit", "TXN" + baseTransactionId, "SUCCESS", "DEBIT", "Fund Reversal");
+                request.getReversalAmount(), "Debit", "TXN" + baseTransactionId, "SUCCESS", "DEBIT", "Fund Reversal", "Payment", "Fund Reverse to "+ request.getParentHierarchyId());
 
         AbstractWalletAmountTable toWalletTable =
                 commonMethods.getWalletByType(request.getWalletType().name(), request.getParentHierarchyId());
         commonMethods.updateWallet(toWalletTable, request.getParentHierarchyId(), request.getWalletType(),
-                request.getReversalAmount(), "Credit", "TXN" + baseTransactionId, "SUCCESS", "CREDIT", "Fund Reversal");
+                request.getReversalAmount(), "Credit", "TXN" + baseTransactionId, "SUCCESS", "CREDIT", "Fund Reversal", "Payment", "Fund Reversed By "+ request.getChildHierarchyId());
 
         fundReversal.setStatus(Status.APPROVED);
         fundReversal.setOtpVerified(true);

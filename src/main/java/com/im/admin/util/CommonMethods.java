@@ -644,7 +644,10 @@ public class CommonMethods {
             String baseTransactionId,
             String tranStatus,
             String service,
-            String subProductName) {
+            String subProductName,
+            String narration,
+            String remark) {
+
 
         log.debug("Starting wallet update process for transaction type: {}, wallet type: {}", tranxType, walletType);
 
@@ -683,7 +686,9 @@ public class CommonMethods {
                     actionOnBalance,
                     "TXN" + baseTransactionId,
                     service,
-                    subProductName
+                    subProductName,
+                    narration,
+                    remark
             );
 
             log.info("Transaction record inserted successfully.");
@@ -705,7 +710,9 @@ public class CommonMethods {
             String actionOnBalanceAmount,
             String tranxId,
             String service,
-            String subProductName) {
+            String subProductName,
+            String narration,
+            String remark) {
 
         log.debug("Preparing to insert transaction record.");
 
@@ -719,9 +726,9 @@ public class CommonMethods {
 
             String sql = "INSERT INTO " + transactionTableName +
                     " (" + columnName + ", service, amount, date_of_transaction, time_of_transaction, " +
-                    "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name) " +
+                    "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name, narration, remarks) " +
                     "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
-                    ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :subProductName)";
+                    ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :subProductName, :narration, :remark)";
 
             Query query = entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
@@ -735,7 +742,9 @@ public class CommonMethods {
                     .setParameter("finalBalance", afterBalance)
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
-                    .setParameter("subProductName", subProductName);
+                    .setParameter("subProductName", subProductName)
+                    .setParameter("narration", narration)
+                    .setParameter("remark", remark);
 
             query.executeUpdate();
             log.info("Transaction inserted successfully for ID: {}", tranxId);
@@ -842,7 +851,7 @@ public class CommonMethods {
 
     public <T extends AbstractWalletAmountTable> void performWalletUpdate(
             T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-            TransactionType type, String baseTxnId, String service, String remarks, String subProductName) {
+            TransactionType type, String baseTxnId, String service, String remarks, String subProductName, String narration) {
 
         BigDecimal beforeBalance = wallet.getAvailableBalance();
         BigDecimal afterBalance;
@@ -864,7 +873,7 @@ public class CommonMethods {
         insertTransaction(
                 walletType.name(), hierarchyId, Status.SUCCESS.name(), amount,
                 beforeBalance, wallet.getAvailableBalance(), action,
-                baseTxnId, type.name(), subProductName
+                baseTxnId, type.name(), subProductName, narration, remarks
         );
     }
 

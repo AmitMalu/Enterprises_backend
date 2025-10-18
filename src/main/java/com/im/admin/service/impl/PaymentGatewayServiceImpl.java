@@ -39,6 +39,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -86,6 +88,9 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     @Autowired
     private VendorCredentialsRepository vendorCredentialsRepository;
 
+    @Autowired
+    private PgTransactionMappingRepository pgTransactionMappingRepository;
+
 
     RestTemplate restTemplate = new RestTemplate();
 
@@ -115,7 +120,6 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
     @Autowired
     private AESController aesController;
-
 
 
     @Override
@@ -148,10 +152,12 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             throw new RuntimeException("Failed to get token from Runpaisa");
         }
     }
+
     @Override
     @Transactional
     public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req) {
         log.info("Received createOrder request: {}", req);
+        String orderId = "ORD" + commonMethods.generateBaseTransactionId();
 
         LocalDateTime imRequestTime = LocalDateTime.now();
         String imResponseBody = null;
@@ -166,6 +172,16 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
             log.debug("Vendor credentials retrieved: {}", credentials.getClientId());
+
+            // ====== Save Transaction Mapping (Retailer Context) ======
+            PgTransactionMapping txnMap = new PgTransactionMapping();
+            txnMap.setOrderId(orderId);
+            txnMap.setInitiatedBy(req.getInitiatedBy());  // <-- must come from logged-in user or request
+            txnMap.setAmount(req.getAmount());
+            txnMap.setStatus("INITIATED");
+            txnMap.setVendorName(vendor.getVendorName());
+
+            pgTransactionMappingRepository.save(txnMap);
 
             // ====== Check Vendor Type ======
             if ("AES".equalsIgnoreCase(credentials.getTokenType())) {
@@ -182,7 +198,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
 
                 CreateOrderRequest jsonBody = new CreateOrderRequest();
-                jsonBody.setOrderId("ORD" + commonMethods.generateBaseTransactionId());
+                jsonBody.setOrderId(orderId);
                 jsonBody.setCallbackUrl(credentials.getCallbackUrl());
                 jsonBody.setAmount(req.getAmount());
                 jsonBody.setMerchantRef(req.getMerchantRef());
@@ -239,6 +255,9 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
                 ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
                 imResponseBody = response.getBody();
+
+                txnMap.setStatus("REQUEST_SENT");
+                pgTransactionMappingRepository.save(txnMap);
 
                 commonFunctions.saveVendorLogs(
                         LocalDateTime.now(),
@@ -466,88 +485,208 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
         TransactionSchemeDetailsRequestDto dto = null;
 
+        PgTransactionMapping pgTransactionMapping = pgTransactionMappingRepository.findByOrderId(callback.getOrderId())
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+
         if ("SUCCESS".equalsIgnoreCase(callback.getStatus())) {
             log.info("---- [Callback] Status is SUCCESS. Fetching saved transaction data...");
 
-            // Construct operatorName (e.g., dth_tatasky)
-            String callbackOperatorName = callback.getCardType().toLowerCase().replace(" ", "_") + "_" + callback.getPgPartner().toLowerCase();
+            // Only one combination needed
+            String callbackOperatorName = toDbOperatorName(
+                    callback.getTxnMode(),
+                    callback.getCardCategory(),
+                    callback.getPgPartner()
+            );
 
-            Double txnAmt = Double.valueOf(callback.getTxnAmount());
+            log.info("---- [Callback] Using operatorName for DB lookup: {}", callbackOperatorName);
 
             List<SchemeRate> matchingSchemes = schemeRateRepository.findSchemeByOperatorName(callbackOperatorName);
 
-            if (!matchingSchemes.isEmpty()) {
-                SchemeRate selectedScheme = null;
-                for (SchemeRate scheme : matchingSchemes) {
-                    if (scheme.getSlabType() == SlabType.FIXED && Objects.equals(scheme.getFixedSlabValue(), txnAmt)) {
-                        selectedScheme = scheme;
-                        break;
-                    } else if (scheme.getSlabType() == SlabType.VARIABLE && txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd()) {
-                        selectedScheme = scheme;
-                        break;
-                    }
-                }
+            if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+                log.error("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
+                return; // stop processing
+            }
 
-                if (selectedScheme != null) {
-                    log.info("---- [Callback] Matching scheme found: {}", selectedScheme.getSchemeCode());
+            Double txnAmt = Double.valueOf(callback.getTxnAmount());
 
-                    // 1. Fetch the Scheme using schemeCode
-                    Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
-                            .orElseThrow(() -> new RuntimeException("Scheme Not Found"));
+            log.info("---- [Callback] Scheme(s) found: {}", matchingSchemes.size());
 
-                    // 2. Parse schemeCombinationHashCode (e.g., 10-01-02-001-00001)
-                    String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+            // Select matching scheme by amount range or fixed value
+            SchemeRate selectedScheme = matchingSchemes.stream()
+                    .filter(scheme -> (scheme.getSlabType() == SlabType.FIXED && Objects.equals(scheme.getFixedSlabValue(), txnAmt))
+                            || (scheme.getSlabType() == SlabType.VARIABLE && txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd()))
+                    .findFirst()
+                    .orElse(null);
 
-                    short productId = Short.parseShort(hashParts[0]);
-                    String subProductIdStr = hashParts[1];
+            if (selectedScheme != null) {
+                log.info("---- [Callback] Matching scheme found: {}", selectedScheme.getSchemeCode());
 
-                    // 3. Fetch Product and SubProduct
-                    Products product = productsRepository.findById(productId)
-                            .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+                Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                        .orElseThrow(() -> new RuntimeException("Scheme Not Found"));
 
-                    SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
-                            .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
+                String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+                short productId = Short.parseShort(hashParts[0]);
+                String subProductIdStr = hashParts[1];
 
-                    // Fill DTO completely
-                    dto = new TransactionSchemeDetailsRequestDto();
-                    dto.setAmount(txnAmt);
-                    dto.setConfirmAmount(txnAmt);
-                    dto.setOperatorName(callbackOperatorName);
-                    dto.setOperatorCode(selectedScheme.getOperatorCode());
-                    dto.setSchemeRate(selectedScheme);
-                    dto.setTransactionType(product.getTransactionType());
-                    dto.setWalletType(subProduct.getWalletType());
-                    dto.setGstValue(String.valueOf(product.getSgst()));
-                    dto.setTdsRate(String.valueOf(product.getTds()));
+                Products product = productsRepository.findById(productId)
+                        .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
 
-                    dto.setHierarchyId(
-                            userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
-                                    .orElseThrow(() -> new RuntimeException("No User Found"))
-                                    .getHierarchyId()
-                    );
+                SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
+                        .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
 
-                    dto.setProductCode(product.getProductCode());
-                    dto.setSubProductCode(subProduct.getSubProductCode());
+                dto = new TransactionSchemeDetailsRequestDto();
+                dto.setAmount(txnAmt);
+                dto.setConfirmAmount(txnAmt);
+                dto.setOperatorName(callbackOperatorName);
+                dto.setOperatorCode(selectedScheme.getOperatorCode());
+                dto.setSchemeRate(selectedScheme);
+                dto.setTransactionType(product.getTransactionType());
+                dto.setWalletType(subProduct.getWalletType());
+                dto.setGstValue(String.valueOf(product.getSgst()));
+                dto.setTdsRate(String.valueOf(product.getTds()));
+                dto.setHierarchyId(pgTransactionMapping.getInitiatedBy());
+                dto.setProductCode(product.getProductCode());
+                dto.setSubProductCode(subProduct.getSubProductCode());
+                dto.setIsCommission(product.getIsCommissions());
+                dto.setHasCharge(product.getHasCharges());
 
-                    dto.setIsCommission(product.getIsCommissions());
-                    dto.setHasCharge(product.getHasCharges());
-                } else {
-                    log.warn("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
-                }
             } else {
-                log.warn("---- [Callback] No schemes configured for operatorName: {}", callbackOperatorName);
+                log.warn("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
             }
 
             log.info("---- [Callback] Deserialized Transaction DTO: {}", dto);
             assert dto != null;
             transactionServiceImpl.processTransaction(dto, callback.getStatus());
-
         } else {
             log.warn("---- [Callback] Payment FAILED or PENDING for Order ID: {}", callback.getOrderId());
-            transactionServiceImpl.processTransaction(dto, callback.getStatus()); // Optional
+            transactionServiceImpl.processTransaction(dto, callback.getStatus());
         }
     }
 
+//    @Override
+//    public void processCallback(RunPaisaCallback callback) throws JsonProcessingException {
+//        log.info("---- [Callback] Processing for Order ID: {}, Status: {}", callback.getOrderId(), callback.getStatus());
+//
+//        TransactionSchemeDetailsRequestDto dto = null;
+//
+//        if ("SUCCESS".equalsIgnoreCase(callback.getStatus())) {
+//            log.info("---- [Callback] Status is SUCCESS. Fetching saved transaction data...");
+//
+//
+//            // Build composite operator name (cardType_cardCategory_pgPartner)
+//            // Normalize fields safely
+//            String txnMode = normalize(callback.getTxnMode());
+//            String cardType = normalize(callback.getCardType());
+//            String cardCategory = normalize(callback.getCardCategory());
+//            String pgPartner = normalize(callback.getPgPartner());
+//
+//            // Generate possible operator name combinations
+//            List<String> possibleNames = new ArrayList<>();
+//            possibleNames.add(txnMode + "_" + cardCategory + "_" + pgPartner);
+//            possibleNames.add(cardType + "_" + cardCategory + "_" + pgPartner);
+//            possibleNames.add(txnMode + "_" + pgPartner);
+//            possibleNames.add(cardType + "_" + pgPartner);
+//            possibleNames.add(txnMode + "_" + cardType + "_" + cardCategory + "_" + pgPartner);
+//
+//            log.info("---- [Callback] Constructed Operator Name: {}", callbackOperatorName);
+//
+//            Double txnAmt = Double.valueOf(callback.getTxnAmount());
+//
+//            // Try to find by operator name first
+//            List<SchemeRate> matchingSchemes = schemeRateRepository.findSchemeByOperatorName(callbackOperatorName);
+//
+//            if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+//                log.warn("---- [Callback] No scheme found by operator name: {}. Trying by operator code...", callbackOperatorName);
+//
+//                // Fallback to find by operator code (assuming orderId or something in callback maps to operatorCode)
+//                matchingSchemes = schemeRateRepository.findSchemeByOperatorCode(callback.getPgPartner().toLowerCase());
+//
+//                if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+//                    log.error("---- [Callback] Scheme not found for combination: [cardType={}, cardCategory={}, pgPartner={}]",
+//                            callback.getCardType(), callback.getCardCategory(), callback.getPgPartner());
+//                    return; // stop further processing
+//                }
+//            }
+//
+//            log.info("---- [Callback] Scheme(s) found: {}", matchingSchemes.size());
+//            if (!matchingSchemes.isEmpty()) {
+//                SchemeRate selectedScheme = null;
+//                for (SchemeRate scheme : matchingSchemes) {
+//                    if (scheme.getSlabType() == SlabType.FIXED && Objects.equals(scheme.getFixedSlabValue(), txnAmt)) {
+//                        selectedScheme = scheme;
+//                        break;
+//                    } else if (scheme.getSlabType() == SlabType.VARIABLE && txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd()) {
+//                        selectedScheme = scheme;
+//                        break;
+//                    }
+//                }
+//
+//                if (selectedScheme != null) {
+//                    log.info("---- [Callback] Matching scheme found: {}", selectedScheme.getSchemeCode());
+//
+//                    // 1. Fetch the Scheme using schemeCode
+//                    Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+//                            .orElseThrow(() -> new RuntimeException("Scheme Not Found"));
+//
+//                    // 2. Parse schemeCombinationHashCode (e.g., 10-01-02-001-00001)
+//                    String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+//
+//                    short productId = Short.parseShort(hashParts[0]);
+//                    String subProductIdStr = hashParts[1];
+//
+//                    // 3. Fetch Product and SubProduct
+//                    Products product = productsRepository.findById(productId)
+//                            .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+//
+//                    SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
+//                            .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
+//
+//                    // Fill DTO completely
+//                    dto = new TransactionSchemeDetailsRequestDto();
+//                    dto.setAmount(txnAmt);
+//                    dto.setConfirmAmount(txnAmt);
+//                    dto.setOperatorName(callbackOperatorName);
+//                    dto.setOperatorCode(selectedScheme.getOperatorCode());
+//                    dto.setSchemeRate(selectedScheme);
+//                    dto.setTransactionType(product.getTransactionType());
+//                    dto.setWalletType(subProduct.getWalletType());
+//                    dto.setGstValue(String.valueOf(product.getSgst()));
+//                    dto.setTdsRate(String.valueOf(product.getTds()));
+//
+//                    dto.setHierarchyId(
+//                            userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
+//                                    .orElseThrow(() -> new RuntimeException("No User Found"))
+//                                    .getHierarchyId()
+//                    );
+//
+//                    dto.setProductCode(product.getProductCode());
+//                    dto.setSubProductCode(subProduct.getSubProductCode());
+//
+//                    dto.setIsCommission(product.getIsCommissions());
+//                    dto.setHasCharge(product.getHasCharges());
+//                } else {
+//                    log.warn("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
+//                }
+//            } else {
+//                log.warn("---- [Callback] No schemes configured for operatorName: {}", callbackOperatorName);
+//            }
+//
+//            log.info("---- [Callback] Deserialized Transaction DTO: {}", dto);
+//            assert dto != null;
+//            transactionServiceImpl.processTransaction(dto, callback.getStatus());
+//
+//        } else {
+//            log.warn("---- [Callback] Payment FAILED or PENDING for Order ID: {}", callback.getOrderId());
+//            transactionServiceImpl.processTransaction(dto, callback.getStatus()); // Optional
+//        }
+//    }
+
+    private String toDbOperatorName(String txnMode, String cardCategory, String pgPartner) {
+        return Stream.of(txnMode, cardCategory, pgPartner)
+                .filter(s -> s != null && !s.isBlank())
+                .map(s -> s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase())
+                .collect(Collectors.joining("_"));
+    }
 
     private String extractCallbackData(Map<String, String> payload) {
         log.info("---- [Callback] Extracting callback data from payload...");

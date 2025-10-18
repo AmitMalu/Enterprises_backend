@@ -127,6 +127,9 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     @Transactional
     @Override
     public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto) {
+
+        LocalDate date = LocalDate.now();
+        LocalTime time = LocalTime.now();
         PrefundRequest fundRequest = repository.findById(actionDto.getFundRequestId())
                 .orElseThrow(() -> new RuntimeException("Fund Request not found"));
 
@@ -137,8 +140,8 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         Status newStatus = actionDto.getStatus();
         fundRequest.setStatus(newStatus);
         fundRequest.setRemarks(actionDto.getRemarks());
-        fundRequest.setApproveOrRejectDate(LocalDate.now());
-        fundRequest.setApproveOrRejectTime(LocalTime.now());
+        fundRequest.setApproveOrRejectDate(date);
+        fundRequest.setApproveOrRejectTime(time);
 
         if (newStatus == Status.APPROVED) {
             String requesterId = fundRequest.getRequestedBy();
@@ -155,10 +158,10 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                 return new CommonResponse<>(400, "Insufficient balance in approver's wallet: " + approverId, null);
             }
 
-            updateWallet(approverWallet, approverId, walletType, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", "Fund Transfer Successfully to" + requesterId + "/ @" + LocalDate.now() + " " + LocalTime.now());
+            updateWallet(approverWallet, approverId, walletType, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", "Fund Transfer Successfully to" + requesterId + "/ @" + date + " " + time);
 
             AbstractWalletAmountTable requesterWallet = commonMethods.getWalletByType(walletType.name(), requesterId);
-            updateWallet(requesterWallet, requesterId, walletType, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", "-");
+            updateWallet(requesterWallet, requesterId, walletType, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", "Fund Transfer Successfully from" + approverId + "/ @" + date + " " + time);
         }
 
         repository.save(fundRequest);

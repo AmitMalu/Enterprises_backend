@@ -231,7 +231,9 @@ public class PayoutServiceImpl implements PayoutService {
             } else {
 
                 AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), sendPayoutRequest.getRetailerId());
-                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR_PENDING", "DEBIT", subProducts.get().getSubProductTitle());
+                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId,
+                        "VENDOR_PENDING", "DEBIT", subProducts.get().getSubProductTitle(),
+                        sendPayoutRequest.getBeneficiaryName() + "#" + sendPayoutRequest.getAccountNumber(), "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber());
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
@@ -242,7 +244,7 @@ public class PayoutServiceImpl implements PayoutService {
                 payout.put("ifsc_code", String.valueOf(sendPayoutRequest.getIfscCode()));            // "YESB0000001"
                 payout.put("amount", String.format("%.2f", sendPayoutRequest.getAmount()));          // "11.00"
                 payout.put("order_id", txnId);                                   // "TXN25082012270100272"
-                payout.put("beneficiary_name", String.valueOf(sendPayoutRequest.getBeneficiaryName()));
+                payout.put("beneficiary_name", String.valueOf(sendPayoutRequest.getBeneficiaryName())); //ABC
                 payout.put("payment_mode", String.valueOf(sendPayoutRequest.getPaymentMode()));      // "IMPS"
 
                 HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payout, headers);

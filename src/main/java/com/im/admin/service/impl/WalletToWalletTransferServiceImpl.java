@@ -109,10 +109,10 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     whiteLabelRepository.findById(parentId).ifPresent(wl -> {
                         log.info("Processing WL level transfer for WL ID: {}", wl.getWhiteLabelId());
                         AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), wl.getWhiteLabelId());
-                        updateWallet(from, hierarchyId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "DEBIT");
+                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
 
                         AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), wl.getWhiteLabelId());
-                        updateWallet(to, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
                     });
                     break;
                 }
@@ -121,10 +121,10 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     adminRepository.findById(parentId).ifPresent(ad -> {
                         log.info("Processing {} level transfer for Admin ID: {}", parentType, ad.getId());
                         AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), ad.getId());
-                        updateWallet(from, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
 
-                        AbstractWalletAmountTable to = commonMethods.getWalletByType(fromWallet.name(), ad.getId());
-                        updateWallet(to, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+                        AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), ad.getId());
+                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
                     });
                     break;
                 }

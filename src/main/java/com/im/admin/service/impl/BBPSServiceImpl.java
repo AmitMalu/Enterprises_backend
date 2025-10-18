@@ -276,7 +276,7 @@ public class BBPSServiceImpl implements BBPSService {
             BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "PENDING", baseTransactionId, operator, subProducts.get().getSubProductTitle());
 
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
-            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.get().getSubProductTitle());
+            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.get().getSubProductTitle(), "Tx Amount for A2Z Billpay For " + operator +"#"+ bbpsProviderRecord.getSubOperator() ,"A2Z Billpay Transaction from " + walletType.name());
             bbpsRelatedTransactions.processCharges(bbpsTranactionRequestDto, walletAmountTable);
 
             log.info("Wallet updated and charges processed for transactionId: {}", baseTransactionId);
@@ -306,8 +306,24 @@ public class BBPSServiceImpl implements BBPSService {
                 return CommonResponse.success(billRechargeResponse, "Transaction Successful");
 
             } else if (billRechargeResponse.getStatusId() == 2 || "FAILURE".equalsIgnoreCase(billRechargeResponse.getStatus())) {
+
+                savePendingTransaction(
+                        baseTransactionId,
+                        retailerId,
+                        walletType,
+                        request,
+                        schemeRate,
+                        gstValue,
+                        tdsValue,
+                        operator,
+                        subProducts.get(),
+                        credentials,
+                        billRechargeResponse.getStatus(), // dynamic status
+                        billRechargeResponse.getMessage()
+                );
+
                 bbpsRelatedTransactions.reverseTransactionsAndUpdateWallet(retailerId, walletType.name(), baseTransactionId);
-                return CommonResponse.error(400, "Transaction is Fail");
+                return CommonResponse.failedResponse(400, "Transaction is Fail", billRechargeResponse);
 
             } else if (
                     (billRechargeResponse.getStatusId() == 3 || "PENDING".equalsIgnoreCase(billRechargeResponse.getStatus())) ||
@@ -362,8 +378,23 @@ public class BBPSServiceImpl implements BBPSService {
                     } else if ("FAILED".equalsIgnoreCase(checkStatusResp.getMessage()) ||
                             (checkStatusResp.getStatus() != null && checkStatusResp.getStatus() == 55)) {
 
+                        savePendingTransaction(
+                                baseTransactionId,
+                                retailerId,
+                                walletType,
+                                request,
+                                schemeRate,
+                                gstValue,
+                                tdsValue,
+                                operator,
+                                subProducts.get(),
+                                credentials,
+                                "FAILED", // dynamic status
+                                checkStatusResp.getMessage()
+                        );
+
                         bbpsRelatedTransactions.reverseTransactionsAndUpdateWallet(retailerId, walletType.name(), baseTransactionId);
-                        return CommonResponse.error(400, "Transaction Failed: " + checkStatusResp.getDescription());
+                        return CommonResponse.failedResponse(400, "Transaction Failed", checkStatusResponse);
                     }
 
                     // Wait before retrying
@@ -378,29 +409,22 @@ public class BBPSServiceImpl implements BBPSService {
                 if (!successFound) {
                     log.info("Transaction still pending after {} attempts. Leaving for cron job to handle.", maxRetries);
 
-                    BBPSPendingTransactions pending = new BBPSPendingTransactions();
-                    pending.setTransactionId("TXN"+baseTransactionId);
-                    pending.setRetailerId(retailerId);
-                    pending.setWalletType(walletType.name());
-                    pending.setAmount(request.getAmount());
-                    pending.setSchemeRate(schemeRate);
-                    pending.setGst(gstValue);
-                    pending.setTds(tdsValue);
-                    pending.setOperatorName(operator);
-                    pending.setSubProductName(subProducts.get().getSubProductTitle());
-                    pending.setVendorBaseUrl(credentials.getBaseUrlUat());
-                    pending.setToken(credentials.getToken());
-                    pending.setUsername(credentials.getUsername());
-                    pending.setClientSecret(credentials.getClientSecret());
-                    pending.setStatus("PENDING");                // default status
-                    pending.setActualVendorStatus(checkStatusResp.getMessage());
-                    pending.setConsumerNumber(request.getNumber());
-                    bbpsPendingTransactionsRepository.save(pending);
-
-                    log.info("Saved pending transaction: {}", baseTransactionId);
+                    savePendingTransaction(
+                            baseTransactionId,
+                            retailerId,
+                            walletType,
+                            request,
+                            schemeRate,
+                            gstValue,
+                            tdsValue,
+                            operator,
+                            subProducts.get(),
+                            credentials,
+                            "PENDING", // dynamic status
+                            checkStatusResp.getMessage()
+                    );
 
                     return CommonResponse.success(checkStatusResp, "Transaction still pending. Will complete shortly.");
-
                 }
 
                 return CommonResponse.success(checkStatusResp, "Transaction is Successful");
@@ -411,6 +435,48 @@ public class BBPSServiceImpl implements BBPSService {
 
         } catch (Exception ex) {
             return CommonResponse.error(500, "Error: " + ex.getMessage());
+        }
+    }
+
+    private void savePendingTransaction(
+            String baseTransactionId,
+            String retailerId,
+            WalletType walletType,
+            BillRechargeRequestDTO request,
+            SchemeRate schemeRate,
+            String gstValue,
+            String tdsValue,
+            String operator,
+            SubProducts subProduct,
+            VendorCredentials credentials,
+            String status,
+            String actualVendorStatus
+    ) {
+        try {
+            BBPSPendingTransactions pending = new BBPSPendingTransactions();
+            pending.setTransactionId("TXN" + baseTransactionId);
+            pending.setRetailerId(retailerId);
+            pending.setWalletType(walletType.name());
+            pending.setAmount(request.getAmount());
+            pending.setSchemeRate(schemeRate);
+            pending.setGst(gstValue);
+            pending.setTds(tdsValue);
+            pending.setOperatorName(operator);
+            pending.setSubProductName(subProduct.getSubProductTitle());
+            pending.setVendorBaseUrl(credentials.getBaseUrlUat());
+            pending.setToken(credentials.getToken());
+            pending.setUsername(credentials.getUsername());
+            pending.setClientSecret(credentials.getClientSecret());
+            pending.setStatus(status); // dynamic status
+            pending.setActualVendorStatus(actualVendorStatus);
+            pending.setConsumerNumber(request.getNumber());
+
+            bbpsPendingTransactionsRepository.save(pending);
+            log.info("Saved pending transaction with status [{}]: {}", status, baseTransactionId);
+
+        } catch (Exception e) {
+            log.error("Failed to save pending transaction [{}]: {}", baseTransactionId, e.getMessage(), e);
+            throw new RuntimeException("Error saving pending transaction: " + e.getMessage());
         }
     }
 

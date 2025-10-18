@@ -192,7 +192,7 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IllegalArgumentException("Invalid SubProductCode: " + dto.getSubProductCode());
         }
 
-        if (tranxType.equals("credit")) {
+        if (tranxType.equalsIgnoreCase("credit")) {
             // Vendor call BEFORE wallet impact
             //String vendorResponse = callVendor(dto);
 
@@ -222,7 +222,7 @@ public class TransactionServiceImpl implements TransactionService {
             // On Success: update wallet, mirror, then process charges/commission
             updateWallet(dto, wallet, tranxAmount, tranxType, baseTransactionId, vendorCallbackStatus, "CREDIT");
             processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, vendorCallbackStatus);
-        } else if (tranxType.equals("debit")) {
+        } else if (tranxType.equalsIgnoreCase("debit")) {
             // Step 1: Check balance before assuming pending
             if (!hasSufficientBalance(retailerId, tranxAmount, grossAmount, walletType)) {
                 return "Insufficient balance";
@@ -1433,7 +1433,7 @@ public class TransactionServiceImpl implements TransactionService {
         );
 
         // Update target's balance table
-        updateAmountTable(targetType, targetHierarchyId, getAmountTable(targetType, walletType), afterBalance.subtract(beforeBalance));
+        updateAmountTable(targetType, targetHierarchyId, getAmountTable(targetType, walletType), beforeBalance.subtract(afterBalance));
     }
 
     private void mirrorTransactionToAdminOrWhitelabel(String hierarchyId, String txnType, BigDecimal amount, String walletType, String txnId, String action, String tranStatus, TransactionSchemeDetailsRequestDto request) {
