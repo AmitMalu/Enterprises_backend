@@ -172,8 +172,7 @@ public class PayoutServiceImpl implements PayoutService {
     public CommonResponse<PayoutResponseDto> sendPayoutRequest(SendPayoutRequest sendPayoutRequest) {
         try {
 
-            String baseTransactionId = commonMethods.generateBaseTransactionId();
-            String txnId = "TXN" + baseTransactionId;
+            String orderId = "TXN" + commonMethods.generateBaseTransactionId();
 
             Optional<SubProducts> subProducts = subProductsRepository.findById(sendPayoutRequest.getSubProductId());
             WalletType walletType = WalletType.valueOf(subProducts.get().getWalletType());
@@ -211,7 +210,7 @@ public class PayoutServiceImpl implements PayoutService {
                 payoutJsonRequestBody.setAccountNumber(sendPayoutRequest.getAccountNumber());
                 payoutJsonRequestBody.setIfscCode(sendPayoutRequest.getIfscCode());
                 payoutJsonRequestBody.setAmount(sendPayoutRequest.getAmount());
-                payoutJsonRequestBody.setOrderId(txnId);
+                payoutJsonRequestBody.setOrderId(orderId);
                 payoutJsonRequestBody.setBeneficiaryName(sendPayoutRequest.getBeneficiaryName());
                 payoutJsonRequestBody.setPaymentMode(sendPayoutRequest.getPaymentMode());
                 payoutJsonRequestBody.setCallbackurl(sendPayoutRequest.getCallbackurl());
@@ -231,9 +230,9 @@ public class PayoutServiceImpl implements PayoutService {
             } else {
 
                 AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), sendPayoutRequest.getRetailerId());
-                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId,
+                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", orderId,
                         "VENDOR_PENDING", "DEBIT", subProducts.get().getSubProductTitle(),
-                        sendPayoutRequest.getBeneficiaryName() + "#" + sendPayoutRequest.getAccountNumber(), "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber());
+                        sendPayoutRequest.getBeneficiaryName() + " #" + sendPayoutRequest.getAccountNumber(), "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber());
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
@@ -243,7 +242,7 @@ public class PayoutServiceImpl implements PayoutService {
                 payout.put("account_number", String.valueOf(sendPayoutRequest.getAccountNumber()));  // "026291800001191"
                 payout.put("ifsc_code", String.valueOf(sendPayoutRequest.getIfscCode()));            // "YESB0000001"
                 payout.put("amount", String.format("%.2f", sendPayoutRequest.getAmount()));          // "11.00"
-                payout.put("order_id", txnId);                                   // "TXN25082012270100272"
+                payout.put("order_id", orderId);                                   // "TXN25082012270100272"
                 payout.put("beneficiary_name", String.valueOf(sendPayoutRequest.getBeneficiaryName())); //ABC
                 payout.put("payment_mode", String.valueOf(sendPayoutRequest.getPaymentMode()));      // "IMPS"
 
@@ -265,11 +264,11 @@ public class PayoutServiceImpl implements PayoutService {
                 String vendorStatus = payoutResponse.getStatus() != null ? payoutResponse.getStatus().toUpperCase() : "UNKNOWN";
 
                 log.info("Run Paisa payout response received for TXN_ID={}, STATUS={}, MESSAGE={}",
-                        txnId, vendorStatus, payoutResponse.getMessage());
+                        orderId, vendorStatus, payoutResponse.getMessage());
 
                 // Always save transaction irrespective of status
                 PayoutPendingTransactions pending = new PayoutPendingTransactions();
-                pending.setTransactionId(txnId);
+                pending.setTransactionId(orderId);
                 pending.setSchemeCode(sendPayoutRequest.getSchemeCode());
                 pending.setRetailerId(sendPayoutRequest.getRetailerId());
                 pending.setAmount(sendPayoutRequest.getAmount());
@@ -280,7 +279,7 @@ public class PayoutServiceImpl implements PayoutService {
                 payoutPendingTransactionRepository.save(pending);
 
                 log.info("Payout transaction saved in DB: [TxnID={}, RetailerID={}, Amount={}, Status={}]",
-                        txnId, sendPayoutRequest.getRetailerId(), sendPayoutRequest.getAmount(), vendorStatus);
+                        orderId, sendPayoutRequest.getRetailerId(), sendPayoutRequest.getAmount(), vendorStatus);
 
                 // Return appropriate response to frontend
                 return switch (vendorStatus) {
