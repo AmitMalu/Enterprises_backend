@@ -2,6 +2,8 @@ package com.im.admin.service.impl;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.config.EncryptionService;
 import com.im.admin.controller.AESController;
@@ -25,6 +27,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.jackson.JsonObjectDeserializer;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -268,16 +271,32 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                         null
                 );
 
-                return ResponseEntity.status(response.getStatusCode())
-                        .body(CommonResponse.success(imResponseBody, "Order created via vendor"));
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode json = mapper.readTree(imResponseBody);
+
+                String status = json.path("status").asText();
+                String message = json.path("message").asText();
+
+                if ("SUCCESS".equalsIgnoreCase(status)) {
+                    // Success response
+                    return ResponseEntity.ok(CommonResponse.success(imResponseBody, message));
+                } else {
+                    // Failure or any other status
+                    return ResponseEntity
+                            .status(HttpStatus.BAD_REQUEST)
+                            .body(CommonResponse.handleErrors(message));
+                }
             }
 
         } catch (Exception e) {
             log.error("Error while creating order for request: {}", req, e);
             imResponseBody = "Order creation failed: " + e.getMessage();
+
+            // Save logs for failure
             commonFunctions.saveImLogs(req.toString(), imRequestTime, null, imResponseBody, LocalDateTime.now());
 
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResponse.failure(imResponseBody));
         }
     }
@@ -483,85 +502,93 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     public void processCallback(RunPaisaCallback callback) throws JsonProcessingException {
         log.info("---- [Callback] Processing for Order ID: {}, Status: {}", callback.getOrderId(), callback.getStatus());
 
-        TransactionSchemeDetailsRequestDto dto = null;
-
+        //Fetch base transaction mapping
         PgTransactionMapping pgTransactionMapping = pgTransactionMappingRepository.findByOrderId(callback.getOrderId())
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+                .orElseThrow(() -> new RuntimeException("Transaction not found for Order ID: " + callback.getOrderId()));
 
-        if ("SUCCESS".equalsIgnoreCase(callback.getStatus())) {
-            log.info("---- [Callback] Status is SUCCESS. Fetching saved transaction data...");
+        //Prepare base data
+        Double txnAmt = Double.valueOf(callback.getTxnAmount());
+        String callbackOperatorName = toDbOperatorName(
+                callback.getTxnMode(),
+                callback.getCardCategory(),
+                callback.getPgPartner()
+        );
 
-            // Only one combination needed
-            String callbackOperatorName = toDbOperatorName(
-                    callback.getTxnMode(),
-                    callback.getCardCategory(),
-                    callback.getPgPartner()
-            );
+        log.info("---- [Callback] Using operatorName for DB lookup: {}", callbackOperatorName);
 
-            log.info("---- [Callback] Using operatorName for DB lookup: {}", callbackOperatorName);
+        //Fetch all matching schemes for operator name
+        List<SchemeRate> matchingSchemes = schemeRateRepository.findSchemeByOperatorName(callbackOperatorName);
 
-            List<SchemeRate> matchingSchemes = schemeRateRepository.findSchemeByOperatorName(callbackOperatorName);
-
-            if (matchingSchemes == null || matchingSchemes.isEmpty()) {
-                log.error("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
-                return; // stop processing
-            }
-
-            Double txnAmt = Double.valueOf(callback.getTxnAmount());
-
-            log.info("---- [Callback] Scheme(s) found: {}", matchingSchemes.size());
-
-            // Select matching scheme by amount range or fixed value
-            SchemeRate selectedScheme = matchingSchemes.stream()
-                    .filter(scheme -> (scheme.getSlabType() == SlabType.FIXED && Objects.equals(scheme.getFixedSlabValue(), txnAmt))
-                            || (scheme.getSlabType() == SlabType.VARIABLE && txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd()))
-                    .findFirst()
-                    .orElse(null);
-
-            if (selectedScheme != null) {
-                log.info("---- [Callback] Matching scheme found: {}", selectedScheme.getSchemeCode());
-
-                Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
-                        .orElseThrow(() -> new RuntimeException("Scheme Not Found"));
-
-                String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
-                short productId = Short.parseShort(hashParts[0]);
-                String subProductIdStr = hashParts[1];
-
-                Products product = productsRepository.findById(productId)
-                        .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
-
-                SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
-                        .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
-
-                dto = new TransactionSchemeDetailsRequestDto();
-                dto.setAmount(txnAmt);
-                dto.setConfirmAmount(txnAmt);
-                dto.setOperatorName(callbackOperatorName);
-                dto.setOperatorCode(selectedScheme.getOperatorCode());
-                dto.setSchemeRate(selectedScheme);
-                dto.setTransactionType(product.getTransactionType());
-                dto.setWalletType(subProduct.getWalletType());
-                dto.setGstValue(String.valueOf(product.getSgst()));
-                dto.setTdsRate(String.valueOf(product.getTds()));
-                dto.setHierarchyId(pgTransactionMapping.getInitiatedBy());
-                dto.setProductCode(product.getProductCode());
-                dto.setSubProductCode(subProduct.getSubProductCode());
-                dto.setIsCommission(product.getIsCommissions());
-                dto.setHasCharge(product.getHasCharges());
-
-            } else {
-                log.warn("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
-            }
-
-            log.info("---- [Callback] Deserialized Transaction DTO: {}", dto);
-            assert dto != null;
-            transactionServiceImpl.processTransaction(dto, callback.getStatus());
-        } else {
-            log.warn("---- [Callback] Payment FAILED or PENDING for Order ID: {}", callback.getOrderId());
-            transactionServiceImpl.processTransaction(dto, callback.getStatus());
+        if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+            log.error("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
+            return; // optional: or handle with a minimal DTO if required
         }
+
+        log.info("---- [Callback] Scheme(s) found: {}", matchingSchemes.size());
+
+        //Pick correct scheme by amount range or fixed value
+        SchemeRate selectedScheme = matchingSchemes.stream()
+                .filter(scheme ->
+                        (scheme.getSlabType() == SlabType.FIXED && Objects.equals(scheme.getFixedSlabValue(), txnAmt)) ||
+                                (scheme.getSlabType() == SlabType.VARIABLE && txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd())
+                )
+                .findFirst()
+                .orElse(matchingSchemes.get(0)); // fallback to first scheme if none match
+
+        //Fetch scheme, product & subproduct details
+        Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                .orElseThrow(() -> new RuntimeException("Scheme Not Found for code: " + selectedScheme.getSchemeCode()));
+
+        String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+        short productId = Short.parseShort(hashParts[0]);
+        String subProductIdStr = hashParts[1];
+
+        Products product = productsRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+
+        SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
+                .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
+
+        //Build DTO (common for all statuses)
+        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+        String orderId = callback.getOrderId();
+        String baseTranxId = orderId.startsWith("ORD") ? orderId.substring(3) : orderId;
+
+        dto.setBaseTranxId(baseTranxId);
+        dto.setAmount(txnAmt);
+        dto.setConfirmAmount(txnAmt);
+        dto.setOperatorName(callbackOperatorName);
+        dto.setOperatorCode(selectedScheme.getOperatorCode());
+        dto.setSchemeRate(selectedScheme);
+        dto.setTransactionType(product.getTransactionType());
+        dto.setWalletType(subProduct.getWalletType());
+        dto.setGstValue(String.valueOf(product.getSgst()));
+        dto.setTdsRate(String.valueOf(product.getTds()));
+        dto.setHierarchyId(pgTransactionMapping.getInitiatedBy());
+        dto.setProductCode(product.getProductCode());
+        dto.setSubProductCode(subProduct.getSubProductCode());
+        dto.setIsCommission(product.getIsCommissions());
+        dto.setHasCharge(product.getHasCharges());
+
+        //Forward to central transaction engine
+        log.info("---- [Callback] Forwarding to Transaction Engine with Status: {}", callback.getStatus());
+        transactionServiceImpl.processTransaction(dto, callback.getStatus());
+
+        log.info("---- [Callback] Processing complete for Order ID: {} | Status: {}", callback.getOrderId(), callback.getStatus());
     }
+
+
+    // Helper for minimal dto if scheme not found
+//    private TransactionSchemeDetailsRequestDto buildBasicDto(PgTransactionMapping pgTransactionMapping, Double amount, String operatorName) {
+//        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+//        dto.setBaseTranxId(pgTransactionMapping.getOrderId());
+//        dto.setAmount(amount);
+//        dto.setConfirmAmount(amount);
+//        dto.setOperatorName(operatorName);
+//        dto.setHierarchyId(pgTransactionMapping.getInitiatedBy());
+//        return dto;
+//    }
+
 
 //    @Override
 //    public void processCallback(RunPaisaCallback callback) throws JsonProcessingException {
@@ -682,9 +709,13 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 //    }
 
     private String toDbOperatorName(String txnMode, String cardCategory, String pgPartner) {
+        log.info("<-----------------------Txn Mode: {}, Card Category: {}, PG Partner: {}", txnMode, cardCategory, pgPartner);
         return Stream.of(txnMode, cardCategory, pgPartner)
                 .filter(s -> s != null && !s.isBlank())
-                .map(s -> s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase())
+                .map(s -> Arrays.stream(s.split("_"))
+                        .filter(part -> !part.isBlank())
+                        .map(part -> part.substring(0, 1).toUpperCase() + part.substring(1).toLowerCase())
+                        .collect(Collectors.joining("_")))
                 .collect(Collectors.joining("_"));
     }
 

@@ -626,6 +626,11 @@ public class PayoutServiceImpl implements PayoutService {
             // Prepare DTO (common for all statuses)
             log.info("[5] Constructing TransactionSchemeDetailsRequestDto...");
             dto = new TransactionSchemeDetailsRequestDto();
+
+            String orderId = callback.getOrderId();
+            String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+
+            dto.setBaseTranxId(baseTxnId);
             dto.setAmount(txnAmt);
             dto.setConfirmAmount(txnAmt);
             dto.setOperatorName(pendingTxn.getTransactionType());
@@ -639,20 +644,13 @@ public class PayoutServiceImpl implements PayoutService {
             dto.setSubProductCode(subProduct.getSubProductCode());
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
-
-            // Get hierarchy ID
-            log.info("[6] Fetching user by mobile number: {}", callback.getCustomerPhone());
-//            String hierarchyId = userDetailsRepository.findByMobileNumber(callback.getCustomerPhone())
-//                    .orElseThrow(() -> new RuntimeException("No User Found with mobile: " + callback.getCustomerPhone()))
-//                    .getHierarchyId();
             dto.setHierarchyId(pendingTxn.getRetailerId());
 
-            log.info("[6.1] Hierarchy ID fetched successfully: {}", pendingTxn.getRetailerId());
-            log.info("[7] DTO ready for transaction processing: {}", dto);
+            log.info("[6] DTO ready for transaction processing: {}", dto);
 
             // Process transaction for any status (SUCCESS, FAILED, PENDING, etc.)
             transactionServiceImpl.processTransaction(dto, callback.getStatus());
-            log.info("[8] Transaction processed successfully for ORDER_ID: {}, STATUS={}",
+            log.info("[7] Transaction processed successfully for ORDER_ID: {}, STATUS={}",
                     callback.getOrderId(), callback.getStatus());
 
         } catch (Exception ex) {

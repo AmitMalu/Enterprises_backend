@@ -176,7 +176,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional
     public String processTransaction(TransactionSchemeDetailsRequestDto dto, String vendorCallbackStatus) {
-        String baseTransactionId = commonMethods.generateBaseTransactionId(); // Single base ID for full flow
+        String baseTransactionId = dto.getBaseTranxId(); // Single base ID for full flow
 
         String retailerId = dto.getHierarchyId();
         BigDecimal tranxAmount = BigDecimal.valueOf(dto.getAmount());
