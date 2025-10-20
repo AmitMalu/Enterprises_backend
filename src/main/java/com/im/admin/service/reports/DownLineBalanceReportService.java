@@ -2,13 +2,14 @@ package com.im.admin.service.reports;
 
 import com.im.admin.dto.DownlineBalanceDto;
 import com.im.admin.response.CommonResponse;
+import org.springframework.data.domain.Page;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
 public interface DownLineBalanceReportService {
-    CommonResponse<List<DownlineBalanceDto>> getDownlineBalanceReport(
+    CommonResponse<Page<DownlineBalanceDto>> getDownlineBalanceReport(
             String hierarchyId,
             String userId,
             String name,
