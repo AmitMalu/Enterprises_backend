@@ -32,6 +32,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -82,10 +83,17 @@ public class NetworkTransactionReportServiceImpl implements NetworkTransactionRe
 //        );
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), combinedResults.size());
-        List<NetworkTransactionReportResponse> pagedList = combinedResults.subList(start, end);
+
+        List<NetworkTransactionReportResponse> pagedList;
+        if (start >= combinedResults.size()) {
+            pagedList = Collections.emptyList();
+        } else {
+            pagedList = combinedResults.subList(start, end);
+        }
 
         Page<NetworkTransactionReportResponse> resultPage =
                 new PageImpl<>(pagedList, pageable, combinedResults.size());
+
 
 
         return new CommonResponse<>(200, "Network transaction report fetched successfully", resultPage);

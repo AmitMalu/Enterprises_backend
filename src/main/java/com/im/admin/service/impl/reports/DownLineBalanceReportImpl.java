@@ -78,7 +78,7 @@ public class DownLineBalanceReportImpl implements DownLineBalanceReportService {
     private EnterprisesPostpaidAmountRepository enterprisesPostpaidAmountRepository;
 
     @Override
-    public CommonResponse<List<DownlineBalanceDto>> getDownlineBalanceReport(
+    public CommonResponse<Page<DownlineBalanceDto>> getDownlineBalanceReport(
             String hierarchyId,
             String userId,
             String name,
@@ -263,7 +263,9 @@ public class DownLineBalanceReportImpl implements DownLineBalanceReportService {
         int end = Math.min(start + pageable.getPageSize(), filteredList.size());
         List<DownlineBalanceDto> paginatedList = (start >= filteredList.size()) ? Collections.emptyList() : filteredList.subList(start, end);
 
-        return new CommonResponse<>(200, "Success", paginatedList);
+        Page<DownlineBalanceDto> pagedResponse = new PageImpl<>(paginatedList, pageable, filteredList.size());
+
+        return new CommonResponse<>(200, "Success", pagedResponse);
     }
 
 
