@@ -73,7 +73,7 @@ public class NetworkTransactionReportServiceImpl implements NetworkTransactionRe
 
         // 5. Wrap and return paginated response
         if (combinedResults.isEmpty()) {
-            return new CommonResponse<>(204, "No transactions found for the given criteria", Page.empty(pageable));
+            return new CommonResponse<>(400, "No transactions found for the given criteria", Page.empty(pageable));
         }
 
 //        Page<NetworkTransactionReportResponse> resultPage = new PageImpl<>(
