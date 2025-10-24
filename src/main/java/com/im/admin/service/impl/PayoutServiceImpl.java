@@ -230,7 +230,9 @@ public class PayoutServiceImpl implements PayoutService {
             } else {
 
                 AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), sendPayoutRequest.getRetailerId());
-                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", orderId,
+                String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+
+                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", baseTxnId,
                         "VENDOR_PENDING", "DEBIT", subProducts.get().getSubProductTitle(),
                         sendPayoutRequest.getBeneficiaryName() + " #" + sendPayoutRequest.getAccountNumber(), "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber());
 
