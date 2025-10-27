@@ -245,7 +245,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
                 MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
                 body.add("callbackurl", credentials.getCallbackUrl());
-                body.add("order_id", "ORD" + commonMethods.generateBaseTransactionId());
+                body.add("order_id", orderId);
                 body.add("amount", String.valueOf(req.getAmount()));
                 if (req.getMerchantRef() != null) {
                     body.add("merc_unq_ref", req.getMerchantRef());
@@ -505,8 +505,16 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         log.info("---- [Callback] Processing for Order ID: {}, Status: {}", callback.getOrderId(), callback.getStatus());
 
         // Fetch base transaction mapping
+//        log.info("---- [Callback] Fetching transaction mapping for Order ID: {}", callback.getOrderId());
+//        PgTransactionMapping pgTransactionMapping = pgTransactionMappingRepository.findByOrderId(callback.getOrderId())
+//                .orElseThrow(() -> new RuntimeException("Transaction not found for Order ID: " + callback.getOrderId()));
+
         log.info("---- [Callback] Fetching transaction mapping for Order ID: {}", callback.getOrderId());
-        PgTransactionMapping pgTransactionMapping = pgTransactionMappingRepository.findByOrderId(callback.getOrderId())
+        long t0 = System.currentTimeMillis();
+        Optional<PgTransactionMapping> opt = pgTransactionMappingRepository.findByOrderId(callback.getOrderId());
+        long t1 = System.currentTimeMillis();
+        log.info("---- [Callback] findByOrderId took {} ms", (t1 - t0));
+        PgTransactionMapping pgTransactionMapping = opt
                 .orElseThrow(() -> new RuntimeException("Transaction not found for Order ID: " + callback.getOrderId()));
 
         // Prepare base data
