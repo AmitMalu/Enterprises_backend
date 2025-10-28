@@ -1,6 +1,8 @@
 package com.im.admin.request.reports;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.im.admin.dto.WalletTypeDeserializer;
 import com.im.admin.entities.enums.WalletType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -13,6 +15,7 @@ public class CommissionTransactionReportRequest {
 
     private String hierarchyType;
     private String hierarchyId;
+    @JsonDeserialize(using = WalletTypeDeserializer.class)
     private WalletType walletType;
     private String fromDate;   // Format: yyyy-MM-dd
     private String toDate;     // Format: yyyy-MM-dd
