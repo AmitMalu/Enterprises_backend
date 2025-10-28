@@ -207,7 +207,14 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                 dto.setBalAfter((BigDecimal) row[5]);
                 dto.setSubProductName((String) row[6]);
                 dto.setActionOnBalanceAmount((String) row[7]);
-                dto.setStatus(Status.valueOf((String) row[8]));
+//                dto.setStatus(Status.valueOf((String) row[8]));
+                String statusStr = ((String) row[8]).trim().replace(" ", "_").toUpperCase();
+                try {
+                    dto.setStatus(Status.valueOf(statusStr));
+                } catch (IllegalArgumentException e) {
+                    dto.setStatus(Status.ALL); // optional fallback
+                }
+
                 dto.setTranxId((String) row[9]);
                 dto.setNarration((String) row[10]);
                 results.add(dto);
