@@ -382,6 +382,17 @@ public class CommonMethods {
         String hierarchyType = extractHierarchyType(hierarchyId);
         log.debug("Extracted hierarchy type: {}", hierarchyType);
 
+        // Handle Retailer User case (RU)
+        if ("RU".equalsIgnoreCase(hierarchyType)) {
+            log.debug("Hierarchy type is RU. Fetching parent Retailer hierarchyId...");
+
+            String parentHierarchyId = getParentRetailerId(hierarchyId);
+            log.debug("Resolved parent Retailer hierarchyId: {}", parentHierarchyId);
+
+            hierarchyId = parentHierarchyId;
+            hierarchyType = extractHierarchyType(parentHierarchyId); // Should be RT now
+        }
+
         return switch (hierarchyType) {
             case "RT" -> getRetailerWallet(walletType, hierarchyId);
             case "DT" -> getDistributorWallet(walletType, hierarchyId);
@@ -395,6 +406,12 @@ public class CommonMethods {
                 throw new IllegalArgumentException("Unsupported hierarchy type for wallet resolution.");
             }
         };
+    }
+
+    public String getParentRetailerId(String retailerUserHierarchyId) {
+        return retailerUserRepository.findById(retailerUserHierarchyId)
+                .map(RetailerUser::getParentAccount)
+                .orElseThrow(() -> new RuntimeException("Parent Retailer not found for Retailer User: " + retailerUserHierarchyId));
     }
 
     private AbstractWalletAmountTable getRetailerWallet(String walletType, String retailerId) {
