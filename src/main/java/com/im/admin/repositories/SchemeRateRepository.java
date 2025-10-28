@@ -31,35 +31,30 @@ public interface SchemeRateRepository extends JpaRepository<SchemeRate, Long> {
 
     List<SchemeRate> findBySchemeCode(String schemeCode);
 
-    @Query("SELECT sr FROM SchemeRate sr " +
-            "WHERE sr.operatorName = :operatorName " +
+    @Query("SELECT sr FROM SchemeRate sr " + "WHERE sr.operatorName = :operatorName " +
             //"AND sr.slabType = 'VARIABLE' " +
             "AND :amount BETWEEN sr.slabStart AND sr.slabEnd")
-    Optional<SchemeRate> findVariableSlabByOperatorAndAmount(@Param("operatorName") String operatorName,
-                                                             @Param("amount") Double amount);
+    Optional<SchemeRate> findVariableSlabByOperatorAndAmount(@Param("operatorName") String operatorName, @Param("amount") Double amount);
 
     // Optional: For FIXED slabType
-    @Query("SELECT sr FROM SchemeRate sr " +
-            "WHERE sr.operatorName = :operatorName " +
-            "AND sr.slabType = 'FIXED' " +
-            "AND sr.fixedSlabValue <= :amount")
-    Optional<SchemeRate> findFixedSlabByOperatorAndAmount(@Param("operatorName") String operatorName,
-                                                          @Param("amount") Double amount);
+    @Query("SELECT sr FROM SchemeRate sr " + "WHERE sr.operatorName = :operatorName " + "AND sr.slabType = 'FIXED' " + "AND sr.fixedSlabValue <= :amount")
+    Optional<SchemeRate> findFixedSlabByOperatorAndAmount(@Param("operatorName") String operatorName, @Param("amount") Double amount);
 
     @Query("""
-                SELECT sr FROM SchemeRate sr
-                WHERE sr.schemeCode = :schemeCode
-                  AND sr.operatorName = :operatorName
-                  AND (
-                        (sr.slabType = 'FIXED' AND :amount = sr.fixedSlabValue)
-                     OR (sr.slabType = 'VARIABLE' AND :amount BETWEEN sr.slabStart AND sr.slabEnd)
-                  )
-            """)
+    SELECT sr FROM SchemeRate sr
+    WHERE sr.schemeCode = :schemeCode
+      AND LOWER(sr.operatorName) = LOWER(:operatorName)
+      AND (
+            (sr.slabType = 'FIXED' AND :amount = sr.fixedSlabValue)
+         OR (sr.slabType = 'VARIABLE' AND :amount BETWEEN sr.slabStart AND sr.slabEnd)
+      )
+""")
     Optional<SchemeRate> findSchemeRateByCodeAndOperatorAndAmount(
             @Param("schemeCode") String schemeCode,
             @Param("operatorName") String operatorName,
             @Param("amount") Double amount
     );
+
 
 
 }
