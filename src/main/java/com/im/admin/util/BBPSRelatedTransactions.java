@@ -464,7 +464,8 @@ public class BBPSRelatedTransactions {
 
             BigDecimal beforeBalance = commonMethods.getCurrentBalance(hierarchyId, walletType);
             BigDecimal afterBalance = beforeBalance.add(commissionAmount);
-            String txnId = buildTransactionId("COM", request.getTransactionId());
+            String txnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
+
 
             insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
                     "Commission credited (Direct IM/AD)", hierarchyId, walletType,
@@ -491,7 +492,7 @@ public class BBPSRelatedTransactions {
 
                 BigDecimal beforeBalance = commonMethods.getCurrentBalance(hierarchyId, walletType);
                 BigDecimal afterBalance = beforeBalance.add(commissionAmount);
-                String txnId = buildTransactionId("COM", request.getTransactionId());
+                String txnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
 
                 insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
                         "Commission credited (Admin WL)", hierarchyId, walletType,
@@ -510,7 +511,7 @@ public class BBPSRelatedTransactions {
 
         BigDecimal beforeBalance = commonMethods.getCurrentBalance(hierarchyId, walletType);
         BigDecimal afterCreditBalance = beforeBalance.add(commissionAmount);
-        String comTxnId = buildTransactionId("COM", request.getTransactionId());
+        String comTxnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
 
         // Credit commission
         insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
@@ -532,7 +533,7 @@ public class BBPSRelatedTransactions {
 
         if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal afterTdsBalance = afterCreditBalance.subtract(tdsAmount);
-            String tdsTxnId = buildTransactionId("TDS", request.getTransactionId());
+            String tdsTxnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
 
             insertTransactionForHierarchy(transactionTable, "DEBIT", tdsAmount,
                     "TDS Deduction", hierarchyId, walletType,
