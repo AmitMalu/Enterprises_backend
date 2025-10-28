@@ -464,7 +464,8 @@ public class BBPSRelatedTransactions {
 
             BigDecimal beforeBalance = commonMethods.getCurrentBalance(hierarchyId, walletType);
             BigDecimal afterBalance = beforeBalance.add(commissionAmount);
-            String txnId = buildTransactionId("COM", request.getTransactionId());
+            String txnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
+
 
             insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
                     "Commission credited (Direct IM/AD)", hierarchyId, walletType,
@@ -491,7 +492,7 @@ public class BBPSRelatedTransactions {
 
                 BigDecimal beforeBalance = commonMethods.getCurrentBalance(hierarchyId, walletType);
                 BigDecimal afterBalance = beforeBalance.add(commissionAmount);
-                String txnId = buildTransactionId("COM", request.getTransactionId());
+                String txnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
 
                 insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
                         "Commission credited (Admin WL)", hierarchyId, walletType,
@@ -510,7 +511,7 @@ public class BBPSRelatedTransactions {
 
         BigDecimal beforeBalance = commonMethods.getCurrentBalance(hierarchyId, walletType);
         BigDecimal afterCreditBalance = beforeBalance.add(commissionAmount);
-        String comTxnId = buildTransactionId("COM", request.getTransactionId());
+        String comTxnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
 
         // Credit commission
         insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
@@ -532,7 +533,7 @@ public class BBPSRelatedTransactions {
 
         if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal afterTdsBalance = afterCreditBalance.subtract(tdsAmount);
-            String tdsTxnId = buildTransactionId("TDS", request.getTransactionId());
+            String tdsTxnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
 
             insertTransactionForHierarchy(transactionTable, "DEBIT", tdsAmount,
                     "TDS Deduction", hierarchyId, walletType,
@@ -736,19 +737,20 @@ public class BBPSRelatedTransactions {
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String tableName = commonMethods.getTransactionTable(hierarchyType, walletType);
 
+        String cleanBaseId = baseTransactionId.replaceAll("^(TXN|CHG|GST)", "");
+
         String sql = "SELECT * FROM " + tableName +
-                " WHERE transaction_id LIKE CONCAT('%', :baseTransactionId) " +
+                " WHERE transaction_id LIKE CONCAT('%', :cleanBaseId) " +
                 " ORDER BY time_of_transaction ASC";
 
         Query query = entityManager.createNativeQuery(sql);
-        query.setParameter("baseTransactionId", baseTransactionId);
+        query.setParameter("cleanBaseId", cleanBaseId);
 
         @SuppressWarnings("unchecked")
         List<Object[]> results = query.getResultList();
 
-        // Get column names from ResultSet metadata instead of SessionFactory (simpler)
         List<Map<String, Object>> transactions = new ArrayList<>();
-        List<String> columnNames = getColumnNames(tableName); // You'll need a helper
+        List<String> columnNames = getColumnNames(tableName);
 
         for (Object[] row : results) {
             Map<String, Object> map = new HashMap<>();
@@ -757,8 +759,10 @@ public class BBPSRelatedTransactions {
             }
             transactions.add(map);
         }
+
         return transactions;
     }
+
 
     private List<String> getColumnNames(String tableName) {
         List<String> columnNames = new ArrayList<>();

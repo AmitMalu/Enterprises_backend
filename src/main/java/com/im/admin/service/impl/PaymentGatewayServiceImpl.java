@@ -594,8 +594,9 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
 
     private String toDbOperatorName(String txnMode, String cardCategory, String pgPartner) {
         log.info("<-----------------------Txn Mode: {}, Card Category: {}, PG Partner: {}", txnMode, cardCategory, pgPartner);
+
         return Stream.of(txnMode, cardCategory, pgPartner)
-                .filter(s -> s != null && !s.isBlank())
+                .filter(s -> s != null && !s.isBlank() && !s.equalsIgnoreCase("NA") && !s.equalsIgnoreCase("N/A"))
                 .map(s -> Arrays.stream(s.split("_"))
                         .filter(part -> !part.isBlank())
                         .map(part -> part.substring(0, 1).toUpperCase() + part.substring(1).toLowerCase())

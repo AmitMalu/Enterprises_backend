@@ -23,27 +23,27 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import javax.sql.DataSource;
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.sql.*;
 import java.sql.Date;
-import java.sql.Time;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class CommissionChargeTransactionReportServiceImpl implements CommissionChargeTransactionReportService {
+
     @Autowired
     private SubProductsRepository subProductsRepository;
+
     @Autowired
     private ProductsRepository productsRepository;
 
@@ -52,6 +52,9 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired
+    private DataSource dataSource;
 
 
     @Override
@@ -66,13 +69,13 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         Products product = productsRepository.findById(request.getProductId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid productId"));
 
-// Fetch all sub-products for this product
+        // Fetch all sub-products for this product
         List<String> allSubProducts = subProductsRepository.findByProduct(product)
                 .stream()
                 .map(SubProducts::getSubProductTitle)
                 .collect(Collectors.toList());
 
-// Filter sub-products based on request
+        // Filter sub-products based on request
         List<String> filteredSubProducts = new ArrayList<>();
 
         if (StringUtils.hasText(request.getSubProductName())) {
@@ -90,12 +93,9 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
             filteredSubProducts.addAll(allSubProducts);
         }
 
+        String subProductsParam = filteredSubProducts.isEmpty() ? null : String.join(",", filteredSubProducts);
 
-        String subProductsParam = filteredSubProducts.isEmpty()
-                ? null
-                : String.join(",", filteredSubProducts);
-
-// Determine hierarchy type, table name, and column name
+        // Determine hierarchy type, table name, and column name
         String hierarchyTypeForTable = StringUtils.hasText(request.getHierarchyId())
                 ? commonMethods.extractHierarchyType(request.getHierarchyId())
                 : request.getHierarchyType();
@@ -173,22 +173,42 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
             //  Execute stored procedure
             List<Object[]> results = query.getResultList();
 
-            //  Map results to DTO
-            List<CommissionTransactionReportResponse> dataList = results.stream().map(record -> {
+            if (results == null || results.isEmpty()) {
+                log.info("No records found for table: {}, hierarchyId: {}", tableName, request.getHierarchyId());
+                return new CommonResponse<>(200, "No records found", Page.empty(pageable));
+            }
+
+            List<String> columnNames = getColumnNames(tableName);
+            if (columnNames.isEmpty()) {
+                log.warn("No columns found for table: {}", tableName);
+                return new CommonResponse<>(200, "No records found", Page.empty(pageable));
+            }
+
+            List<CommissionTransactionReportResponse> dataList = new ArrayList<>();
+
+            for (Object[] record : results) {
+                Map<String, Object> map = new HashMap<>();
+                for (int i = 0; i < columnNames.size() && i < record.length; i++) {
+                    map.put(columnNames.get(i), record[i]);
+                }
+
                 CommissionTransactionReportResponse dto = new CommissionTransactionReportResponse();
-                dto.setId(((Number) record[5]).intValue());
-                dto.setTransactionDate(((Date) record[3]).toLocalDate());
-                dto.setTransactionTime(((Time) record[6]).toLocalTime());
-                dto.setSubProductName((String) record[28]);
-                dto.setTxType((String) record[31]);
-                dto.setBalBefore((BigDecimal) record[2]);
-                dto.setAmount((BigDecimal) record[0]);
-                dto.setBalAfter((BigDecimal) record[1]);
-                dto.setOperator((String) record[20]);
-                dto.setTxId((String) record[30]);
-                dto.setWalletType(walletType); // ✅ add wallet type info
-                return dto;
-            }).collect(Collectors.toList());
+
+                // Use column names safely
+                dto.setId(map.get("id") != null ? ((Number) map.get("id")).intValue() : 0);
+                dto.setTransactionDate(map.get("date_of_transaction") != null ? ((Date) map.get("date_of_transaction")).toLocalDate() : null);
+                dto.setTransactionTime(map.get("time_of_transaction") != null ? ((Time) map.get("time_of_transaction")).toLocalTime() : null);
+                dto.setSubProductName((String) map.getOrDefault("sub_product_name", ""));
+                dto.setTxType((String) map.getOrDefault("transaction_type", ""));
+                dto.setTxId((String) map.getOrDefault("transaction_id", ""));
+                dto.setOperator((String) map.getOrDefault("operator_name", ""));
+                dto.setAmount(map.get("amount") != null ? (BigDecimal) map.get("amount") : BigDecimal.ZERO);
+                dto.setBalBefore(map.get("bal_before_tran") != null ? (BigDecimal) map.get("bal_before_tran") : BigDecimal.ZERO);
+                dto.setBalAfter(map.get("bal_after_tran") != null ? (BigDecimal) map.get("bal_after_tran") : BigDecimal.ZERO);
+                dto.setWalletType(walletType);
+
+                dataList.add(dto);
+            }
 
             allData.addAll(dataList);
         }
@@ -200,62 +220,87 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         return new CommonResponse<>(200, "Records fetched successfully", page);
     }
 
-        @Override
-        public ByteArrayInputStream downloadExcel (CommissionTransactionReportRequest request) throws IOException {
-            List<CommissionTransactionReportResponse> reportData = getReport(request).getData().getContent();
+    @Override
+    public ByteArrayInputStream downloadExcel(CommissionTransactionReportRequest request) throws IOException {
+        List<CommissionTransactionReportResponse> reportData = getReport(request).getData().getContent();
 
-            try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                XSSFSheet sheet = workbook.createSheet("Transactions");
+        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            XSSFSheet sheet = workbook.createSheet("Transactions");
 
-                Row header = sheet.createRow(0);
-                header.createCell(0).setCellValue("Transaction ID");
-                header.createCell(1).setCellValue("Date");
-                header.createCell(2).setCellValue("Time");
-                header.createCell(3).setCellValue("SubProduct");
-                header.createCell(4).setCellValue("Type");
-                header.createCell(5).setCellValue("Amount");
-                header.createCell(6).setCellValue("Balance Before");
-                header.createCell(7).setCellValue("Balance After");
-                header.createCell(8).setCellValue("Operator");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Transaction ID");
+            header.createCell(1).setCellValue("Date");
+            header.createCell(2).setCellValue("Time");
+            header.createCell(3).setCellValue("SubProduct");
+            header.createCell(4).setCellValue("Type");
+            header.createCell(5).setCellValue("Amount");
+            header.createCell(6).setCellValue("Balance Before");
+            header.createCell(7).setCellValue("Balance After");
+            header.createCell(8).setCellValue("Operator");
 
-                int rowIdx = 1;
-                for (CommissionTransactionReportResponse dto : reportData) {
-                    Row row = sheet.createRow(rowIdx++);
-                    row.createCell(0).setCellValue(dto.getTxId());
-                    row.createCell(1).setCellValue(dto.getTransactionDate().toString());
-                    row.createCell(2).setCellValue(dto.getTransactionTime().toString());
-                    row.createCell(3).setCellValue(dto.getSubProductName());
-                    row.createCell(4).setCellValue(dto.getTxType());
-                    row.createCell(5).setCellValue(dto.getAmount().doubleValue());
-                    row.createCell(6).setCellValue(dto.getBalBefore().doubleValue());
-                    row.createCell(7).setCellValue(dto.getBalAfter().doubleValue());
-                    row.createCell(8).setCellValue(dto.getOperator());
-                }
-
-                workbook.write(out);
-                return new ByteArrayInputStream(out.toByteArray());
-            }
-        }
-
-        @Override
-        public ByteArrayInputStream downloadCsv (CommissionTransactionReportRequest request){
-            List<CommissionTransactionReportResponse> reportData = getReport(request).getData().getContent();
-            final StringWriter writer = new StringWriter();
-            writer.append("Transaction ID,Date,Time,SubProduct,Type,Amount,Balance Before,Balance After,Operator\n");
-
+            int rowIdx = 1;
             for (CommissionTransactionReportResponse dto : reportData) {
-                writer.append(dto.getTxId()).append(",")
-                        .append(dto.getTransactionDate().toString()).append(",")
-                        .append(dto.getTransactionTime().toString()).append(",")
-                        .append(dto.getSubProductName()).append(",")
-                        .append(dto.getTxType()).append(",")
-                        .append(dto.getAmount().toString()).append(",")
-                        .append(dto.getBalBefore().toString()).append(",")
-                        .append(dto.getBalAfter().toString()).append(",")
-                        .append(dto.getOperator()).append("\n");
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(dto.getTxId());
+                row.createCell(1).setCellValue(dto.getTransactionDate().toString());
+                row.createCell(2).setCellValue(dto.getTransactionTime().toString());
+                row.createCell(3).setCellValue(dto.getSubProductName());
+                row.createCell(4).setCellValue(dto.getTxType());
+                row.createCell(5).setCellValue(dto.getAmount().doubleValue());
+                row.createCell(6).setCellValue(dto.getBalBefore().doubleValue());
+                row.createCell(7).setCellValue(dto.getBalAfter().doubleValue());
+                row.createCell(8).setCellValue(dto.getOperator());
             }
 
-            return new ByteArrayInputStream(writer.toString().getBytes(StandardCharsets.UTF_8));
+            workbook.write(out);
+            return new ByteArrayInputStream(out.toByteArray());
         }
     }
+
+    @Override
+    public ByteArrayInputStream downloadCsv(CommissionTransactionReportRequest request) {
+        List<CommissionTransactionReportResponse> reportData = getReport(request).getData().getContent();
+        final StringWriter writer = new StringWriter();
+        writer.append("Transaction ID,Date,Time,SubProduct,Type,Amount,Balance Before,Balance After,Operator\n");
+
+        for (CommissionTransactionReportResponse dto : reportData) {
+            writer.append(dto.getTxId()).append(",")
+                    .append(dto.getTransactionDate().toString()).append(",")
+                    .append(dto.getTransactionTime().toString()).append(",")
+                    .append(dto.getSubProductName()).append(",")
+                    .append(dto.getTxType()).append(",")
+                    .append(dto.getAmount().toString()).append(",")
+                    .append(dto.getBalBefore().toString()).append(",")
+                    .append(dto.getBalAfter().toString()).append(",")
+                    .append(dto.getOperator()).append("\n");
+        }
+
+        return new ByteArrayInputStream(writer.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+
+    private List<String> getColumnNames(String tableName) {
+        List<String> columnNames = new ArrayList<>();
+
+        String query = "SELECT * FROM " + tableName + " LIMIT 1";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+
+            ResultSetMetaData metaData = rs.getMetaData();
+            int columnCount = metaData.getColumnCount();
+
+            for (int i = 1; i <= columnCount; i++) {
+                columnNames.add(metaData.getColumnName(i).toLowerCase());
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error fetching column names for table: " + tableName, e);
+        }
+
+        return columnNames;
+    }
+
+}
 

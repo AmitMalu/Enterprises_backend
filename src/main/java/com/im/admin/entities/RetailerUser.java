@@ -62,7 +62,7 @@ public class RetailerUser {
     private String emailId;
 
     @Column(name = "email_verified")
-    private Boolean emailVerified;
+    private Boolean emailVerified = false;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dob;
