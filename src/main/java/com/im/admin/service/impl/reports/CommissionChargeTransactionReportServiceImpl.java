@@ -2,6 +2,7 @@ package com.im.admin.service.impl.reports;
 
 
 import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
@@ -53,7 +54,6 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
     private EntityManager entityManager;
 
 
-
     @Override
     public CommonResponse<Page<CommissionTransactionReportResponse>> getReport(CommissionTransactionReportRequest request) {
 
@@ -62,171 +62,200 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         LocalDate to = StringUtils.hasText(request.getToDate()) ? LocalDate.parse(request.getToDate()) : null;
         LocalTime transactionTime = StringUtils.hasText(request.getTransactionTime()) ? LocalTime.parse(request.getTransactionTime()) : null;
 
-        // Fetch the product
-        Optional<Products> productOpt = productsRepository.findById(request.getProductId());
-        Products product = productOpt.orElseThrow(() -> new IllegalArgumentException("Invalid productId"));
+        // Fetch product
+        Products product = productsRepository.findById(request.getProductId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid productId"));
 
-        // Fetch all sub-products for this product
+// Fetch all sub-products for this product
         List<String> allSubProducts = subProductsRepository.findByProduct(product)
                 .stream()
                 .map(SubProducts::getSubProductTitle)
                 .collect(Collectors.toList());
 
-        // Filter sub-products based on request
+// Filter sub-products based on request
         List<String> filteredSubProducts = new ArrayList<>();
+
         if (StringUtils.hasText(request.getSubProductName())) {
             List<String> requestedSubs = Arrays.stream(request.getSubProductName().split(","))
                     .map(String::trim)
                     .collect(Collectors.toList());
+
             for (String sub : requestedSubs) {
                 if (allSubProducts.contains(sub)) {
                     filteredSubProducts.add(sub);
                 }
             }
+        } else {
+
+            filteredSubProducts.addAll(allSubProducts);
         }
 
-        String subProductsParam = String.join(",", filteredSubProducts);
 
-        // Determine hierarchy type, table name, and column name
+        String subProductsParam = filteredSubProducts.isEmpty()
+                ? null
+                : String.join(",", filteredSubProducts);
+
+// Determine hierarchy type, table name, and column name
         String hierarchyTypeForTable = StringUtils.hasText(request.getHierarchyId())
                 ? commonMethods.extractHierarchyType(request.getHierarchyId())
                 : request.getHierarchyType();
-        String tableName = commonMethods.getTransactionTable(hierarchyTypeForTable, request.getWalletType().name());
+
         String columnName = commonMethods.getHierarchyColumnName(hierarchyTypeForTable);
-
-        // Create stored procedure query
-        StoredProcedureQuery query = entityManager.createStoredProcedureQuery("commission_charge_transaction_report");
-        query.registerStoredProcedureParameter("p_table_name", String.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_hierarchy_id", String.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_from_date", Date.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_to_date", Date.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_sub_products", String.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_transaction_type", String.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_column_name", String.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_offset", Integer.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_id", Integer.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_tx_id", String.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_tx_type", String.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_operator", String.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_amount", Double.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_bal_before", Double.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_bal_after", Double.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_transaction_date", Date.class, ParameterMode.IN);
-        query.registerStoredProcedureParameter("p_transaction_time", Time.class, ParameterMode.IN);
-
-        // Set parameters
-        query.setParameter("p_table_name", tableName);
-        query.setParameter("p_hierarchy_id", StringUtils.hasText(request.getHierarchyId()) ? request.getHierarchyId() : null);
-        query.setParameter("p_column_name", columnName);
-        query.setParameter("p_from_date", from);
-        query.setParameter("p_to_date", to);
-        query.setParameter("p_sub_products", subProductsParam);
-        query.setParameter("p_transaction_type", request.getReportType());
-        query.setParameter("p_offset", pageable.getPageNumber() * pageable.getPageSize());
-        query.setParameter("p_page_size", pageable.getPageSize());
-        query.setParameter("p_id", request.getId());
-        query.setParameter("p_tx_id", request.getTxId());
-        query.setParameter("p_tx_type", request.getTxType());
-        query.setParameter("p_operator", request.getOperator());
-        query.setParameter("p_amount", request.getAmount());
-        query.setParameter("p_bal_before", request.getBalBefore());
-        query.setParameter("p_bal_after", request.getBalAfter());
-
-        // Parse transaction date if provided
-        Date transactionDateParam = null;
-        if (StringUtils.hasText(request.getTransactionDate())) {
-            try {
-                SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
-                java.util.Date parsed = sdf.parse(request.getTransactionDate());
-                transactionDateParam = new Date(parsed.getTime());
-            } catch (ParseException e) {
-                log.warn("Invalid transactionDate format (expected dd-MM-yyyy): {}", request.getTransactionDate());
-            }
+        //  Handle wallet type logic
+        List<String> walletTypes = new ArrayList<>();
+        if (request.getWalletType() == null || !StringUtils.hasText(request.getWalletType().name())) {
+            // if walletType empty or null  → then both
+            walletTypes.add("PREPAID");
+            walletTypes.add("POSTPAID");
+        } else {
+            walletTypes.add(request.getWalletType().name());
         }
-        query.setParameter("p_transaction_date", transactionDateParam);
-        query.setParameter("p_transaction_time", transactionTime != null ? Time.valueOf(transactionTime) : null);
 
-        // Execute stored procedure
-        List<Object[]> results = query.getResultList();
+        List<CommissionTransactionReportResponse> allData = new ArrayList<>();
 
-        // Map results to DTO
-        List<CommissionTransactionReportResponse> dataList = results.stream().map(record -> {
-            CommissionTransactionReportResponse dto = new CommissionTransactionReportResponse();
-            dto.setId(((Number) record[5]).intValue());
-            dto.setTransactionDate(((Date) record[3]).toLocalDate());
-            dto.setTransactionTime(((Time) record[6]).toLocalTime());
-            dto.setSubProductName((String) record[28]);
-            dto.setTxType((String) record[31]);
-            dto.setBalBefore((BigDecimal) record[2]);
-            dto.setAmount((BigDecimal) record[0]);
-            dto.setBalAfter((BigDecimal) record[1]);
-            dto.setOperator((String) record[20]);
-            dto.setTxId((String) record[30]);
-            return dto;
-        }).collect(Collectors.toList());
+        //  Loop through wallet types and fetch data from both PREPAID & POSTPAID
+        for (String walletType : walletTypes) {
 
-        Page<CommissionTransactionReportResponse> page = new PageImpl<>(dataList, pageable, pageable.getOffset() + dataList.size() + 1);
+            String tableName = commonMethods.getTransactionTable(hierarchyTypeForTable, walletType);
+
+            StoredProcedureQuery query = entityManager.createStoredProcedureQuery("commission_charge_transaction_report");
+
+            query.registerStoredProcedureParameter("p_table_name", String.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_hierarchy_id", String.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_from_date", Date.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_to_date", Date.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_sub_products", String.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_transaction_type", String.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_column_name", String.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_offset", Integer.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_id", Integer.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_tx_id", String.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_tx_type", String.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_operator", String.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_amount", Double.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_bal_before", Double.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_bal_after", Double.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_transaction_date", Date.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_transaction_time", Time.class, ParameterMode.IN);
+
+            query.setParameter("p_table_name", tableName);
+            query.setParameter("p_hierarchy_id", StringUtils.hasText(request.getHierarchyId()) ? request.getHierarchyId() : null);
+            query.setParameter("p_column_name", columnName);
+            query.setParameter("p_from_date", from);
+            query.setParameter("p_to_date", to);
+            query.setParameter("p_sub_products", subProductsParam);
+            query.setParameter("p_transaction_type", request.getReportType());
+            query.setParameter("p_offset", pageable.getPageNumber() * pageable.getPageSize());
+            query.setParameter("p_page_size", pageable.getPageSize());
+            query.setParameter("p_id", request.getId());
+            query.setParameter("p_tx_id", request.getTxId());
+            query.setParameter("p_tx_type", request.getTxType());
+            query.setParameter("p_operator", request.getOperator());
+            query.setParameter("p_amount", request.getAmount());
+            query.setParameter("p_bal_before", request.getBalBefore());
+            query.setParameter("p_bal_after", request.getBalAfter());
+
+            //  Parse transaction date
+            Date transactionDateParam = null;
+            if (StringUtils.hasText(request.getTransactionDate())) {
+                try {
+                    SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+                    java.util.Date parsed = sdf.parse(request.getTransactionDate());
+                    transactionDateParam = new Date(parsed.getTime());
+                } catch (ParseException e) {
+                    log.warn("Invalid transactionDate format (expected dd-MM-yyyy): {}", request.getTransactionDate());
+                }
+            }
+            query.setParameter("p_transaction_date", transactionDateParam);
+            query.setParameter("p_transaction_time", transactionTime != null ? Time.valueOf(transactionTime) : null);
+
+            //  Execute stored procedure
+            List<Object[]> results = query.getResultList();
+
+            //  Map results to DTO
+            List<CommissionTransactionReportResponse> dataList = results.stream().map(record -> {
+                CommissionTransactionReportResponse dto = new CommissionTransactionReportResponse();
+                dto.setId(((Number) record[5]).intValue());
+                dto.setTransactionDate(((Date) record[3]).toLocalDate());
+                dto.setTransactionTime(((Time) record[6]).toLocalTime());
+                dto.setSubProductName((String) record[28]);
+                dto.setTxType((String) record[31]);
+                dto.setBalBefore((BigDecimal) record[2]);
+                dto.setAmount((BigDecimal) record[0]);
+                dto.setBalAfter((BigDecimal) record[1]);
+                dto.setOperator((String) record[20]);
+                dto.setTxId((String) record[30]);
+                dto.setWalletType(walletType); // ✅ add wallet type info
+                return dto;
+            }).collect(Collectors.toList());
+
+            allData.addAll(dataList);
+        }
+
+        //  Merge both wallet types data
+        Page<CommissionTransactionReportResponse> page =
+                new PageImpl<>(allData, pageable, pageable.getOffset() + allData.size() + 1);
+
         return new CommonResponse<>(200, "Records fetched successfully", page);
     }
 
+        @Override
+        public ByteArrayInputStream downloadExcel (CommissionTransactionReportRequest request) throws IOException {
+            List<CommissionTransactionReportResponse> reportData = getReport(request).getData().getContent();
 
+            try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                XSSFSheet sheet = workbook.createSheet("Transactions");
 
-    @Override
-    public ByteArrayInputStream downloadExcel(CommissionTransactionReportRequest request) throws IOException {
-        List<CommissionTransactionReportResponse> reportData = getReport(request).getData().getContent();
+                Row header = sheet.createRow(0);
+                header.createCell(0).setCellValue("Transaction ID");
+                header.createCell(1).setCellValue("Date");
+                header.createCell(2).setCellValue("Time");
+                header.createCell(3).setCellValue("SubProduct");
+                header.createCell(4).setCellValue("Type");
+                header.createCell(5).setCellValue("Amount");
+                header.createCell(6).setCellValue("Balance Before");
+                header.createCell(7).setCellValue("Balance After");
+                header.createCell(8).setCellValue("Operator");
 
-        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            XSSFSheet sheet = workbook.createSheet("Transactions");
+                int rowIdx = 1;
+                for (CommissionTransactionReportResponse dto : reportData) {
+                    Row row = sheet.createRow(rowIdx++);
+                    row.createCell(0).setCellValue(dto.getTxId());
+                    row.createCell(1).setCellValue(dto.getTransactionDate().toString());
+                    row.createCell(2).setCellValue(dto.getTransactionTime().toString());
+                    row.createCell(3).setCellValue(dto.getSubProductName());
+                    row.createCell(4).setCellValue(dto.getTxType());
+                    row.createCell(5).setCellValue(dto.getAmount().doubleValue());
+                    row.createCell(6).setCellValue(dto.getBalBefore().doubleValue());
+                    row.createCell(7).setCellValue(dto.getBalAfter().doubleValue());
+                    row.createCell(8).setCellValue(dto.getOperator());
+                }
 
-            Row header = sheet.createRow(0);
-            header.createCell(0).setCellValue("Transaction ID");
-            header.createCell(1).setCellValue("Date");
-            header.createCell(2).setCellValue("Time");
-            header.createCell(3).setCellValue("SubProduct");
-            header.createCell(4).setCellValue("Type");
-            header.createCell(5).setCellValue("Amount");
-            header.createCell(6).setCellValue("Balance Before");
-            header.createCell(7).setCellValue("Balance After");
-            header.createCell(8).setCellValue("Operator");
+                workbook.write(out);
+                return new ByteArrayInputStream(out.toByteArray());
+            }
+        }
 
-            int rowIdx = 1;
+        @Override
+        public ByteArrayInputStream downloadCsv (CommissionTransactionReportRequest request){
+            List<CommissionTransactionReportResponse> reportData = getReport(request).getData().getContent();
+            final StringWriter writer = new StringWriter();
+            writer.append("Transaction ID,Date,Time,SubProduct,Type,Amount,Balance Before,Balance After,Operator\n");
+
             for (CommissionTransactionReportResponse dto : reportData) {
-                Row row = sheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(dto.getTxId());
-                row.createCell(1).setCellValue(dto.getTransactionDate().toString());
-                row.createCell(2).setCellValue(dto.getTransactionTime().toString());
-                row.createCell(3).setCellValue(dto.getSubProductName());
-                row.createCell(4).setCellValue(dto.getTxType());
-                row.createCell(5).setCellValue(dto.getAmount().doubleValue());
-                row.createCell(6).setCellValue(dto.getBalBefore().doubleValue());
-                row.createCell(7).setCellValue(dto.getBalAfter().doubleValue());
-                row.createCell(8).setCellValue(dto.getOperator());
+                writer.append(dto.getTxId()).append(",")
+                        .append(dto.getTransactionDate().toString()).append(",")
+                        .append(dto.getTransactionTime().toString()).append(",")
+                        .append(dto.getSubProductName()).append(",")
+                        .append(dto.getTxType()).append(",")
+                        .append(dto.getAmount().toString()).append(",")
+                        .append(dto.getBalBefore().toString()).append(",")
+                        .append(dto.getBalAfter().toString()).append(",")
+                        .append(dto.getOperator()).append("\n");
             }
 
-            workbook.write(out);
-            return new ByteArrayInputStream(out.toByteArray());
+            return new ByteArrayInputStream(writer.toString().getBytes(StandardCharsets.UTF_8));
         }
     }
 
-    @Override
-    public ByteArrayInputStream downloadCsv(CommissionTransactionReportRequest request) {
-        List<CommissionTransactionReportResponse> reportData = getReport(request).getData().getContent();
-        final StringWriter writer = new StringWriter();
-        writer.append("Transaction ID,Date,Time,SubProduct,Type,Amount,Balance Before,Balance After,Operator\n");
-
-        for (CommissionTransactionReportResponse dto : reportData) {
-            writer.append(dto.getTxId()).append(",")
-                    .append(dto.getTransactionDate().toString()).append(",")
-                    .append(dto.getTransactionTime().toString()).append(",")
-                    .append(dto.getSubProductName()).append(",")
-                    .append(dto.getTxType()).append(",")
-                    .append(dto.getAmount().toString()).append(",")
-                    .append(dto.getBalBefore().toString()).append(",")
-                    .append(dto.getBalAfter().toString()).append(",")
-                    .append(dto.getOperator()).append("\n");
-        }
-
-        return new ByteArrayInputStream(writer.toString().getBytes(StandardCharsets.UTF_8));
-    }
-}
