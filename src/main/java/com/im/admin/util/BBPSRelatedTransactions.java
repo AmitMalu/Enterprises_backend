@@ -737,19 +737,20 @@ public class BBPSRelatedTransactions {
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String tableName = commonMethods.getTransactionTable(hierarchyType, walletType);
 
+        String cleanBaseId = baseTransactionId.replaceAll("^(TXN|CHG|GST)", "");
+
         String sql = "SELECT * FROM " + tableName +
-                " WHERE transaction_id LIKE CONCAT('%', :baseTransactionId) " +
+                " WHERE transaction_id LIKE CONCAT('%', :cleanBaseId) " +
                 " ORDER BY time_of_transaction ASC";
 
         Query query = entityManager.createNativeQuery(sql);
-        query.setParameter("baseTransactionId", baseTransactionId);
+        query.setParameter("cleanBaseId", cleanBaseId);
 
         @SuppressWarnings("unchecked")
         List<Object[]> results = query.getResultList();
 
-        // Get column names from ResultSet metadata instead of SessionFactory (simpler)
         List<Map<String, Object>> transactions = new ArrayList<>();
-        List<String> columnNames = getColumnNames(tableName); // You'll need a helper
+        List<String> columnNames = getColumnNames(tableName);
 
         for (Object[] row : results) {
             Map<String, Object> map = new HashMap<>();
@@ -758,8 +759,10 @@ public class BBPSRelatedTransactions {
             }
             transactions.add(map);
         }
+
         return transactions;
     }
+
 
     private List<String> getColumnNames(String tableName) {
         List<String> columnNames = new ArrayList<>();
