@@ -5,9 +5,11 @@ import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.FundRequestActionDto;
 import com.im.admin.dto.PrefundRequestDto;
 import com.im.admin.entities.PrefundRequest;
+import com.im.admin.entities.RetailerUser;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.repositories.PrefundRequestRepository;
+import com.im.admin.repositories.RetailerUserRepository;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.PrefundRequestService;
 import com.im.admin.spec.PrefundRequestSpecification;
@@ -53,6 +55,9 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
     @Autowired
     private ImageUtil imageUtil;
+
+    @Autowired
+    private RetailerUserRepository retailerUserRepository;
 
 
     @Override
@@ -160,12 +165,29 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
             updateWallet(approverWallet, approverId, walletType, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", "Fund Transfer Successfully to" + requesterId + "/ @" + date + " " + time);
 
-            AbstractWalletAmountTable requesterWallet = commonMethods.getWalletByType(walletType.name(), requesterId);
-            updateWallet(requesterWallet, requesterId, walletType, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", "Fund Transfer Successfully from" + approverId + "/ @" + date + " " + time);
+            String requesterType = commonMethods.extractHierarchyType(requesterId);
+            String parentHierarchyId = null;
+
+            if ("RU".equalsIgnoreCase(requesterType)) {
+                log.debug("Hierarchy type is RU. Fetching parent Retailer hierarchyId...");
+
+                parentHierarchyId = getParentRetailerId(requesterId);
+                log.debug("Resolved parent Retailer hierarchyId: {}", parentHierarchyId);
+
+            }
+
+            AbstractWalletAmountTable requesterWallet = commonMethods.getWalletByType(walletType.name(), parentHierarchyId);
+            updateWallet(requesterWallet, parentHierarchyId, walletType, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", "Fund Transfer Successfully from " + approverId + "/ @" + date + " " + time);
         }
 
         repository.save(fundRequest);
         return new CommonResponse<>(200, "Fund request action processed successfully", null);
+    }
+
+    public String getParentRetailerId(String retailerUserHierarchyId) {
+        return retailerUserRepository.findById(retailerUserHierarchyId)
+                .map(RetailerUser::getParentAccount)
+                .orElseThrow(() -> new RuntimeException("Parent Retailer not found for Retailer User: " + retailerUserHierarchyId));
     }
 
     private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
