@@ -4,6 +4,7 @@ import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
 import com.im.admin.entities.product.Products;
+import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.TransactionService;
@@ -1165,6 +1166,11 @@ public class TransactionServiceImpl implements TransactionService {
         log.info("[COMM_TXN_INSERT] Starting insert for Hierarchy | Table={} | HierarchyID={} | Type={} | Amount={} | TranxID={} | Status={}",
                 transactionTable, hierarchyId, service, amount, tranxId, tranStatus);
 
+        SubProducts subProduct = subProductsRepository.findBySubProductCode(request.getSubProductCode())
+                .orElseThrow(() -> new ResourceNotFoundException("SubProduct not found: " + request.getSubProductCode()));
+
+        String subProductName = subProduct.getSubProductTitle();
+
         String hierarchyType = extractHierarchyType(hierarchyId);
         String hierarchyColumnName = getHierarchyColumnName(hierarchyType);
 
@@ -1172,9 +1178,9 @@ public class TransactionServiceImpl implements TransactionService {
 
         String sql = "INSERT INTO " + transactionTable +
                 " (" + hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name) " +
                 "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName)";
 
         log.debug("[COMM_TXN_INSERT] Generated SQL: {}", sql);
 
@@ -1192,6 +1198,7 @@ public class TransactionServiceImpl implements TransactionService {
                     .setParameter("finalBalance", afterTransactionBalance)
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
+                    .setParameter("subProductName", subProductName)
                     .executeUpdate();
 
             log.info("[COMM_TXN_INSERT] Successfully inserted commission transaction | HierarchyID={} | TranxID={} | Amount={} | Status={}",
