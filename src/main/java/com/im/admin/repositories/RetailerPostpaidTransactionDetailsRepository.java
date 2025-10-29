@@ -24,7 +24,7 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
         WHERE (:id IS NULL OR r.id = :id)
         AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate)
         AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
-        AND (:subProductName IS NULL OR r.subProductName = :subProductName)
+        AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
         AND (:vendorName IS NULL OR r.vendorName = :vendorName)
         AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)
         AND (:userId IS NULL OR r.retailerId LIKE %:userId%)
@@ -45,7 +45,7 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
             @Param("id") Integer id,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
-            @Param("subProductName") String subProductName,
+            @Param("subProductNames") List<String> subProductNames,
             @Param("vendorName") String vendorName,
             @Param("tranStatusList") List<String> tranStatusList,
             @Param("userId") String userId,

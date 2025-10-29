@@ -23,7 +23,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
     WHERE (:id IS NULL OR r.id = :id)
     AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate)
     AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
-    AND (:subProductName IS NULL OR LOWER(r.subProductName) LIKE LOWER(CONCAT('%', :subProductName, '%')))
+    AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
     AND (:vendorName IS NULL OR LOWER(r.vendorName) LIKE LOWER(CONCAT('%', :vendorName, '%')))
     AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)
     AND (:userId IS NULL OR LOWER(r.retailerId) LIKE LOWER(CONCAT('%', :userId, '%')))
@@ -44,7 +44,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
             @Param("id") Integer id,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
-            @Param("subProductName") String subProductName,
+            @Param("subProductNames") List<String> subProductNames,  // List<String>
             @Param("vendorName") String vendorName,
             @Param("tranStatusList") List<String> tranStatusList,
             @Param("userId") String userId,
