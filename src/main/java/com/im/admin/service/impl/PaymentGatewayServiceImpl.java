@@ -3,9 +3,8 @@ package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.util.JSONPObject;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
-import com.im.admin.config.EncryptionService;
 import com.im.admin.controller.AESController;
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
@@ -18,7 +17,6 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.response.RunPaisaCallback;
 import com.im.admin.service.PaymentGatewayService;
 import com.im.admin.service.VendorCallbackParser;
-import com.im.admin.util.AESEncryptionUtil;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ParameterMode;
@@ -27,19 +25,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.jackson.JsonObjectDeserializer;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -467,14 +460,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         String rawCallbackData = extractCallbackData(payload);
 
         if (rawCallbackData != null) {
-//            log.info("---- [Callback] Parsed CALLBACK Data: {}", rawCallbackData);
-//
-//            List<RunPaisaCallback> callbackList = objectMapper.readValue(rawCallbackData, new TypeReference<>() {});
-//            log.info("---- [Callback] Found {} callbacks in list", callbackList.size());
-//
-//            for (RunPaisaCallback callback : callbackList) {
-//                processCallback(callback);
-//            }
+
             VendorCallbackParser parser = callbackParserFactory.getParser(payload);
             RunPaisaCallback callback = parser.parse(payload);
             processCallback(callback);
@@ -505,16 +491,8 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         log.info("---- [Callback] Processing for Order ID: {}, Status: {}", callback.getOrderId(), callback.getStatus());
 
         // Fetch base transaction mapping
-//        log.info("---- [Callback] Fetching transaction mapping for Order ID: {}", callback.getOrderId());
-//        PgTransactionMapping pgTransactionMapping = pgTransactionMappingRepository.findByOrderId(callback.getOrderId())
-//                .orElseThrow(() -> new RuntimeException("Transaction not found for Order ID: " + callback.getOrderId()));
-
         log.info("---- [Callback] Fetching transaction mapping for Order ID: {}", callback.getOrderId());
-        long t0 = System.currentTimeMillis();
-        Optional<PgTransactionMapping> opt = pgTransactionMappingRepository.findByOrderId(callback.getOrderId());
-        long t1 = System.currentTimeMillis();
-        log.info("---- [Callback] findByOrderId took {} ms", (t1 - t0));
-        PgTransactionMapping pgTransactionMapping = opt
+        PgTransactionMapping pgTransactionMapping = pgTransactionMappingRepository.findByOrderId(callback.getOrderId())
                 .orElseThrow(() -> new RuntimeException("Transaction not found for Order ID: " + callback.getOrderId()));
 
         // Prepare base data

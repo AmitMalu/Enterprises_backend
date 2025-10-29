@@ -1,7 +1,6 @@
 package com.im.admin.controller;
 
 
-import com.im.admin.config.EncryptionService;
 import com.im.admin.dto.EncryptDecryptCredentialsDto;
 import com.im.admin.entities.UserDetails;
 import com.im.admin.repositories.UserDetailsRepository;
@@ -60,9 +59,6 @@ public class AESController {
 
 	@Autowired
 	private UserDetailsRepository userDetailsRepository;
-
-	@Autowired
-	private EncryptionService encryptionService;
 
 	@Autowired
 	private AESEncryptionUtil aesEncryptionUtil;
@@ -171,41 +167,6 @@ public class AESController {
 					.body(Map.of("error", "Error generating token: " + e.getMessage()));
 		}
 	}
-
-
-//	@PostMapping("/validate-token")
-//	public ResponseEntity<?> validateToken(@RequestBody VerifyTokenRequestDto verifyTokenRequestDto) {
-//
-//		String hierarchyType = verifyTokenRequestDto.getHierarchyType();
-//		String token = verifyTokenRequestDto.getToken();
-//
-//		try {
-//			String salt = HIERARCHY_SALTS.getOrDefault(hierarchyType, "defaultSalt");
-//			byte[] derivedKey = AESEncryptionUtil.deriveKey(baseSecret, salt, iterations, keyLength);
-//
-//			log.info("Received token: {}", token);
-//			String decryptedPayload = AESEncryptionUtil.decryptEnterprises(token, derivedKey);
-//			String[] parts = decryptedPayload.split("/");
-//
-//			long issuedAt = Long.parseLong(parts[0]);
-//			long expiresAt = Long.parseLong(parts[1]);
-//			String username = parts[2];
-//
-//			if (System.currentTimeMillis() > expiresAt) {
-//				return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-//						.body("Token has expired.");
-//			}
-//
-//			return ResponseEntity.ok(Map.of(
-//					"username", username,
-//					"issuedAt", issuedAt,
-//					"expiresAt", expiresAt
-//			));
-//		} catch (Exception e) {
-//			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-//					.body("Invalid token: " + e.getMessage());
-//		}
-//	}
 
 	@PostMapping("/encrypt-credentials")
 	public ResponseEntity<?> encryptCredentials(@RequestBody EncryptDecryptCredentialsDto encryptDecryptCredentialsDto ) {
