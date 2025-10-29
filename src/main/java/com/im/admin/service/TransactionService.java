@@ -10,8 +10,6 @@ import java.util.Map;
 
 public interface TransactionService {
 
-    //String getOperatorDetailsByCardBIN(CardTypeRequestDto cardTypeRequestDto);
-
     CommonResponse<CardBinDetailsResponseDto> getDetailsByCardBINNumber(CardTypeRequestDto cardTypeRequestDto);
 
     TransactionSchemeDetailsResponseDto getTransactionSchemeDetails(TransactionSchemeDetailsRequestDto request);
@@ -19,9 +17,6 @@ public interface TransactionService {
     String processTransaction(TransactionSchemeDetailsRequestDto request, String vendorCallbackStatus);
 
     String updateTransactionStatus(UpdateTransactionStatusRequest request);
-
-
-    //String bulkUpdateTransactionStatus(BulkUpdateTransactionStatusRequest bulkRequest);
 
     List<Map<String, Object>> getSettlementTransactionsByFilter(
             LocalDate fromDate,
@@ -36,9 +31,4 @@ public interface TransactionService {
             String walletType,
             String newStatus);
 
-   // void enqueueTransactions(List<String> transactionIds, String walletType, String newStatus);
-
-   // CommonResponse<String> bulkUpdateSettlementStatus(List<String> transactionIds, String walletType, String newStatus);
-
-
-    }
+}

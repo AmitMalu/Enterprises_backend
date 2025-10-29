@@ -460,14 +460,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         String rawCallbackData = extractCallbackData(payload);
 
         if (rawCallbackData != null) {
-//            log.info("---- [Callback] Parsed CALLBACK Data: {}", rawCallbackData);
-//
-//            List<RunPaisaCallback> callbackList = objectMapper.readValue(rawCallbackData, new TypeReference<>() {});
-//            log.info("---- [Callback] Found {} callbacks in list", callbackList.size());
-//
-//            for (RunPaisaCallback callback : callbackList) {
-//                processCallback(callback);
-//            }
+
             VendorCallbackParser parser = callbackParserFactory.getParser(payload);
             RunPaisaCallback callback = parser.parse(payload);
             processCallback(callback);
@@ -498,16 +491,8 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         log.info("---- [Callback] Processing for Order ID: {}, Status: {}", callback.getOrderId(), callback.getStatus());
 
         // Fetch base transaction mapping
-//        log.info("---- [Callback] Fetching transaction mapping for Order ID: {}", callback.getOrderId());
-//        PgTransactionMapping pgTransactionMapping = pgTransactionMappingRepository.findByOrderId(callback.getOrderId())
-//                .orElseThrow(() -> new RuntimeException("Transaction not found for Order ID: " + callback.getOrderId()));
-
         log.info("---- [Callback] Fetching transaction mapping for Order ID: {}", callback.getOrderId());
-        long t0 = System.currentTimeMillis();
-        Optional<PgTransactionMapping> opt = pgTransactionMappingRepository.findByOrderId(callback.getOrderId());
-        long t1 = System.currentTimeMillis();
-        log.info("---- [Callback] findByOrderId took {} ms", (t1 - t0));
-        PgTransactionMapping pgTransactionMapping = opt
+        PgTransactionMapping pgTransactionMapping = pgTransactionMappingRepository.findByOrderId(callback.getOrderId())
                 .orElseThrow(() -> new RuntimeException("Transaction not found for Order ID: " + callback.getOrderId()));
 
         // Prepare base data
