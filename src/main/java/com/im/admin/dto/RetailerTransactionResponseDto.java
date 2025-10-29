@@ -32,5 +32,5 @@ public class RetailerTransactionResponseDto {
     private LocalDate dateOfTransaction;
     private LocalTime timeOfTransaction;
     private LocalDate updatedDateOfTransaction;
-    private LocalDate updatedTimeOfTransaction;
+    private LocalTime  updatedTimeOfTransaction;
 }

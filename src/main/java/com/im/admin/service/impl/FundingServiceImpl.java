@@ -4,12 +4,11 @@ import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.FundCreditDebitDto;
 import com.im.admin.dto.RetailerTransactionResponseDto;
 import com.im.admin.dto.SettlementPendingRequestDto;
+import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.enums.TransactionType;
 import com.im.admin.entities.enums.WalletType;
-import com.im.admin.repositories.RetailerPostpaidTransactionDetailsRepository;
-import com.im.admin.repositories.RetailerPrepaidTransactionDetailsRepository;
-import com.im.admin.repositories.SubProductsRepository;
-import com.im.admin.repositories.VendorRepository;
+import com.im.admin.entities.product.Products;
+import com.im.admin.repositories.*;
 import com.im.admin.response.BulkFundResponse;
 import com.im.admin.service.FundingService;
 import com.im.admin.util.CommonMethods;
@@ -55,6 +54,9 @@ public class FundingServiceImpl implements FundingService {
 
     @Autowired
     private CommonMethods commonMethods;
+
+    @Autowired
+    private ProductsRepository productsRepository;
 
     @Autowired
     private RetailerPrepaidTransactionDetailsRepository retailerPrepaidTransactionDetailsRepository;
@@ -256,12 +258,38 @@ public class FundingServiceImpl implements FundingService {
 
         log.info("Fetching transactions for walletType: {}", request.getWalletType());
 
-        // Get subProductName from subProductId
-        String subProductName = subProductsRepository.findById(request.getSubProductId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid subProductId"))
-                .getSubProductTitle();
+        // 🔹 Fetch product
+        Products product = productsRepository.findById(request.getProductId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid productId"));
 
-        // Get vendorName from vendorId
+        // 🔹 Fetch all sub-products for this product
+        List<String> allSubProducts = subProductsRepository.findByProduct(product)
+                .stream()
+                .map(SubProducts::getSubProductTitle)
+                .collect(Collectors.toList());
+
+        // 🔹 Filter sub-products based on request
+        List<String> filteredSubProducts = new ArrayList<>();
+
+        if (StringUtils.hasText(request.getSubProductName())) {
+            // multiple subproducts can be passed as comma-separated names
+            List<String> requestedSubs = Arrays.stream(request.getSubProductName().split(","))
+                    .map(String::trim)
+                    .collect(Collectors.toList());
+
+            for (String sub : requestedSubs) {
+                if (allSubProducts.contains(sub)) {
+                    filteredSubProducts.add(sub);
+                }
+            }
+        } else {
+            // if subProductName empty  — get all subproduct
+            filteredSubProducts.addAll(allSubProducts);
+        }
+
+        log.info("Using subProducts: {}", filteredSubProducts);
+
+        // 🔹 Get vendorName from vendorId or direct name
         String vendorName = null;
         if (StringUtils.hasText(request.getVendorId())) {
             vendorName = vendorRepository.findById(request.getVendorId())
@@ -271,14 +299,15 @@ public class FundingServiceImpl implements FundingService {
             vendorName = request.getVendor();
         }
 
-
         Pageable pageable = PageRequest.of(page, size, Sort.by("updatedDateOfTransaction").descending());
 
-        // Determine transaction status list
+        // 🔹 Determine transaction status list
         List<String> statusList;
         if ("POST SETTLEMENT".equalsIgnoreCase(request.getTranStatus())) {
             statusList = Arrays.asList("SUCCESS", "FAILURE");
-        } else if (request.getTranStatus() == null || request.getTranStatus().isBlank()) {
+        } else if ("ALL".equalsIgnoreCase(request.getTranStatus())
+                || request.getTranStatus() == null
+                || request.getTranStatus().isBlank()) {
             statusList = null; // all records
         } else {
             statusList = Collections.singletonList(request.getTranStatus());
@@ -286,15 +315,15 @@ public class FundingServiceImpl implements FundingService {
 
         Page<RetailerTransactionResponseDto> responsePage;
 
-        // Fetch based on walletType
+        // 🔹 Fetch based on walletType
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
-            responsePage = fetchPrepaid(request, subProductName, vendorName, statusList, pageable);
+            responsePage = fetchPrepaid(request, filteredSubProducts, vendorName, statusList, pageable);
         } else if ("POSTPAID".equalsIgnoreCase(request.getWalletType())) {
-            responsePage = fetchPostpaid(request, subProductName, vendorName, statusList, pageable);
+            responsePage = fetchPostpaid(request, filteredSubProducts, vendorName, statusList, pageable);
         } else if (request.getWalletType() == null || request.getWalletType().isBlank()) {
             // Fetch both Prepaid and Postpaid
-            Page<RetailerTransactionResponseDto> prepaid = fetchPrepaid(request, subProductName, vendorName, statusList, pageable);
-            Page<RetailerTransactionResponseDto> postpaid = fetchPostpaid(request, subProductName, vendorName, statusList, pageable);
+            Page<RetailerTransactionResponseDto> prepaid = fetchPrepaid(request, filteredSubProducts, vendorName, statusList, pageable);
+            Page<RetailerTransactionResponseDto> postpaid = fetchPostpaid(request, filteredSubProducts, vendorName, statusList, pageable);
 
             List<RetailerTransactionResponseDto> merged = Stream.concat(prepaid.stream(), postpaid.stream())
                     .sorted(Comparator.comparing(
@@ -311,17 +340,17 @@ public class FundingServiceImpl implements FundingService {
         return responsePage;
     }
 
-    // Prepaid helper
     private Page<RetailerTransactionResponseDto> fetchPrepaid(SettlementPendingRequestDto request,
-                                                              String subProductName,
+                                                              List<String> subProductNames,
                                                               String vendorName,
                                                               List<String> statusList,
                                                               Pageable pageable) {
+
         return retailerPrepaidTransactionDetailsRepository.findFilteredTransactions(
                 request.getId(),
                 request.getFromDate(),
                 request.getToDate(),
-                subProductName,
+                subProductNames,
                 vendorName,
                 statusList,
                 request.getUserId(),
@@ -359,17 +388,17 @@ public class FundingServiceImpl implements FundingService {
         ));
     }
 
-    // Postpaid helper
     private Page<RetailerTransactionResponseDto> fetchPostpaid(SettlementPendingRequestDto request,
-                                                               String subProductName,
+                                                               List<String> subProductNames,
                                                                String vendorName,
                                                                List<String> statusList,
                                                                Pageable pageable) {
+
         return retailerPostpaidTransactionDetailsRepository.findFilteredTransactions(
                 request.getId(),
                 request.getFromDate(),
                 request.getToDate(),
-                subProductName,
+                subProductNames,
                 vendorName,
                 statusList,
                 request.getUserId(),
@@ -380,7 +409,7 @@ public class FundingServiceImpl implements FundingService {
                 request.getRemarks(),
                 request.getMedium(),
                 request.getTxType(),
-                request.getTxStatus(),  // Added txStatus
+                request.getTxStatus(),
                 request.getDateOfTransaction(),
                 request.getTimeOfTransaction(),
                 request.getUpdatedDateOfTransaction(),
@@ -406,4 +435,5 @@ public class FundingServiceImpl implements FundingService {
                 txn.getUpdatedTimeOfTransaction()
         ));
     }
+
 }

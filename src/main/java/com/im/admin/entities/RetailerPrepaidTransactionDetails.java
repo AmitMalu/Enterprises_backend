@@ -58,8 +58,9 @@ public class RetailerPrepaidTransactionDetails implements AbstractRetailerTransa
     @Column(name = "updated_date_of_transaction")
     private LocalDate updatedDateOfTransaction;
 
+
     @Column(name = "updated_time_of_transaction", columnDefinition = "TIME(3)")
-    private LocalDate updatedTimeOfTransaction;
+    private LocalTime updatedTimeOfTransaction;
 
     @Column(name = "mobile_no")
     private String mobileNo;
