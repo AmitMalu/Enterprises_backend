@@ -31,8 +31,6 @@ public class PaymentGatewayController {
     @Autowired
     private PaymentGatewayService paymentGatewayService;
 
-    LocalDateTime currentDateTimeDate = LocalDateTime.now();
-
     @PostMapping("/validate")
     public ResponseEntity<CommonResponse<String>> validateTransaction(
             @RequestBody PgTransactionRequestDto request) {

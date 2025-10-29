@@ -15,10 +15,8 @@ import jakarta.persistence.NoResultException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -28,7 +26,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
 
@@ -100,9 +97,6 @@ public class TransactionServiceImpl implements TransactionService {
     private AdminPostpaidAmountRepository adminPostpaidAmountRepository;
 
     @Autowired
-    private DynamicTransactionRepositoryImpl dynamicTransactionRepository;
-
-    @Autowired
     private EntityManager entityManager;
 
     @Autowired
@@ -114,20 +108,6 @@ public class TransactionServiceImpl implements TransactionService {
     @Autowired
     private CardTypeMasterRepository cardTypeMasterRepository;
 
-//    @Override
-//    public String getOperatorDetailsByCardBIN(CardTypeRequestDto cardTypeRequestDto) {
-//        log.info("Fetching operator details for BIN: {}", cardTypeRequestDto.getCardBinNo());
-//
-//        return operatorsRepository.findByCardBinNo(cardTypeRequestDto.getCardBinNo())
-//                .map(operator -> {
-//                    log.info("Operator found - Name: {}, Code: {}", operator.getOperatorName(), operator.getOperatorCode());
-//                    return "Operator Name: " + operator.getOperatorName() + ", Operator Code: " + operator.getOperatorCode();
-//                })
-//                .orElseGet(() -> {
-//                    log.warn("No operator found for BIN No: {}", cardTypeRequestDto.getCardBinNo());
-//                    return "No operator found for BIN No: " + cardTypeRequestDto.getCardBinNo();
-//                });
-//    }
 
     @Override
     public CommonResponse<CardBinDetailsResponseDto> getDetailsByCardBINNumber(CardTypeRequestDto cardTypeRequestDto) {
@@ -241,7 +221,7 @@ public class TransactionServiceImpl implements TransactionService {
             log.info("[TXN_PROCESS] Processing DEBIT flow...");
 
             // Step 1: Check balance
-            if (!hasSufficientBalance(retailerId, tranxAmount, grossAmount, walletType)) {
+            if (hasSufficientBalance(retailerId, tranxAmount, grossAmount, walletType)) {
                 log.warn("[WALLET] Insufficient balance for DEBIT | RetailerID={} | Required={} | Available={}",
                         retailerId, tranxAmount, wallet.getAvailableBalance());
                 return "Insufficient balance";
@@ -343,18 +323,13 @@ public class TransactionServiceImpl implements TransactionService {
     private AbstractWalletAmountTable getWalletByType(String walletType, String hierarchyId) {
         String hierarchyType = extractHierarchyType(hierarchyId); // e.g. "RT", "WL", "AD", etc.
 
-        switch (hierarchyType) {
-            case "RT":
-                return getRetailerWallet(walletType, hierarchyId);
-            case "WL":
-                return getWhiteLabelWallet(walletType, hierarchyId);
-            case "AD":
-            case "IM":
-                return getAdminWallet(walletType, hierarchyId);
+        return switch (hierarchyType) {
+            case "RT" -> getRetailerWallet(walletType, hierarchyId);
+            case "WL" -> getWhiteLabelWallet(walletType, hierarchyId);
+            case "AD", "IM" -> getAdminWallet(walletType, hierarchyId);
             // Add cases for Partner, Distributor if needed
-            default:
-                throw new IllegalArgumentException("Unsupported hierarchy for wallet: " + hierarchyId);
-        }
+            default -> throw new IllegalArgumentException("Unsupported hierarchy for wallet: " + hierarchyId);
+        };
     }
 
     private AbstractWalletAmountTable getRetailerWallet(String walletType, String retailerId) {
@@ -388,11 +363,6 @@ public class TransactionServiceImpl implements TransactionService {
                     .orElseThrow(() -> new RuntimeException("Admin Postpaid wallet not found: " + adminId));
         }
         throw new IllegalArgumentException("Invalid wallet type for Admin: " + walletType);
-    }
-
-    private String callVendor(TransactionSchemeDetailsRequestDto dto) {
-        // Replace this with actual vendor API integration
-        return "SUCCESS"; // or PENDING, FAILURE, SUCCESS
     }
 
     private void processChargesAndCommission(TransactionSchemeDetailsRequestDto dto,
@@ -668,7 +638,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         log.info("Retailer ID: {} | Available Balance: {} | Total Deduction Amount: {}", retailerId, availableBalance, requestedAmount.add(grossAmount));
 
-        return availableBalance != null && availableBalance.compareTo(requestedAmount.add(grossAmount)) >= 0;
+        return availableBalance == null || availableBalance.compareTo(requestedAmount.add(grossAmount)) < 0;
     }
 
     private void distributeCommissionToHierarchies(BigDecimal amount,
@@ -753,157 +723,6 @@ public class TransactionServiceImpl implements TransactionService {
 
         log.info("==== [distributeCommissionToHierarchies] END for HierarchyId: {} ====", hierarchyId);
     }
-
-
-//    private void processChargesAndRetailerCommissionOnly(TransactionSchemeDetailsRequestDto dto, AbstractRetailerAmount wallet,
-//                                                         BigDecimal grossAmount, String gstValue, String baseTransactionId, String tranStatus) {
-//
-//        if (dto.getHasCharge()) {
-//            // Process charges but do NOT mirror them to Admin/Whitelabel
-//            processChargesWithoutMirror(dto, wallet, grossAmount, gstValue, baseTransactionId, tranStatus);
-//        }
-//
-//        if (dto.getIsCommission() && dto.getSchemeRate().getRetailer() > 0) {
-//            // Only give commission to retailer — no further distribution
-//            BigDecimal tdsRate = new BigDecimal(dto.getTdsRate());
-//            BigDecimal retailerCommission = calculateCommissionAmount(
-//                    dto.getSchemeRate().getRetailer(),
-//                    BigDecimal.valueOf(dto.getAmount()),
-//                    dto.getSchemeRate().getRateType().toString()
-//            );
-//
-//            distributeCommissionToHierarchy("RT", dto.getHierarchyId(), retailerCommission,
-//                    dto.getWalletType(), tdsRate, baseTransactionId, tranStatus);
-//        }
-//    }
-
-
-//    private void processChargesWithoutMirror(TransactionSchemeDetailsRequestDto dto, AbstractRetailerAmount wallet,
-//                                             BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
-//
-//        BigDecimal grossAmount = "PERCENTAGE".equalsIgnoreCase(String.valueOf(dto.getSchemeRate().getRateType()))
-//                ? BigDecimal.valueOf(dto.getAmount()).multiply(BigDecimal.valueOf(dto.getSchemeRate().getGross())).setScale(4, RoundingMode.HALF_UP)
-//                : grossAmountInput;
-//
-//        BigDecimal gstRate = new BigDecimal(gstValue).divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
-//        BigDecimal divisor = BigDecimal.ONE.add(gstRate);
-//
-//        BigDecimal baseAmount = grossAmount.divide(divisor, 10, RoundingMode.HALF_UP);
-//        BigDecimal gstAmount = grossAmount.subtract(baseAmount).setScale(4, RoundingMode.HALF_UP);
-//
-//        BigDecimal beforeBase = wallet.getAvailableBalance();
-//        wallet.setAvailableBalance(beforeBase.subtract(baseAmount));
-//        insertTransaction(wallet, tranStatus, baseAmount, beforeBase, wallet.getAvailableBalance(),
-//                "Deduct Funds (Charge) - " + dto.getWalletType(), buildTransactionId("CHG", baseTransactionId));
-//
-//        BigDecimal beforeGst = wallet.getAvailableBalance();
-//        wallet.setAvailableBalance(beforeGst.subtract(gstAmount));
-//        insertTransaction(wallet, tranStatus, gstAmount, beforeGst, wallet.getAvailableBalance(),
-//                "Deduct Funds (GST) - " + dto.getWalletType(), buildTransactionId("GST", baseTransactionId));
-//
-//        wallet.setUsedCash(wallet.getUsedCash().add(baseAmount.add(gstAmount)));
-//        wallet.setLastUpdatedAmount(gstAmount);
-//        wallet.setLastUpdateDate(LocalDate.now());
-//        wallet.setLastUpdateTime(LocalTime.now());
-//    }
-
-
-//    private <T extends AbstractRetailerAmount> void updateWalletWithoutMirror(TransactionSchemeDetailsRequestDto dto, T wallet, BigDecimal requestedAmount,
-//                                                                              String tranxType, String baseTransactionId, String tranStatus) {
-//        BigDecimal balanceBefore = wallet.getAvailableBalance();
-//
-//        if ("CREDIT".equalsIgnoreCase(tranxType)) {
-//            wallet.setTotalCash(wallet.getTotalCash().add(requestedAmount));
-//            wallet.setAvailableBalance(wallet.getAvailableBalance().add(requestedAmount));
-//        } else {
-//            wallet.setTotalCash(wallet.getTotalCash().subtract(requestedAmount));
-//            wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(requestedAmount));
-//        }
-//
-//        wallet.setLastUpdatedAmount(requestedAmount);
-//        wallet.setLastUpdateDate(LocalDate.now());
-//        wallet.setLastUpdateTime(LocalTime.now());
-//
-//        insertTransaction(wallet, tranStatus, requestedAmount, balanceBefore,
-//                wallet.getAvailableBalance(), "Pending Wallet Update", "TXN" + baseTransactionId);
-//    }
-//
-//
-//    private void mirrorCommissionToAdmin(String fromHierarchyId, BigDecimal commissionAmount, String walletType, String baseTransactionId, String tranStatus) {
-//        Optional<String> parentOpt = findParentHierarchy(fromHierarchyId);
-//        if (parentOpt.isEmpty()) return;
-//
-//        String parentId = parentOpt.get();
-//        String parentType = extractHierarchyType(parentId);
-//
-//        while (true) {
-//            if ("WL".equals(parentType)) {
-//                Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(parentId);
-//                if (wlOpt.isPresent() && Boolean.TRUE.equals(wlOpt.get().getIsAdmin())) {
-//                    creditCommissionToFinalAdmin(parentId, commissionAmount, walletType, baseTransactionId, tranStatus); // Full amount, no TDS
-//                    return;
-//                }
-//            }
-//
-//            if ("IM".equals(parentType) || "AD".equals(parentType)) {
-//                creditCommissionToFinalAdmin(parentId, commissionAmount, walletType, baseTransactionId, tranStatus); // Full amount, no TDS
-//                return;
-//            }
-//
-//            parentOpt = findParentHierarchy(parentId);
-//            if (parentOpt.isEmpty()) return;
-//
-//            parentId = parentOpt.get();
-//            parentType = extractHierarchyType(parentId);
-//        }
-//    }
-//
-//    private void creditTdsToAdmin(String sourceHierarchyId, String walletType, BigDecimal tdsAmount, String baseTransactionId, String tranStatus) {
-//        String currentId = sourceHierarchyId;
-//
-//        while (true) {
-//            Optional<String> parentOpt = findParentHierarchy(currentId);
-//            if (parentOpt.isEmpty()) return;
-//
-//            String parentId = parentOpt.get();
-//            String parentType = extractHierarchyType(parentId);
-//
-//            if ("WL".equals(parentType)) {
-//                Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(parentId);
-//                if (wlOpt.isPresent() && Boolean.TRUE.equals(wlOpt.get().getIsAdmin())) {
-//                    // Mirror to Whitelabel
-//                    creditTdsToFinalAdmin(parentId, walletType, tdsAmount, baseTransactionId, tranStatus);
-//                    return;
-//                }
-//            }
-//
-//            if ("IM".equals(parentType) || "AD".equals(parentType)) {
-//                creditTdsToFinalAdmin(parentId, walletType, tdsAmount, baseTransactionId, tranStatus);
-//                return;
-//            }
-//
-//            currentId = parentId;
-//        }
-//    }
-
-//    private void creditTdsToFinalAdmin(String adminHierarchyId, String walletType, BigDecimal tdsAmount, String baseTransactionId, String tranStatus) {
-//        String transactionTable = getTransactionTable("AD", walletType);
-//        String amountTable = getAmountTable("AD", walletType);
-//
-//        BigDecimal beforeBalance = getCurrentBalance(adminHierarchyId, walletType);
-//        BigDecimal afterBalance = beforeBalance.add(tdsAmount);
-//
-//        String tdsCreditTranxId = buildTransactionId("TDS", baseTransactionId);
-//
-//        insertTransactionForAdminHierarchy(
-//                transactionTable, "CREDIT", tdsAmount, "TDS collected from: " + adminHierarchyId,
-//                adminHierarchyId, walletType, beforeBalance, afterBalance,
-//                "Add Funds (TDS) - " + walletType.toUpperCase(), tdsCreditTranxId, tranStatus
-//        );
-//
-//        updateAmountTable("AD", adminHierarchyId, amountTable, tdsAmount);
-//    }
-
 
     private void mirrorTransactionToWhitelabelOrAdmin(
             String sourceHierarchyId, String sourceHierarchyType, String txnType, BigDecimal amount, String walletType,
@@ -1292,9 +1111,6 @@ public class TransactionServiceImpl implements TransactionService {
         };
     }
 
-    // ===============================
-// ADMIN COMMISSION INSERT METHOD
-// ===============================
     @Transactional
     private void insertTransactionForAdminHierarchy(
             String transactionTable, String service, BigDecimal amount, String remarks, String hierarchyId,
@@ -1341,10 +1157,6 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
-
-    // ===============================
-// GENERIC COMMISSION INSERT METHOD
-// ===============================
     private void insertTransactionForHierarchy(
             String transactionTable, String service, BigDecimal amount, String remarks, String hierarchyId,
             String walletType, BigDecimal beforeTransactionBalance, BigDecimal afterTransactionBalance,
@@ -1528,11 +1340,9 @@ public class TransactionServiceImpl implements TransactionService {
 
             if ("IM".equals(parentType) || "AD".equals(parentType)) {
                 log.info("Reached Admin hierarchy level (Type: {}).", parentType);
-                if (!mirrorHandled) {
-                    log.info("Mirroring transaction to Admin fallback | AdminID: {}", parentId);
-                    mirrorTransactionToHierarchy(parentId, dto.getHierarchyId(), tranxType.toUpperCase(), requestedAmount,
-                            dto.getWalletType().toUpperCase(), "TXN" + baseTransactionId, "Admin", tranStatus, dto);
-                }
+                log.info("Mirroring transaction to Admin fallback | AdminID: {}", parentId);
+                mirrorTransactionToHierarchy(parentId, dto.getHierarchyId(), tranxType.toUpperCase(), requestedAmount,
+                        dto.getWalletType().toUpperCase(), "TXN" + baseTransactionId, "Admin", tranStatus, dto);
                 break;
             }
 
@@ -1768,17 +1578,16 @@ public class TransactionServiceImpl implements TransactionService {
             throw new RuntimeException(targetType + " wallet has insufficient balance to mirror transaction.");
         }
 
-        BigDecimal beforeBalance = currentBalance;
         BigDecimal afterBalance = mirrorTxnType.equalsIgnoreCase("CREDIT")
-                ? beforeBalance.add(amount)
-                : beforeBalance.subtract(amount);
+                ? currentBalance.add(amount)
+                : currentBalance.subtract(amount);
 
         String actionOnBalanceAmount = mirrorTxnType.equalsIgnoreCase("DEBIT")
                 ? "Debit Funds " + action + " - " + walletType.toUpperCase()
                 : "Add Funds " + action + " - " + walletType.toUpperCase();
 
         log.info("Mirror Transaction Prepared | TargetType: {} | MirrorTxnType: {} | BeforeBalance: {} | AfterBalance: {} | Action: {}",
-                targetType, mirrorTxnType, beforeBalance, afterBalance, actionOnBalanceAmount);
+                targetType, mirrorTxnType, currentBalance, afterBalance, actionOnBalanceAmount);
 
         try {
             insertTransactionForAdminHierarchy(
@@ -1788,7 +1597,7 @@ public class TransactionServiceImpl implements TransactionService {
                     "Mirror Transaction for " + originalTxnType,
                     sourceHierarchyId,
                     walletType,
-                    beforeBalance,
+                    currentBalance,
                     afterBalance,
                     actionOnBalanceAmount,
                     txnId, tranStatus, request
@@ -1800,7 +1609,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         try {
-            updateAmountTable(targetType, targetHierarchyId, getAmountTable(targetType, walletType), beforeBalance.subtract(afterBalance));
+            updateAmountTable(targetType, targetHierarchyId, getAmountTable(targetType, walletType), currentBalance.subtract(afterBalance));
             log.info("Updated amount table successfully for target [{} - {}]", targetHierarchyId, targetType);
         } catch (Exception e) {
             log.error("Failed to update amount table for [{} - {}]: {}", targetHierarchyId, targetType, e.getMessage(), e);
@@ -1869,7 +1678,6 @@ public class TransactionServiceImpl implements TransactionService {
         log.info("Source Hierarchy ID: {}, Wallet Type: {}, GST Amount: {}, Base Txn ID: {}, Status: {}",
                 sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus);
 
-        String retailerId = sourceHierarchyId;
         String currentId = sourceHierarchyId;
 
         while (true) {
@@ -1894,8 +1702,8 @@ public class TransactionServiceImpl implements TransactionService {
                     log.info("[WL FOUND] WL ID: {}, isAdmin: {}", wl.getWhiteLabelId(), wl.getIsAdmin());
 
                     if (Boolean.TRUE.equals(wl.getIsAdmin())) {
-                        log.info("[GST CREDIT] Crediting GST to Whitelabel Admin (WL ID: {}) from Source: {}", parentId, retailerId);
-                        creditGstToAdmin(parentId, retailerId, walletType, gstAmount, baseTransactionId, tranStatus, request);
+                        log.info("[GST CREDIT] Crediting GST to Whitelabel Admin (WL ID: {}) from Source: {}", parentId, sourceHierarchyId);
+                        creditGstToAdmin(parentId, sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus, request);
                         log.info("[GST CREDIT SUCCESS] GST credited to Whitelabel Admin: {}", parentId);
                         return;
                     } else {
@@ -1908,8 +1716,8 @@ public class TransactionServiceImpl implements TransactionService {
 
             // Case 2: Admin or IM found
             if ("IM".equalsIgnoreCase(parentType) || "AD".equalsIgnoreCase(parentType)) {
-                log.info("[GST CREDIT] Crediting GST to {} (ID: {}) from Source: {}", parentType, parentId, retailerId);
-                creditGstToAdmin(parentId, retailerId, walletType, gstAmount, baseTransactionId, tranStatus, request);
+                log.info("[GST CREDIT] Crediting GST to {} (ID: {}) from Source: {}", parentType, parentId, sourceHierarchyId);
+                creditGstToAdmin(parentId, sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus, request);
                 log.info("[GST CREDIT SUCCESS] GST credited to {} successfully: {}", parentType, parentId);
                 return;
             }
@@ -1917,127 +1725,6 @@ public class TransactionServiceImpl implements TransactionService {
             // Continue searching upward
             log.info("[GST FLOW] Parent {} is not eligible for GST credit. Moving further up...", parentId);
             currentId = parentId;
-        }
-    }
-
-    private void reverseTransaction(Object transaction, String tranxTable, String amountTable, String failureRemark, String mirrorTargetId) {
-        BigDecimal amount = new BigDecimal(String.valueOf(getField(transaction, "amount")));
-        String service = (String) getField(transaction, "service");
-
-        // Dynamically resolve ID column
-        String idColumn = getIdColumn(amountTable);
-        String userId = (String) getField(transaction, idColumn);
-
-        // Fetch balance
-        BigDecimal currentBalance = dynamicTransactionRepository.getBalance(amountTable, userId);
-
-        // Invert service
-        String reversedService = service.equalsIgnoreCase("CREDIT") ? "DEBIT" : "CREDIT";
-
-        BigDecimal newBalance = reversedService.equalsIgnoreCase("CREDIT")
-                ? currentBalance.subtract(amount)
-                : currentBalance.add(amount);
-
-        // Clone transaction
-        Object reversal = cloneTransaction(transaction);
-
-        // === Set core reversal fields ===
-        setField(reversal, "tran_status", "FAILURE");
-        setField(reversal, "service", reversedService);
-        setField(reversal, "remarks", "Auto-Reversed due to status update");
-        setField(reversal, "transaction_id", "REV" + getField(transaction, "transaction_id"));
-        setField(reversal, "bal_before_tran", currentBalance);
-        setField(reversal, "bal_after_tran", newBalance);
-
-        // === Set additional fields ===
-        setField(reversal, "amount", amount);
-        setField(reversal, "final_balance", newBalance);
-        setField(reversal, "failure_remarks", failureRemark);
-        setField(reversal, "action_on_balance_amount", reversedService);
-        setField(reversal, "updated_date_of_transaction", LocalDate.now());
-        setField(reversal, "updated_time_of_transaction", LocalTime.now());
-
-        // === Set hierarchy-specific IDs ===
-        setHierarchyFields(reversal, tranxTable, userId, mirrorTargetId);
-
-        // Save and update
-        dynamicTransactionRepository.insert(tranxTable, reversal);
-        dynamicTransactionRepository.updateBalance(amountTable, userId, newBalance);
-    }
-
-
-    private void setHierarchyFields(Object reversal, String tableName, String userId, String mirrorTargetId) {
-        String idColumn = getIdColumn(tableName);
-        setField(reversal, idColumn, userId);
-
-        if (tableName.startsWith("white_label") || tableName.startsWith("admin")) {
-            if (mirrorTargetId != null && !mirrorTargetId.isEmpty()) {
-                setField(reversal, "hierarchy_id", mirrorTargetId); // mirror txn
-            } else {
-                setField(reversal, "hierarchy_id", userId); // self commission
-            }
-        }
-    }
-
-
-    private String getIdColumn(String tableName) {
-        if (tableName.startsWith("retailer")) return "retailer_id";
-        if (tableName.startsWith("distributor")) return "distributor_id";
-        if (tableName.startsWith("partner")) return "partner_id";
-        if (tableName.startsWith("super_distributor")) return "super_distributor_id";
-        if (tableName.startsWith("white_label")) return "white_label_id";
-        if (tableName.startsWith("enterprises")) return "enterprise_id";
-        if (tableName.startsWith("admin")) return "admin_id";
-        throw new RuntimeException("Unknown hierarchy table: " + tableName);
-    }
-
-
-    public Object cloneTransaction(Object transaction) {
-        try {
-            Class<?> clazz = transaction.getClass();
-            Object newTxn = clazz.getDeclaredConstructor().newInstance();
-
-            for (Field field : clazz.getDeclaredFields()) {
-                field.setAccessible(true);
-                Object value = field.get(transaction);
-                field.set(newTxn, value);
-            }
-
-            return newTxn;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to clone transaction", e);
-        }
-    }
-
-    public static String getField(Object target, String fieldName) {
-        if (target instanceof Map) {
-            Object value = ((Map<?, ?>) target).get(fieldName);
-            if (value != null) {
-                return String.valueOf(value);
-            } else {
-                throw new RuntimeException("Field not found in map: " + fieldName);
-            }
-        } else {
-            Field field = ReflectionUtils.findField(target.getClass(), fieldName);
-            if (field != null) {
-                field.setAccessible(true);
-                return String.valueOf(ReflectionUtils.getField(field, target));
-            }
-            throw new RuntimeException("Field not found: " + fieldName);
-        }
-    }
-
-    public static void setField(Object target, String fieldName, Object value) {
-        if (target instanceof Map) {
-            ((Map<String, Object>) target).put(fieldName, value);
-        } else {
-            Field field = ReflectionUtils.findField(target.getClass(), fieldName);
-            if (field != null) {
-                field.setAccessible(true);
-                ReflectionUtils.setField(field, target, value);
-            } else {
-                throw new RuntimeException("Field not found: " + fieldName);
-            }
         }
     }
 
@@ -2150,7 +1837,6 @@ public class TransactionServiceImpl implements TransactionService {
                                 String reverseAction = tranx.getActionOnBalanceAmount().equalsIgnoreCase("CREDIT") ? "DEBIT" : "CREDIT";
                                 String hierarchyId = tranx.getHierarchyId();
 
-                                DynamicWalletDTO dynamicWallet = dynamicWalletRepository.findWallet(amountTable, idColumnName, hierarchyId);
                                 BigDecimal currentBalance = wallet.getAvailableBalance();
                                 BigDecimal newBalance = reverseAction.equals("CREDIT")
                                         ? currentBalance.add(amount)
@@ -2191,7 +1877,6 @@ public class TransactionServiceImpl implements TransactionService {
 
         return lastResult.toString();
     }
-
 
     public String getIdColumnFromTable(String tableName) {
         if (tableName.contains("_prepaid_")) {
@@ -2248,7 +1933,7 @@ public class TransactionServiceImpl implements TransactionService {
             processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, vendorResponse);
         } else if (tranxType.equals("debit")) {
             // Step 1: Check balance before assuming pending
-            if (!hasSufficientBalance(retailerId, tranxAmount, grossAmount, walletType)) {
+            if (hasSufficientBalance(retailerId, tranxAmount, grossAmount, walletType)) {
                 return "Insufficient balance";
             }
 
@@ -2256,59 +1941,12 @@ public class TransactionServiceImpl implements TransactionService {
             updateWallet(dto, wallet, tranxAmount, tranxType, baseTransactionId, "PENDING", "DEBIT");
 
             mirrorTransactionToAdminOrWhitelabel(dto.getHierarchyId(), tranxType, tranxAmount, walletType, "TXN" + baseTransactionId, "Credit", "SUCCESS", dto);
-            //mirrorIfRequired(dto, wallet, tranxType, tranxAmount, baseTransactionId, "SUCCESS");
             processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, "SUCCESS");
         }
 
         // Save wallet changes
         saveWallet(walletType, wallet);
         return "Transaction Successful";
-    }
-
-    public List<TransactionSearchResponseDTO> getTransactions(
-            String hierarchyId, String transactionId, String status, String walletType) {
-
-        return searchTransactions(transactionId, status, hierarchyId, walletType
-        );
-    }
-
-    public List<TransactionSearchResponseDTO> searchTransactions(
-            String transactionId, String status, String hierarchyId, String walletType) {
-
-        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
-        String tableName = commonMethods.getTransactionTable(hierarchyType, walletType);
-        String hierarchyColumnName = commonMethods.getHierarchyColumnName(hierarchyType);
-
-        StringBuilder sql = new StringBuilder("SELECT * FROM " + tableName + " WHERE 1=1");
-        List<Object> params = new ArrayList<>();
-
-        if (transactionId != null && !transactionId.isEmpty()) {
-            sql.append(" AND transaction_id = ?");
-            params.add(transactionId);
-        }
-
-        if (status != null && !status.isEmpty()) {
-            sql.append(" AND tran_status = ?");
-            params.add(status);
-        }
-
-        if (hierarchyColumnName != null && !hierarchyColumnName.isEmpty()) {
-            sql.append(" AND ").append(hierarchyColumnName).append("= ?");
-            params.add(hierarchyId);
-        }
-
-        sql.append(" ORDER BY date_of_transaction DESC, time_of_transaction DESC");
-
-        return jdbcTemplate.query(sql.toString(), params.toArray(), (rs, rowNum) -> {
-            TransactionSearchResponseDTO resp = new TransactionSearchResponseDTO();
-            resp.setTransactionId(rs.getString("transaction_id"));
-            resp.setHierarchyId(rs.getString(hierarchyColumnName));
-            resp.setWalletType(walletType);
-            resp.setTranStatus(rs.getString("tran_status"));
-            resp.setAmount(rs.getBigDecimal("amount"));
-            resp.setOperatorName(rs.getString("operator_name"));
-            return resp;
-        });
     }
 
 
@@ -2345,22 +1983,6 @@ public class TransactionServiceImpl implements TransactionService {
         return jdbcTemplate.queryForList(sql.toString(), params.toArray());
     }
 
-    @Async
-    @Transactional
-    public CompletableFuture<Map<String, String>> updateStatus(UpdateTransactionStatusRequest request) {
-        Map<String, String> result = new HashMap<>();
-        try {
-            updateTransactionStatus(request);
-            result.put("transactionId", String.join(",", request.getTransactionIds()));
-            result.put("status", "SUCCESS");
-        } catch (Exception e) {
-            result.put("transactionId", String.join(",", request.getTransactionIds()));
-            result.put("status", "FAILED: " + e.getMessage());
-        }
-        return CompletableFuture.completedFuture(result);
-    }
-
-
     private final BlockingQueue<UpdateTransactionStatusRequest> queue = new LinkedBlockingQueue<>();
 
     @Override
@@ -2394,7 +2016,5 @@ public class TransactionServiceImpl implements TransactionService {
 
         return new CommonResponse<>(200, "Bulk update completed", resultList);
     }
-
-
 
 }
