@@ -1,7 +1,6 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.callbacks.RunpaisaPayoutCallback;
@@ -9,19 +8,16 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.controller.AESController;
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
-import com.im.admin.entities.enums.SlabType;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
-import com.im.admin.request.PayoutMerchantCallbackRequest;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PayoutMerchantCallbackResponse;
 import com.im.admin.response.RunPaisaCallback;
 import com.im.admin.service.PayoutService;
-import com.im.admin.service.VendorCallbackParser;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,8 +29,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -70,16 +64,7 @@ public class PayoutServiceImpl implements PayoutService {
     private TransactionServiceImpl transactionServiceImpl;
 
     @Autowired
-    private UserDetailsRepository userDetailsRepository;
-
-    @Autowired
-    private CallbackParserFactory callbackParserFactory;
-
-    @Autowired
     private SchemeRepository schemeRepository;
-
-    @Autowired
-    private SchemeAllocationRepository schemeAllocationRepository;
 
     @Autowired
     private SchemeRateRepository schemeRateRepository;
@@ -385,7 +370,6 @@ public class PayoutServiceImpl implements PayoutService {
         return response.getBody();
     }
 
-    //{code=RP001, status=FAILED, message=Transaction Failed, order_id=TXN25101118122900973, utr_no=null, txn_amount=1}
     @Override
     public String handlePayoutCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException {
 
@@ -561,8 +545,6 @@ public class PayoutServiceImpl implements PayoutService {
         return CommonResponse.success(responseDto, "Beneficiary Bank Account updated successfully");
     }
 
-    //{code=RP001, status=FAILED, message=Transaction Failed, order_id=TXN25101118122900973, utr_no=null, txn_amount=1}
-    //@Override
     public void processCallback(RunPaisaCallback callback) {
         log.info("========== [RunPaisa CALLBACK RECEIVED] ==========");
         log.info("========== ORDER_ID: {}, STATUS: {}, TXN_AMOUNT: {}",
@@ -660,61 +642,6 @@ public class PayoutServiceImpl implements PayoutService {
         }
 
         log.info("========== [RunPaisa CALLBACK PROCESSING COMPLETED] ORDER_ID={} ==========", callback.getOrderId());
-    }
-
-
-    private String extractCallbackData(Map<String, String> payload) {
-        log.info("---- [Callback] Extracting callback data from payload...");
-
-        if (payload.containsKey("CALLBACKRESPONSE")) {
-            String callbackResponse = payload.get("CALLBACKRESPONSE");
-            log.info("---- [Callback] CALLBACKRESPONSE found (Razorpay): {}", callbackResponse);
-            return callbackResponse;
-        } else if (payload.containsKey("CALLBACK")) {
-            String callback = payload.get("CALLBACK");
-            log.info("---- [Callback] CALLBACK found (Cashfree): {}", callback);
-            return callback;
-        } else if (payload.containsKey("txn_method")) {
-            log.info("---- [Callback] Detected Runpaisa payout callback format.");
-            // Serialize the Map to JSON and return for parsing
-            try {
-                return new ObjectMapper().writeValueAsString(payload);
-            } catch (JsonProcessingException e) {
-                log.error("Error serializing payout callback: {}", e.getMessage());
-            }
-        }
-
-        log.warn("---- [Callback] No recognized callback data found in payload.");
-        return null;
-    }
-
-    private RunPaisaCallback convertToCallback(Map<String, String> payload) {
-        log.info("---- [Callback] Converting raw payload to RunPaisaCallback object...");
-
-        RunPaisaCallback callback = new RunPaisaCallback();
-        callback.setStatus(payload.get("STATUS"));
-        callback.setStatusCode(payload.get("STATUS_CODE"));
-        callback.setOrderId(payload.get("ORDER_ID"));
-        callback.setTxnMode(payload.get("TXN_MODE"));
-        callback.setTxnAmount(payload.get("TXN_AMOUNT"));
-        callback.setCardCategory(payload.get("CARD_CATEGORY"));
-        callback.setTxnDate(payload.get("TXN_DATE"));
-        callback.setTxnInfo(payload.get("TXN_INFO"));
-        callback.setCustomerName(payload.get("CUSTOMER_NAME"));
-        callback.setCustomerEmail(payload.get("CUSTOMER_EMAIL"));
-        callback.setCustomerPhone(payload.get("CUSTOMER_PHONE"));
-        callback.setBankTxnId(payload.get("BANK_TXNID"));
-        callback.setBankCode(payload.get("BANK_CODE"));
-        callback.setErrorId(payload.get("ERROR_ID"));
-        callback.setErrorDesc(payload.get("ERROR_DESC"));
-        callback.setCardNumber(payload.get("CARD_NUMBER"));
-        callback.setCardType(payload.get("CARD_TYPE"));
-        callback.setUnmappedStatus(payload.get("UNMAPPED_STATUS"));
-        callback.setPgPartner(payload.get("PG_PARTNER"));
-        callback.setMercUnqRef(payload.get("MERC_UNQ_REF"));
-
-        log.info("---- [Callback] Callback object created: {}", callback);
-        return callback;
     }
 
 }
