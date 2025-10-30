@@ -29,9 +29,6 @@ import java.util.Date;
 public class BBPSRelatedTransactions {
 
     @Autowired
-    private AdminRepository adminRepository;
-
-    @Autowired
     private WhiteLabelRepository whiteLabelsRepository;
 
     @Autowired
@@ -1050,8 +1047,5 @@ public class BBPSRelatedTransactions {
             entityManager.merge(wallet);
         }
     }
-
-
-
 
 }
