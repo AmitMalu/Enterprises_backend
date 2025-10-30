@@ -495,7 +495,56 @@ public class AuthController {
                 if (ruSubRole != null) {
                     responseMap.put("sub_role_id", ruSubRole.getSubRoleId());
                 }
-                responseMap.put("role", "RA");
+                responseMap.put("role", "RU");
+
+                //  Outlet Name - same as RT
+                Retailer ruRetailer = retailerRepository.findByMobileNumber(user.getMobileNumber());
+                if (ruRetailer != null && ruRetailer.getOutletAddress() != null && ruRetailer.getOutletAddress().getOutletName() != null) {
+                    responseMap.put("outletName", ruRetailer.getOutletAddress().getOutletName());
+                } else {
+                    responseMap.put("outletName", "N/A");
+                }
+
+                //  Products & SubProducts Allocation (Same logic as RT)
+                List<SchemeAllocation> ruSchemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
+                Map<String, List<Map<String, String>>> ruProductSubMap = new LinkedHashMap<>();
+                Map<String, String> ruProductIdToName = new HashMap<>();
+
+                for (SchemeAllocation sa : ruSchemes) {
+                    Optional<Products> productOpt = productsRepository.findByProductCode(sa.getProductCode());
+                    Optional<SubProducts> subProductOpt = subProductsRepository.findBySubProductCodeAndIsVisibleTrue(sa.getSubProductCode());
+
+                    if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
+                        log.warn("Skipping scheme for RU due to missing product/subproduct");
+                        continue;
+                    }
+
+                    String productId = String.valueOf(productOpt.get().getId());
+                    String productName = productOpt.get().getName();
+                    String subProductId = String.valueOf(subProductOpt.get().getId());
+                    String subProductName = subProductOpt.get().getSubProductTitle();
+
+                    ruProductIdToName.putIfAbsent(productId, productName);
+
+                    Map<String, String> subProductMap = new HashMap<>();
+                    subProductMap.put("subProductId", subProductId);
+                    subProductMap.put("subProductName", subProductName);
+                    subProductMap.put("schemeCode", sa.getSchemeCode());
+
+                    ruProductSubMap.computeIfAbsent(productId, k -> new ArrayList<>()).add(subProductMap);
+                }
+
+                List<Map<String, Object>> ruProductList = new ArrayList<>();
+                for (Map.Entry<String, List<Map<String, String>>> entry : ruProductSubMap.entrySet()) {
+                    Map<String, Object> product = new HashMap<>();
+                    product.put("productId", entry.getKey());
+                    product.put("productName", ruProductIdToName.get(entry.getKey()));
+                    product.put("subProducts", entry.getValue());
+                    ruProductList.add(product);
+                }
+
+                responseMap.put("products", ruProductList);
+
                 break;
 
             case "AU":

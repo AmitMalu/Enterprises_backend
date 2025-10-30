@@ -25,6 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -40,7 +41,7 @@ public class LedgerReportController {
             @RequestParam(required = false) String id,
             @RequestParam(required = false) String transactionId,
             @RequestParam(required = false) String hierarchyId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateOfTransaction,
+            @RequestParam(required = false) String dateOfTransaction,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(required = false) String timeOfTransaction,
@@ -62,7 +63,7 @@ public class LedgerReportController {
         Pageable pageable = PageRequest.of(page, size);
 
         Page<LedgerReportDto> reports = ledgerReportService.getLedgerReports(
-                id, transactionId, hierarchyId, dateOfTransaction, fromDate, toDate, timeOfTransaction,
+                id, transactionId, hierarchyId, parseDate(dateOfTransaction), fromDate, toDate, timeOfTransaction,
                 balBeforeTran, amount, balAfterTran, finalBalance,
                 tranStatus, actionOnBalanceAmount, service, mobileNo,
                 subProductName, remarks, narration, sourceTable, pageable
@@ -70,7 +71,6 @@ public class LedgerReportController {
 
         return ResponseEntity.ok(CommonResponse.success(reports, "Ledger reports fetched successfully"));
     }
-
 
 
     @GetMapping("/download")
@@ -122,7 +122,7 @@ public class LedgerReportController {
         workbook.close();
 
         HttpHeaders headersHttp = new HttpHeaders();
-        headersHttp.setContentDispositionFormData("attachment", "Ledger_Report_"+fromDate+"-"+toDate+".xlsx");
+        headersHttp.setContentDispositionFormData("attachment", "Ledger_Report_" + fromDate + "-" + toDate + ".xlsx");
         headersHttp.setContentType(MediaType.APPLICATION_OCTET_STREAM);
 
         return ResponseEntity.ok()
@@ -130,4 +130,18 @@ public class LedgerReportController {
                 .body(bos.toByteArray());
     }
 
+    private LocalDate parseDate(String date) {
+        if (date == null || date.isEmpty()) return null;
+        try {
+            return LocalDate.parse(date, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        } catch (Exception e) {
+            try {
+                return LocalDate.parse(date);
+            } catch (Exception ex) {
+                throw new IllegalArgumentException("Invalid date format. Use dd-MM-yyyy or yyyy-MM-dd");
+            }
+        }
+
+
+    }
 }
