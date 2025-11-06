@@ -61,7 +61,7 @@ public class PayoutServiceImpl implements PayoutService {
     private AESController aesController;
 
     @Autowired
-    private TransactionServiceImpl transactionServiceImpl;
+    private TransactionEngineServiceImpl transactionServiceImpl;
 
     @Autowired
     private SchemeRepository schemeRepository;

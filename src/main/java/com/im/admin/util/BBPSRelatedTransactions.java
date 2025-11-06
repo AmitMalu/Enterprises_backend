@@ -54,13 +54,16 @@ public class BBPSRelatedTransactions {
         BigDecimal grossAmount;
 
         if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
-            // gross is percentage of transaction amount
-            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
+            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross())
+                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP); // convert to fraction
             grossAmount = BigDecimal.valueOf(dto.getTxnAmount())
                     .multiply(percentage)
                     .setScale(4, RoundingMode.HALF_UP);
+            log.debug("---- [Charges] Gross calculated as percentage | RateType: {} | Percentage: {} | GrossAmount: {}",
+                    dto.getSchemeRate().getRateType(), percentage, grossAmount);
         } else {
-            grossAmount = BigDecimal.valueOf(dto.getTxnAmount());
+            grossAmount = BigDecimal.valueOf(dto.getTxnAmount());;
+            log.debug("---- [Charges] Gross taken as fixed | GrossAmountInput: {}", grossAmount);
         }
 
         // Step 1: Calculate GST and base
@@ -525,8 +528,9 @@ public class BBPSRelatedTransactions {
         }
 
         // TDS deduction (if applicable)
-        BigDecimal tdsAmount = commissionAmount.multiply(tdsRate)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal tdsAmount = commissionAmount
+                .multiply(tdsRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))
+                .setScale(2, RoundingMode.HALF_UP);
 
         if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal afterTdsBalance = afterCreditBalance.subtract(tdsAmount);

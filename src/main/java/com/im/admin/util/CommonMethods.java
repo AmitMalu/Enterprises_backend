@@ -785,6 +785,8 @@ public class CommonMethods {
         BigDecimal commission;
 
         if ("PERCENTAGE".equalsIgnoreCase(rateType)) {
+            commissionRate = commissionRate
+                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP); // convert to fraction
             commission = transactionAmount.multiply(commissionRate);
             log.debug("Commission calculated as percentage.");
         } else {
