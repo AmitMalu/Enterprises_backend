@@ -414,8 +414,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         BigDecimal grossAmount;
 
         if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
-            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross())
-                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
+                    //.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
             grossAmount = BigDecimal.valueOf(dto.getAmount())
                     .multiply(percentage)
                     .setScale(4, RoundingMode.HALF_UP);
@@ -1532,25 +1532,26 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         return prefix + baseId;
     }
 
-    private BigDecimal calculateCommissionAmount(double rate, BigDecimal transactionAmount, String rateType) {
-        BigDecimal commissionRate = BigDecimal.valueOf(rate);
-        BigDecimal commission;
 
-        if ("PERCENTAGE".equalsIgnoreCase(rateType)) {
-            commissionRate = commissionRate
-                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP); // convert to fraction
-            commission = transactionAmount.multiply(commissionRate);
+    private BigDecimal calculateCommissionAmount(double commissionValue, BigDecimal transactionAmount, String commissionType) {
+        BigDecimal commissionAmount;
+        BigDecimal commissionRate = BigDecimal.valueOf(commissionValue);
+
+        if ("PERCENTAGE".equalsIgnoreCase(commissionType)) {
+            commissionAmount = transactionAmount.multiply(commissionRate);
         } else {
-            commission = commissionRate;
+            // Flat commission amount
+            commissionAmount = commissionRate;
         }
 
-        // Cap commission to max of transaction amount
-        if (commission.compareTo(transactionAmount) > 0) {
-            commission = transactionAmount;
+        // Ensure commission does not exceed transaction amount
+        if (commissionAmount.compareTo(transactionAmount) > 0) {
+            commissionAmount = transactionAmount;
         }
 
-        return commission.setScale(2, RoundingMode.HALF_UP);
+        return commissionAmount.setScale(2, RoundingMode.HALF_UP);
     }
+
 
 
     private double getCommissionRateByType(String hierarchyType, SchemeRate schemeRate) {

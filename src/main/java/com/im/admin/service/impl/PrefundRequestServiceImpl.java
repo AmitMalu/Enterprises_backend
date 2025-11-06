@@ -166,7 +166,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
             updateWallet(approverWallet, approverId, walletType, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", "Fund Transfer Successfully to" + requesterId + "/ @" + date + " " + time);
 
             String requesterType = commonMethods.extractHierarchyType(requesterId);
-            String parentHierarchyId = null;
+            String parentHierarchyId = requesterId;
 
             if ("RU".equalsIgnoreCase(requesterType)) {
                 log.debug("Hierarchy type is RU. Fetching parent Retailer hierarchyId...");
