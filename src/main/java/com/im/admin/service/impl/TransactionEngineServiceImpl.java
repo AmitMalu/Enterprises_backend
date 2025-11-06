@@ -7,7 +7,7 @@ import com.im.admin.entities.product.Products;
 import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.service.TransactionService;
+import com.im.admin.service.TransactionEngineService;
 import com.im.admin.util.AbstractRetailerTransactionDetails;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
@@ -32,7 +32,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 @Service
 @Slf4j
-public class TransactionServiceImpl implements TransactionService {
+public class TransactionEngineServiceImpl implements TransactionEngineService {
 
     @Autowired
     private ProductsRepository productsRepository;
@@ -414,7 +414,8 @@ public class TransactionServiceImpl implements TransactionService {
         BigDecimal grossAmount;
 
         if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
-            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
+            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross())
+                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
             grossAmount = BigDecimal.valueOf(dto.getAmount())
                     .multiply(percentage)
                     .setScale(4, RoundingMode.HALF_UP);
@@ -926,8 +927,9 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         // TDS deduction (if applicable)
-        BigDecimal tdsAmount = commissionAmount.multiply(tdsRate)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal tdsAmount = commissionAmount
+                .multiply(tdsRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))
+                .setScale(2, RoundingMode.HALF_UP);
 
         if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal afterTdsBalance = afterCreditBalance.subtract(tdsAmount);
@@ -1535,6 +1537,8 @@ public class TransactionServiceImpl implements TransactionService {
         BigDecimal commission;
 
         if ("PERCENTAGE".equalsIgnoreCase(rateType)) {
+            commissionRate = commissionRate
+                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP); // convert to fraction
             commission = transactionAmount.multiply(commissionRate);
         } else {
             commission = commissionRate;
