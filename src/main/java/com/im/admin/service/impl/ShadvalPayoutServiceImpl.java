@@ -26,8 +26,7 @@ import java.util.Map;
 @Slf4j
 public class ShadvalPayoutServiceImpl implements PayoutVendorService {
 
-    @Autowired
-    private RestTemplate restTemplate;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Autowired
     private CommonMethods commonMethods;
