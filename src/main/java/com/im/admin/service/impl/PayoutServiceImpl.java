@@ -218,7 +218,7 @@ public class PayoutServiceImpl implements PayoutService {
                 String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
 
                 commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", baseTxnId,
-                        "VENDOR_PENDING", "DEBIT", subProducts.get().getSubProductTitle(),
+                        "PENDING", "DEBIT", subProducts.get().getSubProductTitle(),
                         sendPayoutRequest.getBeneficiaryName() + " #" + sendPayoutRequest.getAccountNumber(), "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber());
 
                 HttpHeaders headers = new HttpHeaders();
