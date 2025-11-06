@@ -4,8 +4,7 @@ package com.im.admin.controller;
 import com.im.admin.dto.*;
 import com.im.admin.request.UpdateSettlementStatusRequest;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.service.TransactionService;
-import com.im.admin.util.CommonMethods;
+import com.im.admin.service.TransactionEngineService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,10 +22,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/transaction")
 @Slf4j
-public class TransactionController {
+public class TransactionEngineController {
 
     @Autowired
-    private TransactionService transactionService;
+    private TransactionEngineService transactionService;
 
     @PostMapping("/fetch-card-bin-details")
     public ResponseEntity<CommonResponse<CardBinDetailsResponseDto>> getCardBinDetails(

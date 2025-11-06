@@ -7,7 +7,7 @@ import com.im.admin.entities.product.Products;
 import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.service.TransactionService;
+import com.im.admin.service.TransactionEngineService;
 import com.im.admin.util.AbstractRetailerTransactionDetails;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
@@ -32,7 +32,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 @Service
 @Slf4j
-public class TransactionServiceImpl implements TransactionService {
+public class TransactionEngineServiceImpl implements TransactionEngineService {
 
     @Autowired
     private ProductsRepository productsRepository;
@@ -415,6 +415,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
             BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
+                    //.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
             grossAmount = BigDecimal.valueOf(dto.getAmount())
                     .multiply(percentage)
                     .setScale(4, RoundingMode.HALF_UP);
@@ -926,8 +927,9 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         // TDS deduction (if applicable)
-        BigDecimal tdsAmount = commissionAmount.multiply(tdsRate)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal tdsAmount = commissionAmount
+                .multiply(tdsRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))
+                .setScale(2, RoundingMode.HALF_UP);
 
         if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal afterTdsBalance = afterCreditBalance.subtract(tdsAmount);
@@ -1530,23 +1532,26 @@ public class TransactionServiceImpl implements TransactionService {
         return prefix + baseId;
     }
 
-    private BigDecimal calculateCommissionAmount(double rate, BigDecimal transactionAmount, String rateType) {
-        BigDecimal commissionRate = BigDecimal.valueOf(rate);
-        BigDecimal commission;
 
-        if ("PERCENTAGE".equalsIgnoreCase(rateType)) {
-            commission = transactionAmount.multiply(commissionRate);
+    private BigDecimal calculateCommissionAmount(double commissionValue, BigDecimal transactionAmount, String commissionType) {
+        BigDecimal commissionAmount;
+        BigDecimal commissionRate = BigDecimal.valueOf(commissionValue);
+
+        if ("PERCENTAGE".equalsIgnoreCase(commissionType)) {
+            commissionAmount = transactionAmount.multiply(commissionRate);
         } else {
-            commission = commissionRate;
+            // Flat commission amount
+            commissionAmount = commissionRate;
         }
 
-        // Cap commission to max of transaction amount
-        if (commission.compareTo(transactionAmount) > 0) {
-            commission = transactionAmount;
+        // Ensure commission does not exceed transaction amount
+        if (commissionAmount.compareTo(transactionAmount) > 0) {
+            commissionAmount = transactionAmount;
         }
 
-        return commission.setScale(2, RoundingMode.HALF_UP);
+        return commissionAmount.setScale(2, RoundingMode.HALF_UP);
     }
+
 
 
     private double getCommissionRateByType(String hierarchyType, SchemeRate schemeRate) {

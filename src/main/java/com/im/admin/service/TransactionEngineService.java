@@ -1,14 +1,13 @@
 package com.im.admin.service;
 
 import com.im.admin.dto.*;
-import com.im.admin.request.BulkUpdateTransactionStatusRequest;
 import com.im.admin.response.CommonResponse;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-public interface TransactionService {
+public interface TransactionEngineService {
 
     CommonResponse<CardBinDetailsResponseDto> getDetailsByCardBINNumber(CardTypeRequestDto cardTypeRequestDto);
 

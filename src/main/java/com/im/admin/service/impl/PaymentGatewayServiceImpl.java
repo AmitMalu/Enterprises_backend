@@ -70,7 +70,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     private SubProductsRepository subProductsRepository;
 
     @Autowired
-    private TransactionServiceImpl transactionServiceImpl;
+    private TransactionEngineServiceImpl transactionServiceImpl;
 
     @Autowired
     private TransactionSchemeRequestEntityRepository transactionSchemeRequestEntityRepository;

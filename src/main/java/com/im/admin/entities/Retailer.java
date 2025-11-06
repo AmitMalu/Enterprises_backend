@@ -148,6 +148,12 @@ public class Retailer {
     @Column(name = "created_by_ip_address", nullable = false, updatable = false)
     private String createdByIPAddress;
 
+    @Column(name = "latitude")
+    private String latitude;
+
+    @Column(name = "longitude")
+    private String longitude;
+
     @PrePersist
     public void prePersistDefaults() {
         if (this.address != null) {
