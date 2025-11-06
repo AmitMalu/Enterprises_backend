@@ -141,6 +141,7 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
             query.registerStoredProcedureParameter("p_bal_after", Double.class, ParameterMode.IN);
             query.registerStoredProcedureParameter("p_transaction_date", Date.class, ParameterMode.IN);
             query.registerStoredProcedureParameter("p_transaction_time", Time.class, ParameterMode.IN);
+            query.registerStoredProcedureParameter("p_narration", String.class, ParameterMode.IN);
 
             //  Set all parameters
             query.setParameter("p_table_name", tableName);
@@ -159,6 +160,7 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
             query.setParameter("p_amount", request.getAmount());
             query.setParameter("p_bal_before", request.getBalBefore());
             query.setParameter("p_bal_after", request.getBalAfter());
+            query.setParameter("p_narration", request.getNarration());
 
             //  Parse and set transaction date safely
             Date transactionDateParam = null;
@@ -209,6 +211,7 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                 dto.setBalBefore(map.get("bal_before_tran") != null ? (BigDecimal) map.get("bal_before_tran") : BigDecimal.ZERO);
                 dto.setBalAfter(map.get("bal_after_tran") != null ? (BigDecimal) map.get("bal_after_tran") : BigDecimal.ZERO);
                 dto.setWalletType(walletType);
+                dto.setNarration((String) map.getOrDefault("narration", ""));
 
                 allData.add(dto);
             }

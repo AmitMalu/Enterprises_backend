@@ -74,10 +74,11 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                     .map(String::trim)
                     .collect(Collectors.toList());
             for (String sub : requestedSubs) {
-                if (allSubProducts.contains(sub)) {
-                    filteredSubProducts.add(sub);
-                }
+                allSubProducts.stream()
+                        .filter(s -> s.toLowerCase().contains(sub.toLowerCase()))
+                        .forEach(filteredSubProducts::add);
             }
+
         }
 
         // If no sub-products were specified or matched, use all
