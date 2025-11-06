@@ -56,6 +56,11 @@ public class PinCodeServiceImpl implements PinCodeService {
 
     @Override
     public CommonResponse<PinCodeResponseDTO> save(PinCodeRequestDTO dto) {
+
+        if (pinCodeRepository.existsByPinCode(dto.getPinCode())) {
+            throw new RuntimeException("Pin code already exists");
+        }
+
         PinCode pin = new PinCode();
         pin.setPinCode(dto.getPinCode());
         pin.setBlocked(dto.getBlocked());
@@ -73,6 +78,10 @@ public class PinCodeServiceImpl implements PinCodeService {
     @Override
     public CommonResponse<PinCodeResponseDTO> update(Long id, PinCodeRequestDTO dto) {
         PinCode pin = pinCodeRepository.findById(id).orElseThrow(() -> new RuntimeException("Pin code not found"));
+
+        if (pinCodeRepository.existsByPinCodeAndIdNot(dto.getPinCode(), id)) {
+            throw new RuntimeException("Pin code already exists");
+        }
 
         pin.setPinCode(dto.getPinCode());
         pin.setBlocked(dto.getBlocked());

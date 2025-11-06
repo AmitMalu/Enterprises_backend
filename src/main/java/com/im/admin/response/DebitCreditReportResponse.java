@@ -18,6 +18,7 @@ public class DebitCreditReportResponse {
     private BigDecimal finalBalance;
     private String service;
     private String transactionId;
+    private String narration;
     private String transactionType;
 
 }

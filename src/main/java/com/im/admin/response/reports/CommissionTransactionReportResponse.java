@@ -25,7 +25,7 @@ public class CommissionTransactionReportResponse {
     private BigDecimal balAfter;
     private String operator;
     private String txId;
-    //private String narration;
+    private String narration;
 
 
 

@@ -18,9 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,12 +40,11 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
                 ? commonMethods.extractHierarchyType(request.getHierarchyId())
                 : request.getHierarchyType();
 
-        //  Wallet Type Logic
         List<Object[]> allResults = new ArrayList<>();
-        long totalElements = 0;
+        long totalElements;
 
         if (!StringUtils.hasText(request.getWalletType())) {
-            //  Fetch both prepaid + postpaid
+            // Fetch both prepaid + postpaid
             String prepaidTable = commonMethods.getTransactionTable(hierarchyTypeForTable, "PREPAID");
             String postpaidTable = commonMethods.getTransactionTable(hierarchyTypeForTable, "POSTPAID");
 
@@ -61,12 +58,12 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
                     .thenComparing(o -> ((Time) o[1]))
                     .reversed());
 
-            // Pagination manually
+            // Manual pagination
             int start = Math.min(page * size, allResults.size());
             int end = Math.min(start + size, allResults.size());
             allResults = allResults.subList(start, end);
         } else {
-            //  Single wallet type (Prepaid or Postpaid)
+            // Single wallet type
             String tableName = commonMethods.getTransactionTable(hierarchyTypeForTable, request.getWalletType());
             allResults = executeTransactionQuery(tableName, request);
             totalElements = allResults.size();
@@ -80,11 +77,14 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
                         (BigDecimal) obj[3],
                         (BigDecimal) obj[4],
                         (BigDecimal) obj[5],
-                        (String) obj[6],
-                        (String) obj[7],
-                        (String) obj[8]
+                        (String) obj[6],                      // service
+                        (String) obj[7],                      // transactionId
+                        obj.length > 8 ? (String) obj[8] : null,   // narration
+                        obj.length > 9 ? (String) obj[9] : null    // transactionType
                 ))
                 .collect(Collectors.toList());
+
+
 
         return new PageImpl<>(content, PageRequest.of(page, size), totalElements);
     }
@@ -96,6 +96,9 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
 
         String columnName = commonMethods.getHierarchyColumnName(hierarchyTypeForTable);
 
+        //  Check if the table has the column `transaction_type`
+        boolean hasTransactionType = tableHasColumn(tableName, "transaction_type");
+
         StringBuilder sql = new StringBuilder(String.format("""
             SELECT 
                 date_of_transaction, 
@@ -105,17 +108,20 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
                 bal_after_tran, 
                 final_balance, 
                 service, 
-                transaction_id,
-                transaction_type
-            FROM %s 
-            WHERE 1=1
-              AND date_of_transaction BETWEEN :fromDate AND :toDate
-        """, tableName));
+                transaction_id
+                   narration
+        """));
 
-        if (StringUtils.hasText(request.getHierarchyId())) {
-            sql.append(" AND ").append(columnName).append(" = :hierarchyId");
+        if (hasTransactionType) {
+            sql.append(", transaction_type");
         }
 
+        sql.append(" FROM ").append(tableName)
+                .append(" WHERE 1=1")
+                .append(" AND date_of_transaction BETWEEN :fromDate AND :toDate");
+
+        if (StringUtils.hasText(request.getHierarchyId()))
+            sql.append(" AND ").append(columnName).append(" = :hierarchyId");
         if (request.getDateOfTransaction() != null)
             sql.append(" AND date_of_transaction = :dateOfTransaction");
         if (request.getTimeOfTransaction() != null)
@@ -124,7 +130,7 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
             sql.append(" AND service = :service");
         if (StringUtils.hasText(request.getTransactionId()))
             sql.append(" AND transaction_id LIKE :transactionId");
-        if (StringUtils.hasText(request.getTransactionType()))
+        if (hasTransactionType && StringUtils.hasText(request.getTransactionType()))
             sql.append(" AND transaction_type = :transactionType");
         if (request.getAmount() != null)
             sql.append(" AND amount = :amount");
@@ -138,11 +144,11 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
         sql.append(" ORDER BY date_of_transaction DESC, time_of_transaction DESC");
 
         Query query = entityManager.createNativeQuery(sql.toString());
-        setQueryParameters(query, request);
+        setQueryParameters(query, request, hasTransactionType);
         return query.getResultList();
     }
 
-    private void setQueryParameters(Query query, DebitCreditReportRequest request) {
+    private void setQueryParameters(Query query, DebitCreditReportRequest request, boolean hasTransactionType) {
         if (StringUtils.hasText(request.getHierarchyId()))
             query.setParameter("hierarchyId", request.getHierarchyId());
 
@@ -157,7 +163,7 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
             query.setParameter("service", request.getService());
         if (StringUtils.hasText(request.getTransactionId()))
             query.setParameter("transactionId", "%" + request.getTransactionId() + "%");
-        if (StringUtils.hasText(request.getTransactionType()))
+        if (hasTransactionType && StringUtils.hasText(request.getTransactionType()))
             query.setParameter("transactionType", request.getTransactionType());
         if (request.getAmount() != null)
             query.setParameter("amount", request.getAmount());
@@ -167,5 +173,18 @@ public class DebitCreditReportServiceImpl implements DebitCreditReportService {
             query.setParameter("balAfterTran", request.getBalAfterTran());
         if (request.getFinalBalance() != null)
             query.setParameter("finalBalance", request.getFinalBalance());
+    }
+
+    //  Utility method to check if column exists in a table
+    private boolean tableHasColumn(String tableName, String columnName) {
+        try {
+            String checkQuery = "SHOW COLUMNS FROM " + tableName + " LIKE :columnName";
+            Query query = entityManager.createNativeQuery(checkQuery);
+            query.setParameter("columnName", columnName);
+            return !query.getResultList().isEmpty();
+        } catch (Exception e) {
+            log.warn("Could not check columns for table {}: {}", tableName, e.getMessage());
+            return false;
+        }
     }
 }
