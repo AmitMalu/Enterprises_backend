@@ -18,12 +18,12 @@ public class VendorFactory {
         vendors.forEach(v -> vendorMap.put(v.getVendorCode().toLowerCase(), v));
     }
 
-    public PayoutVendorService getVendor(String vendorCode) {
-        if (vendorCode == null || vendorCode.trim().isEmpty()) {
+    public PayoutVendorService getVendor(String vendorName) {
+        if (vendorName == null || vendorName.trim().isEmpty()) {
             return null;
         }
 
-        String normalizedCode = vendorCode.trim().toLowerCase();
+        String normalizedCode = vendorName.trim().toLowerCase();
 
         // Exact match (case-insensitive)
         if (vendorMap.containsKey(normalizedCode)) {
@@ -37,7 +37,6 @@ public class VendorFactory {
             }
         }
 
-        // Fallback: return null or a default vendor
         return null;
     }
 }
