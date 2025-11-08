@@ -34,6 +34,7 @@ public class CommissionTransactionReportRequest {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private String transactionDate;   // Format: yyyy-MM-dd
     private String transactionTime;
+    private String narration;
 
     private int page = 0;
     private int size = 10;

@@ -28,7 +28,7 @@ public class Products {
 
     @NotNull(message = "Product name cannot be null")
     @NotBlank(message = "Product name cannot be blank")
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false,unique = true)
     private String name;
 
     @NotNull(message = "Product code cannot be null")
