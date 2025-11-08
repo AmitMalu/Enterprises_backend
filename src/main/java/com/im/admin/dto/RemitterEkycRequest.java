@@ -1,7 +1,9 @@
 package com.im.admin.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 
+@Data
 public class RemitterEkycRequest {
 
     private String mobile;          // Remitter mobile number
@@ -14,4 +16,5 @@ public class RemitterEkycRequest {
     private String data;            // Encrypted PID XML
     private String accessmode = "WEB";
     private Integer is_iris = 2;    // 2 = Finger default
+    private String subProductId;
 }

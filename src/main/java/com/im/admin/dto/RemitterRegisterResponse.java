@@ -17,5 +17,7 @@ public class RemitterRegisterResponse {
         private String mobile;
         private String kyc_status;
         private String otp_status;
+        private Double limit;
+
     }
 }
