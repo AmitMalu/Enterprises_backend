@@ -1,30 +1,15 @@
 package com.im.admin.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.BeneficiaryBankAccountDTO;
 import com.im.admin.entities.BeneficiaryBankAccount;
-import com.im.admin.request.PayoutMerchantCallbackRequest;
-import com.im.admin.request.PayoutResponseDto;
-import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.response.PayoutMerchantCallbackResponse;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
-public interface PayoutService {
-
-    String generateToken();
-
-    CommonResponse<PayoutResponseDto> sendPayoutRequest(SendPayoutRequest sendPayoutRequest);
-
-    PayoutMerchantCallbackResponse updateMerchantCallbackUrl(SendPayoutRequest request);
-
-    String handlePayoutCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException;
+public interface PayoutBeneficiaryService {
 
     CommonResponse<BeneficiaryBankAccount> saveBeneficiary(BeneficiaryBankAccountDTO dto);
 

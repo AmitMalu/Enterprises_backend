@@ -19,4 +19,5 @@ public class PayoutMerchantCallbackResponse {
     private String message;
     private Object data;
     private List<Map<String, String>> errors;
+
 }

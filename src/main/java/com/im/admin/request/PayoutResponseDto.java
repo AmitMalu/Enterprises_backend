@@ -1,17 +1,23 @@
 package com.im.admin.request;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-@Getter
-@Setter
+import java.math.BigDecimal;
+
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class PayoutResponseDto {
 
+    private String orderId;
+    private String vendorCode;
     private String status;
     private String message;
-    private String code;
+    private BigDecimal amount;
+    private String beneficiaryName;
+    private String accountNumber;
+    private String ifscCode;
+
 }
+
