@@ -1,13 +1,18 @@
 package com.im.admin.service;
 
 import com.im.admin.dto.RemitterEkycRequest;
+import com.im.admin.dto.RemitterQueryResponse;
 import com.im.admin.dto.RemitterRegisterRequest;
+import com.im.admin.dto.RemitterRegisterResponse;
+import com.im.admin.response.CommonResponse;
 
 public interface RemitterService {
-    Object checkRemitter(String mobile);
+    CommonResponse<RemitterQueryResponse> checkRemitter(String mobile,String subProductId);
 
-    Object registerRemitter(RemitterRegisterRequest request);
 
-    Object doEkyc(RemitterEkycRequest request);
+    CommonResponse<RemitterRegisterResponse> registerRemitter(RemitterRegisterRequest request);
+
+
+    CommonResponse<Object> doEkyc(RemitterEkycRequest request);
 
 }

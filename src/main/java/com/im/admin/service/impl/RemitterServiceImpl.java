@@ -1,18 +1,24 @@
 package com.im.admin.service.impl;
 
-
 import com.im.admin.dto.RemitterEkycRequest;
 import com.im.admin.dto.RemitterQueryResponse;
 import com.im.admin.dto.RemitterRegisterRequest;
 import com.im.admin.dto.RemitterRegisterResponse;
 import com.im.admin.entities.DmtRemitter;
+import com.im.admin.entities.VendorCredentials;
+import com.im.admin.entities.VendorRouting;
+
 import com.im.admin.repositories.RemitterRepository;
+import com.im.admin.repositories.VendorCredentialsRepository;
+import com.im.admin.repositories.VendorRoutingRepository;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.RemitterService;
+import com.im.admin.util.CommonMethods;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestTemplate;
+import com.im.admin.entities.vendor.Vendors;
 
 import java.util.List;
 import java.util.Map;
@@ -25,136 +31,163 @@ public class RemitterServiceImpl implements RemitterService {
     private RemitterRepository remitterRepository;
 
     @Autowired
-    RestTemplate restTemplate;
+    private VendorRoutingRepository vendorRoutingRepository;
 
-//    RestTemplate restTemplate = new RestTemplate();
+    @Autowired
+    private VendorCredentialsRepository vendorCredentialsRepository;
 
-//    @Autowired
-//    private RestClient restClient;
+    @Autowired
+    private RestTemplate restTemplate;
 
-    // Vendor URLs
-    private final String QUERY_URL = "https://xyz.xyz.in/service-api/api/v1/service/dmt/kyc/remitter/queryremitter";
-    private final String KYC_URL = "https://xyz.xyz.in/service-api/api/v1/service/dmt/kyc/remitter/queryremitter/kyc";
-    private final String REGISTER_URL = "https://xyz.xyz.in/service-api/api/v1/service/dmt/kyc/remitter/registerremitter";
+    @Autowired
+    private CommonMethods commonMethods;
 
-    private static final String TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJQQVlTUFJJTlQiLCJ0aW1lc3RhbXAiOjE2MTAwMjYzMzgsInBhcnRuZXJJZCI6IlBTMDAxIiwicHJvZHVjdCI6IldBTExFVCIsInJlcWlkIjoxNjEwMDI2MzM4fQ.buzD40O8X_41RmJ0PCYbBYx3IBlsmNb9iVmrVH9Ix64";
-    private static final String AUTH_KEY = "MzNkYzllOGJmZGVhNWRkZTc1YTgzM2Y5ZDFlY2EyZTQ=";
 
+    //                CHECK REMITTER API
     @Override
-    public Object checkRemitter(String mobile) {
+    public CommonResponse<RemitterQueryResponse> checkRemitter(String mobile,String subProductId) {
 
-        //  STEP 1: Check if remitter already exists in LOCAL DB
+        // ====== STEP 1: Load Vendor Credentials Dynamically ======
+        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProductId); // subProductId dynamically aayega
+        Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+        VendorCredentials credentials = vendorCredentialsRepository
+                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+        // ====== STEP 2: Check if remitter already exists in LOCAL DB ======
         Optional<DmtRemitter> exist = remitterRepository.findByMobile(mobile);
-
         if (exist.isPresent() && "REGISTERED".equals(exist.get().getStatus())) {
-            return "Remitter already registered and active";
+            return CommonResponse.handleErrors("Remitter already registered and active");
         }
 
-        //  STEP 2: Prepare request body for vendor query API
+        // ====== STEP 3: Prepare request body for vendor query API ======
         Map<String, Object> reqBody = Map.of("mobile", mobile);
 
-        HttpHeaders headers = getHeaders();
+        HttpHeaders headers = getHeaders(credentials);
         HttpEntity<Map<String, Object>> httpEntity = new HttpEntity<>(reqBody, headers);
 
-        //  STEP 3: Call Vendor Remitter Query API
+        // ====== STEP 4: Call Vendor Remitter Query API ======
         ResponseEntity<RemitterQueryResponse> responseEntity =
-                restTemplate.exchange(QUERY_URL, HttpMethod.POST, httpEntity, RemitterQueryResponse.class);
+                restTemplate.exchange(credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/remitter/queryremitter",
+                        HttpMethod.POST, httpEntity, RemitterQueryResponse.class);
 
         RemitterQueryResponse res = responseEntity.getBody();
         int code = res.getResponse_code();
 
-        //  STEP 4: Handle Vendor Response Cases
+        // ====== STEP 5: Handle Vendor Response Cases ======
         switch (code) {
 
-            case 1: //  Remitter already exists on vendor side
+            case 1: // Remitter already exists on vendor side
                 saveRemitter(res); // Save in our DB as REGISTERED
-                return "Remitter exists. You can proceed";
+                return CommonResponse.success(res, "Remitter exists. You can proceed");
 
-            case 2: //  KYC required
-                return "EKYC_REQUIRED";
+            case 2: // KYC required
+                return CommonResponse.handleErrors("EKYC_REQUIRED");
 
-            case 3: //  OTP sent → Start registration -> INSERT temp record in DB
-                saveTempRecord(res);
-                return res;
+            case 3: // OTP sent → Start registration
+                return CommonResponse.success(res, "OTP sent. Please register remitter.");
 
-            default: //  Error cases from vendor
-                return res.getMessage();
+            default: // Error cases from vendor
+                return CommonResponse.handleErrors(res.getMessage());
         }
     }
 
-    @Override
-    public Object doEkyc(RemitterEkycRequest request) {
 
-        //  STEP 5: Do E-KYC API call
-        HttpHeaders headers = getHeaders();
+    //                E-KYC API
+    @Override
+    public CommonResponse<Object> doEkyc(RemitterEkycRequest request) {
+
+        // ====== STEP 1: Load Vendor Credentials Dynamically ======
+        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+        Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+        VendorCredentials credentials = vendorCredentialsRepository
+                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+        // ====== STEP 2: Prepare Headers ======
+        HttpHeaders headers = getHeaders(credentials);
         HttpEntity<RemitterEkycRequest> entity = new HttpEntity<>(request, headers);
 
-        ResponseEntity<Map> resp =
-                restTemplate.exchange(KYC_URL, HttpMethod.POST, entity, Map.class);
+        // ====== STEP 3: Call Vendor E-KYC API ======
+        ResponseEntity<Map> resp = restTemplate.exchange(
+                credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/remitter/queryremitter/kyc",
+                HttpMethod.POST,
+                entity,
+                Map.class);
 
-        return resp.getBody();
+        // ====== STEP 4: Wrap Vendor Response in CommonResponse ======
+        CommonResponse<Object> response = new CommonResponse<>();
+        response.setStatusCode(resp.getStatusCodeValue());
+        response.setMessage("E-KYC API Response");
+        response.setData(resp.getBody());
+
+        return response;
     }
 
-    @Override
-    public Object registerRemitter(RemitterRegisterRequest req) {
 
-        //  STEP 6: Call Register Remitter API (after OTP verification)
-        HttpHeaders headers = getHeaders();
+    //                REGISTER REMITTER API
+
+    @Override
+    public CommonResponse<RemitterRegisterResponse> registerRemitter(RemitterRegisterRequest req) {
+
+        // ====== STEP 1: Load Vendor Credentials Dynamically ======
+        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+        Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+        VendorCredentials credentials = vendorCredentialsRepository
+                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+        // ====== STEP 2: Prepare Headers and Request ======
+        HttpHeaders headers = getHeaders(credentials);
         HttpEntity<RemitterRegisterRequest> entity = new HttpEntity<>(req, headers);
 
+        // ====== STEP 3: Call Vendor API ======
         ResponseEntity<RemitterRegisterResponse> respEntity =
-                restTemplate.exchange(REGISTER_URL, HttpMethod.POST, entity, RemitterRegisterResponse.class);
+                restTemplate.exchange(credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/remitter/registerremitter",
+                        HttpMethod.POST, entity, RemitterRegisterResponse.class);
 
         RemitterRegisterResponse resp = respEntity.getBody();
 
-        //  STEP 7: Update our DB after successful registration
-        if (resp.getResponse_code() == 1) {
-            DmtRemitter r = remitterRepository.findByMobile(req.getMobile()).get();
+        // ====== STEP 4: Update LOCAL DB after successful registration ======
+        if (resp != null && resp.getResponse_code() == 1) {
+            DmtRemitter r = new DmtRemitter();
+            r.setMobile(req.getMobile());
             r.setStatus("REGISTERED");
             r.setEkycId(null);
             r.setStateResp(null);
             remitterRepository.save(r);
         }
 
-        return resp;
+        // ====== STEP 5: Wrap final response ======
+        CommonResponse<RemitterRegisterResponse> common = new CommonResponse<>();
+        common.setStatusCode(200);
+        common.setMessage(resp != null ? resp.getMessage() : "Registration response not received");
+        common.setData(resp);
+
+        return common;
     }
 
-    // Common method to set headers
-//    private HttpHeaders getHeaders(){
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.setContentType(MediaType.APPLICATION_JSON);
-//        headers.set("Token", TOKEN);
-//        headers.set("Authorisedkey", AUTH_KEY);
-//        return headers;
-//    }
 
-    private HttpHeaders getHeaders() {
+    //                HELPER METHODS
+    // Common method to set headers dynamically from VendorCredentials
+    private HttpHeaders getHeaders(VendorCredentials credentials) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.set("Token", TOKEN);
-        headers.set("Authorisedkey", AUTH_KEY);
+        headers.set("Token", credentials.getToken());
+        headers.set("Authorisedkey", credentials.getSaltKey());
         return headers;
     }
 
-
-    //  Save if remitter already exists
-    private void saveRemitter(RemitterQueryResponse res){
+    // Save if remitter already exists
+    private void saveRemitter(RemitterQueryResponse res) {
         DmtRemitter en = new DmtRemitter();
         en.setMobile(res.getData().getMobile());
         en.setStatus("REGISTERED");
         remitterRepository.save(en);
     }
 
-    //  Save temp entry if OTP registration required
-    private void saveTempRecord(RemitterQueryResponse res){
-        DmtRemitter en = new DmtRemitter();
-        en.setMobile(res.getData().getMobile());
-        en.setEkycId(res.getData().getEkyc_id());
-        en.setStateResp(res.getData().getStateresp());
-        en.setStatus("PENDING"); // Not registered yet
-        remitterRepository.save(en);
-    }
-
 }
-

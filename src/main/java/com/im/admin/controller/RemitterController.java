@@ -1,8 +1,7 @@
 package com.im.admin.controller;
 
-import com.im.admin.dto.RemitterEkycRequest;
-import com.im.admin.dto.RemitterQueryRequest;
-import com.im.admin.dto.RemitterRegisterRequest;
+import com.im.admin.dto.*;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.RemitterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,18 +21,26 @@ public class RemitterController {
     private  RemitterService remitterService;
 
     @PostMapping("/check")
-    public ResponseEntity<?> checkAndProcess(@RequestBody RemitterQueryRequest request){
-        return ResponseEntity.ok(remitterService.checkRemitter(request.getMobile()));
+    public ResponseEntity<CommonResponse<RemitterQueryResponse>> checkAndProcess(
+            @RequestBody RemitterQueryRequest request) {
+
+        CommonResponse<RemitterQueryResponse> response = remitterService.checkRemitter(request.getMobile(),request.getSubProductId());
+        return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerRemitter(@RequestBody RemitterRegisterRequest request){
-        return ResponseEntity.ok(remitterService.registerRemitter(request));
+    public ResponseEntity<CommonResponse<RemitterRegisterResponse>> registerRemitter(
+            @RequestBody RemitterRegisterRequest request) {
+        CommonResponse<RemitterRegisterResponse> response =
+                (CommonResponse<RemitterRegisterResponse>) remitterService.registerRemitter(request);
+        return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
     @PostMapping("/ekyc")
-    public ResponseEntity<?> doEkyc(@RequestBody RemitterEkycRequest request){
-        return ResponseEntity.ok(remitterService.doEkyc(request));
+    public ResponseEntity<CommonResponse<Object>> doEkyc(@RequestBody RemitterEkycRequest request) {
+        CommonResponse<Object> response = remitterService.doEkyc(request);
+        return ResponseEntity.status(response.getStatusCode()).body(response);
     }
+
 }
 

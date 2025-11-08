@@ -8,4 +8,5 @@ public class RemitterRegisterRequest {
     private String otp;
     private String stateresp;
     private String ekyc_id;
+    private String subProductId;
 }
