@@ -1,9 +1,12 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.im.admin.entities.SubProducts;
-import com.im.admin.entities.VendorCredentials;
+import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
+import com.im.admin.entities.product.Products;
+import com.im.admin.repositories.RetailerRepository;
+import com.im.admin.repositories.SchemeRateRepository;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.service.PayoutVendorService;
@@ -34,6 +37,15 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
     @Autowired
     private CommonMethods commonMethods;
 
+    @Autowired
+    private TransactionEngineServiceImpl transactionEngineServiceImpl;
+
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
+
+    @Autowired
+    private RetailerRepository retailerRepository;
+
     ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -50,6 +62,11 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
         try {
             log.info("[SHADVAL] Initiating payout orderId={} retailer={} amount={}",
                     orderId, req.getRetailerId(), req.getAmount());
+
+            Retailer retailer = retailerRepository.findByRetailerId(req.getRetailerId())
+                    .orElseThrow(() -> new RuntimeException("Retailer not found with ID: " + req.getRetailerId()));
+
+            TransactionSchemeDetailsRequestDto dto = null;
 
             // Build request body (use Map so Jackson will convert automatically)
             Map<String, Object> payload = Map.of(
@@ -68,8 +85,8 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
                             //"mobile", req.getCallbackMobile() == null ? "" : req.getCallbackMobile()
                     ),
                     "reference_id", orderId,
-                    "latitude", "77.3066",
-                    "longitude", "28.4912",
+                    "latitude", retailer.getLatitude(),
+                    "longitude", retailer.getLongitude(),
                     "narration", "test"
             );
 
@@ -89,9 +106,7 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
             headers.set("Payload", payloadJson); // vendor requires payload header
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
-            String url = creds.getBaseUrlProd().endsWith("/") ?
-                    creds.getBaseUrlProd() + "initiate_bank_transfer" :
-                    creds.getBaseUrlProd() + "/initiate_bank_transfer";
+            String url = creds.getBaseUrlProd() + "initiate_bank_transfer";
 
             ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
 
@@ -135,6 +150,46 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
             String beneficiaryName = fundAccount != null ? String.valueOf(fundAccount.getOrDefault("name", req.getBeneficiaryName())) : req.getBeneficiaryName();
             String accountNumber = fundAccount != null ? String.valueOf(fundAccount.getOrDefault("account_number", req.getAccountNumber())) : req.getAccountNumber();
             String ifsc = fundAccount != null ? String.valueOf(fundAccount.getOrDefault("ifsc", req.getIfscCode())) : req.getIfscCode();
+
+            // Prepare DTO (common for all statuses)
+            log.info("[5] Constructing TransactionSchemeDetailsRequestDto...");
+            dto = new TransactionSchemeDetailsRequestDto();
+
+            SchemeRate selectedScheme = schemeRateRepository
+                    .findSchemeRateByCodeAndOperatorAndAmount(
+                            req.getSchemeCode(),
+                            subProducts.getProduct().getTransactionType(),
+                            req.getAmount().doubleValue())
+                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
+
+            log.info("[2.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
+                    selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
+                    selectedScheme.getGross(), selectedScheme.getRetailer());
+
+            String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+
+            dto.setBaseTranxId(baseTxnId);
+            dto.setAmount(req.getAmount().doubleValue());
+            dto.setConfirmAmount(req.getAmount().doubleValue());
+            dto.setOperatorName(selectedScheme.getOperatorName());
+            dto.setOperatorCode(selectedScheme.getOperatorCode());
+            dto.setSchemeRate(selectedScheme);
+            dto.setTransactionType(subProducts.getProduct().getTransactionType());
+            dto.setWalletType(subProducts.getWalletType());
+            dto.setGstValue(String.valueOf(subProducts.getProduct().getSgst()));
+            dto.setTdsRate(String.valueOf(subProducts.getProduct().getTds()));
+            dto.setProductCode(subProducts.getProduct().getProductCode());
+            dto.setSubProductCode(subProducts.getSubProductCode());
+            dto.setIsCommission(subProducts.getProduct().getIsCommissions());
+            dto.setHasCharge(subProducts.getProduct().getHasCharges());
+            dto.setHierarchyId(req.getRetailerId());
+
+            log.info("[6] DTO ready for transaction processing: {}", dto);
+
+            // Process transaction for any status (SUCCESS, FAILED, PENDING, etc.)
+            transactionEngineServiceImpl.processTransaction(dto, String.valueOf(vendorResp.get("status")));
+            log.info("[7] Transaction processed successfully for ORDER_ID: {}, STATUS={}",
+                    orderId, vendorResp.get("status"));
 
             return PayoutResponseDto.builder()
                     .orderId(referenceId)

@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.orchestrator.PayoutOrchestrator;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
@@ -20,15 +21,18 @@ import java.time.LocalDateTime;
 @Slf4j
 public class MoveToBankController {
 
+    //@Autowired
+    //private MoveToBankService moveToBankService;
+
     @Autowired
-    private MoveToBankService moveToBankService;
+    private PayoutOrchestrator payoutOrchestrator;
 
     @PostMapping("/send-payout-request")
     public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest) {
         log.info("======= Calling payoutService.sendPayoutRequest =======");
 
         try {
-            CommonResponse<PayoutResponseDto> response = moveToBankService.sendPayoutRequest(sendPayoutRequest);
+            CommonResponse<PayoutResponseDto> response = payoutOrchestrator.processPayout(sendPayoutRequest);
             log.info("======= sendPayoutRequest completed at {} =======", LocalDateTime.now());
             return ResponseEntity.status(response.getStatusCode()).body(response);
         } catch (Exception e) {
