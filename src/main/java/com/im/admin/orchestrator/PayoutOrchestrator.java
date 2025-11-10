@@ -254,7 +254,7 @@ public class PayoutOrchestrator {
                     payload.toString(),
                     receivedAt,
                     clientIp,
-                    "Callback processed for vendor=" + vendorCode,
+                    "Callback processed for vendor = " + vendorCode,
                     LocalDateTime.now()
             );
 
@@ -338,53 +338,87 @@ public class PayoutOrchestrator {
 
 
     private PayoutPendingTransactions getPendingTransaction(String orderId) {
+        log.debug("Fetching pending transaction for order ID: {}", orderId);
         return payoutPendingTransactionRepository.findByTransactionId(orderId)
-                .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + orderId));
+                .orElseThrow(() -> {
+                    log.error("Pending transaction not found for order ID: {}", orderId);
+                    return new RuntimeException("Pending transaction not found for order ID: " + orderId);
+                });
     }
 
     private SchemeRate getSchemeRate(PayoutPendingTransactions txn) {
+        log.debug("Fetching scheme rate for SchemeCode={}, Operator={}, Amount={}",
+                txn.getSchemeCode(), txn.getTransactionType(), txn.getAmount());
         return schemeRateRepository
                 .findSchemeRateByCodeAndOperatorAndAmount(
                         txn.getSchemeCode(), txn.getTransactionType(), txn.getAmount().doubleValue())
-                .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + txn.getAmount()));
+                .orElseThrow(() -> {
+                    log.error("No matching scheme rate found for amount: {}", txn.getAmount());
+                    return new RuntimeException("No matching scheme rate found for amount: " + txn.getAmount());
+                });
     }
 
     private Scheme getSchemeEntity(String schemeCode) {
+        log.debug("Fetching scheme entity for SchemeCode={}", schemeCode);
         return schemeRepository.findBySchemeCode(schemeCode)
-                .orElseThrow(() -> new RuntimeException("Scheme not found with code: " + schemeCode));
+                .orElseThrow(() -> {
+                    log.error("Scheme not found with code: {}", schemeCode);
+                    return new RuntimeException("Scheme not found with code: " + schemeCode);
+                });
     }
 
     private String[] validateAndSplitSchemeHash(String hash) {
+        log.debug("Validating and splitting scheme hash: {}", hash);
         String[] parts = hash.split("-");
-        if (parts.length < 2) throw new RuntimeException("Invalid schemeCombinationHashCode: " + hash);
+        if (parts.length < 2) {
+            log.error("Invalid schemeCombinationHashCode: {}", hash);
+            throw new RuntimeException("Invalid schemeCombinationHashCode: " + hash);
+        }
         return parts;
     }
 
     private Products getProduct(short productId) {
+        log.debug("Fetching product for ProductID={}", productId);
         return productsRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+                .orElseThrow(() -> {
+                    log.error("Product not found with ID: {}", productId);
+                    return new RuntimeException("Product not found with ID: " + productId);
+                });
     }
 
     private SubProducts getSubProduct(String subProductId) {
+        log.debug("Fetching sub-product for SubProductID={}", subProductId);
         return subProductsRepository.findById(subProductId)
-                .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + subProductId));
+                .orElseThrow(() -> {
+                    log.error("SubProduct not found with ID: {}", subProductId);
+                    return new RuntimeException("SubProduct not found with ID: " + subProductId);
+                });
     }
 
     private VendorCredentials getVendorCredentials(String subProductId) {
+        log.debug("Fetching vendor credentials for SubProductID={}", subProductId);
         VendorRouting routing = vendorRoutingRepository.findBySubProductId(subProductId);
         Vendors vendor = CommonMethods.getVendors(routing);
+        log.debug("Resolved VendorID={} for SubProductID={}", vendor.getId(), subProductId);
 
         return vendorCredentialsRepository
                 .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                .orElseThrow(() -> new RuntimeException("No credentials found for vendor ID=" + vendor.getId()));
+                .orElseThrow(() -> {
+                    log.error("No credentials found for vendor ID={}", vendor.getId());
+                    return new RuntimeException("No credentials found for vendor ID=" + vendor.getId());
+                });
     }
 
     private VendorStatusChecker getVendorStatusChecker(VendorCredentials credentials) {
-        Object vendorService = vendorFactory.getVendor(credentials.getVendor().getVendorCode());
-        if (vendorService instanceof VendorStatusChecker checker) return checker;
+        log.debug("Fetching vendor status checker for VendorName={}", credentials.getVendor().getVendorName());
+        Object vendorService = vendorFactory.getVendor(credentials.getVendor().getVendorName());
+        if (vendorService instanceof VendorStatusChecker checker) {
+            log.debug("VendorStatusChecker instance found for VendorName={}", credentials.getVendor().getVendorName());
+            return checker;
+        }
+        log.warn("VendorStatusChecker not available for VendorName={}", credentials.getVendor().getVendorName());
         return null;
     }
-
 
     private TransactionSchemeDetailsRequestDto buildTransactionDTO(
             PayoutPendingTransactions txn,
@@ -395,6 +429,8 @@ public class PayoutOrchestrator {
 
         String orderId = txn.getTransactionId();
         String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+
+        log.debug("Building TransactionSchemeDetailsRequestDto for ORDER_ID={}", orderId);
 
         TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
         dto.setBaseTranxId(baseTxnId);
