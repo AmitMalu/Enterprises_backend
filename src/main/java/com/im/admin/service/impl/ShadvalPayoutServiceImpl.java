@@ -1,55 +1,58 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
-import com.im.admin.response.ShadvalPayResponse;
 import com.im.admin.service.PayoutVendorService;
 import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @Slf4j
 public class ShadvalPayoutServiceImpl implements PayoutVendorService {
+
+    private static final String VENDOR_CODE = "SHADVALPAY";
 
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Autowired
     private CommonMethods commonMethods;
 
+    ObjectMapper objectMapper = new ObjectMapper();
+
     @Override
     public String getVendorCode() {
-        return "SHADVALPAY";
+        return VENDOR_CODE;
     }
 
     @Override
-    public PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType) {
+    public PayoutResponseDto sendPayout(SendPayoutRequest req,
+                                        VendorCredentials creds,
+                                        String orderId,
+                                        SubProducts subProducts,
+                                        WalletType walletType) {
         try {
-            log.info("[SHADVAL] Initiating payout for orderId: {}", orderId);
+            log.info("[SHADVAL] Initiating payout orderId={} retailer={} amount={}",
+                    orderId, req.getRetailerId(), req.getAmount());
 
-            AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), req.getRetailerId());
-            String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
-
-            commonMethods.updateWallet(walletAmountTable, req.getRetailerId(), walletType, req.getAmount(), "Debit", baseTxnId,
-                    "PENDING", "DEBIT", subProducts.getSubProductTitle(),
-                    req.getBeneficiaryName() + " #" + req.getAccountNumber(), "Fund Transferred " + "#" + req.getAccountNumber());
-
-            //Build Request Body
-            Map<String, Object> body = Map.of(
+            // Build request body (use Map so Jackson will convert automatically)
+            Map<String, Object> payload = Map.of(
                     "amount", req.getAmount(),
                     "mode", req.getPaymentMode(),
                     "fund_account", Map.of(
@@ -59,8 +62,10 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
                     ),
                     "contact_details", Map.of(
                             "name", req.getBeneficiaryName(),
-                            "email", "test@gmail.com",
-                            "mobile", "9999999999"
+                            "email", "testing@gmail.com",
+                            "mobile", "9632587410"
+                            //"email", req.getCallbackEmail() == null ? "" : req.getCallbackEmail(),
+                            //"mobile", req.getCallbackMobile() == null ? "" : req.getCallbackMobile()
                     ),
                     "reference_id", orderId,
                     "latitude", "77.3066",
@@ -68,47 +73,98 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
                     "narration", "test"
             );
 
-            //Convert Body to JSON String
-            ObjectMapper mapper = new ObjectMapper();
-            String payloadJson = mapper.writeValueAsString(body);
+            // convert to JSON for signing header (if required)
+            String payloadJson = objectMapper.writeValueAsString(payload);
 
-            // Format: ShadvalKey + " payload " + ShadvalKey + ref_no + amount
-            String shadvalKey = creds.getClientSecret(); // assuming VendorCredentials has this shadvalKey = ClientKey
+            // Signature: plaintext = key + " payload " + key + ref_no + amount
+            String shadvalKey = Objects.requireNonNull(creds.getClientSecret(), "Shadval key missing in credentials");
             String plainText = shadvalKey + " payload " + shadvalKey + orderId + req.getAmount();
 
-            //Generate HMAC SHA-256 Signature
             String signature = generateHmacSHA256Signature(plainText, shadvalKey);
 
-            //Prepare Headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", shadvalKey);
+            headers.set("Authorization", shadvalKey); // according to vendor doc
             headers.set("Signature", signature);
-            headers.set("Payload", payloadJson);
+            headers.set("Payload", payloadJson); // vendor requires payload header
 
-            HttpEntity<String> entity = new HttpEntity<>(payloadJson, headers);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            String url = creds.getBaseUrlProd().endsWith("/") ?
+                    creds.getBaseUrlProd() + "initiate_bank_transfer" :
+                    creds.getBaseUrlProd() + "/initiate_bank_transfer";
 
-            String url = creds.getBaseUrlProd() + "/initiate_bank_transfer";
-            log.info("[SHADVAL] Sending payout request to: {}", url);
+            ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
 
-            // Send API Request
-            ResponseEntity<ShadvalPayResponse> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    ShadvalPayResponse.class
-            );
+            Map<String, Object> vendorResp = resp.getBody();
+            log.info("[SHADVAL] Raw response for orderId={}: {}", orderId, vendorResp);
 
-            ShadvalPayResponse vendorResp = response.getBody();
+            // defensive checks
+            if (vendorResp == null) {
+                return failureDto(orderId, "FAILED", "Empty response from Shadval", req.getAmount());
+            }
 
-            // Map Vendor Response to Common DTO
-            log.info("[SHADVAL] Vendor response: {}", vendorResp);
-            return new PayoutResponseDto(vendorResp.getStatus(), vendorResp.getMessage(), vendorResp.getCode());
+            // vendorResp expected: { status, code, message, data: {...} }
+            String rawStatus = String.valueOf(vendorResp.getOrDefault("status", "FAILED"));
+            String mappedStatus = "SUCCESS".equalsIgnoreCase(rawStatus) ? "SUCCESS" : "FAILED";
+            String message = String.valueOf(vendorResp.getOrDefault("message", ""));
 
+            Map<String, Object> data = (Map<String, Object>) vendorResp.get("data");
+            if (data == null) {
+                // vendor returned top-level status + message but no data
+                return PayoutResponseDto.builder()
+                        .orderId(orderId)
+                        .vendorCode(VENDOR_CODE)
+                        .status(mappedStatus)
+                        .message(message)
+                        .amount(req.getAmount())
+                        .build();
+            }
+
+            // extract fund_account and trans_details safely
+            Map<String, Object> fundAccount = (Map<String, Object>) data.get("fund_account");
+            Map<String, Object> transDetails = (Map<String, Object>) data.get("trans_details");
+
+            BigDecimal amount = req.getAmount();
+            if (transDetails != null && transDetails.get("amount") != null) {
+                try {
+                    amount = new BigDecimal(String.valueOf(transDetails.get("amount")));
+                } catch (NumberFormatException ignore) { /* keep req.getAmount() */ }
+            }
+
+            String referenceId = String.valueOf(data.getOrDefault("reference_id", orderId));
+            String beneficiaryName = fundAccount != null ? String.valueOf(fundAccount.getOrDefault("name", req.getBeneficiaryName())) : req.getBeneficiaryName();
+            String accountNumber = fundAccount != null ? String.valueOf(fundAccount.getOrDefault("account_number", req.getAccountNumber())) : req.getAccountNumber();
+            String ifsc = fundAccount != null ? String.valueOf(fundAccount.getOrDefault("ifsc", req.getIfscCode())) : req.getIfscCode();
+
+            return PayoutResponseDto.builder()
+                    .orderId(referenceId)
+                    .vendorCode(VENDOR_CODE)
+                    .status(mappedStatus)
+                    .message(message)
+                    .amount(amount)
+                    .beneficiaryName(beneficiaryName)
+                    .accountNumber(accountNumber)
+                    .ifscCode(ifsc)
+                    .build();
+
+        } catch (RestClientException rce) {
+            log.error("[SHADVAL] Rest error for orderId {}: {}", orderId, rce.getMessage(), rce);
+            return failureDto(orderId, "FAILED", "Vendor communication error: " + rce.getMessage(), req.getAmount());
         } catch (Exception e) {
-            log.error("[SHADVAL] Error during payout execution: {}", e.getMessage(), e);
-            return new PayoutResponseDto(orderId, "FAILED", "Error during payout execution: " + e.getMessage());
+            log.error("[SHADVAL] Unexpected error for orderId {}: {}", orderId, e.getMessage(), e);
+            return failureDto(orderId, "FAILED", "Internal error: " + e.getMessage(), req.getAmount());
         }
+    }
+
+    // helper to create failure DTO
+    private PayoutResponseDto failureDto(String orderId, String status, String message, BigDecimal amount) {
+        return PayoutResponseDto.builder()
+                .orderId(orderId)
+                .vendorCode(VENDOR_CODE)
+                .status(status)
+                .message(message)
+                .amount(amount)
+                .build();
     }
 
     private String generateHmacSHA256Signature(String plainText, String key) throws Exception {

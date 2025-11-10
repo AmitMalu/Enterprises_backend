@@ -229,9 +229,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
             }
 
             // Step 2: Debit now
-            log.info("[WALLET] Debiting wallet | Amount={} | WalletType={} | RetailerID={}",
-                    tranxAmount, walletType, retailerId);
-            updateWallet(dto, wallet, tranxAmount, tranxType, baseTransactionId, "PENDING", "DEBIT");
+            //log.info("[WALLET] Debiting wallet | Amount={} | WalletType={} | RetailerID={}",
+            //        tranxAmount, walletType, retailerId);
+            //updateWallet(dto, wallet, tranxAmount, tranxType, baseTransactionId, "PENDING", "DEBIT");
 
             // Step 3: Call vendor
             //String vendorResponse = callVendor(dto);
@@ -242,7 +242,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 return "Transaction pending - debit applied";
             }
 
-            if ("FAILURE".equalsIgnoreCase(vendorCallbackStatus)) {
+            if ("FAILURE".equalsIgnoreCase(vendorCallbackStatus) || "FAILED".equalsIgnoreCase(vendorCallbackStatus)) {
                 log.warn("[TXN_PROCESS] Vendor FAILURE — reversing debit.");
                 BigDecimal beforeReversal = wallet.getAvailableBalance();
                 wallet.setAvailableBalance(beforeReversal.add(tranxAmount));

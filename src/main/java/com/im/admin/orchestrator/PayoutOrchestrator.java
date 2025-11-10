@@ -1,19 +1,27 @@
 package com.im.admin.orchestrator;
 
-import com.im.admin.entities.SubProducts;
-import com.im.admin.entities.VendorCredentials;
-import com.im.admin.entities.VendorRouting;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.im.admin.commons.CommonFunctions;
+import com.im.admin.dto.AbstractWalletAmountTable;
+import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
+import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
-import com.im.admin.repositories.SubProductsRepository;
-import com.im.admin.repositories.VendorCredentialsRepository;
-import com.im.admin.repositories.VendorRoutingRepository;
+import com.im.admin.repositories.*;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.PayoutMerchantCallbackResponse;
+import com.im.admin.response.PayoutStatusResponse;
+import com.im.admin.service.PayoutCallbackHandler;
+import com.im.admin.service.PayoutCallbackRegistrar;
 import com.im.admin.service.PayoutVendorService;
+import com.im.admin.service.VendorStatusChecker;
+import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.VendorFactory;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +29,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -43,64 +53,370 @@ public class PayoutOrchestrator {
     @Autowired
     private VendorFactory vendorFactory;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+
+    @Autowired
+    private PayoutPendingTransactionRepository payoutPendingTransactionRepository;
+
+    @Autowired
+    private SchemeRepository schemeRepository;
+
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
+
+    @Autowired
+    private ProductsRepository productsRepository;
+
+    @Autowired
+    private TransactionEngineServiceImpl transactionEngineServiceImpl;
+
 
     @Transactional
     public CommonResponse<PayoutResponseDto> processPayout(SendPayoutRequest req) {
-        String orderId = "ORD" + commonMethods.generateBaseTransactionId();
-        log.info("Initiating payout process for orderId: {}", orderId);
+        String orderId = "TXN" + commonMethods.generateBaseTransactionId();
+        log.info("[PROCESS PAYOUT ORCH] Initiating payout process for orderId={}", orderId);
 
         try {
-            Optional<SubProducts> subProductsOpt = subProductsRepository.findById(req.getSubProductId());
-            if (subProductsOpt.isEmpty()) {
-                log.warn("SubProduct not found for ID: {}", req.getSubProductId());
-                return new CommonResponse<>(404, "SubProduct not found", null);
-            }
+            // 1. Validate SubProduct
+            SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
+                    .orElseThrow(() -> new RuntimeException("SubProduct not found for ID: " + req.getSubProductId()));
 
-            SubProducts subProducts = subProductsOpt.get();
             WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
-            log.debug("Wallet type resolved: {}", walletType);
+            log.debug("[PROCESS PAYOUT ORCH] Resolved walletType={}", walletType);
 
+            // 2. Check Retailer Balance
             BigDecimal availableBalance = commonMethods.getCurrentBalance(req.getRetailerId(), walletType.name());
-            log.debug("Available balance for retailer {}: {}", req.getRetailerId(), availableBalance);
-
             if (availableBalance.compareTo(req.getAmount()) < 0) {
-                log.warn("Insufficient balance for retailer {}. Required: {}, Available: {}", req.getRetailerId(), req.getAmount(), availableBalance);
+                log.warn("[PROCESS PAYOUT ORCH] Insufficient balance for retailer {} (required={}, available={})",
+                        req.getRetailerId(), req.getAmount(), availableBalance);
                 return new CommonResponse<>(400, "Insufficient Balance", null);
             }
 
+            // 3. Resolve Vendor Routing & Credentials
             VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
             if (routing == null) {
-                log.error("Vendor routing not found for SubProduct ID: {}", req.getSubProductId());
+                log.error("[PROCESS PAYOUT ORCH] Vendor routing not found for subProductId={}", req.getSubProductId());
                 return new CommonResponse<>(404, "Vendor routing not found", null);
             }
 
             Vendors vendor = CommonMethods.getVendors(routing);
-            log.debug("Vendor resolved: {}", vendor.getVendorName());
-
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                    .orElseThrow(() -> {
-                        log.error("No credentials found for vendor ID: {}, product ID: {}", vendor.getId(), vendor.getProduct().getId());
-                        return new RuntimeException("No credentials found for selected vendor");
-                    });
+                    .orElseThrow(() -> new RuntimeException("Vendor credentials not found"));
 
-            log.debug("Vendor credentials retrieved for vendor: {}", credentials.getVendor().getVendorName());
-
-            PayoutVendorService vendorService = vendorFactory.getVendor(vendor.getVendorCode());
+            // 4. Get vendor bean
+            PayoutVendorService vendorService = vendorFactory.getVendor(vendor.getVendorName());
             if (vendorService == null) {
-                log.error("Vendor implementation not found for code: {}", vendor.getVendorCode());
+                log.error("[PROCESS PAYOUT ORCH] No vendor implementation for code={}", vendor.getVendorCode());
                 return new CommonResponse<>(500, "Vendor implementation not found", null);
             }
 
-            log.info("Sending payout request to vendor: {}", vendor.getVendorName());
-            PayoutResponseDto vendorResponse = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType);
-            log.info("Payout processed successfully for orderId: {}", orderId);
+            // 5. CENTRALIZED WALLET DEBIT (transaction engine)
+            AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), req.getRetailerId());
+            String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
 
-            return new CommonResponse<>(200, "Transaction processed", vendorResponse);
+            commonMethods.updateWallet(
+                    walletAmountTable,
+                    req.getRetailerId(),
+                    walletType,
+                    req.getAmount(),
+                    "Debit",
+                    baseTxnId,
+                    "PENDING",
+                    "DEBIT",
+                    subProducts.getSubProductTitle(),
+                    req.getBeneficiaryName() + " #" + req.getAccountNumber(),
+                    "Fund Transferred #" + req.getAccountNumber()
+            );
+            log.debug("[PROCESS PAYOUT ORCH] Wallet debited (PENDING) for retailer={}, amount={}", req.getRetailerId(), req.getAmount());
+
+            // 6. Call vendor-specific implementation (must return PayoutResponseDto)
+            PayoutResponseDto vendorResp = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType);
+            if (vendorResp == null) {
+                // defensive fallback
+                vendorResp = PayoutResponseDto.builder()
+                        .orderId(orderId)
+                        .vendorCode(vendor.getVendorCode())
+                        .status("FAILED")
+                        .message("Empty response from vendor")
+                        .amount(req.getAmount())
+                        .build();
+            }
+
+            log.info("[PROCESS PAYOUT ORCH] Saved pending txn: {}, vendorStatus={}", orderId, vendorResp.getStatus());
+
+            // 8. Map vendor status to common HTTP-like status code
+            int statusCode = mapVendorStatusToHttpCode(vendorResp.getStatus());
+
+            // 9. Build and return unified CommonResponse
+            return CommonResponse.<PayoutResponseDto>builder()
+                    .statusCode(statusCode)
+                    .message(vendorResp.getMessage() != null ? vendorResp.getMessage() : "Processed")
+                    .data(vendorResp)
+                    .build();
 
         } catch (Exception e) {
-            log.error("Error occurred while processing payout for orderId: {}: {}", orderId, e.getMessage(), e);
-            return new CommonResponse<>(500, "Internal Server Error", null);
+            log.error("[PROCESS PAYOUT ORCH] Exception while processing payout orderId={}: {}", orderId, e.getMessage(), e);
+            // optionally reverse wallet debit if you want — implement compensation logic here
+            return CommonResponse.<PayoutResponseDto>builder()
+                    .statusCode(500)
+                    .message("Internal Server Error: " + e.getMessage())
+                    .data(null)
+                    .build();
         }
     }
+
+    @Transactional
+    public CommonResponse<PayoutMerchantCallbackResponse> registerCallbackUrl(SendPayoutRequest req) {
+        try {
+            log.info("[ORCH] Starting callback registration for subProductId={}, retailerId={}",
+                    req.getSubProductId(), req.getRetailerId());
+
+            // Validate SubProduct
+            SubProducts subProduct = subProductsRepository.findById(req.getSubProductId())
+                    .orElseThrow(() -> new IllegalArgumentException("SubProduct not found for ID: " + req.getSubProductId()));
+
+            WalletType walletType = WalletType.valueOf(subProduct.getWalletType());
+            log.debug("[ORCH] WalletType resolved: {}", walletType);
+
+            // Resolve Vendor Routing
+            VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+            if (routing == null) {
+                return new CommonResponse<>(404, "Vendor routing not found", null);
+            }
+
+            Vendors vendor = CommonMethods.getVendors(routing);
+            VendorCredentials creds = vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Vendor credentials not found"));
+
+            // Get vendor implementation
+            PayoutVendorService vendorService = vendorFactory.getVendor(vendor.getVendorName());
+            if (vendorService == null) {
+                return new CommonResponse<>(500, "Vendor implementation not found", null);
+            }
+
+            // Check if vendor supports callback registration
+            if (vendorService instanceof PayoutCallbackRegistrar registrar) {
+                PayoutMerchantCallbackResponse callbackResponse =
+                        registrar.registerCallbackUrl(creds, creds.getCallbackUrl());
+
+                log.info("[ORCH] Callback registered for vendor={} | callbackUrl={}",
+                        vendor.getVendorName(), creds.getCallbackUrl());
+
+                return new CommonResponse<>(200, "Callback registered successfully", callbackResponse);
+            } else {
+                log.info("[ORCH] Vendor={} does not require callback registration.", vendor.getVendorName());
+                return new CommonResponse<>(200, "Vendor does not require callback registration", null);
+            }
+
+        } catch (IllegalArgumentException e) {
+            log.warn("[ORCH] Validation error: {}", e.getMessage());
+            return new CommonResponse<>(400, e.getMessage(), null);
+        } catch (Exception e) {
+            log.error("[ORCH] Unexpected error during callback registration: {}", e.getMessage(), e);
+            return new CommonResponse<>(500, "Internal Server Error: " + e.getMessage(), null);
+        }
+    }
+
+    // helper
+    private int mapVendorStatusToHttpCode(String vendorStatus) {
+        if (vendorStatus == null) return 500;
+        return switch (vendorStatus.toUpperCase()) {
+            case "SUCCESS" -> 200;
+            case "PENDING", "ACCEPTED" -> 202;
+            case "FAILED" -> 400;
+            default -> 500;
+        };
+    }
+
+
+    @Transactional
+    public String processPayoutCallback(String vendorCode, Map<String, String> payload, HttpServletRequest request)
+            throws JsonProcessingException {
+
+        LocalDateTime receivedAt = LocalDateTime.now();
+        String clientIp = request.getRemoteAddr();
+        log.info("[ORCH_CALLBACK] Received callback from vendor={} IP={} Payload={}", vendorCode, clientIp, payload);
+
+        try {
+            Object vendorService = vendorFactory.getVendor(vendorCode);
+            if (!(vendorService instanceof PayoutCallbackHandler handler)) {
+                log.error("[ORCH_CALLBACK] No callback handler implemented for vendor={}", vendorCode);
+                return "Vendor callback handler not found";
+            }
+
+            String vendorResponse = handler.handleCallback(payload, request);
+
+            // Log callback event for auditing
+            commonFunctions.saveCallbackEventLog(
+                    payload.toString(),
+                    receivedAt,
+                    clientIp,
+                    "Callback processed for vendor=" + vendorCode,
+                    LocalDateTime.now()
+            );
+
+            log.info("[ORCH_CALLBACK] Successfully processed callback for vendor={}", vendorCode);
+            return vendorResponse;
+
+        } catch (Exception e) {
+            log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
+
+            commonFunctions.saveCallbackEventLog(
+                    payload.toString(),
+                    receivedAt,
+                    clientIp,
+                    "Error: " + e.getMessage(),
+                    LocalDateTime.now()
+            );
+
+            return "Callback processing failed: " + e.getMessage();
+        }
+    }
+
+    @Transactional
+    public void checkStatusForPendingTransactions() {
+
+        List<PayoutPendingTransactions> pendingList = payoutPendingTransactionRepository.findByStatus("PENDING");
+        log.info("[ORCH_SCHEDULER] Found {} pending transactions", pendingList.size());
+
+        for (PayoutPendingTransactions txn : pendingList) {
+            String orderId = txn.getTransactionId();
+            log.info("[1] Checking status for pending ORDER_ID={}", orderId);
+
+            try {
+                // Fetch pending transaction
+                PayoutPendingTransactions pendingTxn = getPendingTransaction(orderId);
+
+                // Fetch scheme, product, sub-product, and rate
+                SchemeRate schemeRate = getSchemeRate(pendingTxn);
+                Scheme scheme = getSchemeEntity(schemeRate.getSchemeCode());
+                String[] hashParts = validateAndSplitSchemeHash(scheme.getSchemeCombinationHashCode());
+                short productId = Short.parseShort(hashParts[0]);
+                String subProductIdStr = hashParts[1];
+
+                Products product = getProduct(productId);
+                SubProducts subProduct = getSubProduct(subProductIdStr);
+
+                // Resolve vendor and credentials
+                VendorCredentials credentials = getVendorCredentials(subProductIdStr);
+                VendorStatusChecker statusChecker = getVendorStatusChecker(credentials);
+
+                if (statusChecker == null) {
+                    log.warn("[ORCH_SCHEDULER] Vendor does not support status check for ORDER_ID={}", orderId);
+                    continue;
+                }
+
+                // Call vendor check-status API dynamically
+                PayoutStatusResponse vendorResponse = statusChecker.checkPayoutStatus(orderId, credentials);
+                log.info("[ORCH_SCHEDULER] Vendor={} Order={} Status={}",
+                        credentials.getVendor().getVendorName(), orderId, vendorResponse.getStatus());
+
+                // Only process if status finalized
+                if (!"PENDING".equalsIgnoreCase(vendorResponse.getStatus())) {
+                    txn.setStatus(vendorResponse.getStatus());
+                    payoutPendingTransactionRepository.save(txn);
+
+                    // Build transaction DTO
+                    TransactionSchemeDetailsRequestDto dto = buildTransactionDTO(
+                            txn, schemeRate, scheme, product, subProduct);
+
+                    // Process via transaction engine
+                    transactionEngineServiceImpl.processTransaction(dto, vendorResponse.getStatus());
+                    log.info("[ORCH_SCHEDULER] Processed ORDER_ID={} with STATUS={}",
+                            orderId, vendorResponse.getStatus());
+                }
+
+            } catch (Exception e) {
+                log.error("[ORCH_SCHEDULER] Error while checking status for ORDER_ID={} | {}",
+                        orderId, e.getMessage(), e);
+            }
+        }
+    }
+
+
+    private PayoutPendingTransactions getPendingTransaction(String orderId) {
+        return payoutPendingTransactionRepository.findByTransactionId(orderId)
+                .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + orderId));
+    }
+
+    private SchemeRate getSchemeRate(PayoutPendingTransactions txn) {
+        return schemeRateRepository
+                .findSchemeRateByCodeAndOperatorAndAmount(
+                        txn.getSchemeCode(), txn.getTransactionType(), txn.getAmount().doubleValue())
+                .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + txn.getAmount()));
+    }
+
+    private Scheme getSchemeEntity(String schemeCode) {
+        return schemeRepository.findBySchemeCode(schemeCode)
+                .orElseThrow(() -> new RuntimeException("Scheme not found with code: " + schemeCode));
+    }
+
+    private String[] validateAndSplitSchemeHash(String hash) {
+        String[] parts = hash.split("-");
+        if (parts.length < 2) throw new RuntimeException("Invalid schemeCombinationHashCode: " + hash);
+        return parts;
+    }
+
+    private Products getProduct(short productId) {
+        return productsRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+    }
+
+    private SubProducts getSubProduct(String subProductId) {
+        return subProductsRepository.findById(subProductId)
+                .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + subProductId));
+    }
+
+    private VendorCredentials getVendorCredentials(String subProductId) {
+        VendorRouting routing = vendorRoutingRepository.findBySubProductId(subProductId);
+        Vendors vendor = CommonMethods.getVendors(routing);
+
+        return vendorCredentialsRepository
+                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                .orElseThrow(() -> new RuntimeException("No credentials found for vendor ID=" + vendor.getId()));
+    }
+
+    private VendorStatusChecker getVendorStatusChecker(VendorCredentials credentials) {
+        Object vendorService = vendorFactory.getVendor(credentials.getVendor().getVendorCode());
+        if (vendorService instanceof VendorStatusChecker checker) return checker;
+        return null;
+    }
+
+
+    private TransactionSchemeDetailsRequestDto buildTransactionDTO(
+            PayoutPendingTransactions txn,
+            SchemeRate schemeRate,
+            Scheme scheme,
+            Products product,
+            SubProducts subProduct) {
+
+        String orderId = txn.getTransactionId();
+        String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+
+        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+        dto.setBaseTranxId(baseTxnId);
+        dto.setAmount(txn.getAmount().doubleValue());
+        dto.setConfirmAmount(txn.getAmount().doubleValue());
+        dto.setOperatorName(txn.getTransactionType());
+        dto.setOperatorCode(schemeRate.getOperatorCode());
+        dto.setSchemeRate(schemeRate);
+        dto.setTransactionType(product.getTransactionType());
+        dto.setWalletType(subProduct.getWalletType());
+        dto.setGstValue(String.valueOf(product.getSgst()));
+        dto.setTdsRate(String.valueOf(product.getTds()));
+        dto.setProductCode(product.getProductCode());
+        dto.setSubProductCode(subProduct.getSubProductCode());
+        dto.setIsCommission(product.getIsCommissions());
+        dto.setHasCharge(product.getHasCharges());
+        dto.setHierarchyId(txn.getRetailerId());
+
+        log.debug("[DTO BUILDER] Created DTO for ORDER_ID={} -> {}", orderId, dto);
+        return dto;
+    }
+
+
+
 }

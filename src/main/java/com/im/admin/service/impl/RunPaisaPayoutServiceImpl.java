@@ -1,0 +1,507 @@
+package com.im.admin.service.impl;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.callbacks.RunpaisaPayoutCallback;
+import com.im.admin.commons.CommonFunctions;
+import com.im.admin.controller.AESController;
+import com.im.admin.dto.EncryptDecryptCredentialsDto;
+import com.im.admin.dto.PayoutTokenResponseDTO;
+import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.entities.*;
+import com.im.admin.entities.enums.WalletType;
+import com.im.admin.entities.product.Products;
+import com.im.admin.repositories.*;
+import com.im.admin.request.PayoutResponseDto;
+import com.im.admin.request.SendPayoutRequest;
+import com.im.admin.response.PayoutMerchantCallbackResponse;
+import com.im.admin.response.PayoutStatusResponse;
+import com.im.admin.response.RunPaisaCallback;
+import com.im.admin.service.PayoutCallbackHandler;
+import com.im.admin.service.PayoutCallbackRegistrar;
+import com.im.admin.service.PayoutVendorService;
+import com.im.admin.service.VendorStatusChecker;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestTemplate;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+@Service("Runpaisa Payout")
+@Slf4j
+public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCallbackRegistrar, PayoutCallbackHandler, VendorStatusChecker {
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @Autowired
+    private AESController aesController;
+
+    @Autowired
+    private PayoutPendingTransactionRepository payoutPendingTransactionRepository;
+
+    @Autowired
+    private TransactionEngineServiceImpl transactionEngineServiceImpl;
+
+    @Autowired
+    private SchemeRepository schemeRepository;
+
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
+
+    @Autowired
+    private CommonFunctions commonFunctions;
+
+    @Autowired
+    private SubProductsRepository subProductsRepository;
+
+    @Autowired
+    private ProductsRepository productsRepository;
+
+    ObjectMapper objectMapper = new ObjectMapper();
+
+    @Override
+    public String getVendorCode() {
+        return "Runpaisa Payout";
+    }
+
+    @Override
+    @Transactional
+    public PayoutResponseDto sendPayout(SendPayoutRequest req,
+                                        VendorCredentials creds,
+                                        String orderId,
+                                        SubProducts subProduct,
+                                        WalletType walletType) {
+        log.info("[RUNPAISA] Starting payout for orderId={}", orderId);
+
+        try {
+            // =========================================================
+            // Handle AES Token Flow (Admin Panel)
+            // =========================================================
+            if ("AES".equalsIgnoreCase(creds.getTokenType())) {
+                String token = generateTokenForAES(creds);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("client_id", creds.getClientId());
+                headers.set("token", token);
+                headers.add("Authorization", "Bearer " + token);
+
+                SendPayoutRequest aesRequest = new SendPayoutRequest();
+                aesRequest.setAccountNumber(req.getAccountNumber());
+                aesRequest.setIfscCode(req.getIfscCode());
+                aesRequest.setAmount(req.getAmount());
+                aesRequest.setOrderId(orderId);
+                aesRequest.setBeneficiaryName(req.getBeneficiaryName());
+                aesRequest.setPaymentMode(req.getPaymentMode());
+                aesRequest.setCallbackurl(req.getCallbackurl());
+
+                String url = creds.getBaseUrlUat() + "/payment";
+                log.info("[RUNPAISA][AES] Sending payout request to {}", url);
+
+                restTemplate.exchange(
+                        url,
+                        HttpMethod.POST,
+                        new HttpEntity<>(aesRequest, headers),
+                        String.class
+                );
+
+                // Return immediately for AES, since callback will confirm later
+                return PayoutResponseDto.builder()
+                        .orderId(orderId)
+                        .vendorCode(getVendorCode())
+                        .status("PENDING")
+                        .message("AES Payout initiated. Awaiting callback confirmation.")
+                        .amount(req.getAmount())
+                        .build();
+            }
+
+            // =========================================================
+            // Prepare Vendor Request
+            // =========================================================
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("token", generateTokenForPayout(creds));
+
+            Map<String, Object> body = Map.of(
+                    "account_number", req.getAccountNumber(),
+                    "ifsc_code", req.getIfscCode(),
+                    "amount", req.getAmount(),
+                    "order_id", orderId,
+                    "beneficiary_name", req.getBeneficiaryName(),
+                    "payment_mode", req.getPaymentMode()
+            );
+
+            String url = creds.getBaseUrlProd() + "/payment";
+            log.info("[RUNPAISA] Sending payout request to: {}", url);
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    new HttpEntity<>(body, headers),
+                    Map.class
+            );
+
+            // =========================================================
+            // Parse Vendor Response
+            // =========================================================
+            Map<String, Object> vendorResp = response.getBody();
+            log.info("[RUNPAISA] Raw response: {}", vendorResp);
+
+            if (vendorResp == null || vendorResp.get("data") == null) {
+                log.warn("[RUNPAISA] Empty or invalid response from vendor");
+                return PayoutResponseDto.builder()
+                        .orderId(orderId)
+                        .vendorCode(getVendorCode())
+                        .status("FAILED")
+                        .message("Empty or invalid response from vendor")
+                        .amount(req.getAmount())
+                        .build();
+            }
+
+            Map<String, Object> data = (Map<String, Object>) vendorResp.get("data");
+            String vendorStatus = ((String) vendorResp.get("status")).toUpperCase();
+
+            // =========================================================
+            // Save Pending Transaction
+            // =========================================================
+            PayoutPendingTransactions pending = new PayoutPendingTransactions();
+            pending.setTransactionId(orderId);
+            pending.setSchemeCode(req.getSchemeCode());
+            pending.setRetailerId(req.getRetailerId());
+            pending.setAmount(req.getAmount());
+            pending.setTransactionType(req.getPaymentMode());
+            pending.setStatus("PENDING");
+            pending.setCreatedAt(LocalDateTime.now());
+            payoutPendingTransactionRepository.save(pending);
+
+            log.info("[RUNPAISA] Transaction saved | TxnID={} | Status={}", orderId, vendorStatus);
+
+            // =========================================================
+            // Adapt Vendor → Unified DTO
+            // =========================================================
+            return PayoutResponseDto.builder()
+                    .orderId((String) data.get("order_id"))
+                    .vendorCode(getVendorCode())
+                    .status(vendorStatus)
+                    .message((String) vendorResp.get("message"))
+                    .amount(new BigDecimal(data.get("amount").toString()))
+                    .beneficiaryName((String) data.get("beneficiary_name"))
+                    .accountNumber((String) data.get("account_number"))
+                    .ifscCode((String) data.get("ifsc_code"))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("[RUNPAISA] Exception during payout: {}", e.getMessage(), e);
+            return PayoutResponseDto.builder()
+                    .orderId(orderId)
+                    .vendorCode(getVendorCode())
+                    .status("FAILED")
+                    .message("RunPaisa error: " + e.getMessage())
+                    .amount(req.getAmount())
+                    .build();
+        }
+    }
+
+    private String generateTokenForAES(VendorCredentials vendorCredentials) {
+        // Call AES encrypt service
+        ResponseEntity<?> responseEntity = aesController.encryptCredentials(
+                new EncryptDecryptCredentialsDto(vendorCredentials.getUsername(), vendorCredentials.getPassword())
+        );
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> encryptedMap = (Map<String, String>) responseEntity.getBody();
+        String encUser = encryptedMap.get("cipherUsername");
+        String encPass = encryptedMap.get("cipherPassword");
+        String salt = encryptedMap.get("salt");
+        String iv = encryptedMap.get("iv");
+
+        // Build JSON for token request
+        Map<String, String> jsonBody = new HashMap<>();
+        jsonBody.put("username", encUser);
+        jsonBody.put("password", encPass);
+        jsonBody.put("client_id", vendorCredentials.getClientId());
+        jsonBody.put("salt", salt);
+        jsonBody.put("ivBase64", iv);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlUat(), requestEntity, Map.class);
+        Map<String, Object> responseBodyMap = response.getBody();
+        if (responseBodyMap == null || responseBodyMap.get("token") == null) {
+            throw new RuntimeException("AES token generation failed: " + responseBodyMap);
+        }
+
+        return (String) responseBodyMap.get("token");
+    }
+
+
+    public String generateTokenForPayout(VendorCredentials vendorCredentials) {
+
+        // Set headers only
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("client_id", vendorCredentials.getClientId());
+        headers.set("client_secret", vendorCredentials.getClientSecret());
+
+        HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
+
+        String url = vendorCredentials.getTokenUrlProd();
+        log.info("Sending token request to URL: {}", url);
+
+        ResponseEntity<PayoutTokenResponseDTO> response = restTemplate.postForEntity(
+                url,
+                requestEntity,
+                PayoutTokenResponseDTO.class
+        );
+
+        PayoutTokenResponseDTO tokenResponse = response.getBody();
+        log.info("Bearer token response: {}", tokenResponse);
+
+        if (tokenResponse != null && tokenResponse.getData() != null) {
+            return tokenResponse.getData().getToken();
+        } else {
+            throw new RuntimeException("Failed To Get Token From Payout Vendor");
+        }
+    }
+
+    @Override
+    public PayoutMerchantCallbackResponse registerCallbackUrl(VendorCredentials credentials, String callbackUrl) {
+        log.info("[RUNPAISA] Registering callback URL for merchant={} | callback={}",
+                credentials.getVendor().getVendorName(), callbackUrl);
+
+        try {
+            // Generate auth token
+            String token = generateTokenForPayout(credentials);
+
+            // Prepare headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("token", token);
+
+            // Prepare request body
+            Map<String, Object> body = new HashMap<>();
+            body.put("callback_url", callbackUrl);
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            String url = credentials.getBaseUrlProd() + "/updatemerchantcallback";
+            log.info("[RUNPAISA] Hitting callback registration API: {}", url);
+
+            ResponseEntity<PayoutMerchantCallbackResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    PayoutMerchantCallbackResponse.class
+            );
+
+            log.info("[RUNPAISA] Callback registered successfully. StatusCode={}, Response={}",
+                    response.getStatusCode(), response.getBody());
+
+            return response.getBody();
+
+        } catch (HttpStatusCodeException e) {
+            log.error("[RUNPAISA] HTTP error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            PayoutMerchantCallbackResponse errorResponse = new PayoutMerchantCallbackResponse();
+            errorResponse.setCode("500");
+            errorResponse.setMessage("Vendor API Error: " + e.getResponseBodyAsString());
+            return errorResponse;
+        } catch (Exception e) {
+            log.error("[RUNPAISA] Exception while registering callback URL: {}", e.getMessage(), e);
+            PayoutMerchantCallbackResponse errorResponse = new PayoutMerchantCallbackResponse();
+            errorResponse.setCode("500");
+            errorResponse.setMessage("Exception: " + e.getMessage());
+            return errorResponse;
+        }
+    }
+
+    @Override
+    public String handleCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String clientIp = request.getRemoteAddr();
+
+        log.info("---- [PAYOUT CALLBACK] Payload received: {}", payload);
+
+        try {
+            // Enable case-insensitive conversion just for this operation
+            objectMapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
+
+            // Convert directly to DTO (case-insensitive)
+            RunpaisaPayoutCallback payoutCallback = objectMapper.convertValue(payload, RunpaisaPayoutCallback.class);
+            log.info("---- [PAYOUT CALLBACK] Parsed DTO: {}", payoutCallback);
+
+            // Create a unified callback object
+            RunPaisaCallback callback = new RunPaisaCallback();
+            callback.setOrderId(payoutCallback.getOrder_id());
+            callback.setTxnAmount(payoutCallback.getTxn_amount());
+            callback.setStatus(payoutCallback.getStatus());
+            callback.setStatusCode(payoutCallback.getCode());
+            callback.setTxnInfo(payoutCallback.getMessage());
+            callback.setBankTxnId(payoutCallback.getUtr_no());
+
+            log.info("<------------------ Calling Process Callback Method ------------------>");
+            processCallback(callback);
+
+            // Save callback log
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
+                    "Payout callback processed successfully", LocalDateTime.now());
+            log.info("---- [PAYOUT CALLBACK] Successfully logged callback event");
+            return "Payout callback processed successfully";
+
+        } catch (Exception e) {
+            log.error("---- [PAYOUT CALLBACK] Error while processing payout callback: {}", e.getMessage(), e);
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
+                    e.getMessage(), LocalDateTime.now());
+            throw new RuntimeException("Payout callback processing failed");
+        }
+    }
+
+    public void processCallback(RunPaisaCallback callback) {
+        log.info("========== [RunPaisa CALLBACK RECEIVED] ==========");
+        log.info("========== ORDER_ID: {}, STATUS: {}, TXN_AMOUNT: {}",
+                callback.getOrderId(), callback.getStatus(), callback.getTxnAmount());
+
+        TransactionSchemeDetailsRequestDto dto = null;
+
+        try {
+            // Fetch pending transaction (for all statuses)
+            log.info("[1] Fetching pending transaction for ORDER_ID: {}", callback.getOrderId());
+            PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository.findByTransactionId(callback.getOrderId())
+                    .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + callback.getOrderId()));
+
+            log.info("[1.1] PendingTxn fetched successfully: ID={}, SchemeCode={}, TxnType={}, Amount={}, Status={}",
+                    pendingTxn.getId(), pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(),
+                    pendingTxn.getAmount(), pendingTxn.getStatus());
+
+            Double txnAmt = Double.valueOf(callback.getTxnAmount());
+
+            // Fetch matching SchemeRate
+            log.info("[2] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
+                    pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(), txnAmt);
+
+            SchemeRate selectedScheme = schemeRateRepository
+                    .findSchemeRateByCodeAndOperatorAndAmount(
+                            pendingTxn.getSchemeCode(),
+                            pendingTxn.getTransactionType(),
+                            txnAmt)
+                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + txnAmt));
+
+            log.info("[2.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
+                    selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
+                    selectedScheme.getGross(), selectedScheme.getRetailer());
+
+            // Fetch scheme entity
+            log.info("[3] Fetching Scheme entity for SchemeCode={}", selectedScheme.getSchemeCode());
+            Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                    .orElseThrow(() -> new RuntimeException("Scheme Not Found with code: " + selectedScheme.getSchemeCode()));
+
+            log.info("[3.1] Scheme fetched successfully: HashCode={}", scheme.getSchemeCombinationHashCode());
+
+            // Parse scheme combination hash code
+            String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+            if (hashParts.length < 2) {
+                throw new RuntimeException("Invalid schemeCombinationHashCode format: " + scheme.getSchemeCombinationHashCode());
+            }
+
+            short productId = Short.parseShort(hashParts[0]);
+            String subProductIdStr = hashParts[1];
+
+            log.info("[4] Extracted ProductID={}, SubProductID={} from SchemeCombinationHashCode", productId, subProductIdStr);
+
+            // Fetch product and subproduct
+            Products product = productsRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+            SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
+                    .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
+
+            log.info("[4.1] Product/SubProduct fetched successfully: Product={}, SubProduct={}",
+                    product.getName(), subProduct.getSubProductTitle());
+
+            // Prepare DTO (common for all statuses)
+            log.info("[5] Constructing TransactionSchemeDetailsRequestDto...");
+            dto = new TransactionSchemeDetailsRequestDto();
+
+            String orderId = callback.getOrderId();
+            String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+
+            dto.setBaseTranxId(baseTxnId);
+            dto.setAmount(txnAmt);
+            dto.setConfirmAmount(txnAmt);
+            dto.setOperatorName(pendingTxn.getTransactionType());
+            dto.setOperatorCode(selectedScheme.getOperatorCode());
+            dto.setSchemeRate(selectedScheme);
+            dto.setTransactionType(product.getTransactionType());
+            dto.setWalletType(subProduct.getWalletType());
+            dto.setGstValue(String.valueOf(product.getSgst()));
+            dto.setTdsRate(String.valueOf(product.getTds()));
+            dto.setProductCode(product.getProductCode());
+            dto.setSubProductCode(subProduct.getSubProductCode());
+            dto.setIsCommission(product.getIsCommissions());
+            dto.setHasCharge(product.getHasCharges());
+            dto.setHierarchyId(pendingTxn.getRetailerId());
+
+            log.info("[6] DTO ready for transaction processing: {}", dto);
+
+            // Process transaction for any status (SUCCESS, FAILED, PENDING, etc.)
+            transactionEngineServiceImpl.processTransaction(dto, callback.getStatus());
+            log.info("[7] Transaction processed successfully for ORDER_ID: {}, STATUS={}",
+                    callback.getOrderId(), callback.getStatus());
+
+        } catch (Exception ex) {
+            log.error("[ERROR] Exception while processing callback for ORDER_ID={} | Error={}",
+                    callback.getOrderId(), ex.getMessage(), ex);
+        }
+
+        log.info("========== [RunPaisa CALLBACK PROCESSING COMPLETED] ORDER_ID={} ==========", callback.getOrderId());
+    }
+
+    @Override
+    public PayoutStatusResponse checkPayoutStatus(String orderId, VendorCredentials credentials) {
+        try {
+            String token = generateTokenForPayout(credentials);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("token", token);
+
+            Map<String, String> requestBody = Map.of("order_id", orderId);
+
+            HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
+
+            String url = credentials.getBaseUrlProd() + "/status";
+            log.info("[RUNPAISA] Checking status for orderId={} via {}", orderId, url);
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    Map.class
+            );
+
+            Map<String, Object> body = response.getBody();
+            log.info("[RUNPAISA] Raw status response: {}", body);
+
+            return new PayoutStatusResponse(
+                    orderId,
+                    (String) body.get("status"),
+                    (String) body.get("message")
+            );
+
+        } catch (Exception e) {
+            log.error("[RUNPAISA] Error checking status for orderId={}: {}", orderId, e.getMessage());
+            return new PayoutStatusResponse(orderId, "FAILED", "Error during status check");
+        }
+    }
+
+}
