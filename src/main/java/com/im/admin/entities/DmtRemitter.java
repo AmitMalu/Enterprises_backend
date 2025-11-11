@@ -22,6 +22,9 @@ public class DmtRemitter {
     private String ekycId;
     private String stateResp;
 
+    @Column(name = "limit_amount")
+    private Double limitAmount;
+
     @Column(columnDefinition = "VARCHAR(20) DEFAULT 'PENDING'")
     private String status; // PENDING / REGISTERED
 
