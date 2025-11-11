@@ -20,7 +20,7 @@ public class PayoutCheckStatusScheduler {
     @Autowired
     private PayoutOrchestrator payoutOrchestrator;
 
-    @Scheduled(cron = "0 */15 * * * *")  // every 10 minutes
+    @Scheduled(cron = "0 */10 * * * *")  // every 10 minutes
     @Transactional
     public void runPendingTransactionCheck() {
         log.info("=== [SCHEDULER] Checking vendor payout statuses ===");
