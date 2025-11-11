@@ -157,161 +157,221 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     @Override
     @Transactional
     public String processTransaction(TransactionSchemeDetailsRequestDto dto, String vendorCallbackStatus) {
-        String baseTransactionId = dto.getBaseTranxId(); // Single base ID for full flow
-        log.info("[TXN_PROCESS] Starting transaction processing | BaseTxnID={} | VendorStatus={}", baseTransactionId, vendorCallbackStatus);
-
+        String baseTransactionId = dto.getBaseTranxId();
         String retailerId = dto.getHierarchyId();
+        String walletType = dto.getWalletType().toUpperCase();
+        String tranxType = dto.getTransactionType().toLowerCase();
         BigDecimal tranxAmount = BigDecimal.valueOf(dto.getAmount());
         BigDecimal grossAmount = BigDecimal.valueOf(dto.getSchemeRate().getGross());
-        String walletType = dto.getWalletType().toUpperCase();
         String taxValue = dto.getGstValue();
-        String tranxType = dto.getTransactionType().toLowerCase();
 
-        log.info("[TXN_PROCESS] Transaction details: RetailerID={} | Type={} | WalletType={} | Amount={} | Gross={} | TaxValue={}",
-                retailerId, tranxType, walletType, tranxAmount, grossAmount, taxValue);
+        log.info("[TXN_PROCESS] Start | BaseTxnID={} | RetailerID={} | Type={} | Wallet={} | Amount={} | Gross={} | Tax={} | VendorStatus={}",
+                baseTransactionId, retailerId, tranxType, walletType, tranxAmount, grossAmount, taxValue, vendorCallbackStatus);
 
         AbstractWalletAmountTable wallet = getWalletByType(walletType, retailerId);
-        log.info("[WALLET] Current Balance for {} wallet: {}", walletType, wallet.getAvailableBalance());
+        log.info("[WALLET] Initial Balance ({}): {}", walletType, wallet.getAvailableBalance());
 
-        Boolean isSettlement = subProductsRepository.findIsSettlementByCode(dto.getSubProductCode());
-        if (isSettlement == null) {
-            log.error("[TXN_PROCESS] Invalid SubProductCode: {}", dto.getSubProductCode());
-            throw new IllegalArgumentException("Invalid SubProductCode: " + dto.getSubProductCode());
+        Boolean isSettlement = validateAndFetchSettlement(dto.getSubProductCode());
+        log.info("[TXN_PROCESS] Settlement Flag: {}", isSettlement);
+
+        if (isCredit(tranxType)) {
+            return handleCreditTransaction(dto, wallet, vendorCallbackStatus, tranxAmount, grossAmount, taxValue, baseTransactionId, isSettlement);
+        } else if (isDebit(tranxType)) {
+            return handleDebitTransaction(dto, wallet, vendorCallbackStatus, tranxAmount, grossAmount, taxValue, baseTransactionId, isSettlement);
         }
-        log.info("[TXN_PROCESS] Settlement Flag for SubProductCode {}: {}", dto.getSubProductCode(), isSettlement);
 
-        if (tranxType.equalsIgnoreCase("credit")) {
-            log.info("[TXN_PROCESS] Processing CREDIT flow...");
+        throw new IllegalArgumentException("Unsupported transaction type: " + tranxType);
+    }
 
-            // Vendor call BEFORE wallet impact
-            //String vendorResponse = callVendor(dto);
-            log.debug("[VENDOR] Vendor callback status for CREDIT: {}", vendorCallbackStatus);
+    private String handleCreditTransaction(TransactionSchemeDetailsRequestDto dto,
+                                           AbstractWalletAmountTable wallet,
+                                           String vendorStatus,
+                                           BigDecimal tranxAmount,
+                                           BigDecimal grossAmount,
+                                           String taxValue,
+                                           String baseTransactionId,
+                                           boolean isSettlement) {
 
-            if ("PENDING".equalsIgnoreCase(vendorCallbackStatus)) {
-                log.info("[TXN_PROCESS] CREDIT pending — inserting transaction without wallet impact.");
-                insertTransaction(wallet, "PENDING", tranxAmount,
-                        wallet.getAvailableBalance(), wallet.getAvailableBalance(),
-                        "Vendor Pending - Credit", buildTransactionId("TXN", baseTransactionId), "CREDIT", dto);
+        log.info("[TXN_CREDIT] Processing CREDIT flow...");
+
+        switch (vendorStatus.toUpperCase()) {
+            case "PENDING":
+                insertPendingTransaction(wallet, tranxAmount, baseTransactionId, dto, "Vendor Pending - Credit", "CREDIT");
                 return "Transaction pending - no wallet update";
-            }
 
-            if ("FAILURE".equalsIgnoreCase(vendorCallbackStatus) || "FAILED".equalsIgnoreCase(vendorCallbackStatus)) {
-                log.warn("[TXN_PROCESS] Vendor reported FAILURE for CREDIT — recording failed transaction.");
-                insertTransaction(wallet, "FAILURE", tranxAmount,
-                        wallet.getAvailableBalance(), wallet.getAvailableBalance(),
-                        "Vendor Failure - No Credit", buildTransactionId("FLD", baseTransactionId), "CREDIT", dto);
+            case "FAILURE":
+            case "FAILED":
+                insertFailedTransaction(wallet, tranxAmount, baseTransactionId, dto, "Vendor Failure - No Credit", "CREDIT");
                 return "Vendor transaction failed";
-            }
 
-            if (Boolean.TRUE.equals(isSettlement)) {
-                log.info("[TXN_PROCESS] CREDIT is settlement-based — marking as SETTLEMENT_PENDING.");
-                insertTransaction(wallet, "SETTLEMENT_PENDING", tranxAmount,
-                        wallet.getAvailableBalance(), wallet.getAvailableBalance(),
-                        "Settlement Pending - Credit " + walletType.toUpperCase(),
-                        buildTransactionId("TXN", baseTransactionId), "CREDIT", dto);
-                return "Transaction marked as pending for settlement";
-            }
-
-            // On Success
-            log.info("[TXN_PROCESS] CREDIT SUCCESS — updating wallet and processing commissions.");
-            updateWallet(dto, wallet, tranxAmount, tranxType, baseTransactionId, vendorCallbackStatus, "CREDIT");
-            processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, vendorCallbackStatus);
+            default:
+                if (isSettlement) {
+                    insertPendingTransaction(wallet, tranxAmount, baseTransactionId, dto, "Settlement Pending - Credit", "CREDIT");
+                    return "Transaction marked as pending for settlement";
+                }
+                // On success
+                updateWallet(dto, wallet, tranxAmount, "credit", baseTransactionId, vendorStatus, "CREDIT");
+                processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, vendorStatus);
+                break;
         }
 
-        else if (tranxType.equalsIgnoreCase("debit")) {
-            log.info("[TXN_PROCESS] Processing DEBIT flow...");
+        saveWallet(dto.getWalletType(), wallet);
+        return "Credit transaction successful";
+    }
 
-            // Step 1: Check balance
-            if (hasSufficientBalance(retailerId, tranxAmount, grossAmount, walletType)) {
-                log.warn("[WALLET] Insufficient balance for DEBIT | RetailerID={} | Required={} | Available={}",
-                        retailerId, tranxAmount, wallet.getAvailableBalance());
-                return "Insufficient balance";
-            }
 
-            // Step 2: Debit now
-            //log.info("[WALLET] Debiting wallet | Amount={} | WalletType={} | RetailerID={}",
-            //        tranxAmount, walletType, retailerId);
-            //updateWallet(dto, wallet, tranxAmount, tranxType, baseTransactionId, "PENDING", "DEBIT");
+    private String handleDebitTransaction(TransactionSchemeDetailsRequestDto dto,
+                                          AbstractWalletAmountTable wallet,
+                                          String vendorStatus,
+                                          BigDecimal tranxAmount,
+                                          BigDecimal grossAmount,
+                                          String taxValue,
+                                          String baseTransactionId,
+                                          boolean isSettlement) {
 
-            // Step 3: Call vendor
-            //String vendorResponse = callVendor(dto);
-            log.debug("[VENDOR] Vendor callback status for DEBIT: {}", vendorCallbackStatus);
+        log.info("[TXN_DEBIT] Processing DEBIT flow...");
 
-            if ("PENDING".equalsIgnoreCase(vendorCallbackStatus)) {
-                log.info("[TXN_PROCESS] DEBIT marked as pending by vendor. Returning with partial update.");
+        if (!hasSufficientBalance(dto.getHierarchyId(), tranxAmount, grossAmount, dto.getWalletType())) {
+            log.warn("[WALLET] Insufficient balance | RetailerID={} | Required={} | Available={}",
+                    dto.getHierarchyId(), tranxAmount, wallet.getAvailableBalance());
+            return "Insufficient balance";
+        }
+
+        switch (vendorStatus.toUpperCase()) {
+            case "PENDING":
                 return "Transaction pending - debit applied";
-            }
 
-            if ("FAILURE".equalsIgnoreCase(vendorCallbackStatus) || "FAILED".equalsIgnoreCase(vendorCallbackStatus)) {
-                log.warn("[TXN_PROCESS] Vendor FAILURE — reversing debit.");
-                BigDecimal beforeReversal = wallet.getAvailableBalance();
-                wallet.setAvailableBalance(beforeReversal.add(tranxAmount));
-                wallet.setTotalCash(wallet.getTotalCash().add(tranxAmount));
-                BigDecimal afterReversal = wallet.getAvailableBalance();
-
-                log.info("[WALLET] Debit reversal applied | Before={} | After={} | Amount={}", beforeReversal, afterReversal, tranxAmount);
-
-                updateTransactionStatus("TXN" + baseTransactionId, "FAILURE", walletType);
-
-                insertTransaction(wallet, "REVERSAL", tranxAmount,
-                        beforeReversal, afterReversal,
-                        "Vendor Failed - Debit Reversed", buildTransactionId("REV", baseTransactionId), "DEBIT", dto);
+            case "FAILURE":
+            case "FAILED":
+                reverseDebit(wallet, tranxAmount, baseTransactionId, dto);
                 return "Vendor transaction failed and reversed";
-            }
 
-            if (Boolean.TRUE.equals(isSettlement)) {
-                log.info("[TXN_PROCESS] DEBIT marked as settlement pending.");
-                updateTransactionStatus("TXN" + baseTransactionId, "SETTLEMENT_PENDING", walletType);
-                return "Transaction marked as pending for settlement";
-            }
-
-            // On Success
-            log.info("[TXN_PROCESS] DEBIT SUCCESS — updating status and mirroring transaction.");
-            updateTransactionStatus("TXN" + baseTransactionId, "SUCCESS", walletType);
-
-            mirrorTransactionToAdminOrWhitelabel(dto.getHierarchyId(), tranxType, tranxAmount,
-                    walletType, "TXN" + baseTransactionId, "Credit", "SUCCESS", dto);
-
-            log.info("[TXN_PROCESS] Processing commissions and charges for DEBIT.");
-            processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, "SUCCESS");
+            default:
+                if (isSettlement) {
+                    updateTransactionStatus("TXN" + baseTransactionId, "SETTLEMENT_PENDING", dto.getWalletType());
+                    return "Transaction marked as pending for settlement";
+                }
+                // On success
+                updateTransactionStatus("TXN" + baseTransactionId, "SUCCESS", dto.getWalletType());
+                mirrorTransactionToAdminOrWhitelabel(dto.getHierarchyId(), "debit", tranxAmount,
+                        dto.getWalletType(), "TXN" + baseTransactionId, "Credit", "SUCCESS", dto);
+                processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, "SUCCESS");
+                break;
         }
 
-        log.info("[WALLET] Saving wallet changes | RetailerID={} | WalletType={} | FinalBalance={}",
-                retailerId, walletType, wallet.getAvailableBalance());
-        saveWallet(walletType, wallet);
-
-        log.info("[TXN_PROCESS] Transaction completed successfully | BaseTxnID={} | Type={} | WalletType={} | Amount={}",
-                baseTransactionId, tranxType, walletType, tranxAmount);
-
-        return "Transaction Successful";
+        saveWallet(dto.getWalletType(), wallet);
+        return "Debit transaction successful";
     }
 
+    private boolean isCredit(String type) {
+        return "credit".equalsIgnoreCase(type);
+    }
 
+    private boolean isDebit(String type) {
+        return "debit".equalsIgnoreCase(type);
+    }
+
+    private Boolean validateAndFetchSettlement(String subProductCode) {
+        Boolean isSettlement = subProductsRepository.findIsSettlementByCode(subProductCode);
+        if (isSettlement == null) {
+            log.error("[TXN_PROCESS] Invalid SubProductCode: {}", subProductCode);
+            throw new IllegalArgumentException("Invalid SubProductCode: " + subProductCode);
+        }
+        return isSettlement;
+    }
+
+    private void insertPendingTransaction(AbstractWalletAmountTable wallet, BigDecimal amount,
+                                          String baseTxnId, TransactionSchemeDetailsRequestDto dto,
+                                          String remark, String type) {
+        insertTransaction(wallet, "PENDING", amount,
+                wallet.getAvailableBalance(), wallet.getAvailableBalance(),
+                remark, buildTransactionId("TXN", baseTxnId), type, dto);
+    }
+
+    private void insertFailedTransaction(AbstractWalletAmountTable wallet, BigDecimal amount,
+                                         String baseTxnId, TransactionSchemeDetailsRequestDto dto,
+                                         String remark, String type) {
+        insertTransaction(wallet, "FAILURE", amount,
+                wallet.getAvailableBalance(), wallet.getAvailableBalance(),
+                remark, buildTransactionId("FLD", baseTxnId), type, dto);
+    }
+
+    private void reverseDebit(AbstractWalletAmountTable wallet, BigDecimal amount,
+                              String baseTxnId, TransactionSchemeDetailsRequestDto dto) {
+        BigDecimal before = wallet.getAvailableBalance();
+        wallet.setAvailableBalance(before.add(amount));
+        wallet.setTotalCash(wallet.getTotalCash().add(amount));
+        updateTransactionStatus("TXN" + baseTxnId, "FAILURE", dto.getWalletType());
+        insertTransaction(wallet, "REVERSAL", amount, before, wallet.getAvailableBalance(),
+                "Vendor Failed - Debit Reversed", buildTransactionId("REV", baseTxnId), "DEBIT", dto);
+    }
+
+    private static final String WALLET_PREPAID = "PREPAID";
+    private static final String WALLET_POSTPAID = "POSTPAID";
+
+    /**
+     * Updates transaction status in respective wallet table based on wallet type.
+     */
     private void updateTransactionStatus(String transactionId, String status, String walletType) {
-        if ("PREPAID".equalsIgnoreCase(walletType)) {
-            Optional<RetailerPrepaidTransactionDetails> txnOpt = retailerPrepaidTransactionDetailsRepository.findByTransactionId(transactionId);
-            if (txnOpt.isPresent()) {
-                RetailerPrepaidTransactionDetails txn = txnOpt.get();
-                txn.setActionOnBalanceAmount("Deduct Funds - PREPAID");
-                txn.setTranStatus(status);
-                retailerPrepaidTransactionDetailsRepository.save(txn);
-            } else {
-                throw new RuntimeException("Transaction not found in Prepaid table: " + transactionId);
-            }
-        } else if ("POSTPAID".equalsIgnoreCase(walletType)) {
-            Optional<RetailerPostpaidTransactionDetails> txnOpt = retailerPostpaidTransactionDetailsRepository.findByTransactionId(transactionId);
-            if (txnOpt.isPresent()) {
-                RetailerPostpaidTransactionDetails txn = txnOpt.get();
-                txn.setActionOnBalanceAmount("Deduct Funds - POSTPAID");
-                txn.setTranStatus(status);
-                retailerPostpaidTransactionDetailsRepository.save(txn);
-            } else {
-                throw new RuntimeException("Transaction not found in Postpaid table: " + transactionId);
-            }
-        } else {
-            throw new IllegalArgumentException("Invalid wallet type: " + walletType);
+        log.info("[TXN_STATUS] Updating transaction | TxnID={} | Status={} | WalletType={}", transactionId, status, walletType);
+
+        switch (walletType.toUpperCase()) {
+            case WALLET_PREPAID -> updatePrepaidTransaction(transactionId, status);
+            case WALLET_POSTPAID -> updatePostpaidTransaction(transactionId, status);
+            default -> throw new IllegalArgumentException("Invalid wallet type: " + walletType);
         }
     }
+
+    private void updatePrepaidTransaction(String transactionId, String status) {
+        retailerPrepaidTransactionDetailsRepository.findByTransactionId(transactionId)
+                .ifPresentOrElse(txn -> {
+                    txn.setActionOnBalanceAmount("Deduct Funds - PREPAID");
+                    txn.setTranStatus(status);
+                    retailerPrepaidTransactionDetailsRepository.save(txn);
+                    log.debug("[TXN_STATUS] Updated PREPAID transaction: {}", transactionId);
+                }, () -> {
+                    throw new EntityNotFoundException("Prepaid transaction not found: " + transactionId);
+                });
+    }
+
+    private void updatePostpaidTransaction(String transactionId, String status) {
+        retailerPostpaidTransactionDetailsRepository.findByTransactionId(transactionId)
+                .ifPresentOrElse(txn -> {
+                    txn.setActionOnBalanceAmount("Deduct Funds - POSTPAID");
+                    txn.setTranStatus(status);
+                    retailerPostpaidTransactionDetailsRepository.save(txn);
+                    log.debug("[TXN_STATUS] Updated POSTPAID transaction: {}", transactionId);
+                }, () -> {
+                    throw new EntityNotFoundException("Postpaid transaction not found: " + transactionId);
+                });
+    }
+
+
+//    private void updateTransactionStatus(String transactionId, String status, String walletType) {
+//        if ("PREPAID".equalsIgnoreCase(walletType)) {
+//            Optional<RetailerPrepaidTransactionDetails> txnOpt = retailerPrepaidTransactionDetailsRepository.findByTransactionId(transactionId);
+//            if (txnOpt.isPresent()) {
+//                RetailerPrepaidTransactionDetails txn = txnOpt.get();
+//                txn.setActionOnBalanceAmount("Deduct Funds - PREPAID");
+//                txn.setTranStatus(status);
+//                retailerPrepaidTransactionDetailsRepository.save(txn);
+//            } else {
+//                throw new RuntimeException("Transaction not found in Prepaid table: " + transactionId);
+//            }
+//        } else if ("POSTPAID".equalsIgnoreCase(walletType)) {
+//            Optional<RetailerPostpaidTransactionDetails> txnOpt = retailerPostpaidTransactionDetailsRepository.findByTransactionId(transactionId);
+//            if (txnOpt.isPresent()) {
+//                RetailerPostpaidTransactionDetails txn = txnOpt.get();
+//                txn.setActionOnBalanceAmount("Deduct Funds - POSTPAID");
+//                txn.setTranStatus(status);
+//                retailerPostpaidTransactionDetailsRepository.save(txn);
+//            } else {
+//                throw new RuntimeException("Transaction not found in Postpaid table: " + transactionId);
+//            }
+//        } else {
+//            throw new IllegalArgumentException("Invalid wallet type: " + walletType);
+//        }
+//    }
 
     private void saveWallet(String walletType, AbstractWalletAmountTable wallet) {
         if ("PREPAID".equals(walletType)) {
@@ -404,81 +464,155 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         log.info("==== [processChargesAndCommission] END for Transaction ID: {} ====", baseTransactionId);
     }
 
-
     private void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
                                 BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
 
-        log.info("---- [Charges] Starting processCharges | BaseTxnId: {} | WalletType: {} | Hierarchy: {} | TranStatus: {}",
+        log.info("[CHARGES] Start | BaseTxnId={} | WalletType={} | Hierarchy={} | Status={}",
                 baseTransactionId, dto.getWalletType(), dto.getHierarchyId(), tranStatus);
 
-        BigDecimal grossAmount;
-
-        if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
-            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
-                    //.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
-            grossAmount = BigDecimal.valueOf(dto.getAmount())
-                    .multiply(percentage)
-                    .setScale(4, RoundingMode.HALF_UP);
-            log.debug("---- [Charges] Gross calculated as percentage | RateType: {} | Percentage: {} | GrossAmount: {}",
-                    dto.getSchemeRate().getRateType(), percentage, grossAmount);
-        } else {
-            grossAmount = grossAmountInput;
-            log.debug("---- [Charges] Gross taken as fixed | GrossAmountInput: {}", grossAmount);
-        }
+        BigDecimal grossAmount = calculateGross(dto, grossAmountInput);
+        BigDecimal gstRate = new BigDecimal(gstValue).divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
 
         // Step 1: Calculate GST and base
-        BigDecimal gstRate = new BigDecimal(gstValue)
-                .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
-        BigDecimal divisor = BigDecimal.ONE.add(gstRate);
-        BigDecimal baseAmount = grossAmount.divide(divisor, 10, RoundingMode.HALF_UP);
+        BigDecimal baseAmount = grossAmount.divide(BigDecimal.ONE.add(gstRate), 10, RoundingMode.HALF_UP);
         BigDecimal gstAmount = grossAmount.subtract(baseAmount).setScale(4, RoundingMode.HALF_UP);
 
-        log.debug("---- [Charges] GST calculation | GSTValue: {} | GSTRate: {} | BaseAmount: {} | GSTAmount: {} | GrossAmount: {}",
-                gstValue, gstRate, baseAmount, gstAmount, grossAmount);
+        log.debug("[CHARGES] Split amounts | Gross={} | Base={} | GST={} | GST%={}", grossAmount, baseAmount, gstAmount, gstValue);
 
-        // Step 2: Deduct base
-        BigDecimal beforeBase = wallet.getAvailableBalance();
-        wallet.setAvailableBalance(beforeBase.subtract(baseAmount));
-        BigDecimal afterBase = wallet.getAvailableBalance();
-        log.info("---- [Charges] Deducting BaseAmount from Wallet | Before: {} | Deduct: {} | After: {}",
-                beforeBase, baseAmount, afterBase);
+        // Step 2: Deduct base and GST from wallet
+        deductCharge(wallet, dto, baseAmount, "CHG", "Deduct Funds (Charge)", baseTransactionId, tranStatus);
+        deductCharge(wallet, dto, gstAmount, "GST", "Deduct Funds (GST)", baseTransactionId, tranStatus);
 
-        insertTransaction(wallet, tranStatus, baseAmount, beforeBase, afterBase,
-                "Deduct Funds (Charge) - " + dto.getWalletType().toUpperCase(),
-                buildTransactionId("CHG", baseTransactionId), "DEBIT", dto);
+        // Step 3: Update wallet meta
+        updateWalletMeta(wallet, baseAmount.add(gstAmount), gstAmount);
 
-        mirrorTransactionToAdminOrWhitelabel(dto.getHierarchyId(), "DEBIT", baseAmount, dto.getWalletType(),
-                "CHG" + baseTransactionId, "(Charge)", tranStatus, dto);
+        // Step 4: Credit GST to admin/whitelabel
+        log.info("[CHARGES] Crediting GST {} to Admin/Whitelabel for HierarchyId={}", gstAmount, dto.getHierarchyId());
+        creditGstToAdminOrWhitelabel(dto.getHierarchyId(), dto.getWalletType(), gstAmount, baseTransactionId, tranStatus, dto);
 
-        // Step 3: Deduct GST
-        BigDecimal beforeGst = wallet.getAvailableBalance();
-        wallet.setAvailableBalance(beforeGst.subtract(gstAmount));
-        BigDecimal afterGst = wallet.getAvailableBalance();
-        log.info("---- [Charges] Deducting GSTAmount from Wallet | Before: {} | Deduct: {} | After: {}",
-                beforeGst, gstAmount, afterGst);
+        log.info("[CHARGES] Completed | BaseTxnId={} | WalletType={}", baseTransactionId, dto.getWalletType());
+    }
 
-        insertTransaction(wallet, tranStatus, gstAmount, beforeGst, afterGst,
-                "Deduct Funds (GST) - " + dto.getWalletType().toUpperCase(),
-                buildTransactionId("GST", baseTransactionId), "DEBIT", dto);
+    private BigDecimal calculateGross(TransactionSchemeDetailsRequestDto dto, BigDecimal grossAmountInput) {
+        if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
+            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
+            BigDecimal gross = BigDecimal.valueOf(dto.getAmount())
+                    .multiply(percentage)
+                    .setScale(4, RoundingMode.HALF_UP);
+            log.debug("[CHARGES] Gross calculated by percentage | Rate={} | Percentage={} | Gross={}",
+                    dto.getSchemeRate().getRateType(), percentage, gross);
+            return gross;
+        }
+        log.debug("[CHARGES] Gross taken as fixed | Gross={}", grossAmountInput);
+        return grossAmountInput;
+    }
 
-        // Step 4: Update wallet meta
-        wallet.setUsedCash(wallet.getUsedCash().add(baseAmount.add(gstAmount)));
-        wallet.setLastUpdatedAmount(gstAmount);
+
+    private void deductCharge(AbstractWalletAmountTable wallet, TransactionSchemeDetailsRequestDto dto,
+                              BigDecimal amount, String prefix, String remark,
+                              String baseTransactionId, String tranStatus) {
+
+        BigDecimal before = wallet.getAvailableBalance();
+        wallet.setAvailableBalance(before.subtract(amount));
+        BigDecimal after = wallet.getAvailableBalance();
+
+        String transactionId = buildTransactionId(prefix, baseTransactionId);
+        log.info("[CHARGES] Deduct {} | Before={} | Amount={} | After={} | TxnId={}",
+                prefix, before, amount, after, transactionId);
+
+        insertTransaction(wallet, tranStatus, amount, before, after,
+                remark + " - " + dto.getWalletType().toUpperCase(), transactionId, "DEBIT", dto);
+
+        mirrorTransactionToAdminOrWhitelabel(dto.getHierarchyId(), "DEBIT", amount, dto.getWalletType(),
+                prefix + baseTransactionId, "(" + prefix + ")", tranStatus, dto);
+    }
+
+    private void updateWalletMeta(AbstractWalletAmountTable wallet, BigDecimal totalDeducted, BigDecimal lastAmount) {
+        wallet.setUsedCash(wallet.getUsedCash().add(totalDeducted));
+        wallet.setLastUpdatedAmount(lastAmount);
         wallet.setLastUpdatedDate(LocalDate.now());
         wallet.setLastUpdatedTime(LocalTime.now());
 
-        log.debug("---- [Charges] Wallet meta updated | UsedCash: {} | LastUpdatedAmount: {} | DateTime: {} {}",
+        log.debug("[WALLET_META] Updated | UsedCash={} | LastAmount={} | Time={} {}",
                 wallet.getUsedCash(), wallet.getLastUpdatedAmount(),
                 wallet.getLastUpdatedDate(), wallet.getLastUpdatedTime());
-
-        // Step 5: Credit GST to Admin
-        log.info("---- [Charges] Crediting GST {} to Admin for HierarchyId: {}", gstAmount, dto.getHierarchyId());
-        creditGstToAdminOrWhitelabel(dto.getHierarchyId(), dto.getWalletType(), gstAmount,
-                baseTransactionId, tranStatus, dto);
-
-        log.info("---- [Charges] Completed processCharges | BaseTxnId: {} | WalletType: {}", baseTransactionId, dto.getWalletType());
     }
 
+
+//
+//    private void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
+//                                BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
+//
+//        log.info("---- [Charges] Starting processCharges | BaseTxnId: {} | WalletType: {} | Hierarchy: {} | TranStatus: {}",
+//                baseTransactionId, dto.getWalletType(), dto.getHierarchyId(), tranStatus);
+//
+//        BigDecimal grossAmount;
+//
+//        if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
+//            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
+//                    //.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+//            grossAmount = BigDecimal.valueOf(dto.getAmount())
+//                    .multiply(percentage)
+//                    .setScale(4, RoundingMode.HALF_UP);
+//            log.debug("---- [Charges] Gross calculated as percentage | RateType: {} | Percentage: {} | GrossAmount: {}",
+//                    dto.getSchemeRate().getRateType(), percentage, grossAmount);
+//        } else {
+//            grossAmount = grossAmountInput;
+//            log.debug("---- [Charges] Gross taken as fixed | GrossAmountInput: {}", grossAmount);
+//        }
+//
+//        // Step 1: Calculate GST and base
+//        BigDecimal gstRate = new BigDecimal(gstValue)
+//                .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
+//        BigDecimal divisor = BigDecimal.ONE.add(gstRate);
+//        BigDecimal baseAmount = grossAmount.divide(divisor, 10, RoundingMode.HALF_UP);
+//        BigDecimal gstAmount = grossAmount.subtract(baseAmount).setScale(4, RoundingMode.HALF_UP);
+//
+//        log.debug("---- [Charges] GST calculation | GSTValue: {} | GSTRate: {} | BaseAmount: {} | GSTAmount: {} | GrossAmount: {}",
+//                gstValue, gstRate, baseAmount, gstAmount, grossAmount);
+//
+//        // Step 2: Deduct base
+//        BigDecimal beforeBase = wallet.getAvailableBalance();
+//        wallet.setAvailableBalance(beforeBase.subtract(baseAmount));
+//        BigDecimal afterBase = wallet.getAvailableBalance();
+//        log.info("---- [Charges] Deducting BaseAmount from Wallet | Before: {} | Deduct: {} | After: {}",
+//                beforeBase, baseAmount, afterBase);
+//
+//        insertTransaction(wallet, tranStatus, baseAmount, beforeBase, afterBase,
+//                "Deduct Funds (Charge) - " + dto.getWalletType().toUpperCase(),
+//                buildTransactionId("CHG", baseTransactionId), "DEBIT", dto);
+//
+//        mirrorTransactionToAdminOrWhitelabel(dto.getHierarchyId(), "DEBIT", baseAmount, dto.getWalletType(),
+//                "CHG" + baseTransactionId, "(Charge)", tranStatus, dto);
+//
+//        // Step 3: Deduct GST
+//        BigDecimal beforeGst = wallet.getAvailableBalance();
+//        wallet.setAvailableBalance(beforeGst.subtract(gstAmount));
+//        BigDecimal afterGst = wallet.getAvailableBalance();
+//        log.info("---- [Charges] Deducting GSTAmount from Wallet | Before: {} | Deduct: {} | After: {}",
+//                beforeGst, gstAmount, afterGst);
+//
+//        insertTransaction(wallet, tranStatus, gstAmount, beforeGst, afterGst,
+//                "Deduct Funds (GST) - " + dto.getWalletType().toUpperCase(),
+//                buildTransactionId("GST", baseTransactionId), "DEBIT", dto);
+//
+//        // Step 4: Update wallet meta
+//        wallet.setUsedCash(wallet.getUsedCash().add(baseAmount.add(gstAmount)));
+//        wallet.setLastUpdatedAmount(gstAmount);
+//        wallet.setLastUpdatedDate(LocalDate.now());
+//        wallet.setLastUpdatedTime(LocalTime.now());
+//
+//        log.debug("---- [Charges] Wallet meta updated | UsedCash: {} | LastUpdatedAmount: {} | DateTime: {} {}",
+//                wallet.getUsedCash(), wallet.getLastUpdatedAmount(),
+//                wallet.getLastUpdatedDate(), wallet.getLastUpdatedTime());
+//
+//        // Step 5: Credit GST to Admin
+//        log.info("---- [Charges] Crediting GST {} to Admin for HierarchyId: {}", gstAmount, dto.getHierarchyId());
+//        creditGstToAdminOrWhitelabel(dto.getHierarchyId(), dto.getWalletType(), gstAmount,
+//                baseTransactionId, tranStatus, dto);
+//
+//        log.info("---- [Charges] Completed processCharges | BaseTxnId: {} | WalletType: {}", baseTransactionId, dto.getWalletType());
+//    }
 
     private void creditGstToAdmin(String receiverHierarchyId, String retailerId, String walletType,
                                   BigDecimal gstAmount, String baseTransactionId, String tranStatus,
@@ -527,88 +661,268 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     }
 
 
+//    private void processCommission(TransactionSchemeDetailsRequestDto dto,
+//                                   String baseTransactionId,
+//                                   String tranStatus,
+//                                   TransactionSchemeDetailsRequestDto request) {
+//
+//        log.info("==== [processCommission] START ====");
+//        log.info("Transaction ID: {}, HierarchyId: {}, WalletType: {}, Status: {}, Amount: {}",
+//                baseTransactionId, dto.getHierarchyId(), dto.getWalletType(), tranStatus, dto.getAmount());
+//        log.info("TDS Rate: {}, SchemeRateType: {}", dto.getTdsRate(), dto.getSchemeRate().getRateType());
+//
+//        try {
+//            BigDecimal tdsRate = new BigDecimal(dto.getTdsRate());
+//
+//            // Step 1: Retailer commission
+//            if (dto.getSchemeRate().getRetailer() > 0) {
+//                log.info("---- [Commission Step 1] Processing Retailer commission for HierarchyId: {} ----", dto.getHierarchyId());
+//                BigDecimal retailerCommission = calculateCommissionAmount(
+//                        dto.getSchemeRate().getRetailer(),
+//                        BigDecimal.valueOf(dto.getAmount()),
+//                        dto.getSchemeRate().getRateType().toString()
+//                );
+//                log.info("Retailer Commission Calculated: {}", retailerCommission);
+//
+//                distributeCommissionToHierarchy(
+//                        "RT", dto.getHierarchyId(),
+//                        retailerCommission, dto.getWalletType(),
+//                        tdsRate, baseTransactionId, tranStatus, request
+//                );
+//                log.info("Retailer Commission Distributed Successfully for HierarchyId: {}", dto.getHierarchyId());
+//            } else {
+//                log.info("---- [Commission Step 1] Skipped (Retailer commission rate = 0) ----");
+//            }
+//
+//            // Step 2: Parent hierarchy commission
+//            log.info("---- [Commission Step 2] Traversing and distributing commission to parent hierarchies ----");
+//            Retailer retailer = retailerRepository.findByRetailerId(dto.getHierarchyId())
+//                    .orElseThrow(() -> new RuntimeException("Retailer not found: " + dto.getHierarchyId()));
+//
+//            distributeCommissionToHierarchies(
+//                    BigDecimal.valueOf(dto.getAmount()),
+//                    retailer.getParentAccount(),
+//                    dto.getSchemeRate(),
+//                    dto.getWalletType(),
+//                    tdsRate,
+//                    baseTransactionId,
+//                    new HashSet<>(),
+//                    tranStatus,
+//                    request
+//            );
+//            log.info("Parent Hierarchy Commission Distribution Completed for Base Transaction: {}", baseTransactionId);
+//
+//            // Step 3: Admin-level commission
+//            if (dto.getSchemeRate().getIm() > 0) {
+//                log.info("---- [Commission Step 3] Processing Admin-level commission ----");
+//                BigDecimal adminCommission = calculateCommissionAmount(
+//                        dto.getSchemeRate().getIm(),
+//                        BigDecimal.valueOf(dto.getAmount()),
+//                        dto.getSchemeRate().getRateType().toString()
+//                );
+//                log.info("Admin Commission Calculated: {}", adminCommission);
+//
+//                getAdminHierarchyId(dto.getHierarchyId()).ifPresentOrElse(adminId -> {
+//                    log.info("Admin Hierarchy Found: {}. Crediting Admin Commission...", adminId);
+//                    distributeCommissionToHierarchy(
+//                            "AD", adminId,
+//                            adminCommission, dto.getWalletType(),
+//                            tdsRate, baseTransactionId, tranStatus, request
+//                    );
+//                    log.info("Admin Commission Distributed Successfully to AdminId: {}", adminId);
+//                }, () -> log.warn("No Admin Hierarchy found for HierarchyId: {}", dto.getHierarchyId()));
+//            } else {
+//                log.info("---- [Commission Step 3] Skipped (Admin commission rate = 0) ----");
+//            }
+//
+//        } catch (Exception e) {
+//            log.error("**** [processCommission] ERROR during commission processing for Transaction ID: {} ****", baseTransactionId, e);
+//            throw e;
+//        }
+//
+//        log.info("==== [processCommission] END for Transaction ID: {} ====", baseTransactionId);
+//    }
+
     private void processCommission(TransactionSchemeDetailsRequestDto dto,
                                    String baseTransactionId,
                                    String tranStatus,
                                    TransactionSchemeDetailsRequestDto request) {
 
-        log.info("==== [processCommission] START ====");
-        log.info("Transaction ID: {}, HierarchyId: {}, WalletType: {}, Status: {}, Amount: {}",
+        log.info("[COMMISSION] START | TxnId={} | HierarchyId={} | WalletType={} | Status={} | Amount={}",
                 baseTransactionId, dto.getHierarchyId(), dto.getWalletType(), tranStatus, dto.getAmount());
-        log.info("TDS Rate: {}, SchemeRateType: {}", dto.getTdsRate(), dto.getSchemeRate().getRateType());
 
         try {
             BigDecimal tdsRate = new BigDecimal(dto.getTdsRate());
+            BigDecimal txnAmount = BigDecimal.valueOf(dto.getAmount());
+            String rateType = dto.getSchemeRate().getRateType().toString();
 
-            // Step 1: Retailer commission
-            if (dto.getSchemeRate().getRetailer() > 0) {
-                log.info("---- [Commission Step 1] Processing Retailer commission for HierarchyId: {} ----", dto.getHierarchyId());
-                BigDecimal retailerCommission = calculateCommissionAmount(
-                        dto.getSchemeRate().getRetailer(),
-                        BigDecimal.valueOf(dto.getAmount()),
-                        dto.getSchemeRate().getRateType().toString()
-                );
-                log.info("Retailer Commission Calculated: {}", retailerCommission);
-
-                distributeCommissionToHierarchy(
-                        "RT", dto.getHierarchyId(),
-                        retailerCommission, dto.getWalletType(),
-                        tdsRate, baseTransactionId, tranStatus, request
-                );
-                log.info("Retailer Commission Distributed Successfully for HierarchyId: {}", dto.getHierarchyId());
-            } else {
-                log.info("---- [Commission Step 1] Skipped (Retailer commission rate = 0) ----");
-            }
-
-            // Step 2: Parent hierarchy commission
-            log.info("---- [Commission Step 2] Traversing and distributing commission to parent hierarchies ----");
-            Retailer retailer = retailerRepository.findByRetailerId(dto.getHierarchyId())
-                    .orElseThrow(() -> new RuntimeException("Retailer not found: " + dto.getHierarchyId()));
-
-            distributeCommissionToHierarchies(
-                    BigDecimal.valueOf(dto.getAmount()),
-                    retailer.getParentAccount(),
-                    dto.getSchemeRate(),
-                    dto.getWalletType(),
-                    tdsRate,
-                    baseTransactionId,
-                    new HashSet<>(),
-                    tranStatus,
-                    request
-            );
-            log.info("Parent Hierarchy Commission Distribution Completed for Base Transaction: {}", baseTransactionId);
-
-            // Step 3: Admin-level commission
-            if (dto.getSchemeRate().getIm() > 0) {
-                log.info("---- [Commission Step 3] Processing Admin-level commission ----");
-                BigDecimal adminCommission = calculateCommissionAmount(
-                        dto.getSchemeRate().getIm(),
-                        BigDecimal.valueOf(dto.getAmount()),
-                        dto.getSchemeRate().getRateType().toString()
-                );
-                log.info("Admin Commission Calculated: {}", adminCommission);
-
-                getAdminHierarchyId(dto.getHierarchyId()).ifPresentOrElse(adminId -> {
-                    log.info("Admin Hierarchy Found: {}. Crediting Admin Commission...", adminId);
-                    distributeCommissionToHierarchy(
-                            "AD", adminId,
-                            adminCommission, dto.getWalletType(),
-                            tdsRate, baseTransactionId, tranStatus, request
-                    );
-                    log.info("Admin Commission Distributed Successfully to AdminId: {}", adminId);
-                }, () -> log.warn("No Admin Hierarchy found for HierarchyId: {}", dto.getHierarchyId()));
-            } else {
-                log.info("---- [Commission Step 3] Skipped (Admin commission rate = 0) ----");
-            }
+            processRetailerCommission(dto, txnAmount, tdsRate, baseTransactionId, tranStatus, request, rateType);
+            processParentHierarchyCommission(dto, txnAmount, tdsRate, baseTransactionId, tranStatus, request);
+            processAdminCommission(dto, txnAmount, tdsRate, baseTransactionId, tranStatus, request, rateType);
 
         } catch (Exception e) {
-            log.error("**** [processCommission] ERROR during commission processing for Transaction ID: {} ****", baseTransactionId, e);
+            log.error("[COMMISSION] ERROR | TxnId={} | Msg={}", baseTransactionId, e.getMessage(), e);
             throw e;
         }
 
-        log.info("==== [processCommission] END for Transaction ID: {} ====", baseTransactionId);
+        log.info("[COMMISSION] END | TxnId={} | HierarchyId={}", baseTransactionId, dto.getHierarchyId());
     }
 
+    private void processRetailerCommission(TransactionSchemeDetailsRequestDto dto,
+                                           BigDecimal txnAmount, BigDecimal tdsRate,
+                                           String baseTxnId, String tranStatus,
+                                           TransactionSchemeDetailsRequestDto request, String rateType) {
+
+        BigDecimal retailerRate = BigDecimal.valueOf(dto.getSchemeRate().getRetailer());
+        if (retailerRate.compareTo(BigDecimal.ZERO) <= 0) {
+            log.info("[COMMISSION] Retailer commission skipped | Rate=0");
+            return;
+        }
+
+        BigDecimal commission = calculateCommissionAmount(retailerRate.doubleValue(), txnAmount, rateType);
+        log.info("[COMMISSION] Retailer Commission | HierarchyId={} | Rate={} | Amount={}",
+                dto.getHierarchyId(), retailerRate, commission);
+
+        creditHierarchy("RT", dto.getHierarchyId(), commission, dto.getWalletType(),
+                tdsRate, baseTxnId, tranStatus, request);
+    }
+
+
+    private void processParentHierarchyCommission(TransactionSchemeDetailsRequestDto dto,
+                                                  BigDecimal txnAmount, BigDecimal tdsRate,
+                                                  String baseTxnId, String tranStatus,
+                                                  TransactionSchemeDetailsRequestDto request) {
+
+        Retailer retailer = retailerRepository.findByRetailerId(dto.getHierarchyId())
+                .orElseThrow(() -> new RuntimeException("Retailer not found: " + dto.getHierarchyId()));
+
+        log.info("[COMMISSION] Starting parent commission traversal | ParentId={}", retailer.getParentAccount());
+
+        distributeToHierarchyChain(txnAmount, retailer.getParentAccount(), dto.getSchemeRate(),
+                dto.getWalletType(), tdsRate, baseTxnId, new HashSet<>(), tranStatus, request);
+    }
+
+    private void processAdminCommission(TransactionSchemeDetailsRequestDto dto,
+                                        BigDecimal txnAmount, BigDecimal tdsRate,
+                                        String baseTxnId, String tranStatus,
+                                        TransactionSchemeDetailsRequestDto request, String rateType) {
+
+        BigDecimal adminRate = BigDecimal.valueOf(dto.getSchemeRate().getIm());
+        if (adminRate.compareTo(BigDecimal.ZERO) <= 0) {
+            log.info("[COMMISSION] Admin commission skipped | Rate=0");
+            return;
+        }
+
+        BigDecimal adminCommission = calculateCommissionAmount(adminRate.doubleValue(), txnAmount, rateType);
+        log.info("[COMMISSION] Admin Commission | Rate={} | Amount={}", adminRate, adminCommission);
+
+        getAdminHierarchyId(dto.getHierarchyId()).ifPresentOrElse(adminId -> {
+            creditHierarchy("AD", adminId, adminCommission, dto.getWalletType(),
+                    tdsRate, baseTxnId, tranStatus, request);
+        }, () -> log.warn("[COMMISSION] Admin not found for HierarchyId={}", dto.getHierarchyId()));
+    }
+
+
+    private void creditHierarchy(String hierarchyType, String hierarchyId, BigDecimal commissionAmount,
+                                 String walletType, BigDecimal tdsRate, String baseTxnId,
+                                 String tranStatus, TransactionSchemeDetailsRequestDto request) {
+
+        log.info("[COMMISSION] Crediting {} | Hierarchy={} | Amount={} | Wallet={} | Status={}",
+                hierarchyType, hierarchyId, commissionAmount, walletType, tranStatus);
+
+        boolean skipTdsAndMirror = shouldSkipTdsAndMirror(hierarchyType, hierarchyId);
+
+        String transactionTable = getTransactionTable(hierarchyType, walletType);
+        String amountTable = getAmountTable(hierarchyType, walletType);
+
+        BigDecimal before = getCurrentBalance(hierarchyId, walletType);
+        BigDecimal after = before.add(commissionAmount);
+        String comTxnId = buildTransactionId("COM", baseTxnId);
+
+        insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
+                "Commission credited", hierarchyId, walletType, before, after,
+                "Add Funds (Commission) - " + walletType, comTxnId, tranStatus, request);
+
+        updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
+
+        // Handle Mirror + TDS only if required
+        if (!skipTdsAndMirror && !"PENDING".equalsIgnoreCase(tranStatus)) {
+            mirrorTransactionToWhitelabelOrAdmin(hierarchyId, hierarchyType, "DEBIT",
+                    commissionAmount, walletType, comTxnId,
+                    "Deduct Funds (Commission) - " + walletType, tranStatus, request);
+
+            applyTds(hierarchyType, hierarchyId, commissionAmount, walletType,
+                    tdsRate, baseTxnId, tranStatus, request);
+        }
+    }
+
+
+    private void distributeToHierarchyChain(BigDecimal amount, String hierarchyId, SchemeRate schemeRate,
+                                            String walletType, BigDecimal tdsRate, String baseTxnId,
+                                            Set<String> visited, String tranStatus, TransactionSchemeDetailsRequestDto request) {
+
+        if (hierarchyId == null || hierarchyId.isEmpty() || !visited.add(hierarchyId)) return;
+
+        String type = extractHierarchyType(hierarchyId);
+        BigDecimal rate = BigDecimal.valueOf(getCommissionRateByType(type, schemeRate));
+        BigDecimal commission = calculateCommissionAmount(rate.doubleValue(), amount, schemeRate.getRateType().toString());
+
+        if (commission.compareTo(BigDecimal.ZERO) <= 0) return;
+
+        if (isFinalAdmin(type, hierarchyId)) {
+            creditHierarchy("AD", hierarchyId, commission, walletType, tdsRate, baseTxnId, tranStatus, request);
+            return;
+        }
+
+        creditHierarchy(type, hierarchyId, commission, walletType, tdsRate, baseTxnId, tranStatus, request);
+
+        findParentHierarchy(hierarchyId).ifPresent(parent ->
+                distributeToHierarchyChain(amount, parent, schemeRate, walletType, tdsRate, baseTxnId, visited, tranStatus, request)
+        );
+    }
+
+
+    private void applyTds(String hierarchyType, String hierarchyId, BigDecimal commissionAmount, String walletType,
+                          BigDecimal tdsRate, String baseTxnId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
+
+        BigDecimal tdsAmount = commissionAmount.multiply(tdsRate).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+        if (tdsAmount.compareTo(BigDecimal.ZERO) <= 0) return;
+
+        BigDecimal before = getCurrentBalance(hierarchyId, walletType);
+        BigDecimal after = before.subtract(tdsAmount);
+        String tdsTxnId = buildTransactionId("TDS", baseTxnId);
+
+        insertTransactionForHierarchy(getTransactionTable(hierarchyType, walletType), "DEBIT", tdsAmount,
+                "TDS Deduction", hierarchyId, walletType, before, after,
+                "Deduct Funds (TDS) - " + walletType, tdsTxnId, tranStatus, request);
+
+        mirrorTransactionToWhitelabelOrAdmin(hierarchyId, hierarchyType, "CREDIT", tdsAmount,
+                walletType, tdsTxnId, "Add Funds (TDS) - " + walletType, tranStatus, request);
+
+        updateAmountTable(hierarchyType, hierarchyId, getAmountTable(hierarchyType, walletType), tdsAmount.negate());
+    }
+
+    private boolean shouldSkipTdsAndMirror(String type, String id) {
+        if ("IM".equals(type) || "AD".equals(type)) return true;
+
+        if ("WL".equals(type)) {
+            return whiteLabelsRepository.findById(id)
+                    .map(WhiteLabels::getIsAdmin)
+                    .orElse(false);
+        }
+        return false;
+    }
+
+    private boolean isFinalAdmin(String type, String id) {
+        if ("AD".equals(type) || "IM".equals(type)) return true;
+
+        if ("WL".equals(type)) {
+            return whiteLabelsRepository.findById(id)
+                    .map(WhiteLabels::getIsAdmin)
+                    .orElse(false);
+        }
+        return false;
+    }
 
     private Optional<String> getAdminHierarchyId(String startHierarchyId) {
         String currentId = startHierarchyId;
@@ -848,106 +1162,106 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     }
 
 
-    private void distributeCommissionToHierarchy(String hierarchyType, String hierarchyId,
-                                                 BigDecimal commissionAmount, String walletType,
-                                                 BigDecimal tdsRate, String baseTransactionId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
-
-        log.info("Processing commission for {} | Hierarchy ID: {} | Amount (Incl. TDS): {} | Wallet Type: {} | TDS Rate: {}",
-                hierarchyType, hierarchyId, commissionAmount, walletType, tdsRate);
-
-        // === CASE 1: IM or AD — Credit only, no TDS or Mirror ===
-        if ("IM".equals(hierarchyType) || "AD".equals(hierarchyType)) {
-            log.info("{} hierarchy detected. Crediting full commission without TDS or mirror.", hierarchyType);
-
-            String transactionTable = getTransactionTable(hierarchyType, walletType);
-            String amountTable = getAmountTable(hierarchyType, walletType);
-
-            BigDecimal beforeBalance = getCurrentBalance(hierarchyId, walletType);
-            BigDecimal afterBalance = beforeBalance.add(commissionAmount);
-            String txnId = buildTransactionId("COM", baseTransactionId);
-
-            insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
-                    "Commission credited (Direct IM/AD)", hierarchyId, walletType,
-                    beforeBalance, afterBalance,
-                    "Add Funds (Commission) - " + walletType.toUpperCase(), txnId, tranStatus, request);
-
-            updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
-
-            return; // Stop further processing (no TDS or mirror)
-        }
-
-        // === CASE 2: WhiteLabel isAdmin = true — Credit only, no TDS or Mirror ===
-        boolean isAdminWL = false;
-        if ("WL".equals(hierarchyType)) {
-            isAdminWL = whiteLabelsRepository.findById(hierarchyId)
-                    .map(WhiteLabels::getIsAdmin)
-                    .orElse(false);
-
-            if (isAdminWL) {
-                log.info("WhiteLabel {} isAdmin = true. Crediting full commission, skipping TDS and mirror.", hierarchyId);
-
-                String transactionTable = getTransactionTable(hierarchyType, walletType);
-                String amountTable = getAmountTable(hierarchyType, walletType);
-
-                BigDecimal beforeBalance = getCurrentBalance(hierarchyId, walletType);
-                BigDecimal afterBalance = beforeBalance.add(commissionAmount);
-                String txnId = buildTransactionId("COM", baseTransactionId);
-
-                insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
-                        "Commission credited (Admin WL)", hierarchyId, walletType,
-                        beforeBalance, afterBalance,
-                        "Add Funds (Commission) - " + walletType.toUpperCase(), txnId, tranStatus, request);
-
-                updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
-
-                return; // Stop further processing (no TDS or mirror)
-            }
-        }
-
-        // === CASE 3: All other hierarchies — Credit, Mirror, TDS (if applicable) ===
-        String transactionTable = getTransactionTable(hierarchyType, walletType);
-        String amountTable = getAmountTable(hierarchyType, walletType);
-
-        BigDecimal beforeBalance = getCurrentBalance(hierarchyId, walletType);
-        BigDecimal afterCreditBalance = beforeBalance.add(commissionAmount);
-        String comTxnId = buildTransactionId("COM", baseTransactionId);
-
-        // Credit commission
-        insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
-                "Commission credited", hierarchyId, walletType,
-                beforeBalance, afterCreditBalance,
-                "Add Funds (Commission) - " + walletType.toUpperCase(), comTxnId, tranStatus, request);
-
-        updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
-
-        // Mirror commission (DEBIT from Admin/WL)
-        if (!"pending".equalsIgnoreCase(tranStatus)) {
-            mirrorTransactionToWhitelabelOrAdmin(hierarchyId, hierarchyType, "DEBIT", commissionAmount, walletType,
-                    comTxnId, "Deduct Funds (Commission) - " + walletType.toUpperCase(), tranStatus, request);
-        }
-
-        // TDS deduction (if applicable)
-        BigDecimal tdsAmount = commissionAmount
-                .multiply(tdsRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))
-                .setScale(2, RoundingMode.HALF_UP);
-
-        if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal afterTdsBalance = afterCreditBalance.subtract(tdsAmount);
-            String tdsTxnId = buildTransactionId("TDS", baseTransactionId);
-
-            insertTransactionForHierarchy(transactionTable, "DEBIT", tdsAmount,
-                    "TDS Deduction", hierarchyId, walletType,
-                    afterCreditBalance, afterTdsBalance,
-                    "Deduct Funds (TDS) - " + walletType.toUpperCase(), tdsTxnId, tranStatus, request);
-
-            // Mirror TDS (CREDIT to Admin/WL)
-            if (!"pending".equalsIgnoreCase(tranStatus)) {
-                mirrorTransactionToWhitelabelOrAdmin(hierarchyId, hierarchyType, "CREDIT", tdsAmount, walletType,
-                        tdsTxnId, "Add Funds (TDS) - " + walletType.toUpperCase(), tranStatus, request);
-            }
-            updateAmountTable(hierarchyType, hierarchyId, amountTable, tdsAmount.negate());
-        }
-    }
+//    private void distributeCommissionToHierarchy(String hierarchyType, String hierarchyId,
+//                                                 BigDecimal commissionAmount, String walletType,
+//                                                 BigDecimal tdsRate, String baseTransactionId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
+//
+//        log.info("Processing commission for {} | Hierarchy ID: {} | Amount (Incl. TDS): {} | Wallet Type: {} | TDS Rate: {}",
+//                hierarchyType, hierarchyId, commissionAmount, walletType, tdsRate);
+//
+//        // === CASE 1: IM or AD — Credit only, no TDS or Mirror ===
+//        if ("IM".equals(hierarchyType) || "AD".equals(hierarchyType)) {
+//            log.info("{} hierarchy detected. Crediting full commission without TDS or mirror.", hierarchyType);
+//
+//            String transactionTable = getTransactionTable(hierarchyType, walletType);
+//            String amountTable = getAmountTable(hierarchyType, walletType);
+//
+//            BigDecimal beforeBalance = getCurrentBalance(hierarchyId, walletType);
+//            BigDecimal afterBalance = beforeBalance.add(commissionAmount);
+//            String txnId = buildTransactionId("COM", baseTransactionId);
+//
+//            insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
+//                    "Commission credited (Direct IM/AD)", hierarchyId, walletType,
+//                    beforeBalance, afterBalance,
+//                    "Add Funds (Commission) - " + walletType.toUpperCase(), txnId, tranStatus, request);
+//
+//            updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
+//
+//            return; // Stop further processing (no TDS or mirror)
+//        }
+//
+//        // === CASE 2: WhiteLabel isAdmin = true — Credit only, no TDS or Mirror ===
+//        boolean isAdminWL = false;
+//        if ("WL".equals(hierarchyType)) {
+//            isAdminWL = whiteLabelsRepository.findById(hierarchyId)
+//                    .map(WhiteLabels::getIsAdmin)
+//                    .orElse(false);
+//
+//            if (isAdminWL) {
+//                log.info("WhiteLabel {} isAdmin = true. Crediting full commission, skipping TDS and mirror.", hierarchyId);
+//
+//                String transactionTable = getTransactionTable(hierarchyType, walletType);
+//                String amountTable = getAmountTable(hierarchyType, walletType);
+//
+//                BigDecimal beforeBalance = getCurrentBalance(hierarchyId, walletType);
+//                BigDecimal afterBalance = beforeBalance.add(commissionAmount);
+//                String txnId = buildTransactionId("COM", baseTransactionId);
+//
+//                insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
+//                        "Commission credited (Admin WL)", hierarchyId, walletType,
+//                        beforeBalance, afterBalance,
+//                        "Add Funds (Commission) - " + walletType.toUpperCase(), txnId, tranStatus, request);
+//
+//                updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
+//
+//                return; // Stop further processing (no TDS or mirror)
+//            }
+//        }
+//
+//        // === CASE 3: All other hierarchies — Credit, Mirror, TDS (if applicable) ===
+//        String transactionTable = getTransactionTable(hierarchyType, walletType);
+//        String amountTable = getAmountTable(hierarchyType, walletType);
+//
+//        BigDecimal beforeBalance = getCurrentBalance(hierarchyId, walletType);
+//        BigDecimal afterCreditBalance = beforeBalance.add(commissionAmount);
+//        String comTxnId = buildTransactionId("COM", baseTransactionId);
+//
+//        // Credit commission
+//        insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
+//                "Commission credited", hierarchyId, walletType,
+//                beforeBalance, afterCreditBalance,
+//                "Add Funds (Commission) - " + walletType.toUpperCase(), comTxnId, tranStatus, request);
+//
+//        updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
+//
+//        // Mirror commission (DEBIT from Admin/WL)
+//        if (!"pending".equalsIgnoreCase(tranStatus)) {
+//            mirrorTransactionToWhitelabelOrAdmin(hierarchyId, hierarchyType, "DEBIT", commissionAmount, walletType,
+//                    comTxnId, "Deduct Funds (Commission) - " + walletType.toUpperCase(), tranStatus, request);
+//        }
+//
+//        // TDS deduction (if applicable)
+//        BigDecimal tdsAmount = commissionAmount
+//                .multiply(tdsRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))
+//                .setScale(2, RoundingMode.HALF_UP);
+//
+//        if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
+//            BigDecimal afterTdsBalance = afterCreditBalance.subtract(tdsAmount);
+//            String tdsTxnId = buildTransactionId("TDS", baseTransactionId);
+//
+//            insertTransactionForHierarchy(transactionTable, "DEBIT", tdsAmount,
+//                    "TDS Deduction", hierarchyId, walletType,
+//                    afterCreditBalance, afterTdsBalance,
+//                    "Deduct Funds (TDS) - " + walletType.toUpperCase(), tdsTxnId, tranStatus, request);
+//
+//            // Mirror TDS (CREDIT to Admin/WL)
+//            if (!"pending".equalsIgnoreCase(tranStatus)) {
+//                mirrorTransactionToWhitelabelOrAdmin(hierarchyId, hierarchyType, "CREDIT", tdsAmount, walletType,
+//                        tdsTxnId, "Add Funds (TDS) - " + walletType.toUpperCase(), tranStatus, request);
+//            }
+//            updateAmountTable(hierarchyType, hierarchyId, amountTable, tdsAmount.negate());
+//        }
+//    }
 
     private void distributeCommissionToAdmin(String hierarchyId, BigDecimal commissionAmount, String walletType,
                                              String baseTransactionId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
@@ -1000,39 +1314,183 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         }
     }
 
-    private void creditCommissionToFinalAdmin(String adminId, BigDecimal commissionAmount, String walletType,
-                                              String baseTransactionId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
-        log.info("[creditCommissionToFinalAdmin] Start | Admin ID: {} | Amount: {} | Wallet: {} | BaseTxnId: {}",
-                adminId, commissionAmount, walletType, baseTransactionId);
+//    private void creditCommissionToFinalAdmin(String adminId, BigDecimal commissionAmount, String walletType,
+//                                              String baseTransactionId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
+//        log.info("[creditCommissionToFinalAdmin] Start | Admin ID: {} | Amount: {} | Wallet: {} | BaseTxnId: {}",
+//                adminId, commissionAmount, walletType, baseTransactionId);
+//
+//        BigDecimal beforeTransactionBalance = getCurrentBalance(adminId, walletType);
+//        BigDecimal afterTransactionBalance = beforeTransactionBalance.add(commissionAmount);
+//
+//        log.debug("[creditCommissionToFinalAdmin] Before Balance: {} | After Balance: {}", beforeTransactionBalance, afterTransactionBalance);
+//
+//        String amountTable = getAmountTable("AD", walletType);
+//        String transactionTable = getTransactionTable("AD", walletType);
+//        String comTxnId = buildTransactionId("COM", baseTransactionId);
+//
+//        log.info("[creditCommissionToFinalAdmin] Prepared tables | TransactionTable: {} | AmountTable: {} | TxnId: {}",
+//                transactionTable, amountTable, comTxnId);
+//
+//        insertTransactionForAdminHierarchy(
+//                transactionTable, "CREDIT", commissionAmount,
+//                "Admin Commission credited", adminId, walletType,
+//                beforeTransactionBalance, afterTransactionBalance,
+//                "Add Funds (Commission) - " + walletType.toUpperCase(), comTxnId, tranStatus, request
+//        );
+//
+//        log.info("[creditCommissionToFinalAdmin] Transaction inserted successfully for Admin ID: {}", adminId);
+//
+//        updateAmountTable("AD", adminId, amountTable, commissionAmount);
+//        log.info("[creditCommissionToFinalAdmin] Balance updated successfully | Admin ID: {} | Added Amount: {}", adminId, commissionAmount);
+//
+//        log.info("[creditCommissionToFinalAdmin] End | Admin ID: {} | Final Balance: {}", adminId, afterTransactionBalance);
+//    }
 
-        BigDecimal beforeTransactionBalance = getCurrentBalance(adminId, walletType);
-        BigDecimal afterTransactionBalance = beforeTransactionBalance.add(commissionAmount);
+    private void distributeCommissionToHierarchy(String hierarchyType, String hierarchyId,
+                                                 BigDecimal commissionAmount, String walletType,
+                                                 BigDecimal tdsRate, String baseTransactionId,
+                                                 String tranStatus, TransactionSchemeDetailsRequestDto request) {
 
-        log.debug("[creditCommissionToFinalAdmin] Before Balance: {} | After Balance: {}", beforeTransactionBalance, afterTransactionBalance);
+        log.info("[COMMISSION] Start | Type={} | ID={} | Amount={} | Wallet={} | Status={}",
+                hierarchyType, hierarchyId, commissionAmount, walletType, tranStatus);
 
-        String amountTable = getAmountTable("AD", walletType);
-        String transactionTable = getTransactionTable("AD", walletType);
-        String comTxnId = buildTransactionId("COM", baseTransactionId);
+        // ✅ CASE 1: Skip Mirror/TDS for Admin/IM or Admin Whitelabel
+        if (shouldSkipMirrorAndTds(hierarchyType, hierarchyId)) {
+            creditCommission(hierarchyType, hierarchyId, commissionAmount, walletType,
+                    baseTransactionId, tranStatus, request, "Direct Credit - No TDS/Mirror");
+            return;
+        }
 
-        log.info("[creditCommissionToFinalAdmin] Prepared tables | TransactionTable: {} | AmountTable: {} | TxnId: {}",
-                transactionTable, amountTable, comTxnId);
+        // ✅ CASE 2: Default flow (Credit + Mirror + TDS)
+        creditCommission(hierarchyType, hierarchyId, commissionAmount, walletType,
+                baseTransactionId, tranStatus, request, "Commission Credit");
 
-        insertTransactionForAdminHierarchy(
-                transactionTable, "CREDIT", commissionAmount,
-                "Admin Commission credited", adminId, walletType,
-                beforeTransactionBalance, afterTransactionBalance,
-                "Add Funds (Commission) - " + walletType.toUpperCase(), comTxnId, tranStatus, request
-        );
+        if (!"PENDING".equalsIgnoreCase(tranStatus)) {
+            mirrorTransactionToWhitelabelOrAdmin(hierarchyId, hierarchyType, "DEBIT",
+                    commissionAmount, walletType,
+                    buildTransactionId("COM", baseTransactionId),
+                    "Deduct Funds (Commission) - " + walletType.toUpperCase(),
+                    tranStatus, request);
+        }
 
-        log.info("[creditCommissionToFinalAdmin] Transaction inserted successfully for Admin ID: {}", adminId);
-
-        updateAmountTable("AD", adminId, amountTable, commissionAmount);
-        log.info("[creditCommissionToFinalAdmin] Balance updated successfully | Admin ID: {} | Added Amount: {}", adminId, commissionAmount);
-
-        log.info("[creditCommissionToFinalAdmin] End | Admin ID: {} | Final Balance: {}", adminId, afterTransactionBalance);
+        applyTdsDeduction(hierarchyType, hierarchyId, commissionAmount, walletType,
+                tdsRate, baseTransactionId, tranStatus, request);
     }
 
 
+    private void creditCommission(String hierarchyType, String hierarchyId,
+                                  BigDecimal amount, String walletType,
+                                  String baseTransactionId, String tranStatus,
+                                  TransactionSchemeDetailsRequestDto request, String remark) {
+
+        String transactionTable = getTransactionTable(hierarchyType, walletType);
+        String amountTable = getAmountTable(hierarchyType, walletType);
+        BigDecimal before = getCurrentBalance(hierarchyId, walletType);
+        BigDecimal after = before.add(amount);
+        String txnId = buildTransactionId("COM", baseTransactionId);
+
+        insertTransactionForHierarchy(transactionTable, "CREDIT", amount,
+                remark, hierarchyId, walletType,
+                before, after,
+                "Add Funds (Commission) - " + walletType.toUpperCase(),
+                txnId, tranStatus, request);
+
+        updateAmountTable(hierarchyType, hierarchyId, amountTable, amount);
+
+        log.info("[COMMISSION] Credited {} | Type={} | ID={} | Amount={} | Before={} | After={}",
+                remark, hierarchyType, hierarchyId, amount, before, after);
+    }
+
+    private void applyTdsDeduction(String hierarchyType, String hierarchyId, BigDecimal commissionAmount,
+                                   String walletType, BigDecimal tdsRate, String baseTransactionId,
+                                   String tranStatus, TransactionSchemeDetailsRequestDto request) {
+
+        BigDecimal tdsAmount = commissionAmount
+                .multiply(tdsRate)
+                .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        if (tdsAmount.compareTo(BigDecimal.ZERO) <= 0) return;
+
+        String transactionTable = getTransactionTable(hierarchyType, walletType);
+        String amountTable = getAmountTable(hierarchyType, walletType);
+
+        BigDecimal before = getCurrentBalance(hierarchyId, walletType);
+        BigDecimal after = before.subtract(tdsAmount);
+        String txnId = buildTransactionId("TDS", baseTransactionId);
+
+        insertTransactionForHierarchy(transactionTable, "DEBIT", tdsAmount,
+                "TDS Deduction", hierarchyId, walletType,
+                before, after,
+                "Deduct Funds (TDS) - " + walletType.toUpperCase(), txnId, tranStatus, request);
+
+        updateAmountTable(hierarchyType, hierarchyId, amountTable, tdsAmount.negate());
+
+        if (!"PENDING".equalsIgnoreCase(tranStatus)) {
+            mirrorTransactionToWhitelabelOrAdmin(hierarchyId, hierarchyType, "CREDIT", tdsAmount, walletType,
+                    txnId, "Add Funds (TDS) - " + walletType.toUpperCase(), tranStatus, request);
+        }
+
+        log.info("[TDS] Applied | Hierarchy={} | Amount={} | Rate={}%", hierarchyId, tdsAmount, tdsRate);
+    }
+
+    private boolean shouldSkipMirrorAndTds(String hierarchyType, String hierarchyId) {
+        if ("IM".equals(hierarchyType) || "AD".equals(hierarchyType)) return true;
+        if ("WL".equals(hierarchyType)) {
+            return whiteLabelsRepository.findById(hierarchyId)
+                    .map(WhiteLabels::getIsAdmin)
+                    .orElse(false);
+        }
+        return false;
+    }
+
+    private void creditCommissionToFinalAdmin(String adminId, BigDecimal commissionAmount,
+                                              String walletType, String baseTransactionId,
+                                              String tranStatus, TransactionSchemeDetailsRequestDto request) {
+
+        log.info("[ADMIN_CREDIT] Final Admin | ID={} | Amount={}", adminId, commissionAmount);
+        creditCommission("AD", adminId, commissionAmount, walletType,
+                baseTransactionId, tranStatus, request, "Admin Commission credited");
+    }
+
+//    private boolean isFinalAdmin(String type, String id) {
+//        if ("IM".equals(type) || "AD".equals(type)) return true;
+//        if ("WL".equals(type)) {
+//            return whiteLabelsRepository.findById(id)
+//                    .map(WhiteLabels::getIsAdmin)
+//                    .orElse(false);
+//        }
+//        return false;
+//    }
+
+//    private void distributeCommissionToAdmin(String hierarchyId, BigDecimal commissionAmount, String walletType,
+//                                             String baseTransactionId, String tranStatus,
+//                                             TransactionSchemeDetailsRequestDto request) {
+//
+//        log.info("[ADMIN_COMMISSION] Start | BaseID={} | StartHierarchy={}", baseTransactionId, hierarchyId);
+//        String currentId = hierarchyId;
+//
+//        while (true) {
+//            Optional<String> parentOpt = findParentHierarchy(currentId);
+//            if (parentOpt.isEmpty()) {
+//                log.warn("[ADMIN_COMMISSION] No parent found for ID={} — Stopping", currentId);
+//                return;
+//            }
+//
+//            String parentId = parentOpt.get();
+//            String parentType = extractHierarchyType(parentId);
+//
+//            if (isFinalAdmin(parentType, parentId)) {
+//                log.info("[ADMIN_COMMISSION] Found Final Admin | Type={} | ID={}", parentType, parentId);
+//                creditCommission("AD", parentId, commissionAmount, walletType,
+//                        baseTransactionId, tranStatus, request, "Admin Commission");
+//                return;
+//            }
+//
+//            log.debug("[ADMIN_COMMISSION] Continuing up hierarchy | ParentID={} | Type={}", parentId, parentType);
+//            currentId = parentId;
+//        }
+//    }
 
     private String extractHierarchyType(String hierarchyId) {
         String[] parts = hierarchyId.split("-");
@@ -1552,8 +2010,6 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         return commissionAmount.setScale(2, RoundingMode.HALF_UP);
     }
 
-
-
     private double getCommissionRateByType(String hierarchyType, SchemeRate schemeRate) {
         return switch (hierarchyType) {
             case "AD" -> schemeRate.getIm();
@@ -1683,62 +2139,118 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         log.info("=== [mirrorTransactionToAdminOrWhitelabel] END ===");
     }
 
+//    private void creditGstToAdminOrWhitelabel(String sourceHierarchyId, String walletType, BigDecimal gstAmount,
+//                                              String baseTransactionId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
+//
+//        log.info("=== [GST CREDIT INITIATED] ===");
+//        log.info("Source Hierarchy ID: {}, Wallet Type: {}, GST Amount: {}, Base Txn ID: {}, Status: {}",
+//                sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus);
+//
+//        String currentId = sourceHierarchyId;
+//
+//        while (true) {
+//            log.info("[GST FLOW] Searching parent for hierarchyId: {}", currentId);
+//            Optional<String> parentOpt = findParentHierarchy(currentId);
+//
+//            if (parentOpt.isEmpty()) {
+//                log.warn("[GST FLOW END] No parent found for hierarchyId: {}. GST credit process terminated.", currentId);
+//                return;
+//            }
+//
+//            String parentId = parentOpt.get();
+//            String parentType = extractHierarchyType(parentId);
+//
+//            log.info("[GST FLOW] Found parent: {} (Type: {}) for current hierarchy: {}", parentId, parentType, currentId);
+//
+//            // Case 1: Whitelabel admin found
+//            if ("WL".equalsIgnoreCase(parentType)) {
+//                Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(parentId);
+//                if (wlOpt.isPresent()) {
+//                    WhiteLabels wl = wlOpt.get();
+//                    log.info("[WL FOUND] WL ID: {}, isAdmin: {}", wl.getWhiteLabelId(), wl.getIsAdmin());
+//
+//                    if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+//                        log.info("[GST CREDIT] Crediting GST to Whitelabel Admin (WL ID: {}) from Source: {}", parentId, sourceHierarchyId);
+//                        creditGstToAdmin(parentId, sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus, request);
+//                        log.info("[GST CREDIT SUCCESS] GST credited to Whitelabel Admin: {}", parentId);
+//                        return;
+//                    } else {
+//                        log.info("[GST FLOW] WL {} is not admin. Moving up hierarchy...", parentId);
+//                    }
+//                } else {
+//                    log.warn("[WL NOT FOUND] WL with ID {} not present in DB. Moving up hierarchy...", parentId);
+//                }
+//            }
+//
+//            // Case 2: Admin or IM found
+//            if ("IM".equalsIgnoreCase(parentType) || "AD".equalsIgnoreCase(parentType)) {
+//                log.info("[GST CREDIT] Crediting GST to {} (ID: {}) from Source: {}", parentType, parentId, sourceHierarchyId);
+//                creditGstToAdmin(parentId, sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus, request);
+//                log.info("[GST CREDIT SUCCESS] GST credited to {} successfully: {}", parentType, parentId);
+//                return;
+//            }
+//
+//            // Continue searching upward
+//            log.info("[GST FLOW] Parent {} is not eligible for GST credit. Moving further up...", parentId);
+//            currentId = parentId;
+//        }
+//    }
+
+    private boolean isAdminType(String hierarchyType) {
+        return "IM".equalsIgnoreCase(hierarchyType) || "AD".equalsIgnoreCase(hierarchyType);
+    }
+
+
     private void creditGstToAdminOrWhitelabel(String sourceHierarchyId, String walletType, BigDecimal gstAmount,
                                               String baseTransactionId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
 
-        log.info("=== [GST CREDIT INITIATED] ===");
-        log.info("Source Hierarchy ID: {}, Wallet Type: {}, GST Amount: {}, Base Txn ID: {}, Status: {}",
+        log.info("[GST_FLOW] Initiated | SourceID={} | Wallet={} | GST={} | BaseTxnId={} | Status={}",
                 sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus);
 
         String currentId = sourceHierarchyId;
 
         while (true) {
-            log.info("[GST FLOW] Searching parent for hierarchyId: {}", currentId);
             Optional<String> parentOpt = findParentHierarchy(currentId);
-
             if (parentOpt.isEmpty()) {
-                log.warn("[GST FLOW END] No parent found for hierarchyId: {}. GST credit process terminated.", currentId);
+                log.warn("[GST_FLOW] No eligible parent found for {} → GST credit terminated.", currentId);
                 return;
             }
 
             String parentId = parentOpt.get();
             String parentType = extractHierarchyType(parentId);
 
-            log.info("[GST FLOW] Found parent: {} (Type: {}) for current hierarchy: {}", parentId, parentType, currentId);
+            log.info("[GST_FLOW] Checking parent | ID={} | Type={} | From={}", parentId, parentType, currentId);
 
-            // Case 1: Whitelabel admin found
+            // ✅ Case 1: Whitelabel (check admin flag)
             if ("WL".equalsIgnoreCase(parentType)) {
-                Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(parentId);
-                if (wlOpt.isPresent()) {
-                    WhiteLabels wl = wlOpt.get();
-                    log.info("[WL FOUND] WL ID: {}, isAdmin: {}", wl.getWhiteLabelId(), wl.getIsAdmin());
+                boolean isAdminWL = whiteLabelsRepository.findById(parentId)
+                        .map(WhiteLabels::getIsAdmin)
+                        .orElse(false);
 
-                    if (Boolean.TRUE.equals(wl.getIsAdmin())) {
-                        log.info("[GST CREDIT] Crediting GST to Whitelabel Admin (WL ID: {}) from Source: {}", parentId, sourceHierarchyId);
-                        creditGstToAdmin(parentId, sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus, request);
-                        log.info("[GST CREDIT SUCCESS] GST credited to Whitelabel Admin: {}", parentId);
-                        return;
-                    } else {
-                        log.info("[GST FLOW] WL {} is not admin. Moving up hierarchy...", parentId);
-                    }
-                } else {
-                    log.warn("[WL NOT FOUND] WL with ID {} not present in DB. Moving up hierarchy...", parentId);
+                if (isAdminWL) {
+                    log.info("[GST_CREDIT] Eligible WL Admin found | WL_ID={} | Crediting GST...", parentId);
+                    creditGstToAdmin(parentId, sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus, request);
+                    log.info("[GST_CREDIT_SUCCESS] GST successfully credited to WL Admin | WL_ID={}", parentId);
+                    return;
                 }
+
+                log.debug("[GST_FLOW] WL {} is not Admin. Moving up hierarchy...", parentId);
             }
 
-            // Case 2: Admin or IM found
-            if ("IM".equalsIgnoreCase(parentType) || "AD".equalsIgnoreCase(parentType)) {
-                log.info("[GST CREDIT] Crediting GST to {} (ID: {}) from Source: {}", parentType, parentId, sourceHierarchyId);
+            // ✅ Case 2: IM or AD → Direct admin credit
+            if (isAdminType(parentType)) {
+                log.info("[GST_CREDIT] Admin hierarchy found | Type={} | ID={} | Crediting GST...", parentType, parentId);
                 creditGstToAdmin(parentId, sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus, request);
-                log.info("[GST CREDIT SUCCESS] GST credited to {} successfully: {}", parentType, parentId);
+                log.info("[GST_CREDIT_SUCCESS] GST credited successfully to {} | ID={}", parentType, parentId);
                 return;
             }
 
             // Continue searching upward
-            log.info("[GST FLOW] Parent {} is not eligible for GST credit. Moving further up...", parentId);
+            log.debug("[GST_FLOW] Parent {} (Type={}) not eligible → Traversing upward...", parentId, parentType);
             currentId = parentId;
         }
     }
+
 
     @Override
     @Transactional

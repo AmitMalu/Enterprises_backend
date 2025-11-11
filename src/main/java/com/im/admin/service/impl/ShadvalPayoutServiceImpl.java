@@ -30,12 +30,9 @@ import java.util.Objects;
 @Slf4j
 public class ShadvalPayoutServiceImpl implements PayoutVendorService {
 
-    private static final String VENDOR_CODE = "SHADVALPAY";
+    private static final String VENDOR_CODE = "Shadval Payout";
 
     private final RestTemplate restTemplate = new RestTemplate();
-
-    @Autowired
-    private CommonMethods commonMethods;
 
     @Autowired
     private TransactionEngineServiceImpl transactionEngineServiceImpl;
@@ -78,11 +75,9 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
                             "account_number", req.getAccountNumber()
                     ),
                     "contact_details", Map.of(
-                            "name", req.getBeneficiaryName(),
-                            "email", "testing@gmail.com",
-                            "mobile", "9632587410"
-                            //"email", req.getCallbackEmail() == null ? "" : req.getCallbackEmail(),
-                            //"mobile", req.getCallbackMobile() == null ? "" : req.getCallbackMobile()
+                            "name", retailer.getName(),
+                            "email", retailer.getEmailId(),
+                            "mobile", retailer.getMobileNumber()
                     ),
                     "reference_id", orderId,
                     "latitude", retailer.getLatitude(),
@@ -94,7 +89,7 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
             String payloadJson = objectMapper.writeValueAsString(payload);
 
             // Signature: plaintext = key + " payload " + key + ref_no + amount
-            String shadvalKey = Objects.requireNonNull(creds.getClientSecret(), "Shadval key missing in credentials");
+            String shadvalKey = Objects.requireNonNull(creds.getSaltKey(), "Shadval key missing in credentials");
             String plainText = shadvalKey + " payload " + shadvalKey + orderId + req.getAmount();
 
             String signature = generateHmacSHA256Signature(plainText, shadvalKey);
