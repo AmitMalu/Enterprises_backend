@@ -58,7 +58,20 @@ public class RemitterServiceImpl implements RemitterService {
         // ====== STEP 2: Check if remitter already exists in LOCAL DB ======
         Optional<DmtRemitter> exist = remitterRepository.findByMobile(mobile);
         if (exist.isPresent() && "REGISTERED".equals(exist.get().getStatus())) {
-            return CommonResponse.handleErrors("Remitter already registered and active");
+            DmtRemitter remitter = exist.get();
+
+            // Create vendor-style response dynamically
+            RemitterQueryResponse res = new RemitterQueryResponse();
+            res.setStatus(true);
+            res.setResponse_code(1);
+            res.setMessage("Remitter account details fetched.!");
+
+            RemitterQueryResponse.DataObj data = new RemitterQueryResponse.DataObj();
+            data.setMobile(remitter.getMobile());
+            data.setLimit(remitter.getLimitAmount() != null ? remitter.getLimitAmount() : 0.00);
+            res.setData(data);
+            return CommonResponse.success(res, "Remitter already registered and active");
+
         }
 
         // ====== STEP 3: Prepare request body for vendor query API ======
@@ -83,7 +96,7 @@ public class RemitterServiceImpl implements RemitterService {
                 return CommonResponse.success(res, "Remitter exists. You can proceed");
 
             case 2: // KYC required
-                return CommonResponse.handleErrors("EKYC_REQUIRED");
+                return CommonResponse.success(res,"EKYC_REQUIRED");
 
             case 3: // OTP sent → Start registration
                 return CommonResponse.success(res, "OTP sent. Please register remitter.");
@@ -128,7 +141,6 @@ public class RemitterServiceImpl implements RemitterService {
 
 
     //                REGISTER REMITTER API
-
     @Override
     public CommonResponse<RemitterRegisterResponse> registerRemitter(RemitterRegisterRequest req) {
 
@@ -154,10 +166,11 @@ public class RemitterServiceImpl implements RemitterService {
         // ====== STEP 4: Update LOCAL DB after successful registration ======
         if (resp != null && resp.getResponse_code() == 1) {
             DmtRemitter r = new DmtRemitter();
-            r.setMobile(req.getMobile());
+            r.setMobile(resp.getData().getMobile());
             r.setStatus("REGISTERED");
             r.setEkycId(null);
             r.setStateResp(null);
+            r.setLimitAmount(resp.getData().getLimit()); //  set limit from API response
             remitterRepository.save(r);
         }
 
