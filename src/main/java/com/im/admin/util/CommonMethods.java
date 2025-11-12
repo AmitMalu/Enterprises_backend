@@ -853,10 +853,9 @@ public class CommonMethods {
 
     public <T extends AbstractWalletAmountTable> void performWalletUpdate(
             T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-            TransactionType type, String baseTxnId, String service, String remarks, String subProductName, String narration) {
+            TransactionType type, String baseTxnId, String remarks, String subProductName, String narration) {
 
         BigDecimal beforeBalance = wallet.getAvailableBalance();
-        BigDecimal afterBalance;
 
         if (type == TransactionType.CREDIT) {
             wallet.setTotalCash(wallet.getTotalCash().add(amount));
