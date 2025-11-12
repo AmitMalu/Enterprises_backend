@@ -73,6 +73,7 @@ public class FundingServiceImpl implements FundingService {
     @Autowired
     private PlatformTransactionManager transactionManager;
 
+    @Override
     @Transactional
     public String fundsCreditDebit(FundCreditDebitDto dto) {
         log.info("Starting funds {} operation for userAccountId: {}, WalletType: {}, Amount: {}",
@@ -82,7 +83,8 @@ public class FundingServiceImpl implements FundingService {
         String baseTxnId = commonMethods.generateBaseTransactionId();
         log.debug("Generated base transaction ID: {}", baseTxnId);
 
-        // Extract values
+        // Extract and resolve types
+        String adminId = dto.getAdminId();
         String userId = dto.getUserAccountId();
         WalletType walletType = WalletType.fromString(dto.getWalletType());
         TransactionType transactionType = TransactionType.fromString(dto.getFundingType());
@@ -90,39 +92,85 @@ public class FundingServiceImpl implements FundingService {
 
         BigDecimal amount = BigDecimal.valueOf(dto.getAmount());
         BigDecimal confirmAmount = BigDecimal.valueOf(dto.getConfirmAmount());
-        log.debug("Amount: {}, ConfirmAmount: {}", amount, confirmAmount);
 
-        // Validate amount match
         if (amount.compareTo(confirmAmount) != 0) {
-            log.error("Amount mismatch: Amount={} ConfirmAmount={}", amount, confirmAmount);
             throw new IllegalArgumentException("Amount and Confirm Amount do not match");
         }
 
-        // Resolve wallet
-        AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), userId);
-        log.debug("Resolved walletAmountTable for user {}: {}", userId, walletAmountTable);
+        // Fetch wallets
+        AbstractWalletAmountTable userWallet = commonMethods.getWalletByType(walletType.name(), userId);
+        AbstractWalletAmountTable adminWallet = commonMethods.getWalletByType(walletType.name(), adminId);
 
-        // Generate transaction ID prefix based on type
+        // Generate transaction ID prefix
         String txnIdPrefix = transactionType == TransactionType.CREDIT ? "FCR" : "FDR";
-        String txnId = txnIdPrefix + baseTxnId;
-        log.info("Generated transaction ID: {}", txnId);
+        String userTxnId = txnIdPrefix + baseTxnId;
+        String adminTxnId = txnIdPrefix + baseTxnId;
 
-        commonMethods.performWalletUpdate(
-                walletAmountTable,
-                userId,
-                walletType,
-                amount,
-                transactionType,
-                txnId,
-                transactionType.name(),
-                dto.getRemarks(),
-                "Fund Credit/Debit",
-                "Fund Credit"
-        );
+        if (transactionType == TransactionType.CREDIT) {
+            // CREDIT => Debit from Admin, Credit to User
+            log.info("Performing CREDIT: Admin {} → User {}", adminId, userId);
 
-        log.info("Transaction {} successful for user {} with txnId {}", transactionType.name(), userId, txnId);
-        return String.format("Transaction %s successful", transactionType.name());
+            // Debit from admin
+            commonMethods.performWalletUpdate(
+                    adminWallet,
+                    adminId,
+                    walletType,
+                    amount,
+                    TransactionType.DEBIT,
+                    adminTxnId,
+                    dto.getRemarks(),
+                    "Fund Credit (Admin Debit)",
+                    dto.getNarrationType()
+            );
+
+            // Credit to user
+            commonMethods.performWalletUpdate(
+                    userWallet,
+                    userId,
+                    walletType,
+                    amount,
+                    TransactionType.CREDIT,
+                    userTxnId,
+                    dto.getRemarks(),
+                    "Fund Credit (User Credit)",
+                    dto.getNarrationType()
+            );
+
+        } else if (transactionType == TransactionType.DEBIT) {
+            // DEBIT => Debit from User, Credit to Admin
+            log.info("Performing DEBIT: User {} → Admin {}", userId, adminId);
+
+            // Debit from user
+            commonMethods.performWalletUpdate(
+                    userWallet,
+                    userId,
+                    walletType,
+                    amount,
+                    TransactionType.DEBIT,
+                    userTxnId,
+                    dto.getRemarks(),
+                    "Fund Debit (User Debit)",
+                    dto.getNarrationType()
+            );
+
+            // Credit to admin
+            commonMethods.performWalletUpdate(
+                    adminWallet,
+                    adminId,
+                    walletType,
+                    amount,
+                    TransactionType.CREDIT,
+                    adminTxnId,
+                    dto.getRemarks(),
+                    "Fund Debit (Admin Credit)",
+                    dto.getNarrationType()
+            );
+        }
+
+        log.info("Transaction {} successful for user {} with baseTxnId {}", transactionType.name(), userId, baseTxnId);
+        return String.format("Transaction %s successful (BaseTxnId: %s)", transactionType.name(), baseTxnId);
     }
+
 
     @Override
     public void downloadSampleFile(HttpServletResponse response) throws IOException {
