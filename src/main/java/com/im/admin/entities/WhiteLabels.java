@@ -141,6 +141,9 @@ public class WhiteLabels {
     @Column(name = "GST_number_verified")
     private Boolean gstNumberVerified;
 
+    @Column(name = "remarks")
+    private String remarks;
+
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
     private LocalDateTime createdOn;

@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.OnboardingHierarchyRequestDto;
 import com.im.admin.dto.GenericPendingRecordDto;
+import com.im.admin.request.ChangeStatusToPendingRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.GenericPendingResponseDto;
 import com.im.admin.service.OnboardingService;
@@ -35,8 +36,6 @@ public class OnboardingHierarchyController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, size);
-
         Page<GenericPendingRecordDto> response = onboardingService.getAllRecordsByStatus(
                 status, page, size,
                 type, id, name, createdBy, createdOn, mobileNumber, emailId, parentAccount);
@@ -52,9 +51,14 @@ public class OnboardingHierarchyController {
         return ResponseEntity.ok(CommonResponse.success(response, message));
     }
 
+    @PutMapping("change-status-to-pending")
+    public ResponseEntity<CommonResponse<String>> updateRejectedToPending(@RequestBody ChangeStatusToPendingRequest changeStatusToPending) {
+        String message = onboardingService.changeRejectedUserToPending(changeStatusToPending);
+        return ResponseEntity.ok(new CommonResponse<>(200, message, null));
+    }
 
     @PostMapping("/approve-or-reject")
-    public ResponseEntity<CommonResponse> onboardHierarchy(@RequestBody OnboardingHierarchyRequestDto hierarchyRequestDto) {
+    public ResponseEntity<CommonResponse<String>> onboardHierarchy(@RequestBody OnboardingHierarchyRequestDto hierarchyRequestDto) {
         log.info("Processing approve/reject request for hierarchy: {}", hierarchyRequestDto);
         String response = onboardingService.approveOrRejectHierarchy(hierarchyRequestDto);
         log.info("Action completed with response: {}", response);

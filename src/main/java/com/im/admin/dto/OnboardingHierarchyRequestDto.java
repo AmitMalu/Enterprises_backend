@@ -13,7 +13,7 @@ import lombok.Setter;
 public class OnboardingHierarchyRequestDto {
 
     private String hierarchyId;
-    private String rejectionReason;
+    private String remarks;
     private Boolean isApproved;
 
 }

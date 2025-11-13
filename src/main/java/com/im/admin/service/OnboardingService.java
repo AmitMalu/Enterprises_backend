@@ -2,16 +2,15 @@ package com.im.admin.service;
 
 import com.im.admin.dto.GenericPendingRecordDto;
 import com.im.admin.dto.OnboardingHierarchyRequestDto;
+import com.im.admin.request.ChangeStatusToPendingRequest;
 import com.im.admin.response.GenericPendingResponseDto;
 import org.springframework.data.domain.Page;
 
 public interface OnboardingService {
 
-  
+    String changeRejectedUserToPending(ChangeStatusToPendingRequest changeStatusToPending);
 
     String approveOrRejectHierarchy(OnboardingHierarchyRequestDto hierarchyRequestDto);
-
-
 
     GenericPendingRecordDto getRecordById(String id);
 
