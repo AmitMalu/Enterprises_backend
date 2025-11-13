@@ -9,12 +9,12 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-public class VendorFactory {
+public class PayoutVendorFactory {
 
     private final Map<String, PayoutVendorService> vendorMap = new HashMap<>();
 
     @Autowired
-    public VendorFactory(List<PayoutVendorService> vendors) {
+    public PayoutVendorFactory(List<PayoutVendorService> vendors) {
         vendors.forEach(v -> vendorMap.put(v.getVendorCode().toLowerCase(), v));
     }
 

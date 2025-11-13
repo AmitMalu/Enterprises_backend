@@ -5,10 +5,12 @@ import com.im.admin.dto.DmtBeneficiaryDeleteResponse;
 import com.im.admin.dto.DmtBeneficiaryFetchByBeneIdResponse;
 import com.im.admin.dto.DmtBeneficiaryFetchResponse;
 import com.im.admin.entities.DmtBeneficiary;
+import com.im.admin.entities.DmtRemitter;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.BeneficiaryRepository;
+import com.im.admin.repositories.RemitterRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.BeneficiaryRegisterRequest;
@@ -20,6 +22,9 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DmtBeneficiaryService;
 import com.im.admin.util.CommonMethods;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -42,8 +47,12 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    private RemitterRepository remitterRepository;
+
     @Override
     public CommonResponse<BeneficiaryRegisterResponse> registerBeneficiary(BeneficiaryRegisterRequest req) {
+
 
         // ====== STEP 1: Load Vendor Credentials Dynamically ======
         VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
@@ -69,8 +78,14 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 
         // ====== STEP 4: If successful → save in local DB ======
         if (resp != null && resp.getResponse_code() == 1) {
+
+            DmtRemitter dmtRemitter = remitterRepository.findByMobile(req.getMobile())
+                    .orElseThrow(() -> new RuntimeException("Remitter not found for mobile: " + req.getMobile()));
+
+
             DmtBeneficiary bene = new DmtBeneficiary();
-            bene.setMobile(req.getMobile());
+            bene.setRemitter(dmtRemitter);
+            bene.setVendor(vendor);
             bene.setBeneId(resp.getData().getBene_id());
             bene.setBeneName(req.getBenename());
             bene.setBankId(req.getBankid());
@@ -152,7 +167,7 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
     }
 
     @Override
-    public CommonResponse<DmtBeneficiaryFetchResponse> fetchBeneficiary(DmtBeneficiaryFetchRequest req) {
+    public CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>> fetchBeneficiary(DmtBeneficiaryFetchRequest req, int page, int size) {
         try {
             // ====== STEP 1: Load Vendor Credentials Dynamically ======
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
@@ -164,7 +179,6 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 
             // ====== STEP 2: Prepare Request ======
             Map<String, Object> reqBody = Map.of("mobile", req.getMobile());
-
             HttpHeaders headers = getHeaders(credentials);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(reqBody, headers);
 
@@ -181,10 +195,20 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
                 return CommonResponse.handleErrors("No response from vendor");
             }
 
-            // ====== STEP 4: Handle Response ======
-            if (resp.getResponse_code() == 1) {
-                // Optional: Save or update beneficiaries locally if you want
-                return CommonResponse.success(resp, "Beneficiaries fetched successfully");
+            // ====== STEP 4: Handle Response & Apply Pagination ======
+            if (resp.getResponse_code() == 1 && resp.getData() != null) {
+
+                List<DmtBeneficiaryFetchResponse.BeneficiaryData> beneficiaries = resp.getData();
+
+                // Apply manual pagination (since data is fetched externally)
+                int start = (int) PageRequest.of(page, size).getOffset();
+                int end = Math.min(start + size, beneficiaries.size());
+                List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedList = beneficiaries.subList(start, end);
+
+                Page<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedResponse =
+                        new PageImpl<>(pagedList, PageRequest.of(page, size), beneficiaries.size());
+
+                return CommonResponse.success(pagedResponse, "Beneficiaries fetched successfully");
             } else {
                 return CommonResponse.handleErrors(resp.getMessage());
             }
@@ -194,6 +218,7 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
             return CommonResponse.handleErrors("Error fetching beneficiary list: " + e.getMessage());
         }
     }
+
 
     @Override
     public CommonResponse<DmtBeneficiaryFetchByBeneIdResponse> fetchBeneficiaryByBeneId(DmtBeneficiaryFetchByBeneIdRequest req) {

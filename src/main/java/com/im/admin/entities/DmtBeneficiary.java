@@ -3,6 +3,7 @@ package com.im.admin.entities;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import com.im.admin.entities.vendor.Vendors;
 
 @Entity
 @Getter
@@ -14,8 +15,10 @@ public class DmtBeneficiary {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "mobile")
-    private String mobile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "remitter_id", nullable = false)
+    private DmtRemitter remitter;
 
     @Column(name = "bene_id")
     private Long beneId;
@@ -40,4 +43,10 @@ public class DmtBeneficiary {
 
     @Column(name = "status")
     private String status;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendor_id", nullable = false)
+    private Vendors vendor;
+
 }
+
