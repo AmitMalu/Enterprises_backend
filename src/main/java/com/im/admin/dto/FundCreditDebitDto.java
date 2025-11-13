@@ -13,6 +13,7 @@ import lombok.Setter;
 public class FundCreditDebitDto {
 
     private String fundingType;
+    private String adminId;
     private String userAccountId;
     private String WalletType;
     private double amount;

@@ -47,10 +47,6 @@ public class OperatorsServiceImpl implements OperatorsService {
     public Operators saveOperator(Operators operator) {
         log.info("Saving new operator: {}", operator);
 
-        if (operatorsRepository.existsByOperatorCode(operator.getOperatorCode())) {
-            throw new RuntimeException("Operator Code already exists!");
-        }
-
         // Fetch and set Product
         Products product = productsRepository.findById(Short.valueOf(operator.getProductId()))
                 .orElseThrow(() -> new RuntimeException("Product not found with ID: " + operator.getProductId()));
@@ -61,12 +57,22 @@ public class OperatorsServiceImpl implements OperatorsService {
                 .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + operator.getSubProductId()));
         operator.setSubProductCode(subProduct.getSubProductCode());
 
+        // check for duplicates
+        if (operatorsRepository.existsByOperatorNameAndSubProductCodeAndProductCode(
+                operator.getOperatorName(), operator.getSubProductCode(), operator.getProductCode()) ||
+                operatorsRepository.existsByOperatorCodeAndSubProductCodeAndProductCode(
+                        operator.getOperatorCode(), operator.getSubProductCode(), operator.getProductCode())) {
+            throw new RuntimeException("Operator with same name or code already exists for this product and subproduct!");
+        }
+
+        // Generate ID and save
         operator.setId(commonMethods.generateNextIdForTables("operators", "id"));
 
         Operators savedOperator = operatorsRepository.save(operator);
         log.info("Operator saved successfully with ID: {}", savedOperator.getId());
         return savedOperator;
     }
+
 
 
     @Override

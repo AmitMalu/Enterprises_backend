@@ -23,8 +23,6 @@ public interface OperatorsRepository extends JpaRepository<Operators, String>, J
 
     Optional<Operators> findByOperatorName(String operatorName);
 
-    //Optional<Operators> findByCardBinNo(String cardBinNo);
-
     Optional<Operators> findByProductCodeAndSubProductCodeAndOperatorCode(
             String productCode, String subProductCode, String operatorCode
     );
@@ -35,6 +33,11 @@ public interface OperatorsRepository extends JpaRepository<Operators, String>, J
 
     List<Operators> findBySubProductId(String subProductId);
 
+    // Checks if any operator exists with the same operator name, subProduct, and product combination
+    boolean existsByOperatorNameAndSubProductCodeAndProductCode(String operatorName, String subProductCode, String productCode);
+
+    // Checks if any operator exists with the same operator code, subProduct, and product combination
+    boolean existsByOperatorCodeAndSubProductCodeAndProductCode(String operatorCode, String subProductCode, String productCode);
 
 }
 
