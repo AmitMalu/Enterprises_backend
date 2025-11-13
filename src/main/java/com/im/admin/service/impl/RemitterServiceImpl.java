@@ -203,4 +203,21 @@ public class RemitterServiceImpl implements RemitterService {
         remitterRepository.save(en);
     }
 
+    @Override
+    public CommonResponse<DmtRemitter> fetchRemitterDetails(String mobileNumber) {
+
+        Optional<DmtRemitter> remitter = remitterRepository.findByMobile(mobileNumber);
+
+        return remitter.map(dmtRemitter -> new CommonResponse<>(
+                200,
+                "Remitter details fetched successfully",
+                dmtRemitter
+        )).orElseGet(() -> new CommonResponse<>(
+                404,
+                "No remitter found for mobile number: " + mobileNumber,
+                null
+        ));
+
+    }
+
 }
