@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
-@Table(name = "remitter_master")
+@Table(name = "dmt_remmiter")
 public class DmtRemitter {
 
     @Id

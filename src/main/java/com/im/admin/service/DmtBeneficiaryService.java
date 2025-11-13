@@ -9,12 +9,15 @@ import com.im.admin.request.DmtBeneficiaryFetchByBeneIdRequest;
 import com.im.admin.request.DmtBeneficiaryFetchRequest;
 import com.im.admin.response.BeneficiaryRegisterResponse;
 import com.im.admin.response.CommonResponse;
+import org.springframework.data.domain.Page;
 
 public interface DmtBeneficiaryService {
     CommonResponse<BeneficiaryRegisterResponse> registerBeneficiary(BeneficiaryRegisterRequest request);
     CommonResponse<DmtBeneficiaryDeleteResponse> deleteBeneficiary(DmtBeneficiaryDeleteRequest request);
 
-    CommonResponse<DmtBeneficiaryFetchResponse> fetchBeneficiary(DmtBeneficiaryFetchRequest req);
+    CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>> fetchBeneficiary(DmtBeneficiaryFetchRequest req, int page, int size);
+
+
 
     CommonResponse<DmtBeneficiaryFetchByBeneIdResponse> fetchBeneficiaryByBeneId(DmtBeneficiaryFetchByBeneIdRequest req);
 }
