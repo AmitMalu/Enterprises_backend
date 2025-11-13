@@ -20,7 +20,7 @@ import com.im.admin.service.PayoutVendorService;
 import com.im.admin.service.VendorStatusChecker;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import com.im.admin.util.CommonMethods;
-import com.im.admin.util.VendorFactory;
+import com.im.admin.util.PayoutVendorFactory;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +51,7 @@ public class PayoutOrchestrator {
     private VendorCredentialsRepository vendorCredentialsRepository;
 
     @Autowired
-    private VendorFactory vendorFactory;
+    private PayoutVendorFactory vendorFactory;
 
     @Autowired
     private CommonFunctions commonFunctions;

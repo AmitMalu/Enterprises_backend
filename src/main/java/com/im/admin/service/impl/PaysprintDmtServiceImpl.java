@@ -1,122 +1,208 @@
-//package com.im.admin.service.impl;
-//
-//import com.im.admin.dto.AbstractWalletAmountTable;
-//import com.im.admin.dto.DmtResponseDto;
-//import com.im.admin.dto.RemitterTransactionResponse;
-//import com.im.admin.entities.SubProducts;
-//import com.im.admin.entities.VendorCredentials;
-//import com.im.admin.entities.VendorRouting;
-//import com.im.admin.entities.enums.WalletType;
-//import com.im.admin.entities.vendor.Vendors;
-//import com.im.admin.repositories.SubProductsRepository;
-//import com.im.admin.request.SendDmtRequest;
-//import com.im.admin.response.CommonResponse;
-//import com.im.admin.service.PayoutVendorService;
-//import com.im.admin.service.PaysprintDmtService;
-//import com.im.admin.util.CommonMethods;
-//import com.im.admin.util.VendorFactory;
-//import lombok.extern.slf4j.Slf4j;
-//import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.stereotype.Service;
-//
-//import java.math.BigDecimal;
-//
-//@Slf4j
-//@Service
-//public class PaysprintDmtServiceImpl implements PaysprintDmtService {
-//
-//    @Autowired
-//    private CommonMethods commonMethods;
-//
-//    @Autowired
-//    private VendorFactory vendorFactory;
-//
-//    @Autowired
-//    private SubProductsRepository subProductsRepository;
-//
-//    // You also need to autowire these if you're using them
-//    // (otherwise you'll get NullPointerException)
-//    // @Autowired
-//    // private VendorRoutingRepository vendorRoutingRepository;
-//    // @Autowired
-//    // private VendorCredentialsRepository vendorCredentialsRepository;
-//
-//    @Override
-//    public CommonResponse<DmtResponseDto> processDmt(SendDmtRequest req) {
-//        String orderId = "DMT" + commonMethods.generateBaseTransactionId();
-//        log.info("[PROCESS DMT] Starting transaction | orderId={}", orderId);
-//
-//        try {
-//            // 1️⃣ Validate SubProduct
-//            SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
-//                    .orElseThrow(() -> new RuntimeException("SubProduct not found for ID: " + req.getSubProductId()));
-//
-//            WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
-//            log.debug("[PROCESS DMT] Resolved walletType={}", walletType);
-//
-//            // 2️⃣ Check Retailer Balance
-//            BigDecimal availableBalance = commonMethods.getCurrentBalance(req.getRetailerId(), walletType.name());
-//            if (availableBalance.compareTo(req.getAmount()) < 0) {
-//                log.warn("[PROCESS DMT] Insufficient balance for retailer {} (required={}, available={})",
-//                        req.getRetailerId(), req.getAmount(), availableBalance);
-//                return new CommonResponse<>(400, "Insufficient Balance", null);
-//            }
-//
-//            // 3️⃣ Resolve Vendor Routing & Credentials
-//            VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
-//            if (routing == null) {
-//                log.error("[PROCESS DMT] Vendor routing not found for subProductId={}", req.getSubProductId());
-//                return new CommonResponse<>(404, "Vendor routing not found", null);
-//            }
-//
-//            Vendors vendor = CommonMethods.getVendors(routing);
-//            VendorCredentials credentials = vendorCredentialsRepository
-//                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-//                    .orElseThrow(() -> new RuntimeException("Vendor credentials not found"));
-//
-//            // 4️⃣ Get Vendor Service Bean (Paysprint / Pana)
-//            PayoutVendorService vendorService = vendorFactory.getVendor(vendor.getVendorName());
-//            if (vendorService == null) {
-//                log.error("[PROCESS DMT] No vendor implementation found for vendorName={}", vendor.getVendorName());
-//                return new CommonResponse<>(500, "Vendor implementation not found", null);
-//            }
-//
-//            // 5️⃣ Wallet Debit (PENDING)
-//            AbstractWalletAmountTable walletAmountTable =
-//                    commonMethods.getWalletByType(walletType.name(), req.getRetailerId());
-//            String baseTxnId = orderId.substring(3);
-//
-//            commonMethods.updateWallet(
-//                    walletAmountTable,
-//                    req.getRetailerId(),
-//                    walletType,
-//                    req.getAmount(),
-//                    "Debit",
-//                    baseTxnId,
-//                    "PENDING",
-//                    "DEBIT",
-//                    subProducts.getSubProductTitle(),
-//                    req.getBeneficiaryName() + " #" + req.getAccountNumber(),
-//                    "Fund Transferred #" + req.getAccountNumber()
-//            );
-//
-//            log.debug("[PROCESS DMT] Wallet debited (PENDING) for retailer={}, amount={}",
-//                    req.getRetailerId(), req.getAmount());
-//
-//            // 6️⃣ CALL Vendor API
-//            log.info("[PROCESS DMT] Calling vendor API for orderId={}, vendor={}",
-//                    orderId, vendor.getVendorName());
-//
-//            RemitterTransactionResponse vendorResponse = vendorService.doTransaction(req, credentials);
-//
-//            // ✅ Finally return success response
-//            return new CommonResponse<>(200, "Transaction Initiated Successfully", new DmtResponseDto());
-//
-//        } catch (Exception e) {
-//            log.error("[PROCESS DMT] Exception occurred: {}", e.getMessage(), e);
-//            return new CommonResponse<>(500, "Error while processing DMT", null);
-//        }
-//    }
-//}
-//
-//
+package com.im.admin.service.impl;
+
+import com.im.admin.dto.RemitterTransactionResponse;
+import com.im.admin.dto.SendOtpRequest;
+import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.VendorCredentials;
+import com.im.admin.entities.enums.WalletType;
+import com.im.admin.request.PennyDropRequest;
+import com.im.admin.request.SendDmtRequest;
+import com.im.admin.response.CommonResponse;
+import com.im.admin.response.PaysprintPennyDropResponse;
+import com.im.admin.response.PaysprintSendOtpResponse;
+import com.im.admin.response.TransactionRequest;
+import com.im.admin.service.DmtVendorService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+@Slf4j
+@Service
+public class PaysprintDmtServiceImpl implements DmtVendorService {
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    @Override
+    public String getVendorCode() {
+        return "Paysprint DMT";
+    }
+
+    @Override
+    public PaysprintPennyDropResponse pennyDropVerify(PennyDropRequest req, VendorCredentials credentials, String baseUrl) {
+        try {
+            String url = baseUrl + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/benenameverify";
+            HttpHeaders headers = getHeaders(credentials);
+
+            HttpEntity<PennyDropRequest> entity = new HttpEntity<>(req, headers);
+            log.info("[PAYSPRINT] Penny Drop Verify → URL: {} | Body: {}", url, req);
+
+            ResponseEntity<PaysprintPennyDropResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    PaysprintPennyDropResponse.class
+            );
+
+            PaysprintPennyDropResponse body = response.getBody();
+
+            //  Use builder for fallback response
+            return body != null ? body : PaysprintPennyDropResponse.builder()
+                    .status(false)
+                    .response_code(0)
+                    .message("Empty response from vendor")
+                    .build();
+
+        } catch (Exception e) {
+            log.error("[PAYSPRINT] Exception in pennyDropVerify: {}", e.getMessage(), e);
+
+            //  Use builder here too
+            return PaysprintPennyDropResponse.builder()
+                    .status(false)
+                    .response_code(500)
+                    .message("Exception: " + e.getMessage())
+                    .build();
+        }
+    }
+
+
+
+    @Override
+    public PaysprintSendOtpResponse sendOtp(SendDmtRequest req, VendorCredentials credentials) {
+        try {
+            String sendOtpUrl = credentials.getBaseUrlUat() +
+                    "/service-api/api/v1/service/dmt/kyc/transact/transact/send_otp";
+
+            SendOtpRequest otpRequestBody = new SendOtpRequest(
+                    req.getMobile(),
+                    req.getTxntype(),
+                    String.valueOf(req.getAmount()),
+                    req.getPincode(),
+                    req.getAddress(),
+                    req.getDob(),
+                    req.getGstState(),
+                    req.getLat(),
+                    req.getLng(),
+                    req.getReferenceId()
+            );
+
+            HttpEntity<SendOtpRequest> entity = new HttpEntity<>(otpRequestBody, getHeaders(credentials));
+
+            ResponseEntity<PaysprintSendOtpResponse> response = restTemplate.exchange(
+                    sendOtpUrl,
+                    HttpMethod.POST,
+                    entity,
+                    PaysprintSendOtpResponse.class
+            );
+
+            return response.getBody() != null
+                    ? response.getBody()
+                    : new PaysprintSendOtpResponse(false, 0, "Empty response from vendor", null);
+
+        } catch (Exception e) {
+            log.error("[PAYSPRINT] Exception in sendOtp: {}", e.getMessage(), e);
+            return new PaysprintSendOtpResponse(false, 0, "Error while sending OTP", null);
+        }
+    }
+
+    @Override
+    public RemitterTransactionResponse processDmt(
+            SendDmtRequest req,
+            VendorCredentials credentials,
+            String orderId,
+            SubProducts subProducts,
+            WalletType walletType) {
+
+        try {
+            //  STEP 1: Prepare Headers
+            HttpHeaders headers = getHeaders(credentials);
+
+            //  STEP 2: Call Send OTP API
+            String sendOtpUrl = credentials.getBaseUrlUat() +
+                    "/service-api/api/v1/service/dmt/kyc/transact/transact/send_otp";
+
+            SendOtpRequest otpRequestBody = new SendOtpRequest(
+                    req.getMobile(),
+                    req.getTxntype(),
+                    String.valueOf(req.getAmount()),
+                    req.getPincode(),
+                    req.getAddress(),
+                    req.getDob(),
+                    req.getGstState(),
+                    req.getLat(),
+                    req.getLng(),
+                    req.getReferenceId()
+            );
+
+            HttpEntity<SendOtpRequest> otpEntity = new HttpEntity<>(otpRequestBody, headers);
+            log.info("[PAYSPRINT] Sending OTP → URL: {} | Body: {}", sendOtpUrl, otpRequestBody);
+
+            ResponseEntity<PaysprintSendOtpResponse> otpResponseEntity = restTemplate.exchange(
+                    sendOtpUrl,
+                    HttpMethod.POST,
+                    otpEntity,
+                    PaysprintSendOtpResponse.class
+            );
+
+            PaysprintSendOtpResponse otpResp = otpResponseEntity.getBody();
+            log.info("[PAYSPRINT] Send OTP Response: {}", otpResp);
+
+            if (otpResp == null || !otpResp.isStatus() || otpResp.getResponse_code() != 1) {
+                return new RemitterTransactionResponse(false, "Send OTP failed", null);
+            }
+
+            //  STEP 3: Call Transaction API
+            String txnUrl = credentials.getBaseUrlUat() +
+                    "/service-api/api/v1/service/dmt/kyc/transact/transact";
+
+            TransactionRequest txnRequestBody = new TransactionRequest(
+                    req.getMobile(),
+                    req.getReferenceId(),
+                    req.getBeneId(),
+                    req.getTxntype(),
+                    String.valueOf(req.getAmount()),
+                    req.getPincode(),
+                    req.getAddress(),
+                    req.getDob(),
+                    req.getGstState(),
+                    req.getLat(),
+                    req.getLng(),
+                    req.getOtp(),
+                    otpResp.getStateresp()
+            );
+
+            HttpEntity<TransactionRequest> txnEntity = new HttpEntity<>(txnRequestBody, headers);
+            log.info("[PAYSPRINT] Performing Transaction → URL: {} | Body: {}", txnUrl, txnRequestBody);
+
+            ResponseEntity<RemitterTransactionResponse> txnResponseEntity = restTemplate.exchange(
+                    txnUrl,
+                    HttpMethod.POST,
+                    txnEntity,
+                    RemitterTransactionResponse.class
+            );
+
+            RemitterTransactionResponse txnResponse = txnResponseEntity.getBody();
+            log.info("[PAYSPRINT] Transaction Response: {}", txnResponse);
+
+            return txnResponse != null
+                    ? txnResponse
+                    : new RemitterTransactionResponse(false, "Empty vendor response", null);
+
+        } catch (Exception e) {
+            log.error("[PAYSPRINT] Exception in processDmt: {}", e.getMessage(), e);
+            return new RemitterTransactionResponse(false, "Exception during vendor transaction", null);
+        }
+    }
+
+    // 🔹 Helper method for common headers
+    private HttpHeaders getHeaders(VendorCredentials credentials) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+        headers.set("Token", credentials.getToken());
+        headers.set("Authorisedkey", credentials.getSaltKey());
+        return headers;
+    }
+}

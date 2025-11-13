@@ -13,6 +13,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DmtBeneficiaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -39,11 +40,24 @@ public class DmtBeneficiaryController {
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
+//    @PostMapping("/fetchBeneficiary")
+//    public ResponseEntity<CommonResponse<DmtBeneficiaryFetchResponse>> fetchBeneficiary(@RequestBody DmtBeneficiaryFetchRequest req) {
+//        CommonResponse<DmtBeneficiaryFetchResponse> response = dmtBeneficiaryService.fetchBeneficiary(req);
+//        return ResponseEntity.ok(response);
+//    }
+
     @PostMapping("/fetchBeneficiary")
-    public ResponseEntity<CommonResponse<DmtBeneficiaryFetchResponse>> fetchBeneficiary(@RequestBody DmtBeneficiaryFetchRequest req) {
-        CommonResponse<DmtBeneficiaryFetchResponse> response = dmtBeneficiaryService.fetchBeneficiary(req);
+    public ResponseEntity<CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>>> fetchBeneficiary(
+            @RequestBody DmtBeneficiaryFetchRequest req,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>> response =
+                dmtBeneficiaryService.fetchBeneficiary(req, page, size);
         return ResponseEntity.ok(response);
     }
+
+
 
     @PostMapping("/fetchBeneficiaryByBeneId")
     public ResponseEntity<CommonResponse<DmtBeneficiaryFetchByBeneIdResponse>> fetchBeneficiaryByBeneId(
