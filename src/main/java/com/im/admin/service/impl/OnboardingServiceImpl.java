@@ -1,10 +1,12 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.OnboardingHierarchyRequestDto;
 import com.im.admin.dto.GenericPendingRecordDto;
 import com.im.admin.entities.*;
 import com.im.admin.exception.NoPendingRecordsFoundException;
 import com.im.admin.repositories.*;
+import com.im.admin.request.ChangeStatusToPendingRequest;
 import com.im.admin.response.GenericPendingResponseDto;
 import com.im.admin.service.EmailService;
 import com.im.admin.service.OnboardingService;
@@ -20,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -70,7 +73,10 @@ public class OnboardingServiceImpl implements OnboardingService {
     private ImSubRoleRepository imSubRoleRepository;
 
     @Autowired
-    EmailService emailService;
+    private EmailService emailService;
+
+    @Autowired
+    private CommonFunctions commonFunctions;
 
 
     @Override
@@ -139,7 +145,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         String hierarchyId = hierarchyRequestDto.getHierarchyId();
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         boolean isApproved = hierarchyRequestDto.getIsApproved();
-        String rejectionReason = hierarchyRequestDto.getRejectionReason();
+        String remarks = hierarchyRequestDto.getRemarks();
 
         switch (hierarchyType) {
             case "RT" -> {
@@ -149,10 +155,11 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(rt.getStatus())) return "Already processed";
                 if (isApproved) {
                     rt.setStatus("APPROVED");
+                    rt.setRemarks(remarks);
                     response = createUserDetails(hierarchyType, rt.getRetailerId(), rt.getMobileNumber(), rt.getEmailId(), rt.getName());
                 } else {
                     rt.setStatus("REJECTED");
-                    rt.setRejectionReason(rejectionReason);
+                    rt.setRejectionReason(remarks);
                 }
                 retailerRepository.save(rt);
             }
@@ -163,10 +170,11 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(dt.getStatus())) return "Already processed";
                 if (isApproved) {
                     dt.setStatus("APPROVED");
+                    dt.setRemarks(remarks);
                     response = createUserDetails(hierarchyType, dt.getDistributorId(), dt.getMobileNumber(), dt.getEmailId(), dt.getName());
                 } else {
                     dt.setStatus("REJECTED");
-                    dt.setRejectionReason(rejectionReason);
+                    dt.setRejectionReason(remarks);
                 }
                 distributorRepository.save(dt);
             }
@@ -177,10 +185,11 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(pt.getStatus())) return "Already processed";
                 if (isApproved) {
                     pt.setStatus("APPROVED");
+                    pt.setRemarks(remarks);
                     response = createUserDetails(hierarchyType, pt.getPartnerId(), pt.getMobileNumber(), pt.getEmailId(), pt.getName());
                 } else {
                     pt.setStatus("REJECTED");
-                    pt.setRejectionReason(rejectionReason);
+                    pt.setRejectionReason(remarks);
                 }
                 partnerRepository.save(pt);
             }
@@ -191,10 +200,11 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(sd.getStatus())) return "Already processed";
                 if (isApproved) {
                     sd.setStatus("APPROVED");
+                    sd.setRemarks(remarks);
                     response = createUserDetails(hierarchyType, sd.getSuperDistributorId(), sd.getMobileNumber(), sd.getEmailId(), sd.getName());
                 } else {
                     sd.setStatus("REJECTED");
-                    sd.setRejectionReason(rejectionReason);
+                    sd.setRejectionReason(remarks);
                 }
                 superDistributorRepository.save(sd);
             }
@@ -205,10 +215,11 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(wl.getStatus())) return "Already processed";
                 if (isApproved) {
                     wl.setStatus("APPROVED");
+                    wl.setRemarks(remarks);
                     response = createUserDetails(hierarchyType, wl.getWhiteLabelId(), wl.getMobileNumber(), wl.getEmailId(), wl.getTitle());
                 } else {
                     wl.setStatus("REJECTED");
-                    wl.setRejectionReason(rejectionReason);
+                    wl.setRejectionReason(remarks);
                 }
                 whiteLabelsRepository.save(wl);
             }
@@ -219,10 +230,11 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (!"PENDING".equalsIgnoreCase(et.getStatus())) return "Already processed";
                 if (isApproved) {
                     et.setStatus("APPROVED");
+                    et.setRemarks(remarks);
                     response = createUserDetails(hierarchyType, et.getEnterpriseId(), et.getMobileNumber(), et.getEmailId(), et.getName());
                 } else {
                     et.setStatus("REJECTED");
-                    et.setRejectionReason(rejectionReason);
+                    et.setRejectionReason(remarks);
                 }
                 enterprisesRepository.save(et);
             }
@@ -234,10 +246,11 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     ad.setStatus("APPROVED");
                     ad.setRejectionReason("-");
+                    ad.setRemarks(remarks);
                     response = createUserDetails(hierarchyType, ad.getId(), ad.getMobileNumber(), ad.getEmailId(), ad.getName());
                 } else {
                     ad.setStatus("REJECTED");
-                    ad.setRejectionReason(rejectionReason);
+                    ad.setRejectionReason(remarks);
                 }
                 adminRepository.save(ad);
             }
@@ -378,7 +391,130 @@ public class OnboardingServiceImpl implements OnboardingService {
     }
 
 
+    @Override
+    @Transactional
+    public String changeRejectedUserToPending(ChangeStatusToPendingRequest changeStatusToPending) {
+        LocalDateTime imRequestDateTime = LocalDateTime.now();
+        String requestPayload = "changeRejectedUserToPending: userId=" + changeStatusToPending.getUserId();
+        String responsePayload = "";
+
+        try {
+            String type = commonMethods.extractHierarchyType(changeStatusToPending.getUserId());
+
+            responsePayload = switch (type) {
+                case "EN" -> updateEnterpriseStatus(changeStatusToPending);
+                case "WL" -> updateWhiteLabelStatus(changeStatusToPending);
+                case "SD" -> updateSuperDistributorStatus(changeStatusToPending);
+                case "PT" -> updatePartnerStatus(changeStatusToPending);
+                case "DT" -> updateDistributorStatus(changeStatusToPending);
+                case "RT" -> updateRetailerStatus(changeStatusToPending);
+                default -> throw new RuntimeException("Invalid hierarchy type: " + type);
+            };
+
+            return responsePayload;
+        } catch (Exception ex) {
+            responsePayload = "ERROR: " + ex.getMessage();
+            throw ex;
+        } finally {
+            LocalDateTime imResponseDateTime = LocalDateTime.now();
+
+            try {
+                commonFunctions.saveImLogs(requestPayload, imRequestDateTime, null, responsePayload, imResponseDateTime);
+            } catch (Exception logEx) {
+                log.error("Failed to save IM logs for changeRejectedUserToPending userId={} : {}", changeStatusToPending.getUserId(), logEx.getMessage(), logEx);
+            }
+        }
+    }
 
 
+    private String updateEnterpriseStatus(ChangeStatusToPendingRequest changeStatusToPending) {
+        Enterprises ent = enterprisesRepository.findByEnterpriseId(changeStatusToPending.getUserId())
+                .orElseThrow(() -> new RuntimeException("Enterprise not found"));
+
+        if (!"REJECTED".equalsIgnoreCase(ent.getStatus())) {
+            return "User is not in REJECTED state.";
+        }
+
+        ent.setStatus("PENDING");
+        ent.setRemarks(changeStatusToPending.getRemarks());
+        enterprisesRepository.save(ent);
+
+        return "Enterprise status updated to PENDING successfully.";
+    }
+
+    private String updateWhiteLabelStatus(ChangeStatusToPendingRequest changeStatusToPending) {
+        WhiteLabels wl = whiteLabelsRepository.findByWhiteLabelId(changeStatusToPending.getUserId())
+                .orElseThrow(() -> new RuntimeException("White Label not found"));
+
+        if (!"REJECTED".equalsIgnoreCase(wl.getStatus())) {
+            return "User is not in REJECTED state.";
+        }
+
+        wl.setStatus("PENDING");
+        wl.setRemarks(changeStatusToPending.getRemarks());
+        whiteLabelsRepository.save(wl);
+
+        return "White Label status updated to PENDING successfully.";
+    }
+
+    private String updateSuperDistributorStatus(ChangeStatusToPendingRequest changeStatusToPending) {
+        SuperDistributor sd = superDistributorRepository.findBySuperDistributorId(changeStatusToPending.getUserId())
+                .orElseThrow(() -> new RuntimeException("Super Distributor not found"));
+
+        if (!"REJECTED".equalsIgnoreCase(sd.getStatus())) {
+            return "User is not in REJECTED state.";
+        }
+
+        sd.setStatus("PENDING");
+        sd.setRemarks(changeStatusToPending.getRemarks());
+        superDistributorRepository.save(sd);
+
+        return "Super Distributor status updated to PENDING successfully.";
+    }
+
+    private String updatePartnerStatus(ChangeStatusToPendingRequest changeStatusToPending) {
+        Partner pt = partnerRepository.findByPartnerId(changeStatusToPending.getUserId())
+                .orElseThrow(() -> new RuntimeException("Partner not found"));
+
+        if (!"REJECTED".equalsIgnoreCase(pt.getStatus())) {
+            return "User is not in REJECTED state.";
+        }
+
+        pt.setStatus("PENDING");
+        pt.setRemarks(changeStatusToPending.getRemarks());
+        partnerRepository.save(pt);
+
+        return "Partner status updated to PENDING successfully.";
+    }
+
+    private String updateDistributorStatus(ChangeStatusToPendingRequest changeStatusToPending) {
+        Distributor sd = distributorRepository.findByDistributorId(changeStatusToPending.getUserId())
+                .orElseThrow(() -> new RuntimeException("Distributor not found"));
+
+        if (!"REJECTED".equalsIgnoreCase(sd.getStatus())) {
+            return "User is not in REJECTED state.";
+        }
+
+        sd.setStatus("PENDING");
+        sd.setRemarks(changeStatusToPending.getRemarks());
+        distributorRepository.save(sd);
+
+        return "Distributor status updated to PENDING successfully.";
+    }
+
+    private String updateRetailerStatus(ChangeStatusToPendingRequest changeStatusToPending) {
+        Retailer rt = retailerRepository.findByRetailerId(changeStatusToPending.getUserId())
+                .orElseThrow(() -> new RuntimeException("Retailer not found"));
+
+        if (!"REJECTED".equalsIgnoreCase(rt.getStatus())) {
+            return "User is not in REJECTED state.";
+        }
+
+        rt.setStatus("PENDING");
+        rt.setRemarks(changeStatusToPending.getRemarks());
+        retailerRepository.save(rt);
+
+        return "Retailer status updated to PENDING successfully.";
+    }
 
 }
