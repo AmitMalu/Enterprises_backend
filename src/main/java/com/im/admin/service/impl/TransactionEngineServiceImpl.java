@@ -942,8 +942,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         return Optional.empty(); // Admin not found
     }
 
-
     public boolean hasSufficientBalance(String retailerId, BigDecimal requestedAmount, BigDecimal grossAmount, String walletType) {
+
         String amountTable = getAmountTable("RT", walletType);
 
         String sql = "SELECT available_balance FROM " + amountTable + " WHERE retailer_id = :retailerId";
@@ -952,9 +952,13 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 .setParameter("retailerId", retailerId)
                 .getSingleResult();
 
-        log.info("Retailer ID: {} | Available Balance: {} | Total Deduction Amount: {}", retailerId, availableBalance, requestedAmount.add(grossAmount));
+        BigDecimal totalRequired = requestedAmount.add(grossAmount);
 
-        return availableBalance == null || availableBalance.compareTo(requestedAmount.add(grossAmount)) < 0;
+        log.info("Retailer ID: {} | Available Balance: {} | Required Amount: {}",
+                retailerId, availableBalance, totalRequired);
+
+        // Return TRUE only when the balance is enough
+        return availableBalance != null && availableBalance.compareTo(totalRequired) >= 0;
     }
 
     private void distributeCommissionToHierarchies(BigDecimal amount,
@@ -1937,8 +1941,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         // Match against hierarchyId, subProductCode, and operatorCode
         return allocations.stream()
                 .filter(allocation ->
-                        allocation.getHierarchyId().equalsIgnoreCase(request.getHierarchyId()) &&
-                                allocation.getSubProductCode().equalsIgnoreCase(request.getSubProductCode()) //&&
+                                allocation.getHierarchyId().equalsIgnoreCase(request.getHierarchyId()) &&
+                                        allocation.getSubProductCode().equalsIgnoreCase(request.getSubProductCode()) //&&
 //                                allocation.getOperatorCode().equalsIgnoreCase(request.getOperatorCode())
                 )
                 .findFirst()
@@ -1976,11 +1980,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         return schemeRates.stream()
                 .filter(rate -> {
                     double amount = request.getAmount();
-                    if (rate.getSlabType() == SlabType.FIXED) {
-                        return Double.compare(amount, rate.getFixedSlabValue()) == 0;
-                    } else {
-                        return amount >= rate.getSlabStart() && amount <= rate.getSlabEnd();
-                    }
+                    return amount >= rate.getSlabStart() && amount <= rate.getSlabEnd();
                 })
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No matching Scheme Rate found for amount: " + request.getAmount()));

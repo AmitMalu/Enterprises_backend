@@ -4,10 +4,8 @@ package com.im.admin.controller;
 import com.im.admin.dto.DmtBeneficiaryDeleteResponse;
 import com.im.admin.dto.DmtBeneficiaryFetchByBeneIdResponse;
 import com.im.admin.dto.DmtBeneficiaryFetchResponse;
-import com.im.admin.request.BeneficiaryRegisterRequest;
-import com.im.admin.request.DmtBeneficiaryDeleteRequest;
-import com.im.admin.request.DmtBeneficiaryFetchByBeneIdRequest;
-import com.im.admin.request.DmtBeneficiaryFetchRequest;
+import com.im.admin.entities.DmtBeneficiary;
+import com.im.admin.request.*;
 import com.im.admin.response.BeneficiaryRegisterResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DmtBeneficiaryService;
@@ -65,6 +63,15 @@ public class DmtBeneficiaryController {
         CommonResponse<DmtBeneficiaryFetchByBeneIdResponse> response = dmtBeneficiaryService.fetchBeneficiaryByBeneId(req);
         return ResponseEntity.ok(response);
     }
+
+
+    @PutMapping("/update")
+    public ResponseEntity<CommonResponse<DmtBeneficiaryResponseDto>> updateBeneficiary(@RequestBody BeneficiaryUpdateRequest request) {
+        CommonResponse<DmtBeneficiaryResponseDto> response = dmtBeneficiaryService.updateBeneficiary(request);
+        return ResponseEntity.status(response.getStatusCode()).body(response);
+    }
+
+
 
 
 }

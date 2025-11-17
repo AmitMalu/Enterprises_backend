@@ -227,7 +227,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                     dto.setId(slab.getId());
                     dto.setRateType(slab.getRateType());
                     dto.setSlabType(slab.getSlabType());
-                    dto.setFixedSlabValue(slab.getFixedSlabValue());
+                    //dto.setFixedSlabValue(slab.getFixedSlabValue());
                     dto.setSlabStart(slab.getSlabStart());
                     dto.setSlabEnd(slab.getSlabEnd());
 
@@ -422,7 +422,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
 
                 slab.setRateType(slabDto.getRateType());
                 slab.setSlabType(slabDto.getSlabType());
-                slab.setFixedSlabValue(slabDto.getFixedSlabValue());
+                //slab.setFixedSlabValue(slabDto.getFixedSlabValue());
                 slab.setSlabStart(slabDto.getSlabStart());
                 slab.setSlabEnd(slabDto.getSlabEnd());
 

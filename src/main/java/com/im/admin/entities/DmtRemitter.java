@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.im.admin.entities.vendor.Vendors;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,8 +26,15 @@ public class DmtRemitter {
     @Column(name = "limit_amount")
     private Double limitAmount;
 
+    @Column(name = "name")
+    private String name;
+
     @Column(columnDefinition = "VARCHAR(20) DEFAULT 'PENDING'")
     private String status; // PENDING / REGISTERED
 
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendor_id", nullable = false)
+    private Vendors vendor;
 }
