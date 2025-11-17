@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.dto.RemitterTransactionResponse;
 import com.im.admin.dto.SendOtpRequest;
 import com.im.admin.entities.SubProducts;
@@ -16,7 +17,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -25,19 +30,45 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
+
     @Override
     public String getVendorCode() {
         return "Paysprint DMT";
     }
 
     @Override
-    public PaysprintPennyDropResponse pennyDropVerify(PennyDropRequest req, VendorCredentials credentials, String baseUrl) {
+    public PaysprintPennyDropResponse pennyDropVerify(PennyDropRequest req,
+                                                      VendorCredentials credentials,
+                                                      String baseUrl) {
         try {
-            String url = baseUrl + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/benenameverify";
-            HttpHeaders headers = getHeaders(credentials);
+            String url = baseUrl +
+                    "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/benenameverify";
 
-            HttpEntity<PennyDropRequest> entity = new HttpEntity<>(req, headers);
-            log.info("[PAYSPRINT] Penny Drop Verify → URL: {} | Body: {}", url, req);
+            // ------------------------------------------------------
+            // 💥 Build JSON body using Map (as per Paysprint Docs)
+            // ------------------------------------------------------
+            Map<String, Object> body = new HashMap<>();
+            body.put("mobile", req.getMobile());
+            body.put("accno", req.getAccno());
+            body.put("bankid", req.getBankid());
+            body.put("benename", req.getBenename());
+            body.put("referenceid", req.getReferenceid());
+            body.put("pincode", req.getPincode());
+            body.put("address", req.getAddress());
+            body.put("dob", req.getDob());
+            body.put("gst_state", req.getGst_state());
+            body.put("bene_id", req.getBene_id());
+            body.put("lat", req.getLat());
+            body.put("long", req.getLng());   // IMPORTANT
+
+            String bodyJson = objectMapper.writeValueAsString(body);
+            log.info("[PAYSPRINT] PennyDrop Body: {}", bodyJson);
+
+            HttpEntity<Map<String, Object>> entity =
+                    new HttpEntity<>(body, getHeaders(credentials));
 
             ResponseEntity<PaysprintPennyDropResponse> response = restTemplate.exchange(
                     url,
@@ -46,19 +77,17 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
                     PaysprintPennyDropResponse.class
             );
 
-            PaysprintPennyDropResponse body = response.getBody();
-
-            //  Use builder for fallback response
-            return body != null ? body : PaysprintPennyDropResponse.builder()
+            return response.getBody() != null
+                    ? response.getBody()
+                    : PaysprintPennyDropResponse.builder()
                     .status(false)
                     .response_code(0)
                     .message("Empty response from vendor")
                     .build();
 
         } catch (Exception e) {
-            log.error("[PAYSPRINT] Exception in pennyDropVerify: {}", e.getMessage(), e);
+            log.error("[PAYSPRINT] Penny Drop Exception: {}", e.getMessage(), e);
 
-            //  Use builder here too
             return PaysprintPennyDropResponse.builder()
                     .status(false)
                     .response_code(500)
@@ -75,35 +104,43 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
             String sendOtpUrl = credentials.getBaseUrlUat() +
                     "/service-api/api/v1/service/dmt/kyc/transact/transact/send_otp";
 
-            SendOtpRequest otpRequestBody = new SendOtpRequest(
-                    req.getMobile(),
-                    req.getTxntype(),
-                    String.valueOf(req.getAmount()),
-                    req.getPincode(),
-                    req.getAddress(),
-                    req.getDob(),
-                    req.getGstState(),
-                    req.getLat(),
-                    req.getLng(),
-                    req.getReferenceId()
-            );
+            // -------------------------
+            // 1. Prepare Request Body Using Map
+            // -------------------------
+            Map<String, String> body = new HashMap<>();
+            body.put("mobile", req.getMobile());
+            body.put("bene_id", req.getBeneId());
+            body.put("txntype", req.getTxnType());
+            body.put("amount", String.valueOf(req.getAmount()));
+            body.put("pincode", req.getPincode());
+            body.put("address", req.getAddress());
+            body.put("dob", req.getDob());
+            body.put("gst_state", req.getGstState());
+            body.put("lat", req.getLat());
+            body.put("long", req.getLng());    // IMPORTANT: key name EXACT "long"
+            body.put("referenceid", req.getReferenceId());
 
-            HttpEntity<SendOtpRequest> entity = new HttpEntity<>(otpRequestBody, getHeaders(credentials));
+            // Store request JSON (optional, for logs)
+            String requestJson = objectMapper.writeValueAsString(body);
 
+            HttpEntity<Map<String, String>> requestEntity =
+                    new HttpEntity<>(body, getHeaders(credentials));
+
+            // -------------------------
+            // 2. Call Paysprint API
+            // -------------------------
             ResponseEntity<PaysprintSendOtpResponse> response = restTemplate.exchange(
                     sendOtpUrl,
                     HttpMethod.POST,
-                    entity,
+                    requestEntity,
                     PaysprintSendOtpResponse.class
             );
 
-            return response.getBody() != null
-                    ? response.getBody()
-                    : new PaysprintSendOtpResponse(false, 0, "Empty response from vendor", null);
+            return response.getBody();
 
         } catch (Exception e) {
-            log.error("[PAYSPRINT] Exception in sendOtp: {}", e.getMessage(), e);
-            return new PaysprintSendOtpResponse(false, 0, "Error while sending OTP", null);
+            e.printStackTrace();
+            return null;
         }
     }
 
@@ -116,85 +153,83 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
             WalletType walletType) {
 
         try {
-            //  STEP 1: Prepare Headers
+            // 1. Headers
             HttpHeaders headers = getHeaders(credentials);
 
-            //  STEP 2: Call Send OTP API
-            String sendOtpUrl = credentials.getBaseUrlUat() +
-                    "/service-api/api/v1/service/dmt/kyc/transact/transact/send_otp";
+            // 2. Body
+            Map<String, Object> body = new HashMap<>();
+            body.put("mobile", req.getMobile());
+            body.put("referenceid", req.getReferenceId());
+            body.put("bene_id", req.getBeneId());
+            body.put("txntype", req.getTxnType());
+            body.put("amount", String.valueOf(req.getAmount()));
+            body.put("pincode", req.getPincode());
+            body.put("address", req.getAddress());
+            body.put("dob", req.getDob());
+            body.put("gst_state", req.getGstState());
+            body.put("lat", req.getLat());
+            body.put("long", req.getLng());
+            body.put("otp", req.getOtp());
+            body.put("stateresp", req.getStateresp());
 
-            SendOtpRequest otpRequestBody = new SendOtpRequest(
-                    req.getMobile(),
-                    req.getTxntype(),
-                    String.valueOf(req.getAmount()),
-                    req.getPincode(),
-                    req.getAddress(),
-                    req.getDob(),
-                    req.getGstState(),
-                    req.getLat(),
-                    req.getLng(),
-                    req.getReferenceId()
-            );
+            HttpEntity<Map<String, Object>> txnEntity = new HttpEntity<>(body, headers);
 
-            HttpEntity<SendOtpRequest> otpEntity = new HttpEntity<>(otpRequestBody, headers);
-            log.info("[PAYSPRINT] Sending OTP → URL: {} | Body: {}", sendOtpUrl, otpRequestBody);
+            String txnUrl = credentials.getBaseUrlUat()
+                    + "/service-api/api/v1/service/dmt/kyc/transact/transact";
 
-            ResponseEntity<PaysprintSendOtpResponse> otpResponseEntity = restTemplate.exchange(
-                    sendOtpUrl,
-                    HttpMethod.POST,
-                    otpEntity,
-                    PaysprintSendOtpResponse.class
-            );
+            log.info("[PAYSPRINT] Performing Transaction → URL: {} | Body: {}", txnUrl, body);
 
-            PaysprintSendOtpResponse otpResp = otpResponseEntity.getBody();
-            log.info("[PAYSPRINT] Send OTP Response: {}", otpResp);
-
-            if (otpResp == null || !otpResp.isStatus() || otpResp.getResponse_code() != 1) {
-                return new RemitterTransactionResponse(false, "Send OTP failed", null);
-            }
-
-            //  STEP 3: Call Transaction API
-            String txnUrl = credentials.getBaseUrlUat() +
-                    "/service-api/api/v1/service/dmt/kyc/transact/transact";
-
-            TransactionRequest txnRequestBody = new TransactionRequest(
-                    req.getMobile(),
-                    req.getReferenceId(),
-                    req.getBeneId(),
-                    req.getTxntype(),
-                    String.valueOf(req.getAmount()),
-                    req.getPincode(),
-                    req.getAddress(),
-                    req.getDob(),
-                    req.getGstState(),
-                    req.getLat(),
-                    req.getLng(),
-                    req.getOtp(),
-                    otpResp.getStateresp()
-            );
-
-            HttpEntity<TransactionRequest> txnEntity = new HttpEntity<>(txnRequestBody, headers);
-            log.info("[PAYSPRINT] Performing Transaction → URL: {} | Body: {}", txnUrl, txnRequestBody);
-
-            ResponseEntity<RemitterTransactionResponse> txnResponseEntity = restTemplate.exchange(
-                    txnUrl,
-                    HttpMethod.POST,
-                    txnEntity,
-                    RemitterTransactionResponse.class
-            );
+            // 3. Call Vendor API
+            ResponseEntity<RemitterTransactionResponse> txnResponseEntity =
+                    restTemplate.exchange(
+                            txnUrl,
+                            HttpMethod.POST,
+                            txnEntity,
+                            RemitterTransactionResponse.class
+                    );
 
             RemitterTransactionResponse txnResponse = txnResponseEntity.getBody();
-            log.info("[PAYSPRINT] Transaction Response: {}", txnResponse);
+            log.info("[PAYSPRINT] Vendor SUCCESS Response: {}", txnResponse);
 
-            return txnResponse != null
-                    ? txnResponse
-                    : new RemitterTransactionResponse(false, "Empty vendor response", null);
+            return txnResponse;
+
+        } catch (HttpClientErrorException e) {
+
+            //  Vendor error body mil raha
+            String json = e.getResponseBodyAsString();
+            log.error("[PAYSPRINT] Vendor ERROR Response: {}", json);
+
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                RemitterTransactionResponse vendorError =
+                        mapper.readValue(json, RemitterTransactionResponse.class);
+
+                return vendorError;   //  EXACT vendor response
+            } catch (Exception ex) {
+                return new RemitterTransactionResponse(
+                        false,
+                        0,
+                        null, null, null, null, null,
+                        "Vendor error parse failed",
+                        null, null, null, null, null, null, null,
+                        null, null,null
+                );
+            }
 
         } catch (Exception e) {
-            log.error("[PAYSPRINT] Exception in processDmt: {}", e.getMessage(), e);
-            return new RemitterTransactionResponse(false, "Exception during vendor transaction", null);
+            log.error("[PAYSPRINT] UNKNOWN Exception: {}", e.getMessage(), e);
+            return new RemitterTransactionResponse(
+                    false,
+                    0,
+                    null, null, null, null, null,
+                    "Unknown exception",
+                    null, null, null, null, null, null, null,
+                    null, null,null
+            );
         }
     }
+
+
 
     // 🔹 Helper method for common headers
     private HttpHeaders getHeaders(VendorCredentials credentials) {

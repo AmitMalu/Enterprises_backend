@@ -5,39 +5,33 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
+//@NoArgsConstructor
 public class RemitterTransactionResponse {
 
-    private Boolean status;           // true or false
-    private int response_code;        // vendor response code
-    private String ackno;             // vendor acknowledgement number
-    private String utr;               // bank UTR number
-    private Integer txn_status;       // transaction status code
-    private String benename;          // beneficiary name
-    private String remarks;           // vendor remarks
-    private String message;           // message or description
-    private String customercharge;    // customer charge
-    private String gst;               // GST value
-    private String tds;               // TDS value
-    private String netcommission;     // net commission
-    private String remitter;          // remitter mobile or id
-    private String account_number;    // beneficiary account number
-    private String paysprint_share;   // vendor share
-    private String txn_amount;        // transaction amount
-    private Double balance;           // updated wallet balance
-    private Long referenceid;         // vendor reference id
+    private Boolean status;
+    private int response_code;
+    private String ackno;
+    private String utr;
+    private Integer txn_status;
+    private String benename;
+    private String remarks;
+    private String message;
+    private String customercharge;
+    private String gst;
+    private String tds;
+    private String netcommission;
+    private String remitter;
+    private String account_number;
+    private String paysprint_share;
+    private String txn_amount;
+    private Double balance;
+    private String referenceid;
 
-
-    public RemitterTransactionResponse(boolean status, String message, String ackno) {
-        try {
-            this.status = status;
-            this.message = message;
-            this.ackno = ackno;
-        } catch (Exception e) {
-            this.status = false;
-            this.message = "Error while creating RemitterTransactionResponse: " + e.getMessage();
-            this.ackno = null;
-        }
-    }
+//    // Optional custom constructor
+//    public RemitterTransactionResponse(boolean status, String message, String ackno) {
+//        this.status = status;
+//        this.message = message;
+//        this.ackno = ackno;
+//    }
 }

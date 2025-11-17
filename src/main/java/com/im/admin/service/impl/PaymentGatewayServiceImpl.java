@@ -517,8 +517,8 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         // Pick correct scheme by amount range or fixed value
         SchemeRate selectedScheme = matchingSchemes.stream()
                 .filter(scheme ->
-                        (scheme.getSlabType() == SlabType.FIXED && Objects.equals(scheme.getFixedSlabValue(), txnAmt)) ||
-                                (scheme.getSlabType() == SlabType.VARIABLE && txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd())
+                        scheme.getSlabType() == SlabType.VARIABLE &&
+                                txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd()
                 )
                 .findFirst()
                 .orElse(matchingSchemes.get(0));

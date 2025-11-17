@@ -23,8 +23,8 @@ public class DmtBeneficiary {
     @Column(name = "bene_id")
     private Long beneId;
 
-    @Column(name = "bene_name")
-    private String beneName;
+    @Column(name = "name")
+    private String name;
 
     @Column(name = "bank_id")
     private String bankId;
@@ -47,6 +47,19 @@ public class DmtBeneficiary {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendor_id", nullable = false)
     private Vendors vendor;
+
+    @Column(name = "dob")
+    private String dob;
+
+    @Column(name = "address")
+    private String address;
+
+    @Column(name = "pincode")
+    private String pincode;
+
+    @Column(name = "gst_state")
+    private String gst_state;
+
 
 }
 

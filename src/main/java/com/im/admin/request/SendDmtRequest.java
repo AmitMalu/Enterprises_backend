@@ -14,7 +14,7 @@ public class SendDmtRequest {
     private String beneficiaryName;
     private String accountNumber;
     private String mobile;
-    private String txntype;
+    private String txnType;
     private String pincode;
     private String address;
     private String dob;
@@ -27,6 +27,7 @@ public class SendDmtRequest {
     private String referenceId;
     private String schemeCode;
     private String paymentMode;
-    private String TransactionType;
+//    private String TransactionType;
+    private String stateresp;
 
 }

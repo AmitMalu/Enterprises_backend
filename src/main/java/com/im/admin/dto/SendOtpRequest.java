@@ -19,4 +19,5 @@ public class SendOtpRequest {
     private String lat;
     private String lng;
     private String referenceid;
+    private String beneId;
 }

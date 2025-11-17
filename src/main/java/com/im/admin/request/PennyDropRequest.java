@@ -17,4 +17,8 @@ public class PennyDropRequest {
     private String gst_state;
     private String bene_id;
     private String SubProductId;
+    private String lat;
+    private String lng;
+    private String retailerId;
+
 }

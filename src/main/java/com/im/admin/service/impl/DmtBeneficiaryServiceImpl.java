@@ -13,10 +13,7 @@ import com.im.admin.repositories.BeneficiaryRepository;
 import com.im.admin.repositories.RemitterRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
-import com.im.admin.request.BeneficiaryRegisterRequest;
-import com.im.admin.request.DmtBeneficiaryDeleteRequest;
-import com.im.admin.request.DmtBeneficiaryFetchByBeneIdRequest;
-import com.im.admin.request.DmtBeneficiaryFetchRequest;
+import com.im.admin.request.*;
 import com.im.admin.response.BeneficiaryRegisterResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DmtBeneficiaryService;
@@ -31,6 +28,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
@@ -87,12 +85,16 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
             bene.setRemitter(dmtRemitter);
             bene.setVendor(vendor);
             bene.setBeneId(resp.getData().getBene_id());
-            bene.setBeneName(req.getBenename());
+            bene.setName(req.getBenename());
             bene.setBankId(req.getBankid());
             bene.setBankName(resp.getData().getBankname());
             bene.setAccountNo(req.getAccno());
             bene.setIfscCode(req.getIfsccode());
             bene.setVerified(req.getVerified());
+            bene.setDob(req.getDob());
+            bene.setAddress(req.getAddress());
+            bene.setPincode(req.getPincode());
+            bene.setGst_state(req.getGst_state());
             bene.setStatus("REGISTERED");
             beneficiaryRepository.save(bene);
         }
@@ -152,8 +154,7 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
         if (vendorResponse != null && vendorResponse.getResponse_code() == 1) {
             DmtBeneficiary bene = beneficiaryRepository.findByBeneId(req.getBene_id());
             if (bene != null) {
-                bene.setStatus("DELETED");
-                beneficiaryRepository.save(bene);
+                beneficiaryRepository.delete(bene); // <- DELETE RECORD
             }
         }
 
@@ -169,6 +170,34 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
     @Override
     public CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>> fetchBeneficiary(DmtBeneficiaryFetchRequest req, int page, int size) {
         try {
+
+            Optional<DmtRemitter> optionalRemitter = remitterRepository.findByMobile(req.getMobile());
+
+            if (optionalRemitter.isEmpty()) {
+                return CommonResponse.handleErrors("Remitter not found");
+            }
+
+            DmtRemitter remitter = optionalRemitter.get();
+            // STEP 2 → Fetch Local Beneficiaries
+            // ==============================
+            List<DmtBeneficiary> localList = beneficiaryRepository.findByRemitter(remitter);
+
+            if (!localList.isEmpty()) {
+
+                // Convert Entity → DTO
+                List<DmtBeneficiaryFetchResponse.BeneficiaryData> dtoList =
+                        localList.stream().map(this::convertToDto).toList();
+
+                // Apply pagination using PageImpl
+                int start = (int) PageRequest.of(page, size).getOffset();
+                int end = Math.min(start + size, dtoList.size());
+                List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedData = dtoList.subList(start, end);
+
+                Page<DmtBeneficiaryFetchResponse.BeneficiaryData> pageResponse =
+                        new PageImpl<>(pagedData, PageRequest.of(page, size), dtoList.size());
+
+                return CommonResponse.success(pageResponse, "Beneficiaries fetched");
+            }
             // ====== STEP 1: Load Vendor Credentials Dynamically ======
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
@@ -265,6 +294,77 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
             return CommonResponse.handleErrors("Error fetching beneficiary details: " + e.getMessage());
         }
     }
+
+
+    @Override
+    public CommonResponse<DmtBeneficiaryResponseDto> updateBeneficiary(BeneficiaryUpdateRequest req) {
+        try {
+
+            // ===== Load vendor credentials =====
+            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+            // ===== Update local DB =====
+            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(req.getBeneId());
+            if (beneficiary == null) {
+                return CommonResponse.handleErrors("Beneficiary not found with ID: " + req.getBeneId());
+            }
+
+            beneficiary.setName(req.getName());
+            beneficiary.setBankName(req.getBankname());
+            beneficiary.setVerified(req.getVerified());
+
+            DmtBeneficiary updated = beneficiaryRepository.save(beneficiary);
+
+            // Convert entity to DTO
+            DmtBeneficiaryResponseDto dto = mapToDto(updated);
+
+            return CommonResponse.success(dto, "Beneficiary updated successfully");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return CommonResponse.handleErrors("Error updating beneficiary: " + e.getMessage());
+        }
+    }
+
+
+    public DmtBeneficiaryResponseDto mapToDto(DmtBeneficiary ben) {
+        DmtBeneficiaryResponseDto dto = new DmtBeneficiaryResponseDto();
+        dto.setId(ben.getId());
+        dto.setBeneId(ben.getBeneId());
+        dto.setName(ben.getName());
+        dto.setBankId(ben.getBankId());
+        dto.setBankName(ben.getBankName());
+        dto.setAccountNo(ben.getAccountNo());
+        dto.setIfscCode(ben.getIfscCode());
+        dto.setVerified(ben.getVerified());
+        dto.setStatus(ben.getStatus());
+        return dto;
+    }
+
+
+    private DmtBeneficiaryFetchResponse.BeneficiaryData convertToDto(DmtBeneficiary b) {
+
+        DmtBeneficiaryFetchResponse.BeneficiaryData dto =
+                new DmtBeneficiaryFetchResponse.BeneficiaryData();
+
+        dto.setBene_id(String.valueOf(b.getBeneId()));
+        dto.setBankid(b.getBankId());
+        dto.setBankname(b.getBankName());
+        dto.setName(b.getName());
+        dto.setAccno(b.getAccountNo());
+        dto.setIfsc(b.getIfscCode());
+        dto.setVerified(b.getVerified());
+        dto.setBanktype(null); // if not available in DB
+        dto.setPaytm(false);   // if not available in DB
+
+        return dto;
+    }
+
 
 
 

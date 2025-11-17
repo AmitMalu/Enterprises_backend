@@ -10,4 +10,5 @@ public class PaysprintSendOtpResponse {
     private int response_code;
     private String message;
     private String stateresp;
+    private String referenceId;
 }

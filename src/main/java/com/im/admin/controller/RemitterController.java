@@ -1,12 +1,13 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.*;
+import com.im.admin.dto.RemitterUpdateRequest;
 import com.im.admin.entities.DmtRemitter;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.DmtRemitterResponseDto;
 import com.im.admin.service.RemitterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,9 +42,18 @@ public class RemitterController {
     }
 
     @GetMapping("/fetch-details/{mobileNo}")
-    public CommonResponse<DmtRemitter> fetchRemmiterDetails(@PathVariable("mobileNo") String mobileNumber) {
+    public CommonResponse<DmtRemitterResponseDto> fetchRemmiterDetails(@PathVariable("mobileNo") String mobileNumber) {
         return remitterService.fetchRemitterDetails(mobileNumber);
     }
+
+    @PutMapping("/update")
+    public ResponseEntity<CommonResponse<DmtRemitterResponseDto>> updateRemitter(
+            @RequestBody RemitterUpdateRequest request) {
+
+        CommonResponse<DmtRemitterResponseDto> response = remitterService.updateRemitter(request);
+        return ResponseEntity.status(response.getStatusCode()).body(response);
+    }
+
 
 }
 

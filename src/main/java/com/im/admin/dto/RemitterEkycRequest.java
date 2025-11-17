@@ -17,4 +17,5 @@ public class RemitterEkycRequest {
     private String accessmode = "WEB";
     private Integer is_iris = 2;    // 2 = Finger default
     private String subProductId;
+    private String name;
 }
