@@ -14,5 +14,8 @@ public interface OnboardingService {
 
     GenericPendingRecordDto getRecordById(String id);
 
-    Page<GenericPendingRecordDto> getAllRecordsByStatus(String status, int page, int size, String type, String id, String name, String createdBy, String createdOn, String mobileNumber, String emailId, String parentAccount);
+    Page<GenericPendingRecordDto> getAllRecordsByStatus(String status, int page, int size, String type, String id, String name, String createdBy, String createdOn, String mobileNumber, String emailId, String parentAccount,String rejectionReason);
+
+    String moveToPending(String hierarchyId);
+
 }

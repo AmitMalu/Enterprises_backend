@@ -90,6 +90,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                                     e.getStatus(),
                                     userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId())
                                             .map(UserDetails::getIsBlocked).orElse(false),
+                                    e.getRejectionReason(),
                                     e.getCreatedOn()
                             ));
 
@@ -108,6 +109,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                                     wl.getStatus(),
                                     userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId())
                                             .map(UserDetails::getIsBlocked).orElse(false),
+                                    wl.getRejectionReason(),
                                     wl.getCreatedOn()
                             ));
 
@@ -127,6 +129,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                                             s.getStatus(),
                                             userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId())
                                                     .map(UserDetails::getIsBlocked).orElse(false),
+                                            s.getRejectionReason(),
                                             s.getCreatedOn()
                                     ));
 
@@ -145,6 +148,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                                     p.getStatus(),
                                     userDetailsRepository.findFirstByHierarchyId(p.getPartnerId())
                                             .map(UserDetails::getIsBlocked).orElse(false),
+                                    p.getRejectionReason(),
                                     p.getCreatedOn()
                             ));
 
@@ -163,6 +167,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                                     d.getStatus(),
                                     userDetailsRepository.findFirstByHierarchyId(d.getDistributorId())
                                             .map(UserDetails::getIsBlocked).orElse(false),
+                                    d.getRejectionReason(),
                                     d.getCreatedOn()
                             ));
 
@@ -181,6 +186,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                                     r.getStatus(),
                                     userDetailsRepository.findFirstByHierarchyId(r.getRetailerId())
                                             .map(UserDetails::getIsBlocked).orElse(false),
+                                    r.getRejectionReason(),
                                     r.getCreatedOn()
                             ));
 
@@ -260,7 +266,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(e -> new ChildUserDto(
                             "Enterprises", e.getEnterpriseId(), e.getParentAccount(), e.getAbbreviation(), e.getTitle(),
                             e.getName(), e.getMobileNumber(), e.getEmailId(), e.getDob(), e.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId()).map(UserDetails::getIsBlocked).orElse(false), e.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId()).map(UserDetails::getIsBlocked).orElse(false),
+                            e.getRejectionReason(),
+                            e.getCreatedOn()
                     )).toList();
 
             case "white_labels" -> whiteLabelRepository.findByParentAccount(parentHierarchyId).stream()
@@ -268,7 +276,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(wl -> new ChildUserDto(
                             "White Label", wl.getWhiteLabelId(), wl.getParentAccount(), wl.getAbbreviation(), wl.getTitle(),
                             wl.getName(), wl.getMobileNumber(), wl.getEmailId(), wl.getDob(), wl.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId()).map(UserDetails::getIsBlocked).orElse(false), wl.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId()).map(UserDetails::getIsBlocked).orElse(false),
+                            wl.getRejectionReason(),
+                            wl.getCreatedOn()
                     )).toList();
 
             case "super_distributor" -> superDistributorRepository.findByParentAccount(parentHierarchyId).stream()
@@ -276,7 +286,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(s -> new ChildUserDto(
                             "Super Distributor", s.getSuperDistributorId(), s.getParentAccount(), s.getAbbreviation(), s.getTitle(),
                             s.getName(), s.getMobileNumber(), s.getEmailId(), s.getDob(), s.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId()).map(UserDetails::getIsBlocked).orElse(false), s.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId()).map(UserDetails::getIsBlocked).orElse(false),
+                            s.getRejectionReason(),
+                            s.getCreatedOn()
                     )).toList();
 
             case "partner" -> partnerRepository.findByParentAccount(parentHierarchyId).stream()
@@ -284,7 +296,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(p -> new ChildUserDto(
                             "Partner", p.getPartnerId(), p.getParentAccount(), p.getAbbreviation(), p.getTitle(),
                             p.getName(), p.getMobileNumber(), p.getEmailId(), p.getDob(), p.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(p.getPartnerId()).map(UserDetails::getIsBlocked).orElse(false), p.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(p.getPartnerId()).map(UserDetails::getIsBlocked).orElse(false),
+                            p.getRejectionReason(),
+                            p.getCreatedOn()
                     )).toList();
 
             case "distributor" -> distributorRepository.findByParentAccount(parentHierarchyId).stream()
@@ -292,7 +306,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(d -> new ChildUserDto(
                             "Distributor", d.getDistributorId(), d.getParentAccount(), d.getAbbreviation(), d.getTitle(),
                             d.getName(), d.getMobileNumber(), d.getEmailId(), d.getDob(), d.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(d.getDistributorId()).map(UserDetails::getIsBlocked).orElse(false), d.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(d.getDistributorId()).map(UserDetails::getIsBlocked).orElse(false),
+                            d.getRejectionReason(),
+                            d.getCreatedOn()
                     )).toList();
 
             case "retailer" -> retailerRepository.findByParentAccount(parentHierarchyId).stream()
@@ -300,7 +316,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(r -> new ChildUserDto(
                             "Retailer", r.getRetailerId(), r.getParentAccount(), r.getAbbreviation(), r.getTitle(),
                             r.getName(), r.getMobileNumber(), r.getEmailId(), r.getDob(), r.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(r.getRetailerId()).map(UserDetails::getIsBlocked).orElse(false), r.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(r.getRetailerId()).map(UserDetails::getIsBlocked).orElse(false),
+                            r.getRejectionReason(),
+                            r.getCreatedOn()
                     )).toList();
 
             default -> throw new RuntimeException("Invalid child entity type: " + childEntity);

@@ -22,7 +22,9 @@ public class ChildUserDto {
     private LocalDate dob;
     private String status;
     private Boolean isBlocked;
+    private String remarks;
     private LocalDateTime createdOn;
 }
+
 
 
