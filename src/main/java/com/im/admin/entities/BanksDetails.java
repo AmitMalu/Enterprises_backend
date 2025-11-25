@@ -22,7 +22,7 @@ public class BanksDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "hierarchyId")
+    @Column(name = "hierarchy_id")
     private String hierarchyId;
 
     @Column(name = "bank_name")
@@ -34,7 +34,7 @@ public class BanksDetails {
     @Column(name = "bank_account_number")
     private String bankAccountNumber;
 
-    @Column(name = "IFSC_code")
+    @Column(name = "ifsc_code")
     private String ifscCode;
 
     @Column(name = "is_verified")

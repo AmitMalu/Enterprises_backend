@@ -23,5 +23,6 @@ public class GenericPendingRecordDto {
     private String mobileNumber;
     private String emailId;
     private String parentAccount;
+    private String remarks;
 
 }
