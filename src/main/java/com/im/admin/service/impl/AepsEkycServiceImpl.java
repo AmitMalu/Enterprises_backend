@@ -1,7 +1,9 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.entities.AepsMerchantStatus;
 import com.im.admin.entities.Retailer;
+import com.im.admin.repositories.AepsMerchantStatusRepository;
 import com.im.admin.repositories.RetailerRepository;
 import com.im.admin.request.*;
 import com.im.admin.response.*;
@@ -41,6 +43,10 @@ public class AepsEkycServiceImpl implements AepsEkycService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+
+    @Autowired
+    private AepsMerchantStatusRepository aepsMerchantStatusRepository;
 
 
 
@@ -321,6 +327,33 @@ public class AepsEkycServiceImpl implements AepsEkycService {
 
             // STEP 4: Call Biometric API internally
             ResponseEntity<AepsBiometricEkycResponseDto> aepsBiometricEkycResponseDtoResponseEntity = biometricEkyc(bioReq);
+
+            // STEP 5: UPDATE STATUS TABLE AFTER SUCCESSFUL BIOMETRIC EKYC
+            AepsBiometricEkycResponseDto biometricRes =
+                    aepsBiometricEkycResponseDtoResponseEntity.getBody();
+
+            if (biometricRes != null && biometricRes.isStatus()) {
+
+                Optional<AepsMerchantStatus> optStatus =
+                        aepsMerchantStatusRepository.findByRetailerId(req.getRetailerId());
+
+                if (optStatus.isPresent()) {
+
+                    AepsMerchantStatus status = optStatus.get();
+
+                    status.setEkycVerified(true);
+                    status.setBiometricVerified(true);
+                    status.setUpdatedAt(LocalDateTime.now());
+                    status.setStatus("ACTIVE");
+
+                    // NOTE: Vendor biometric response does NOT return PK or TXN ID
+                    // So do NOT set: fingpayPrimaryKey / fingpayTxnId
+
+                    aepsMerchantStatusRepository.save(status);
+                }
+            }
+
+
             return aepsBiometricEkycResponseDtoResponseEntity;
 
         } catch (Exception e) {

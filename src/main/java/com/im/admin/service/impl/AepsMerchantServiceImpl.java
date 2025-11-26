@@ -7,8 +7,10 @@ import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.AepsCheckStatus;
 import com.im.admin.request.AepsMerchantRequestDto;
+import com.im.admin.request.AepsStatusDataDto;
 import com.im.admin.response.AepsMerchantResponseDto;
 import com.im.admin.response.AepsStatusCheckResponse;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AepsMerchantService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.repositories.RetailerRepository;
@@ -31,7 +33,7 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
     private static final String SUPER_USERNAME = "nftpayd";
     private static final String SUPER_PASSWORD_MD5 = "81dc9bdb52d04dc20036dbd8313ed055";
     private static final Integer SUPER_MERCHANT_ID = 1396;
-    private static final String MERCHANT_PIN_HARDCODE = "Test@123";
+    private static final String MERCHANT_PIN_HARDCODE = "1234d";
     private static final String FINGPAY_URL = "https://fpuat.tapits.in/fpaepsweb/api/onboarding/merchant/creation/v2";
 
     @Autowired
@@ -245,46 +247,73 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
 
 
     @Override
-    public AepsStatusCheckResponse checkStatus(AepsCheckStatus aepsCheckStatus) {
-        AepsStatusCheckResponse resp = new AepsStatusCheckResponse();
+    public CommonResponse<AepsStatusDataDto> checkStatus(AepsCheckStatus req) {
 
+        CommonResponse<AepsStatusDataDto> resp = new CommonResponse<>();
+        AepsStatusDataDto data = new AepsStatusDataDto();
+
+        // Fetch retailer first (for profile)
+        Optional<Retailer> retailerOpt = retailerRepository.findByRetailerId(req.getRetailerId());
+
+        AepsStatusDataDto.Profile profile = new AepsStatusDataDto.Profile();
+
+        if (retailerOpt.isPresent()) {
+            Retailer r = retailerOpt.get();
+
+            profile.setRetailerId(r.getRetailerId());
+            profile.setName(r.getName());
+            profile.setMobileNumber(r.getMobileNumber());
+            profile.setEmailId(r.getEmailId());
+            profile.setDob(r.getDob() != null ? r.getDob().toString() : null);
+            profile.setAadhaarNumber(r.getAadhaarNumber());
+            profile.setPanNumber(r.getPanNumber());
+        }
+
+        data.setProfile(profile);
+
+        // Check merchant AEPS status
         Optional<AepsMerchantStatus> opt =
-                aepsMerchantStatusRepository.findByRetailerId(aepsCheckStatus.getRetailerId());
+                aepsMerchantStatusRepository.findByRetailerId(req.getRetailerId());
 
-        // 1. No record found
+        // CASE 1: Not onboarded
         if (opt.isEmpty()) {
-            resp.setOnboarded(false);
-            resp.setStepPending("Onboarding Not Started");
+            data.setOnboardStatus(0);
+            resp.setStatusCode(200);
+            resp.setMessage("Merchant onboarding not done");
+            resp.setData(data);
             return resp;
         }
 
         AepsMerchantStatus status = opt.get();
 
-        // 2. Fully active
-        if ("ACTIVE".equalsIgnoreCase(status.getStatus())) {
-            resp.setOnboarded(true);
-            resp.setStepPending(null);
+        // CASE 2: Onboarded but EKYC or Biometric pending
+        if (status.getOnboarded() &&
+                (!status.getEkycVerified() || !status.getBiometricVerified())) {
+
+            data.setOnboardStatus(1);
+
+            resp.setStatusCode(200);
+            resp.setMessage("Onboarding done but EKYC / Biometric pending");
+            resp.setData(data);
             return resp;
         }
 
-        // 3. Partially completed → decide which step is pending
-        resp.setOnboarded(false);
+        // CASE 3: Fully activated
+        if (status.getOnboarded() && status.getEkycVerified() && status.getBiometricVerified()) {
+            data.setOnboardStatus(2);
 
-
-// STEP CHECKING
-        if (!status.getOnboarded()) {
-            resp.setStepPending("Onboarding");
-        }
-        else if (!status.getEkycVerified()) {
-            resp.setStepPending("EKYC");
-        }
-        else if (!status.getBiometricVerified()) {
-            resp.setStepPending("Biometric");
-        }
-        else {
-            resp.setStepPending("Pending");
+            resp.setStatusCode(200);
+            resp.setMessage("AEPS fully activated");
+            resp.setData(data);
+            return resp;
         }
 
+        // DEFAULT
+        data.setOnboardStatus(0);
+        resp.setStatusCode(200);
+        resp.setMessage("Unknown AEPS status");
+        resp.setData(data);
         return resp;
     }
-    }
+
+}
