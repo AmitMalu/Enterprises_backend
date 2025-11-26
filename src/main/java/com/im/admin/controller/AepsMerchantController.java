@@ -2,8 +2,13 @@ package com.im.admin.controller;
 
 import com.im.admin.request.AepsCheckStatus;
 import com.im.admin.request.AepsMerchantRequestDto;
+import com.im.admin.request.AepsSendOtpRequest;
+import com.im.admin.request.AepsStatusDataDto;
+import com.im.admin.response.AepsEkycResponseDto;
 import com.im.admin.response.AepsMerchantResponseDto;
 import com.im.admin.response.AepsStatusCheckResponse;
+import com.im.admin.response.CommonResponse;
+import com.im.admin.service.AepsEkycService;
 import com.im.admin.service.AepsMerchantService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +20,11 @@ public class AepsMerchantController {
 
     @Autowired
     private AepsMerchantService aepsMerchantService;
+
+
+    @Autowired
+    private AepsEkycService aepsEkycService;
+
 
     @PostMapping("/onboarding")
     public ResponseEntity<AepsMerchantResponseDto> register(@RequestBody AepsMerchantRequestDto aepsMerchantRequestDto) {
@@ -42,9 +52,13 @@ public class AepsMerchantController {
     }
 
     @PostMapping("/check-status")
-    public ResponseEntity<AepsStatusCheckResponse> checkStatus(@RequestBody AepsCheckStatus aepsCheckStatus) {
-        AepsStatusCheckResponse response = aepsMerchantService.checkStatus(aepsCheckStatus);
-        return ResponseEntity.ok(response);
+    public CommonResponse<AepsStatusDataDto> checkStatus(@RequestBody AepsCheckStatus req) {
+        return aepsMerchantService.checkStatus(req);
+    }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<AepsEkycResponseDto> sendOtp(@RequestBody AepsSendOtpRequest req) {
+        return aepsEkycService.sendOtp(req);
     }
 
 }
