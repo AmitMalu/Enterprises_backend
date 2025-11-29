@@ -33,7 +33,7 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
     private static final String SUPER_USERNAME = "nftpayd";
     private static final String SUPER_PASSWORD_MD5 = "81dc9bdb52d04dc20036dbd8313ed055";
     private static final Integer SUPER_MERCHANT_ID = 1396;
-    private static final String MERCHANT_PIN_HARDCODE = "1234d";
+    private static final String MERCHANT_PIN = "1234d";
     private static final String FINGPAY_URL = "https://fpuat.tapits.in/fpaepsweb/api/onboarding/merchant/creation/v2";
 
     @Autowired
@@ -85,7 +85,7 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
 
             Map<String, Object> merchant = new LinkedHashMap<>();
             merchant.put("merchantLoginId", r.getRetailerId());
-            merchant.put("merchantLoginPin", MERCHANT_PIN_HARDCODE);
+            merchant.put("merchantLoginPin", MERCHANT_PIN);
 
             // Name split
             String fullName = r.getName();
@@ -214,6 +214,7 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
                 status.setEkycVerified(false);
                 status.setBiometricVerified(false);
                 status.setStatus("ACTIVE");
+                status.setVendor(vendor);
 
                 aepsMerchantStatusRepository.save(status);
             }

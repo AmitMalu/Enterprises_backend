@@ -7,11 +7,11 @@ public class Aeps2FaResponseDto {
 
     private boolean status;
     private String message;
-    private Object data;
+    private Aeps2FaData data;  // updated
     private long statusCode;
 
-    @lombok.Data
-    public static class Data {
+    @Data
+    public static class Aeps2FaData {
         private String tefPkId;
         private String stan;
         private String bankRrn;

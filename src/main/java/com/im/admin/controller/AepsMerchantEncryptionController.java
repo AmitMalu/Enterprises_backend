@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("api/fingpay")
-public class MerchantEncryptionController {
+public class AepsMerchantEncryptionController {
 
     @Autowired
     ResourceLoader resourceLoader;

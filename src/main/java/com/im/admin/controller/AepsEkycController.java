@@ -19,9 +19,10 @@ public class AepsEkycController {
     private AepsEkycService aepsEkycService;
 
     @PostMapping("/send-otp")
-    public ResponseEntity<AepsEkycResponseDto> sendOtp(@RequestBody AepsSendOtpRequest req) {
+    public ResponseEntity<CommonResponse<AepsEkycResponseDto>> sendOtp(@RequestBody AepsSendOtpRequest req) {
         return aepsEkycService.sendOtp(req);
     }
+
 
     @PostMapping("/validate-otp")
     public ResponseEntity<AepsValidateOtpResponseDto> validateOtp(@RequestBody AepsValidateOtpRequest req) {
@@ -29,9 +30,11 @@ public class AepsEkycController {
     }
 
     @PostMapping("/resend-otp")
-    public ResponseEntity<AepsResendOtpResponseDto> resendOtp(@RequestBody AepsResendOtpRequest req) {
+    public ResponseEntity<CommonResponse<AepsResendOtpResponseDto>> resendOtp(
+            @RequestBody AepsResendOtpRequest req) {
         return aepsEkycService.resendOtp(req);
     }
+
 
     @PostMapping("/biometric")
     public ResponseEntity<AepsBiometricEkycResponseDto> biometricEkyc(

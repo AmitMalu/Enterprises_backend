@@ -10,6 +10,7 @@ public class AepsCombinedRequest {
     private String otp;
     private Integer primaryKeyId;
     private String encodeFPTxnId;
+    private String subProductId;
 
     // Biometric fields
     private String requestRemarks;

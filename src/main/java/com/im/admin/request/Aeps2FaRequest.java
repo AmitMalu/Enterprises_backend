@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class Aeps2FaRequest {
 
+    private String subProductId;
     private String retailerId;             // From frontend
     private String otp;                    // Only if OTP flow
     private int primaryKeyId;              // From Validate API
