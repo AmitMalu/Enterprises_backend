@@ -5,11 +5,13 @@ import com.im.admin.response.*;
 import org.springframework.http.ResponseEntity;
 
 public interface AepsEkycService {
-    ResponseEntity<AepsEkycResponseDto> sendOtp(AepsSendOtpRequest req);
+    ResponseEntity<CommonResponse<AepsEkycResponseDto>> sendOtp(AepsSendOtpRequest req);
+
 
     ResponseEntity<AepsValidateOtpResponseDto> validateOtp(AepsValidateOtpRequest req);
 
-    ResponseEntity<AepsResendOtpResponseDto> resendOtp(AepsResendOtpRequest req);
+    ResponseEntity<CommonResponse<AepsResendOtpResponseDto>> resendOtp(AepsResendOtpRequest req);
+
 
     ResponseEntity<AepsBiometricEkycResponseDto> biometricEkyc(AepsBiometricEkycRequest req);
 

@@ -3,11 +3,17 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.entities.AepsMerchantStatus;
 import com.im.admin.entities.Retailer;
+import com.im.admin.entities.VendorCredentials;
+import com.im.admin.entities.VendorRouting;
+import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.AepsMerchantStatusRepository;
 import com.im.admin.repositories.RetailerRepository;
+import com.im.admin.repositories.VendorCredentialsRepository;
+import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.*;
 import com.im.admin.response.*;
 import com.im.admin.service.AepsEkycService;
+import com.im.admin.util.CommonMethods;
 import com.im.admin.util.FingpayEncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
@@ -48,10 +54,16 @@ public class AepsEkycServiceImpl implements AepsEkycService {
     @Autowired
     private AepsMerchantStatusRepository aepsMerchantStatusRepository;
 
+    @Autowired
+    private VendorRoutingRepository vendorRoutingRepository;
+
+    @Autowired
+    private VendorCredentialsRepository vendorCredentialsRepository;
+
 
 
     @Override
-    public ResponseEntity<AepsEkycResponseDto> sendOtp(AepsSendOtpRequest req) {
+    public ResponseEntity<CommonResponse<AepsEkycResponseDto>> sendOtp(AepsSendOtpRequest req) {
         // STEP 1: Fetch Retailer
         Retailer r = retailerRepository.findById(req.getRetailerId())
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
@@ -91,18 +103,28 @@ public class AepsEkycServiceImpl implements AepsEkycService {
             HttpEntity<String> entity = new HttpEntity<>(payload.body, headers);
 
             // STEP 6: Call Fingpay Send OTP API
-            ResponseEntity<AepsEkycResponseDto> response = restTemplate.exchange(
+            ResponseEntity<AepsEkycResponseDto> vendorResp = restTemplate.exchange(
                     SEND_OTP_URL,
                     HttpMethod.POST,
                     entity,
                     AepsEkycResponseDto.class
             );
 
-            return response;
+            CommonResponse<AepsEkycResponseDto> response = new CommonResponse<>();
+            response.setStatusCode(vendorResp.getStatusCodeValue());
+            response.setMessage("Success");
+            response.setData(vendorResp.getBody());
 
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(vendorResp.getStatusCode()).body(response);
+
+        } catch (Exception e) {
+
+            CommonResponse<AepsEkycResponseDto> error = new CommonResponse<>();
+            error.setStatusCode(500);
+            error.setMessage("Vendor API failed: " + e.getMessage());
+            error.setData(null);
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 
@@ -162,8 +184,7 @@ public class AepsEkycServiceImpl implements AepsEkycService {
     }
 
     @Override
-    public ResponseEntity<AepsResendOtpResponseDto> resendOtp(AepsResendOtpRequest req) {
-        // STEP 1: Fetch Retailer
+    public ResponseEntity<CommonResponse<AepsResendOtpResponseDto>> resendOtp(AepsResendOtpRequest req) {
         Retailer r = retailerRepository.findById(req.getRetailerId())
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
@@ -178,7 +199,7 @@ public class AepsEkycServiceImpl implements AepsEkycService {
             ObjectMapper mapper = new ObjectMapper();
             String plainJson = mapper.writeValueAsString(json);
 
-            // STEP 3: Read Public Key Certificate
+            // STEP 3: Read Certificate
             Resource resource = resourceLoader.getResource("classpath:fingpay_public.cer");
             String certificate = new String(resource.getInputStream().readAllBytes());
 
@@ -194,23 +215,36 @@ public class AepsEkycServiceImpl implements AepsEkycService {
             headers.set("deviceIMEI", "WEB1234567");
             headers.setContentType(MediaType.TEXT_PLAIN);
 
-            // STEP 6: Call Fingpay API
             HttpEntity<String> entity = new HttpEntity<>(payload.body, headers);
 
-            ResponseEntity<AepsResendOtpResponseDto> response = restTemplate.exchange(
+            // STEP 6: Vendor API Call
+            ResponseEntity<AepsResendOtpResponseDto> vendorResp = restTemplate.exchange(
                     RESEND_OTP_URL,
                     HttpMethod.POST,
                     entity,
                     AepsResendOtpResponseDto.class
             );
 
-            return response;
+            // Prepare success CommonResponse
+            CommonResponse<AepsResendOtpResponseDto> response = new CommonResponse<>();
+            response.setStatusCode(vendorResp.getStatusCodeValue());
+            response.setMessage("Success");
+            response.setData(vendorResp.getBody());
+
+            return ResponseEntity.status(vendorResp.getStatusCode()).body(response);
 
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+
+            // Vendor failed → Return proper error response
+            CommonResponse<AepsResendOtpResponseDto> error = new CommonResponse<>();
+            error.setStatusCode(500);
+            error.setMessage("Vendor API failed: " + e.getMessage());
+            error.setData(null);
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+
 
     @Override
     public ResponseEntity<AepsBiometricEkycResponseDto> biometricEkyc(AepsBiometricEkycRequest req) {
@@ -272,6 +306,14 @@ public class AepsEkycServiceImpl implements AepsEkycService {
     @Override
     public ResponseEntity<AepsBiometricEkycResponseDto> validateOtpThenBiometric(
             AepsCombinedRequest req) {
+
+        // ====== STEP 1: Load Vendor Credentials Dynamically ======
+        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId()); // subProductId dynamically aayega
+        Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+        VendorCredentials credentials = vendorCredentialsRepository
+                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
         try {
 

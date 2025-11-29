@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.im.admin.entities.vendor.Vendors;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -45,5 +46,9 @@ public class AepsMerchantStatus {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendor_id", nullable = false)
+    private Vendors vendor;
 
 }

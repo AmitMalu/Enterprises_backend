@@ -57,8 +57,9 @@ public class AepsMerchantController {
     }
 
     @PostMapping("/send-otp")
-    public ResponseEntity<AepsEkycResponseDto> sendOtp(@RequestBody AepsSendOtpRequest req) {
+    public ResponseEntity<CommonResponse<AepsEkycResponseDto>> sendOtp(@RequestBody AepsSendOtpRequest req) {
         return aepsEkycService.sendOtp(req);
     }
+
 
 }
