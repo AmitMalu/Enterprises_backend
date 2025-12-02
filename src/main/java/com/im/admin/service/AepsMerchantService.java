@@ -9,7 +9,7 @@ import com.im.admin.response.CommonResponse;
 import org.springframework.http.ResponseEntity;
 
 public interface AepsMerchantService {
-    ResponseEntity<AepsMerchantResponseDto> registerMerchantAndCall(AepsMerchantRequestDto aepsMerchantRequestDto);
+    CommonResponse<AepsMerchantResponseDto> registerMerchantAndCall(AepsMerchantRequestDto req);
 
     CommonResponse<AepsStatusDataDto> checkStatus(AepsCheckStatus aepsCheckStatus);
 

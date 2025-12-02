@@ -15,6 +15,7 @@ import com.im.admin.service.AepsMerchantService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.repositories.RetailerRepository;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.ConvertImageUrlToBase64;
 import com.im.admin.util.FingpayEncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
@@ -31,10 +32,10 @@ import java.util.*;
 public class AepsMerchantServiceImpl implements AepsMerchantService {
 
     private static final String SUPER_USERNAME = "nftpayd";
-    private static final String SUPER_PASSWORD_MD5 = "81dc9bdb52d04dc20036dbd8313ed055";
+    private static final String SUPER_PASSWORD_MD5 = "796c3ee556ac31f3754a38cfd15b8044";
     private static final Integer SUPER_MERCHANT_ID = 1396;
     private static final String MERCHANT_PIN = "1234d";
-    private static final String FINGPAY_URL = "https://fpuat.tapits.in/fpaepsweb/api/onboarding/merchant/creation/v2";
+    private static final String FINGPAY_URL = "https://fingpayap.tapits.in/fpaepsweb/api/onboarding/merchant/creation/v2";
 
     @Autowired
     private RetailerRepository retailerRepository;
@@ -55,7 +56,7 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
     private AepsMerchantStatusRepository aepsMerchantStatusRepository;
 
     @Override
-    public ResponseEntity<AepsMerchantResponseDto> registerMerchantAndCall(AepsMerchantRequestDto aepsMerchantRequestDto) {
+    public CommonResponse<AepsMerchantResponseDto> registerMerchantAndCall(AepsMerchantRequestDto aepsMerchantRequestDto) {
 
         // ====== STEP 1: Load Vendor Credentials Dynamically ======
         VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(aepsMerchantRequestDto.getSubProductId()); // subProductId dynamically aayega
@@ -66,10 +67,15 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
                 .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
         Optional<Retailer> opt = retailerRepository.findById(aepsMerchantRequestDto.getRetailerId());
+
         if (opt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(null);   // because return type is FingpayMerchantResponseDto
+            return CommonResponse.error(
+                    400,
+                    "Invalid retailerId: Retailer not found"
+            );
         }
+
+
         Retailer r = opt.get();
         BanksDetails bank = r.getBankDetails();
 
@@ -125,8 +131,19 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
 
             kyc.put("gstinNumber", safeString("27ABCDE1234F1Z2", "27ABCDE1234F1Z2"));
             kyc.put("companyOrShopPan", safeString(r.getPanNumber(), r.getPanNumber()));
-            kyc.put("merchantPanImage", r.getPanCardImage());
-            kyc.put("maskedAadharImage", r.getAadhaarCardFrontImage());
+//            kyc.put("merchantPanImage", r.getPanCardImage());
+
+            String panBase64 = ConvertImageUrlToBase64.fromUrl(r.getPanCardImage());
+            kyc.put("merchantPanImage", panBase64);
+
+            kyc.put("merchantPanImage", panBase64);
+
+
+//            kyc.put("maskedAadharImage", r.getAadhaarCardFrontImage());
+
+            String aadhaarBase64 = ConvertImageUrlToBase64.fromUrl(r.getAadhaarCardFrontImage());
+            kyc.put("maskedAadharImage", aadhaarBase64);
+
 
             kyc.put("shopAndPanImage", "true");
             merchant.put("kyc", kyc);
@@ -151,7 +168,7 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
             merchant.put("termsConditionCheck", "true");
             merchant.put("cancelledChequeImages", "true");
             merchant.put("physicalVerification", "true");
-            merchant.put("vedioKycWithLatLongData", "true");
+            merchant.put("videoKycWithLatLongData", "true");
 
             // Outlet Address
             Map<String, Object> mkyc = new LinkedHashMap<>();
@@ -170,7 +187,11 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
             }
             mkyc.put("shopLatitude", r.getLatitude());
             mkyc.put("shopLongitude", r.getLongitude());
-            mkyc.put("backgroundImageOfShop", r.getShopImage());
+//            mkyc.put("backgroundImageOfShop", r.getShopImage());
+
+            String shopImageBase64 = ConvertImageUrlToBase64.fromUrl(r.getShopImage());
+            mkyc.put("backgroundImageOfShop", shopImageBase64);
+
 
             merchant.put("merchantKycAddressData", mkyc);
 
@@ -201,35 +222,63 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
             );
             AepsMerchantResponseDto res = response.getBody();
 
-            if (res != null
-                    && res.isStatus()
+            // ---- Vendor Null Check ----
+            if (res == null) {
+                return new CommonResponse<>(500, "Null vendor response", null);
+            }
+
+            // ---- Check if Merchant Already Exists ----
+            Optional<AepsMerchantStatus> existingOpt =
+                    aepsMerchantStatusRepository.findByRetailerId(r.getRetailerId());
+
+            if (existingOpt.isPresent()) {
+                // Merchant exists → UPDATE the details
+                AepsMerchantStatus status = existingOpt.get();
+
+                if (res.isStatus()
+                        && res.getData() != null
+                        && res.getData().getMerchantLoginId() != null) {
+
+                    status.setMerchantLoginId(res.getData().getMerchantLoginId());
+                }
+
+                status.setUpdatedAt(LocalDateTime.now());
+                status.setOnboarded(true);
+                status.setVendor(vendor);
+
+                aepsMerchantStatusRepository.save(status);
+
+                return new CommonResponse<>(200, "Merchant updated successfully", res);
+            }
+
+
+            // ---- SUCCESS RESPONSE FROM VENDOR ----
+            if (res.isStatus()
                     && "successful".equalsIgnoreCase(res.getMessage())
                     && res.getData() != null) {
 
+                // Create New Status Record
                 AepsMerchantStatus status = new AepsMerchantStatus();
-
-                status.setRetailerId(aepsMerchantRequestDto.getRetailerId());  // IMPORTANT
+                status.setRetailerId(r.getRetailerId());
                 status.setMerchantLoginId(res.getData().getMerchantLoginId());
                 status.setOnboarded(true);
                 status.setEkycVerified(false);
                 status.setBiometricVerified(false);
                 status.setStatus("ACTIVE");
+                status.setCreatedAt(LocalDateTime.now());
                 status.setVendor(vendor);
 
                 aepsMerchantStatusRepository.save(status);
+
+                return new CommonResponse<>(200, "Merchant Onboarded Successfully", res);
             }
 
-            return ResponseEntity.ok(res);
+            // ---- Vendor Returned Failure ----
+            return new CommonResponse<>(400, "Vendor onboarding failed", res);
 
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(null);
         } catch (Exception ex) {
             ex.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(null);
+            return new CommonResponse<>(500, "Exception: " + ex.getMessage(), null);
         }
     }
 

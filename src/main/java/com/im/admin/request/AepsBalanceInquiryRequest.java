@@ -2,6 +2,8 @@ package com.im.admin.request;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class AepsBalanceInquiryRequest {
 
@@ -19,6 +21,8 @@ public class AepsBalanceInquiryRequest {
     private String merchantTranId;         // For cash withdrawal (not used here)
     private String merchantTransactionId;  // For balance enquiry (unique)
     private String mobileNumber;           // Customer mobile
+    private String schemeCode;
+    private BigDecimal transactionAmount;
 
     private long timestamp;                // System.currentTimeMillis()
     private int superMerchantId;

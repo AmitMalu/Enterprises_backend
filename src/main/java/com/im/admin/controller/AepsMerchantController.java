@@ -27,29 +27,12 @@ public class AepsMerchantController {
 
 
     @PostMapping("/onboarding")
-    public ResponseEntity<AepsMerchantResponseDto> register(@RequestBody AepsMerchantRequestDto aepsMerchantRequestDto) {
-        try {
+    public CommonResponse<AepsMerchantResponseDto> register(
+            @RequestBody AepsMerchantRequestDto req) {
 
-            ResponseEntity<AepsMerchantResponseDto> vendorResp =
-                    aepsMerchantService.registerMerchantAndCall(aepsMerchantRequestDto);
-
-            return ResponseEntity
-                    .status(vendorResp.getStatusCode())
-                    .body(vendorResp.getBody());
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-
-            // Build error response using your DTO
-            AepsMerchantResponseDto errorDto = new AepsMerchantResponseDto();
-            errorDto.setStatus(false);
-            errorDto.setMessage("Error: " + ex.getMessage());
-            errorDto.setData(null);
-            errorDto.setStatusCode(500);
-
-            return ResponseEntity.internalServerError().body(errorDto);
-        }
+        return aepsMerchantService.registerMerchantAndCall(req);
     }
+
 
     @PostMapping("/check-status")
     public CommonResponse<AepsStatusDataDto> checkStatus(@RequestBody AepsCheckStatus req) {

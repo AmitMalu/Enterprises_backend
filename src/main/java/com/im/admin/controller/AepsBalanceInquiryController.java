@@ -3,6 +3,7 @@ package com.im.admin.controller;
 
 import com.im.admin.request.AepsBalanceInquiryRequest;
 import com.im.admin.response.AepsBalanceInquiryResponse;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AepsBalanceInquiryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,8 +22,9 @@ public class AepsBalanceInquiryController {
     private AepsBalanceInquiryService aepsBalanceInquiryService;
 
     @PostMapping("/balance-inquiry")
-    public ResponseEntity<AepsBalanceInquiryResponse> balanceInquiry(
+    public CommonResponse<AepsBalanceInquiryResponse> balanceInquiry(
             @RequestBody AepsBalanceInquiryRequest req) {
         return aepsBalanceInquiryService.balanceInquiry(req);
     }
+
 }

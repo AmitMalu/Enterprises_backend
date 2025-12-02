@@ -2,6 +2,8 @@ package com.im.admin.request;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class AepsCashWithdrawalRequest {
     private String subProductId;
@@ -19,7 +21,8 @@ public class AepsCashWithdrawalRequest {
     private String latitude;
     private String longitude;
     private String languageCode;
-    private Double transactionAmount;
+    private BigDecimal transactionAmount;
+    private String schemeCode;
 
     private CaptureResponse captureResponse;
     private P2CardnumberORUID cardnumberORUID;

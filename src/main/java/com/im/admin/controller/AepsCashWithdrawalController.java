@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 import com.im.admin.request.AepsCashWithdrawalRequest;
 import com.im.admin.response.AepsCashWithdrawalResponse;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AepsCashWithdrawalService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -18,8 +19,10 @@ public class AepsCashWithdrawalController {
     private AepsCashWithdrawalService cashWithdrawalService;
 
     @PostMapping("/cash-withdrawal")
-    public ResponseEntity<AepsCashWithdrawalResponse> cashWithdrawal(
+    public CommonResponse<AepsCashWithdrawalResponse> cashWithdrawal(
             @RequestBody AepsCashWithdrawalRequest req) {
+
         return cashWithdrawalService.cashWithdrawal(req);
     }
+
 }

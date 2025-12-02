@@ -43,11 +43,12 @@ public class AepsEkycController {
     }
 
     @PostMapping("/validate-otp-biometric")
-    public ResponseEntity<AepsBiometricEkycResponseDto> validateOtpThenBiometric(
+    public ResponseEntity<CommonResponse<AepsBiometricEkycResponseDto>> validateOtpThenBiometric(
             @RequestBody AepsCombinedRequest req) {
 
         return aepsEkycService.validateOtpThenBiometric(req);
     }
+
 
 
 }

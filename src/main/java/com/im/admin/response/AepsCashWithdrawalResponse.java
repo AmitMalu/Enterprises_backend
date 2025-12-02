@@ -1,8 +1,10 @@
 package com.im.admin.response;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
+@AllArgsConstructor
 public class AepsCashWithdrawalResponse {
         private boolean status;
         private String message;

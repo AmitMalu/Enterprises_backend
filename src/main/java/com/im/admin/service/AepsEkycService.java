@@ -15,5 +15,6 @@ public interface AepsEkycService {
 
     ResponseEntity<AepsBiometricEkycResponseDto> biometricEkyc(AepsBiometricEkycRequest req);
 
-    ResponseEntity<AepsBiometricEkycResponseDto> validateOtpThenBiometric(AepsCombinedRequest req);
+    ResponseEntity<CommonResponse<AepsBiometricEkycResponseDto>> validateOtpThenBiometric(AepsCombinedRequest req);
+
 }
