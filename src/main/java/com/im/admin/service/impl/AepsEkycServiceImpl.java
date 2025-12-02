@@ -304,107 +304,101 @@ public class AepsEkycServiceImpl implements AepsEkycService {
 
 
     @Override
-    public ResponseEntity<AepsBiometricEkycResponseDto> validateOtpThenBiometric(
+    public ResponseEntity<CommonResponse<AepsBiometricEkycResponseDto>> validateOtpThenBiometric(
             AepsCombinedRequest req) {
 
-        // ====== STEP 1: Load Vendor Credentials Dynamically ======
-        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId()); // subProductId dynamically aayega
-        Vendors vendor = CommonMethods.getVendors(vendorRouting);
-
-        VendorCredentials credentials = vendorCredentialsRepository
-                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+        CommonResponse<AepsBiometricEkycResponseDto> common = new CommonResponse<>();
 
         try {
+            // STEP 1: Load Vendor Credentials
+            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
-            // STEP 1: Build Validate OTP Request
+            VendorCredentials credentials = vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+            // ===== Step 1: Validate OTP =====
             AepsValidateOtpRequest validateReq = new AepsValidateOtpRequest();
             validateReq.setRetailerId(req.getRetailerId());
             validateReq.setOtp(req.getOtp());
             validateReq.setPrimaryKeyId(req.getPrimaryKeyId());
             validateReq.setEncodeFPTxnId(req.getEncodeFPTxnId());
 
-            // STEP 2: Call Validate OTP API internally
             ResponseEntity<AepsValidateOtpResponseDto> validateResponse = validateOtp(validateReq);
+            AepsValidateOtpResponseDto otpRes = validateResponse.getBody();
 
-            AepsValidateOtpResponseDto body = validateResponse.getBody();
+            // OTP Failed
+            if (otpRes == null || !otpRes.isStatus() || otpRes.getData() == null) {
 
-            if (body == null || !body.isStatus() || body.getData() == null) {
+                common.setStatusCode(400);
+                common.setMessage("OTP Validation Failed: " + (otpRes != null ? otpRes.getMessage() : "No response from vendor"));
+                common.setData(null);
 
-                AepsBiometricEkycResponseDto dto = new AepsBiometricEkycResponseDto();
-                dto.setStatus(false);
-                dto.setMessage("OTP Validation Failed: " + (body != null ? body.getMessage() : "No response from FingPay"));
-                dto.setStatusCode(400);
-                dto.setData(null);
-                return ResponseEntity.ok(dto);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(common);
             }
 
+            // ===== Step 2: Get Aadhaar from DB =====
+            Retailer retailer = retailerRepository.findByRetailerId(req.getRetailerId())
+                    .orElseThrow(() -> new RuntimeException("Retailer not found with ID: " + req.getRetailerId()));
 
-            // Fetch Aadhaar from DB
-            Optional<Retailer> retailerOpt = retailerRepository.findByRetailerId(req.getRetailerId());
-
-            Retailer retailer = retailerOpt.orElseThrow(
-                    () -> new RuntimeException("Retailer not found with ID: " + req.getRetailerId())
-            );
-                   // Aadhaar from DB
             String aadhaar = retailer.getAadhaarNumber();
 
-            // STEP 3: Build Biometric Request (AUTO SET cardnumberORUID)
+            // ===== Step 3: Prepare Biometric Request =====
             AepsBiometricEkycRequest bioReq = new AepsBiometricEkycRequest();
             bioReq.setRetailerId(req.getRetailerId());
             bioReq.setRequestRemarks(req.getRequestRemarks());
             bioReq.setCaptureResponse(req.getCaptureResponse());
 
-            // AUTO BUILD cardnumberORUID
+            // AUTO cardnumberORUID
             AepsBiometricEkycRequest.P2CardnumberORUID uid = new AepsBiometricEkycRequest.P2CardnumberORUID();
-            uid.setAdhaarNumber(aadhaar); // from DB
-            uid.setIndicatorforUID(0); // default
-            uid.setNationalBankIdentificationNumber(null); // default
+            uid.setAdhaarNumber(aadhaar);
+            uid.setIndicatorforUID(0);
 
             bioReq.setCardnumberORUID(uid);
 
-            // Use same values from validate API
-            bioReq.setPrimaryKeyId(validateResponse.getBody().getData().getPrimaryKeyId());
-            bioReq.setEncodeFPTxnId(validateResponse.getBody().getData().getEncodeFPTxnId());
+            // Carry forward PK ID & Encoded FP Txn ID
+            bioReq.setPrimaryKeyId(otpRes.getData().getPrimaryKeyId());
+            bioReq.setEncodeFPTxnId(otpRes.getData().getEncodeFPTxnId());
 
-            // STEP 4: Call Biometric API internally
-            ResponseEntity<AepsBiometricEkycResponseDto> aepsBiometricEkycResponseDtoResponseEntity = biometricEkyc(bioReq);
+            // ===== Step 4: Call Biometric API =====
+            ResponseEntity<AepsBiometricEkycResponseDto> bioResponse = biometricEkyc(bioReq);
+            AepsBiometricEkycResponseDto biometricRes = bioResponse.getBody();
 
-            // STEP 5: UPDATE STATUS TABLE AFTER SUCCESSFUL BIOMETRIC EKYC
-            AepsBiometricEkycResponseDto biometricRes =
-                    aepsBiometricEkycResponseDtoResponseEntity.getBody();
-
+            // ===== Step 5: Update Status Table On Success =====
             if (biometricRes != null && biometricRes.isStatus()) {
 
-                Optional<AepsMerchantStatus> optStatus =
-                        aepsMerchantStatusRepository.findByRetailerId(req.getRetailerId());
+                Optional<AepsMerchantStatus> opt = aepsMerchantStatusRepository.findByRetailerId(req.getRetailerId());
 
-                if (optStatus.isPresent()) {
-
-                    AepsMerchantStatus status = optStatus.get();
+                if (opt.isPresent()) {
+                    AepsMerchantStatus status = opt.get();
 
                     status.setEkycVerified(true);
                     status.setBiometricVerified(true);
                     status.setUpdatedAt(LocalDateTime.now());
                     status.setStatus("ACTIVE");
 
-                    // NOTE: Vendor biometric response does NOT return PK or TXN ID
-                    // So do NOT set: fingpayPrimaryKey / fingpayTxnId
-
                     aepsMerchantStatusRepository.save(status);
                 }
             }
 
+            // SUCCESS RESPONSE
+            common.setStatusCode(bioResponse.getStatusCodeValue());
+            common.setMessage("Success");
+            common.setData(biometricRes);
 
-            return aepsBiometricEkycResponseDtoResponseEntity;
+            return ResponseEntity.status(bioResponse.getStatusCode()).body(common);
 
         } catch (Exception e) {
-            AepsBiometricEkycResponseDto dto = new AepsBiometricEkycResponseDto();
-            dto.setStatus(false);
-            dto.setMessage("Exception: " + e.getMessage());
-            dto.setStatusCode(500);
-            dto.setData(null);
-            return ResponseEntity.ok(dto);
+
+            e.printStackTrace();
+
+            // ERROR RESPONSE
+            common.setStatusCode(500);
+            common.setMessage("Exception: " + e.getMessage());
+            common.setData(null);
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(common);
         }
     }
 

@@ -2,8 +2,9 @@ package com.im.admin.service;
 
 import com.im.admin.request.AepsBalanceInquiryRequest;
 import com.im.admin.response.AepsBalanceInquiryResponse;
+import com.im.admin.response.CommonResponse;
 import org.springframework.http.ResponseEntity;
 
 public interface AepsBalanceInquiryService {
-    ResponseEntity<AepsBalanceInquiryResponse> balanceInquiry(AepsBalanceInquiryRequest req);
+    CommonResponse<AepsBalanceInquiryResponse> balanceInquiry(AepsBalanceInquiryRequest req);
 }
