@@ -8,6 +8,7 @@ import com.im.admin.dto.ChangePasswordRequestDto;
 import com.im.admin.dto.LoginRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
+import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
 import com.im.admin.request.TokenGenerationRequest;
 import com.im.admin.response.CommonResponse;
@@ -90,6 +91,13 @@ public class AuthController {
 
     @Autowired
     private RetailerRepository retailerRepository;
+
+    @Autowired
+    private VendorRepository vendorRepository;
+
+
+    @Autowired
+    private VendorRoutingRepository vendorRoutingRepository;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
@@ -461,10 +469,19 @@ public class AuthController {
                         continue;
                     }
 
+                    Products productEntity = productOpt.get();
                     String productId = String.valueOf(productOpt.get().getId());
                     String productName = productOpt.get().getName();
                     String subProductId = String.valueOf(subProductOpt.get().getId());
                     String subProductName = subProductOpt.get().getSubProductTitle();
+
+                    VendorRouting routing = vendorRoutingRepository.findBySubProduct(subProductOpt.get());
+
+                    String vendorName = "N/A";
+                    if (routing != null && routing.getRoutingPriority1() != null) {
+                        vendorName = routing.getRoutingPriority1().getVendorName();
+                    }
+
 
                     productIdToName.putIfAbsent(productId, productName);
 
@@ -472,6 +489,7 @@ public class AuthController {
                     subProductMap.put("subProductId", subProductId);
                     subProductMap.put("subProductName", subProductName);
                     subProductMap.put("schemeCode", sa.getSchemeCode());
+                    subProductMap.put("vendorName", vendorName);
 
                     productSubMap.computeIfAbsent(productId, k -> new ArrayList<>()).add(subProductMap);
                 }

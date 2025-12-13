@@ -7,5 +7,6 @@ import org.springframework.http.ResponseEntity;
 
 public interface AepsCashWithdrawalService {
     CommonResponse<AepsCashWithdrawalResponse> cashWithdrawal(AepsCashWithdrawalRequest req);
+
 }
 

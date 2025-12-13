@@ -19,10 +19,11 @@ public class AepsCashWithdrawalController {
     private AepsCashWithdrawalService cashWithdrawalService;
 
     @PostMapping("/cash-withdrawal")
-    public CommonResponse<AepsCashWithdrawalResponse> cashWithdrawal(
+    public ResponseEntity<CommonResponse<AepsCashWithdrawalResponse>> cashWithdrawal(
             @RequestBody AepsCashWithdrawalRequest req) {
 
-        return cashWithdrawalService.cashWithdrawal(req);
+        return ResponseEntity.ok(cashWithdrawalService.cashWithdrawal(req));
     }
+
 
 }
