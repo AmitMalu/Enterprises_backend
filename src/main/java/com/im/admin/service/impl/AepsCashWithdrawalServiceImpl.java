@@ -43,7 +43,7 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
 
 
     private static final String SUPER_USERNAME = "nftpayd";
-    private static final String MERCHANT_MD5_PIN = "81dc9bdb52d04dc20036dbd8313ed055";
+    private static final String MERCHANT_MD5_PIN = "81dc9bdb52d04dc20036dbd8313ed055";  // 81dc9bdb52d04dc20036dbd8313ed055  //1234d
     private static final int SUPER_MERCHANT_ID = 1396;
 
     @Override
@@ -53,73 +53,93 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
         log.info("[AEPS CW] Start | orderId={}", orderId);
 
         try {
-            // Validate SubProduct
+            // ================================
+            // STEP 1: Validate SubProduct
+            // ================================
             SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found"));
 
             WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
 
-            // Check retailer balance
-            BigDecimal availableBalance = commonMethods.getCurrentBalance(req.getRetailerId(), walletType.name());
+            // ================================
+            // STEP 2: Check Retailer Balance
+            // ================================
+            BigDecimal availableBalance =
+                    commonMethods.getCurrentBalance(req.getRetailerId(), walletType.name());
+
             if (availableBalance.compareTo(req.getTransactionAmount()) < 0) {
                 return new CommonResponse<>(400, "Insufficient Balance", null);
             }
 
-            // Vendor loading
+            // ================================
+            // STEP 3: Load Vendor Routing
+            // ================================
             VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(routing);
 
-            VendorCredentials credentials =
-                    vendorCredentialsRepository.findByVendorIdAndProductId(
-                            vendor.getId(), vendor.getProduct().getId()
-                    ).orElseThrow(() -> new RuntimeException("Vendor credentials missing"));
+            VendorCredentials credentials = vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("Vendor credentials missing"));
 
+            // ================================
+            // STEP 4: Fetch Retailer Details
+            // ================================
             Retailer retailer = retailerRepository.findById(req.getRetailerId())
                     .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
-            // ==== Set Backend Values ====
-            req.setSuperMerchantId(SUPER_MERCHANT_ID);
-            req.setMerchantUserName(SUPER_USERNAME);
-            req.setMerchantPin(MERCHANT_MD5_PIN);
-            req.setMerchantLoginId(retailer.getRetailerId());
-            req.setTransactionType("CW");
-            req.setServiceType("AEPS");
-            req.setTimestamp(System.currentTimeMillis());
-            req.setMerchantTranId("CW-" + System.currentTimeMillis());
+            // ================================
+            // STEP 5: AUTO SET BACKEND VALUES
+            // ================================
+
+//            req.setMerchantLoginId(retailer.getRetailerId());
+
             req.setLatitude(retailer.getLatitude());
             req.setLongitude(retailer.getLongitude());
             req.setMobileNumber(retailer.getMobileNumber());
-            req.setPaymentType("B");
-            req.setLanguageCode("en");
+          req.setSubMerchantId(retailer.getRetailerId());
 
-            // UID details
-            AepsCashWithdrawalRequest.P2CardnumberORUID uid = new AepsCashWithdrawalRequest.P2CardnumberORUID();
+            // ================================
+            // STEP 6: UID DETAILS
+            // ================================
+            AepsCashWithdrawalRequest.P2CardnumberORUID uid =
+                    new AepsCashWithdrawalRequest.P2CardnumberORUID();
+
             uid.setAdhaarNumber(retailer.getAadhaarNumber());
-            uid.setIndicatorforUID(0);
+            uid.setIndicatorforUID("0");
             uid.setNationalBankIdentificationNumber(
-                    req.getCardnumberORUID() != null ?
-                            req.getCardnumberORUID().getNationalBankIdentificationNumber() :
-                            null
+                    req.getCardnumberORUID() != null
+                            ? req.getCardnumberORUID().getNationalBankIdentificationNumber()
+                            : null
             );
+
             req.setCardnumberORUID(uid);
 
-            // ==== Call Vendor ====
-            AepsVendorService vendorService = aepsVendorFactory.getVendor(vendor.getVendorName());
+            // ================================
+            // STEP 7: CALL VENDOR INTERNALLY
+            // ================================
+            AepsVendorService vendorService =
+                    aepsVendorFactory.getVendor(vendor.getVendorName());
 
             if (vendorService == null) {
                 return new CommonResponse<>(500, "Vendor not implemented", null);
             }
 
-            String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+            String baseTxnId = orderId.replace("AEPS", "");
 
-            // vendor call
-            ResponseEntity<AepsCashWithdrawalResponse> vendorResp =
+            CommonResponse<AepsCashWithdrawalResponse> vendorResp =
                     vendorService.processCashWithdrawal(req, credentials);
 
-            AepsCashWithdrawalResponse responseBody = vendorResp.getBody();
+
+            if (vendorResp == null) {
+                return new CommonResponse<>(500, "Vendor returned null response", null);
+            }
+
+            AepsCashWithdrawalResponse responseBody = vendorResp.getData();
 
 
-            // ==== Save logs if successful ====
+            // ================================
+            // STEP 8: SAVE LOG (ONLY IF SUCCESS)
+            // ================================
             if (responseBody != null &&
                     responseBody.isStatus() &&
                     responseBody.getData() != null &&
@@ -139,14 +159,21 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
                 cashWithdrawalRepository.save(logEntry);
             }
 
+            // ================================
+            // STEP 9: FETCH SCHEME RATE
+            // ================================
             SchemeRate selectedScheme = schemeRateRepository
                     .findSchemeRateByCodeAndOperatorAndAmount(
                             req.getSchemeCode(),
                             req.getTransactionType(),
                             req.getTransactionAmount().doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getTransactionAmount()));
+                    .orElseThrow(() -> new RuntimeException(
+                            "No matching scheme rate found for amount: " + req.getTransactionAmount()
+                    ));
 
-            // Build DTO for transaction engine
+            // ================================
+            // STEP 10: BUILD DTO FOR TRANSACTION ENGINE
+            // ================================
             TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
             dto.setBaseTranxId(baseTxnId);
             dto.setAmount(req.getTransactionAmount().doubleValue());
@@ -156,7 +183,7 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             dto.setSchemeRate(selectedScheme);
 
             Products product = subProducts.getProduct();
-            //dto.setTransactionType(product.getTransactionType());
+
             dto.setTransactionType("Credit");
             dto.setWalletType(subProducts.getWalletType());
             dto.setGstValue(String.valueOf(product.getSgst()));
@@ -167,7 +194,9 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
 
-//            AepsCashWithdrawalResponse responseBody = vendorResp.getBody();
+            // ================================
+            // STEP 11: GET VENDOR STATUS
+            // ================================
             AepsCashWithdrawalResponse.CWData data = responseBody.getData();
 
             String vendorStatus = AepsResponseMapper.map(
@@ -176,16 +205,19 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
                     data.getBankRRN()
             );
 
+            // ================================
+            // STEP 12: PROCESS TRANSACTION ENGINE
+            // ================================
             transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
 
-            // Wrap final API response
+            // ================================
+            // STEP 13: RETURN FINAL RESPONSE
+            // ================================
             if ("SUCCESS".equalsIgnoreCase(vendorStatus)) {
                 return CommonResponse.success(responseBody, "Transaction Successful");
-            }
-            else if ("PENDING".equalsIgnoreCase(vendorStatus)) {
+            } else if ("PENDING".equalsIgnoreCase(vendorStatus)) {
                 return new CommonResponse<>(202, "Transaction Pending", responseBody);
-            }
-            else {
+            } else {
                 return new CommonResponse<>(400, "Transaction Failed", responseBody);
             }
 
@@ -194,5 +226,6 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             return new CommonResponse<>(500, "Exception: " + e.getMessage(), null);
         }
     }
+
 }
 

@@ -130,6 +130,11 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
                 return new CommonResponse<>(500, "Vendor not implemented", null);
             }
 
+
+            String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+
+
+            // vemndor call
             ResponseEntity<AepsBalanceInquiryResponse> vendorResp =
                     vendorService.processBalanceInquiry(req, credentials);
 
@@ -162,6 +167,34 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
                 aepsBalanceEnquiryRepository.save(log);
             }
 
+            SchemeRate selectedScheme = schemeRateRepository
+                    .findSchemeRateByCodeAndOperatorAndAmount(
+                            req.getSchemeCode(),
+                            req.getTransactionType(),
+                            req.getTransactionAmount().doubleValue())
+                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getTransactionAmount()));
+
+            // Build DTO for transaction engine
+            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+            dto.setBaseTranxId(baseTxnId);
+            dto.setAmount(req.getTransactionAmount().doubleValue());
+            dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
+            dto.setOperatorName(subProducts.getSubProductTitle());
+            dto.setOperatorCode(selectedScheme.getOperatorCode());
+            dto.setSchemeRate(selectedScheme);
+
+            Products product = subProducts.getProduct();
+//            dto.setTransactionType(product.getTransactionType());
+            dto.setTransactionType("Credit");
+            dto.setWalletType(subProducts.getWalletType());
+            dto.setGstValue(String.valueOf(product.getSgst()));
+            dto.setTdsRate(String.valueOf(product.getTds()));
+            dto.setProductCode(product.getProductCode());
+            dto.setSubProductCode(subProducts.getSubProductCode());
+            dto.setIsCommission(product.getIsCommissions());
+            dto.setHasCharge(product.getHasCharges());
+            dto.setHierarchyId(req.getRetailerId());
+
 
             // ===== MAPPING VENDOR STATUS =====
             AepsBalanceInquiryResponse.BalanceData data = response.getData();
@@ -171,6 +204,8 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
                     data.getResponseCode(),
                     data.getBankRRN()
             );
+
+            transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
 
 
             // ===== FINAL RESPONSE =====

@@ -250,14 +250,8 @@ public class AepsEkycServiceImpl implements AepsEkycService {
     public ResponseEntity<AepsBiometricEkycResponseDto> biometricEkyc(AepsBiometricEkycRequest req) {
 
         try {
-            // STEP 1: Load Retailer
-            Retailer retailer = retailerRepository.findById(req.getRetailerId())
-                    .orElseThrow(() -> new RuntimeException("Retailer not found"));
-
             // STEP 2: Set backend-managed fields
             req.setSuperMerchantId(SUPER_MERCHANT_ID);
-            req.setMerchantLoginId(String.valueOf(retailer.getRetailerId()));
-            req.getCardnumberORUID().setAdhaarNumber(retailer.getAadhaarNumber());
 
             // STEP 3: Build final JSON
             String plainJson = objectMapper.writeValueAsString(req);
@@ -275,7 +269,7 @@ public class AepsEkycServiceImpl implements AepsEkycService {
             headers.set("trnTimestamp", String.valueOf(System.currentTimeMillis()));
             headers.set("hash", encrypted.hash);
             headers.set("eskey", encrypted.eskey);
-            headers.set("deviceIMEI", "WEB1234567");
+            headers.set("deviceIMEI", "860746040494350");
             headers.setContentType(MediaType.TEXT_PLAIN);
 
             // STEP 7: Build request
@@ -346,20 +340,58 @@ public class AepsEkycServiceImpl implements AepsEkycService {
 
             // ===== Step 3: Prepare Biometric Request =====
             AepsBiometricEkycRequest bioReq = new AepsBiometricEkycRequest();
-            bioReq.setRetailerId(req.getRetailerId());
-            bioReq.setRequestRemarks(req.getRequestRemarks());
-            bioReq.setCaptureResponse(req.getCaptureResponse());
+//            bioReq.setRetailerId(req.getRetailerId());
+            bioReq.setRequestRemarks("test");
 
-            // AUTO cardnumberORUID
+            // ==== Convert CaptureResponse to correct DTO ====
+            AepsBiometricEkycRequest.CaptureResponse cap = new AepsBiometricEkycRequest.CaptureResponse();
+            AepsCombinedRequest.CaptureResponse rc = req.getCaptureResponse();
+
+            if (rc != null) {
+                cap.setErrCode(rc.getErrCode());
+                cap.setErrInfo(rc.getErrInfo());
+                cap.setFCount(rc.getFCount());
+                cap.setFType(rc.getFType());
+                cap.setICount(rc.getICount());
+                cap.setIType(rc.getIType());
+                cap.setPCount(rc.getPCount());
+                cap.setPType(rc.getPType());
+                cap.setNmPoints(rc.getNmPoints());
+                cap.setQScore(rc.getQScore());
+                cap.setDpID(rc.getDpID());
+                cap.setRdsID(rc.getRdsID());
+                cap.setRdsVer(rc.getRdsVer());
+                cap.setDc(rc.getDc());
+                cap.setMi(rc.getMi());
+                cap.setMc(rc.getMc());
+                cap.setCi(rc.getCi());
+                cap.setSessionKey(rc.getSessionKey());
+                cap.setHmac(rc.getHmac());
+                cap.setPidDatatype(rc.getPidDatatype());
+
+                // Final piddata selection
+                String finalPidData = (rc.getPiddata() != null && !rc.getPiddata().isEmpty())
+                        ? rc.getPiddata()
+                        : rc.getPiddata();
+                cap.setPiddata(finalPidData);
+            }
+
+            bioReq.setCaptureResponse(cap);
+
+            // UID
             AepsBiometricEkycRequest.P2CardnumberORUID uid = new AepsBiometricEkycRequest.P2CardnumberORUID();
             uid.setAdhaarNumber(aadhaar);
-            uid.setIndicatorforUID(0);
-
+            uid.setIndicatorforUID("0");
+            uid.setNationalBankIdentificationNumber("");
             bioReq.setCardnumberORUID(uid);
 
             // Carry forward PK ID & Encoded FP Txn ID
             bioReq.setPrimaryKeyId(otpRes.getData().getPrimaryKeyId());
             bioReq.setEncodeFPTxnId(otpRes.getData().getEncodeFPTxnId());
+
+            bioReq.setMerchantLoginId(String.valueOf(retailer.getRetailerId()));
+            bioReq.getCardnumberORUID().setAdhaarNumber(retailer.getAadhaarNumber());
+
 
             // ===== Step 4: Call Biometric API =====
             ResponseEntity<AepsBiometricEkycResponseDto> bioResponse = biometricEkyc(bioReq);
@@ -401,5 +433,6 @@ public class AepsEkycServiceImpl implements AepsEkycService {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(common);
         }
     }
+
 
 }
