@@ -2,8 +2,10 @@ package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.BbpsTranactionRequestDto;
+import com.im.admin.dto.BillRechargeRequestDTO;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
@@ -12,10 +14,13 @@ import com.im.admin.repositories.*;
 import com.im.admin.request.BillFetchRequest;
 import com.im.admin.request.BillPaymentRequest;
 import com.im.admin.request.BillerRequest;
+import com.im.admin.request.TransactionStatusRequest;
+import com.im.admin.response.BillAvenueBillPayResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.BillAvenueService;
 import com.im.admin.service.DmtVendorService;
 import com.im.admin.util.*;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
@@ -71,6 +76,9 @@ public class BillAvenueServiceImpl implements BillAvenueService {
     @Autowired
     private RetailerRepository retailerRepository;
 
+    @Autowired
+    private BBPSPendingTransactionsRepository bbpsPendingTransactionsRepository;
+
 
     private static final String ACCESS_CODE = "AVUU30TF96SP77ZJJH";
     private static final String INSTITUTE_ID = "NF07";
@@ -84,8 +92,10 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
         String requestedBillerId = request.getBillerId().get(0); // first biller id
 
+        String requestId = RequestIdUtil.generate();
         // ----------------------------
         // 1. Check in DB before calling vendor API
+
         // ----------------------------
         Optional<BillPayConfig> existing =
                 billPayConfigRepository.findByProviderId(requestedBillerId);
@@ -94,9 +104,10 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
             // Return saved raw_config JSON (convert to JsonNode)
             ObjectMapper mapper = new ObjectMapper();
-            JsonNode savedJson = mapper.readTree(existing.get().getRawConfig());
+            ObjectNode savedNode = (ObjectNode) mapper.readTree(existing.get().getRawConfig());
+            savedNode.put("requestId", requestId);
 
-            return CommonResponse.success(savedJson, "Biller info fetched");
+            return CommonResponse.success(savedNode, "Biller info fetched");
         }
 
 
@@ -118,12 +129,12 @@ public class BillAvenueServiceImpl implements BillAvenueService {
         String encryptedHex = BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
 
         // Step 3: requestId
-        String requestId = RequestIdUtil.generate();
+        String requestIds = RequestIdUtil.generate();
 
         // Step 4: Build API URL
         String finalUrl = API_URL
                 + "?accessCode=" + ACCESS_CODE
-                + "&requestId=" + requestId
+                + "&requestId=" + requestIds
                 + "&ver=1.0"
                 + "&instituteId=" + INSTITUTE_ID;
 
@@ -142,6 +153,11 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
         // Step 8: Convert decrypted text → JSON
         JsonNode jsonNode = mapper.readTree(decrypt);
+
+        ObjectNode responseNode = (ObjectNode) jsonNode;
+
+// add requestId
+        responseNode.put("requestId", requestIds);
 
 
         // ----------------------------
@@ -165,7 +181,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
             billPayConfigRepository.save(cfg);
         }
 
-        return CommonResponse.success(jsonNode, "Biller info fetched from Vendor API");
+        return CommonResponse.success(responseNode, "Biller info fetched from Vendor API");
     }
 
 
@@ -173,15 +189,47 @@ public class BillAvenueServiceImpl implements BillAvenueService {
     public Object fetchBill(BillFetchRequest request) throws Exception {
 
         ObjectMapper mapper = new ObjectMapper();
+        request.setAgentId("CC01CC01513515340681");
+
+        // ================================
+        BillFetchRequest.AgentDeviceInfo deviceInfo =
+                request.getAgentDeviceInfo();
+
+        if (deviceInfo == null) {
+            deviceInfo = new BillFetchRequest.AgentDeviceInfo();
+        }
+
+        deviceInfo.setIp("192.168.2.73");
+        deviceInfo.setInitChannel("AGT");
+        deviceInfo.setMac("01-23-45-67-89-ab");
+
+        request.setAgentDeviceInfo(deviceInfo);
+
+        // ================================
+        BillFetchRequest.CustomerInfo customerInfo =
+                request.getCustomerInfo();
+
+        if (customerInfo == null) {
+            customerInfo = new BillFetchRequest.CustomerInfo();
+        }
+
+        customerInfo.setCustomerEmail("");
+        customerInfo.setCustomerAdhaar("");
+        customerInfo.setCustomerPan("");
+
+        request.setCustomerInfo(customerInfo);
+
 
         // Step 1: Convert request to JSON string
         String plainJson = mapper.writeValueAsString(request);
+
 
         // Step 2: Encrypt JSON
         String encryptedRequest = BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
 
         // Step 3: Generate requestId
-        String requestId = RequestIdUtil.generate();
+//        String requestId = RequestIdUtil.generate();
+        String requestId = request.getRequestId();
 
         // Step 4: Prepare final URL (encRequest included as query param)
         String finalUrl =
@@ -191,7 +239,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                         + "&requestId=" + requestId
                         + "&ver=1.0"
                         + "&instituteId=" + INSTITUTE_ID
-                        + "&encRequest=" + encryptedRequest;   // 👈 URL PARAM
+                        + "&encRequest=" + encryptedRequest;   //  URL PARAM
 
         // Step 5: Headers
         HttpHeaders headers = new HttpHeaders();
@@ -216,89 +264,129 @@ public class BillAvenueServiceImpl implements BillAvenueService {
         return mapper.readTree(decrypted);
     }
 
-
+    @Transactional
     @Override
     public Object doBillPayment(BillPaymentRequest request) throws Exception {
 
         String orderId = "TXN" + commonMethods.generateBaseTransactionId();
         log.info("[PROCESS BILL PAYMENT] Starting transaction | orderId={}", orderId);
 
+        String baseTransactionId = commonMethods.generateBaseTransactionId();
+
         try {
-            //  Validate SubProduct
+            // ⃣ Validate SubProduct
             SubProducts subProducts = subProductsRepository.findById(request.getSubProductId())
                     .orElseThrow(() ->
                             new RuntimeException("SubProduct not found for ID: " + request.getSubProductId()));
 
             WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
-            log.debug("[PROCESS BILL PAYMENT] Resolved walletType={}", walletType);
 
-            // 2 Check Retailer Balance
+            // 2️ Balance Check
             BigDecimal availableBalance =
                     commonMethods.getCurrentBalance(request.getRetailerId(), walletType.name());
-
-            String baseTransactionId = commonMethods.generateBaseTransactionId();
-            log.info("Generated baseTransactionId: {}", baseTransactionId);
 
             BigDecimal amount = request.getAmountInfo().getAmount();
 
             if (availableBalance.compareTo(amount) < 0) {
-                log.warn("[PROCESS BILL PAYMENT] Insufficient balance | retailerId={}, required={}, available={}",
-                        request.getRetailerId(), amount, availableBalance);
                 return new CommonResponse<>(400, "Insufficient Balance", null);
             }
 
-            //  Vendor Routing
+            // 3 Vendor Routing
             VendorRouting routing =
                     vendorRoutingRepository.findBySubProductId(request.getSubProductId());
 
             Vendors vendor = CommonMethods.getVendors(routing);
-            log.info("Vendor selected: {}", vendor.getVendorName());
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-            log.debug("Vendor credentials retrieved for vendorId={}", vendor.getId());
-
             String retailerId = request.getRetailerId();
-//            Double amount = request.getAmountInfo().getAmount().doubleValue();
 
-            // 4 Wallet Object (PENDING debit)
+            // 4 Wallet Debit (PENDING)
             AbstractWalletAmountTable walletAmountTable =
-                    commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
-
-            String baseTxnId = orderId.startsWith("TXN")
-                    ? orderId.substring(3)
-                    : orderId;
+                    commonMethods.getWalletByType(walletType.name(), retailerId);
 
             Products product = subProducts.getProduct();
-            String gstValue = String.valueOf(product.getSgst());
-            String tdsValue = String.valueOf(product.getTds());
-
 
             SchemeRate selectedScheme = schemeRateRepository
                     .findSchemeRateByCodeAndOperatorAndAmount(
                             request.getSchemeCode(),
                             request.getTxnType(),
-                            request.getAmountInfo().getAmount().doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + request.getAmountInfo().getAmount()));
+                            amount.doubleValue())
+                    .orElseThrow(() -> new RuntimeException("No scheme found"));
 
-            BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(selectedScheme, amount.doubleValue(), walletType.name(), retailerId, gstValue, tdsValue, "PENDING", baseTransactionId, selectedScheme.getOperatorName(), subProducts.getSubProductTitle());
-            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmountInfo().getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.getSubProductTitle(), "Tx Amount for Bill Avenue Billpay For "  +"#" ,"Bill Avenue  Billpay Transaction from " + walletType.name());
-            bbpsRelatedTransactions.processCharges(bbpsTranactionRequestDto, walletAmountTable);
+            BbpsTranactionRequestDto bbpsDto =
+                    new BbpsTranactionRequestDto(
+                            selectedScheme,
+                            amount.doubleValue(),
+                            walletType.name(),
+                            retailerId,
+                            String.valueOf(product.getSgst()),
+                            String.valueOf(product.getTds()),
+                            "PENDING",
+                            baseTransactionId,
+                            selectedScheme.getOperatorName(),
+                            subProducts.getSubProductTitle()
+                    );
 
-            // 5️ Convert request → JSON
+            commonMethods.updateWallet(
+                    walletAmountTable,
+                    retailerId,
+                    walletType,
+                    amount,
+                    "Debit",
+                    baseTransactionId,
+                    "PENDING",
+                    "DEBIT",
+                    subProducts.getSubProductTitle(),
+                    "Bill Avenue BillPay",
+                    "Bill payment initiated"
+            );
+
+            bbpsRelatedTransactions.processCharges(bbpsDto, walletAmountTable);
+
+
+            // set fields from backend
+            request.setAgentId("CC01CC01513515340681");
+            request.setPaymentRefId("45kfpjsc4e0c9fe9pohee94101");
+
+            BillPaymentRequest.AgentDeviceInfo deviceInfo =
+                    request.getAgentDeviceInfo();
+
+            if (deviceInfo == null) {
+                deviceInfo = new BillPaymentRequest.AgentDeviceInfo();
+            }
+
+            deviceInfo.setIp("192.168.2.73");
+            deviceInfo.setInitChannel("AGT");
+            deviceInfo.setMac("01-23-45-67-89-ab");
+
+            request.setAgentDeviceInfo(deviceInfo);
+
+            // ================================
+            BillPaymentRequest.CustomerInfo customerInfo =
+                    request.getCustomerInfo();
+
+            if (customerInfo == null) {
+                customerInfo = new BillPaymentRequest.CustomerInfo();
+            }
+
+            customerInfo.setCustomerEmail("");
+            customerInfo.setCustomerAdhaar("");
+            customerInfo.setCustomerPan("");
+
+            request.setCustomerInfo(customerInfo);
+
+
+            // 5 Encrypt Request
             ObjectMapper mapper = new ObjectMapper();
             String plainJson = mapper.writeValueAsString(request);
+            String encryptedRequest = BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
 
-            // 6⃣ Encrypt JSON
-            String encryptedRequest =
-                    BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
+//            String requestId = RequestIdUtil.generate();
+            String requestId = request.getRequestId();
 
-            // 7⃣ Generate requestId
-            String requestId = RequestIdUtil.generate();
-
-            // 8️ Build BILL PAYMENT URL
             String finalUrl =
                     "https://stgapi.billavenue.com/billpay/extBillPayCntrl/billPayRequest/json"
                             + "?accessCode=" + ACCESS_CODE
@@ -307,7 +395,6 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                             + "&instituteId=" + INSTITUTE_ID
                             + "&encRequest=" + encryptedRequest;
 
-            // 9 Headers (EMPTY BODY POST)
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.TEXT_PLAIN);
 
@@ -315,22 +402,226 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
             RestTemplate restTemplate = new RestTemplate();
 
-            // Call Bill Payment API
+            // 6⃣ Call Vendor API
             String encryptedResponse =
                     restTemplate.postForObject(finalUrl, entity, String.class);
 
-            // 1 Decrypt response
             String decrypted =
                     BillAvenueCryptoUtil.decrypt(encryptedResponse, WORKING_KEY);
 
-            //  Return JSON
-            return mapper.readTree(decrypted);
+            BillAvenueBillPayResponse vendorResponse =
+                    mapper.readValue(decrypted, BillAvenueBillPayResponse.class);
+
+            // ================= SUCCESS FLOW =================
+            if ("000".equals(vendorResponse.getResponseCode())) {
+
+                bbpsRelatedTransactions.updateTransactionStatus(
+                        retailerId,
+                        walletType.name(),
+                        baseTransactionId
+                );
+
+                bbpsRelatedTransactions.processCommission(bbpsDto);
+
+                return CommonResponse.success(
+                        vendorResponse,
+                        "Transaction Successful"
+                );
+            }
+
+
+
+            // ================= FAILURE FLOW =================
+
+//// 1⃣ Save failed / pending transaction
+            if ("001".equals(vendorResponse.getResponseCode())
+                    || "002".equals(vendorResponse.getResponseCode())
+                    || "FORWARD".equalsIgnoreCase(vendorResponse.getTxnRespType())) {
+
+
+                savePendingTransaction(
+                        baseTransactionId,
+                        retailerId,
+                        walletType,
+                        request,
+                        selectedScheme,
+                        String.valueOf(product.getSgst()),
+                        String.valueOf(product.getTds()),
+                        selectedScheme.getOperatorName(),
+                        subProducts,
+                        credentials,
+                        vendorResponse.getResponseReason(),
+                        vendorResponse.getResponseReason(),
+                        vendorResponse.getTxnRefId()
+                );
+                return CommonResponse.success(
+                        vendorResponse,
+                        "Transaction is pending. Please check status later."
+                );
+            }
+
+            /* ---------- FAILURE CASE ---------- */
+            bbpsRelatedTransactions.reverseTransactionsAndUpdateWallet(
+                    retailerId,
+                    walletType.name(),
+                    baseTransactionId
+            );
+
+// 3️ Return failure response
+            //  Extract vendor error message
+            String vendorErrorMessage = "Transaction Failed";
+
+            if (vendorResponse.getVErrorRootVO() != null
+                    && vendorResponse.getVErrorRootVO().getError() != null
+                    && !vendorResponse.getVErrorRootVO().getError().isEmpty()) {
+
+                vendorErrorMessage =
+                        vendorResponse
+                                .getVErrorRootVO()
+                                .getError()
+                                .get(0)
+                                .getErrorMessage();
+            }
+
+//  Return proper failure response
+            return new CommonResponse<>(
+                    400,
+                    vendorErrorMessage,
+                    vendorResponse
+            );
+
 
         } catch (Exception ex) {
-            log.error("[PROCESS BILL PAYMENT] Error occurred | orderId={}", orderId, ex);
+            log.error("[PROCESS BILL PAYMENT] Exception | baseTxnId={}", baseTransactionId, ex);
+
+            bbpsRelatedTransactions.reverseTransactionsAndUpdateWallet(
+                    request.getRetailerId(),
+                    WalletType.valueOf(
+                            subProductsRepository
+                                    .findById(request.getSubProductId())
+                                    .get()
+                                    .getWalletType()
+                    ).name(),
+                    baseTransactionId
+            );
+
             throw ex;
         }
     }
+
+
+    private void savePendingTransaction(
+            String baseTransactionId,
+            String retailerId,
+            WalletType walletType,
+            BillPaymentRequest request,
+            SchemeRate schemeRate,
+            String gstValue,
+            String tdsValue,
+            String operator,
+            SubProducts subProduct,
+            VendorCredentials credentials,
+            String status,
+            String actualVendorStatus,
+            String vendorTxnRefId
+    ) {
+        try {
+            BBPSPendingTransactions pending = new BBPSPendingTransactions();
+            pending.setTransactionId("TXN" + baseTransactionId);
+            pending.setRetailerId(retailerId);
+            pending.setWalletType(walletType.name());
+            pending.setAmount(request.getAmountInfo().getAmount());
+            pending.setSchemeRate(schemeRate);
+            pending.setGst(gstValue);
+            pending.setTds(tdsValue);
+            pending.setOperatorName(operator);
+            pending.setSubProductName(subProduct.getSubProductTitle());
+            pending.setVendorBaseUrl(credentials.getBaseUrlUat());
+            pending.setToken(credentials.getToken());
+            pending.setUsername(credentials.getUsername());
+            pending.setClientSecret(credentials.getClientSecret());
+            pending.setStatus(status); // dynamic status
+            pending.setActualVendorStatus(actualVendorStatus);
+            pending.setConsumerNumber(request.getNumber());
+//            pending.setVendorTxnRefId(vendorTxnRefId);     // ** set when u do for production and add field also (after add this we can get tranrefid in billAvenueShedulaer)
+
+            bbpsPendingTransactionsRepository.save(pending);
+            log.info("Saved pending transaction with status [{}]: {}", status, baseTransactionId);
+
+        } catch (Exception e) {
+            log.error("Failed to save pending transaction [{}]: {}", baseTransactionId, e.getMessage(), e);
+            throw new RuntimeException("Error saving pending transaction: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Object fetchTransactionStatus(TransactionStatusRequest request) throws Exception  {
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        // Step 1 Prepare plain JSON
+        String plainJson = mapper.writeValueAsString(request);
+
+        // Step ⃣ Encrypt request
+
+        String encryptedRequest =
+                BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
+
+        // Step 3 RequestId
+
+        String requestId =
+                request.getRequestId() != null
+                        ? request.getRequestId()
+                        : RequestIdUtil.generate();
+
+
+        // Step 4 Build Final URL
+
+        String finalUrl =
+                "https://stgapi.billavenue.com/billpay/transactionStatus/fetchInfo/json"
+                        + "?accessCode=" + ACCESS_CODE
+                        + "&requestId=" + requestId
+                        + "&ver=1.0"
+                        + "&instituteId=" + INSTITUTE_ID
+                        + "&encRequest=" + encryptedRequest;
+
+
+        // ================================
+        // Step 5 Headers (EMPTY BODY)
+        // ================================
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.TEXT_PLAIN);
+
+        HttpEntity<String> entity =
+                new HttpEntity<>("", headers);
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        // ================================
+        // Step 6 Call API
+        // ================================
+        String encryptedResponse =
+                restTemplate.postForObject(
+                        finalUrl,
+                        entity,
+                        String.class
+                );
+
+        // ================================
+        // Step 7 Decrypt response
+        // ================================
+        String decrypted =
+                BillAvenueCryptoUtil.decrypt(
+                        encryptedResponse,
+                        WORKING_KEY
+                );
+
+        // ================================
+        // Step 8 Return JSON
+        // ================================
+        return mapper.readTree(decrypted);
+    }
+
 
 }
 

@@ -97,6 +97,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             req.setLongitude(retailer.getLongitude());
             req.setMobileNumber(retailer.getMobileNumber());
           req.setSubMerchantId(retailer.getRetailerId());
+//          req.setMerchantLoginId(retailer.getRetailerId());
+
 
             // ================================
             // STEP 6: UID DETAILS

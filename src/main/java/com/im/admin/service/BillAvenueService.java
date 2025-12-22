@@ -3,6 +3,7 @@ package com.im.admin.service;
 import com.im.admin.request.BillFetchRequest;
 import com.im.admin.request.BillPaymentRequest;
 import com.im.admin.request.BillerRequest;
+import com.im.admin.request.TransactionStatusRequest;
 
 public interface BillAvenueService {
 
@@ -11,4 +12,6 @@ public interface BillAvenueService {
     Object fetchBill(BillFetchRequest request)throws Exception;
 
     Object doBillPayment(BillPaymentRequest request) throws Exception;
+
+    Object fetchTransactionStatus(TransactionStatusRequest request)throws Exception ;
 }

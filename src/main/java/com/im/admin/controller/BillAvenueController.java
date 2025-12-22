@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.request.BillFetchRequest;
 import com.im.admin.request.BillPaymentRequest;
 import com.im.admin.request.BillerRequest;
+import com.im.admin.request.TransactionStatusRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.BillAvenueService;
 import lombok.extern.slf4j.Slf4j;
@@ -38,9 +39,19 @@ public class BillAvenueController {
     @PostMapping("/bill-payment")
     public CommonResponse<Object> billPayment(@RequestBody BillPaymentRequest request) throws Exception {
 
-        Object responseJson = billAvenueService.doBillPayment(request);
+        return (CommonResponse<Object>) billAvenueService.doBillPayment(request);
+    }
 
-        return CommonResponse.success(responseJson, "Bill payment processed successfully");
+    @PostMapping("/transaction-status")
+    public CommonResponse<Object> fetchTransactionStatus(@RequestBody TransactionStatusRequest request) throws Exception {
+
+        Object response =
+                billAvenueService.fetchTransactionStatus(request);
+
+        return CommonResponse.success(
+                response,
+                "Transaction status fetched successfully"
+        );
     }
 
 

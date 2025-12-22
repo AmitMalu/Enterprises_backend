@@ -30,7 +30,7 @@ import java.util.Optional;
 @Service
 public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
 
-    private static final String MERCHANT_MD5_PIN = "81dc9bdb52d04dc20036dbd8313ed055";  //1234d
+    private static final String MERCHANT_MD5_PIN = "796c3ee556ac31f3754a38cfd15b8044";  //1234d
     private static final String SUPER_USERNAME = "nftpayd";
     private static final String FINGPAY_2FA_URL = "https://fingpayap.tapits.in/fpaepsservice/auth/tfauth/merchant/validate/aadhar";
     private static final int SUPER_MERCHANT_ID = 1396; // Replace with your actual super merchant ID
@@ -60,24 +60,27 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
     public ResponseEntity<CommonResponse<Aeps2FaResponseDto>> validateAadhar(Aeps2FaRequest req) {
 
         // ====== STEP 1: Load Vendor Credentials ======
-        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+        VendorRouting vendorRouting =
+                vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+
         Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
         VendorCredentials credentials = vendorCredentialsRepository
                 .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+                .orElseThrow(() ->
+                        new RuntimeException("No credentials found for selected vendor"));
 
         CommonResponse<Aeps2FaResponseDto> common = new CommonResponse<>();
 
         try {
-            // Load retailer
+            // ====== STEP 2: Load Retailer ======
             Retailer retailer = retailerRepository.findById(req.getRetailerId())
                     .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
-            // Backend fields
+            // ====== STEP 3: Populate Backend Fields ======
             req.setSuperMerchantId(SUPER_MERCHANT_ID);
             req.setMerchantLoginId(String.valueOf(retailer.getRetailerId()));
-            req.setMerchantUserName(SUPER_USERNAME);
+            req.setMerchantUserName(retailer.getRetailerId());
             req.setMerchantPin(MERCHANT_MD5_PIN);
             req.setTransactionType("AUO");
             req.setServiceType("AEPS");
@@ -87,28 +90,34 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
             req.setLongitude(retailer.getLongitude());
             req.setMobileNumber(retailer.getMobileNumber());
 
-            // UID block
-            Aeps2FaRequest.P2CardnumberORUID uid = new Aeps2FaRequest.P2CardnumberORUID();
+            // ====== STEP 4: UID Block ======
+            Aeps2FaRequest.P2CardnumberORUID uid =
+                    new Aeps2FaRequest.P2CardnumberORUID();
+
             uid.setAdhaarNumber(retailer.getAadhaarNumber());
             uid.setIndicatorforUID(0);
             uid.setNationalBankIdentificationNumber(null);
             uid.setVirtualId(null);
+
             req.setCardnumberORUID(uid);
 
-            // Convert to JSON
+            // ====== STEP 5: Convert Request to JSON ======
             String plainJson = objectMapper.writeValueAsString(req);
 
-            // Load Fingpay Public Key
+            // ====== STEP 6: Load Fingpay Public Key ======
             String certificate = new String(
                     resourceLoader.getResource("classpath:fingpay_public.cer")
-                            .getInputStream().readAllBytes()
+                            .getInputStream()
+                            .readAllBytes()
             );
 
-            // Encrypt
+            // ====== STEP 7: Encrypt Request ======
             FingpayEncryptionUtil.FingpayRequestPayload encrypted =
-                    FingpayEncryptionUtil.buildFinalRequestFromRawJson(plainJson, certificate);
+                    FingpayEncryptionUtil.buildFinalRequestFromRawJson(
+                            plainJson, certificate
+                    );
 
-            // Headers
+            // ====== STEP 8: Prepare Headers ======
             HttpHeaders headers = new HttpHeaders();
             headers.set("trnTimestamp", String.valueOf(System.currentTimeMillis()));
             headers.set("hash", encrypted.hash);
@@ -116,57 +125,85 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
             headers.set("deviceIMEI", "WEB1234567");
             headers.setContentType(MediaType.TEXT_PLAIN);
 
-            HttpEntity<String> entity = new HttpEntity<>(encrypted.body, headers);
+            HttpEntity<String> entity =
+                    new HttpEntity<>(encrypted.body, headers);
 
-            // Vendor API Call
-            ResponseEntity<Aeps2FaResponseDto> vendorResp = restTemplate.exchange(
-                    FINGPAY_2FA_URL,
-                    HttpMethod.POST,
-                    entity,
-                    Aeps2FaResponseDto.class
-            );
+            // ====== STEP 9: Vendor API Call ======
+            ResponseEntity<Aeps2FaResponseDto> vendorResp =
+                    restTemplate.exchange(
+                            FINGPAY_2FA_URL,
+                            HttpMethod.POST,
+                            entity,
+                            Aeps2FaResponseDto.class
+                    );
 
             Aeps2FaResponseDto body = vendorResp.getBody();
 
-            // ========== Save Log if Success ==========
-            if (body != null && body.isStatus() && body.getData() != null) {
-                if ("00".equals(body.getData().getResponseCode())) {
-                    AepsTwoFa log = new AepsTwoFa();
-                    log.setTefPkId(body.getData().getTefPkId());
-                    log.setStan(body.getData().getStan());
-                    log.setBankRrn(body.getData().getBankRrn());
-                    log.setFpRrn(body.getData().getFpRrn());
-                    log.setFingpayTransactionId(body.getData().getFingpayTransactionId());
-                    log.setMerchantTranId(body.getData().getMerchantTranId());
-                    log.setResponseCode(body.getData().getResponseCode());
-                    log.setResponseMessage(body.getData().getResponseMessage());
-                    log.setMobileNumber(body.getData().getMobileNumber());
-                    log.setTransactionTimestamp(body.getData().getTransactionTimestamp());
-                    log.setRetailerId(req.getRetailerId());
-                    log.setVendor(vendor);
+            // ====== STEP 10: Save Log ONLY on SUCCESS ======
+            if (body != null && body.isStatus()
+                    && body.getData() != null
+                    && "00".equals(body.getData().getResponseCode())) {
 
-                    aAeps2FaRepository.save(log);
-                }
+                AepsTwoFa log = new AepsTwoFa();
+                log.setTefPkId(body.getData().getTefPkId());
+                log.setStan(body.getData().getStan());
+                log.setBankRrn(body.getData().getBankRrn());
+                log.setFpRrn(body.getData().getFpRrn());
+                log.setFingpayTransactionId(body.getData().getFingpayTransactionId());
+                log.setMerchantTranId(body.getData().getMerchantTranId());
+                log.setResponseCode(body.getData().getResponseCode());
+                log.setResponseMessage(body.getData().getResponseMessage());
+                log.setMobileNumber(body.getData().getMobileNumber());
+                log.setTransactionTimestamp(body.getData().getTransactionTimestamp());
+                log.setRetailerId(req.getRetailerId());
+                log.setVendor(vendor);
+
+                aAeps2FaRepository.save(log);
             }
 
-            // ========= Success CommonResponse =========
-            common.setStatusCode(vendorResp.getStatusCodeValue());
-            common.setMessage("Success");
-            common.setData(body);
+            // ====== STEP 11: FINAL RESPONSE TO CLIENT ======
+            if (body != null
+                    && body.isStatus()
+                    && body.getData() != null
+                    && "00".equals(body.getData().getResponseCode())) {
 
-            return ResponseEntity.status(vendorResp.getStatusCode()).body(common);
+                // ✅ SUCCESS
+                common.setStatusCode(200);
+                common.setMessage(body.getData().getResponseMessage());
+                common.setData(body);
+
+                return ResponseEntity.ok(common);
+
+            } else {
+
+                // ❌ FAILURE
+                String vendorMsg = (body != null)
+                        ? body.getMessage()
+                        : "Vendor response empty";
+
+                common.setStatusCode(400);
+                common.setMessage(vendorMsg);
+                common.setData(body);
+
+                return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body(common);
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
 
-            // ========= Error CommonResponse =========
+            // ====== EXCEPTION HANDLING ======
             common.setStatusCode(500);
             common.setMessage("Vendor API failed: " + e.getMessage());
             common.setData(null);
 
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(common);
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(common);
         }
     }
+
 
 
     @Override
@@ -177,7 +214,7 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
         Optional<AepsTwoFa> optional =
                 aAeps2FaRepository.findTopByRetailerIdOrderByIdDesc(aeps2FACheckStatusRequest.getRetailerId());
 
-        // 1️⃣ No record found → 2FA never done
+        // 1️ No record found → 2FA never done
         if (optional.isEmpty()) {
             log.warn("2FA Check: No record found for retailerId {}", aeps2FACheckStatusRequest.getRetailerId());
 
