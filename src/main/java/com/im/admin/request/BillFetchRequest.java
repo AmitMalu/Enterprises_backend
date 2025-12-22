@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class BillFetchRequest {
     private String agentId;
+    private String requestId;
     private boolean billerAdhoc;
 
     private AgentDeviceInfo agentDeviceInfo;
@@ -24,7 +25,7 @@ public class BillFetchRequest {
     public static class CustomerInfo {
         private Long customerMobile;
         private String customerEmail;
-        private Long customerAdhaar;
+        private String customerAdhaar;
         private String customerPan;
     }
 

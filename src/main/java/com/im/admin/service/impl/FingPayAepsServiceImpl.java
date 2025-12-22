@@ -1,7 +1,9 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.entities.Retailer;
 import com.im.admin.entities.VendorCredentials;
+import com.im.admin.repositories.RetailerRepository;
 import com.im.admin.request.AepsBalanceInquiryRequest;
 import com.im.admin.request.AepsCashWithdrawalRequest;
 import com.im.admin.response.AepsBalanceInquiryResponse;
@@ -22,6 +24,8 @@ import java.util.Map;
 
 @Service
 public class FingPayAepsServiceImpl implements AepsVendorService {
+
+    @Autowired private RetailerRepository retailerRepository;
 
     private static final String SUPER_USERNAME = "nftpayd";
     private static final String MERCHANT_MD5_PIN = "796c3ee556ac31f3754a38cfd15b8044";  // 81dc9bdb52d04dc20036dbd8313ed055  //1234d
@@ -45,6 +49,8 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
             AepsCashWithdrawalRequest req, VendorCredentials credentials) {
 
         try {
+            Retailer retailer = retailerRepository.findById(req.getRetailerId())
+                    .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
             Map<String, Object> body = new HashMap<>();
 
@@ -75,10 +81,10 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
             body.put("transactionAmount", req.getTransactionAmount());
             body.put("transactionType", "CW");
 
-            body.put("merchantUserName", SUPER_USERNAME);
+            body.put("merchantUserName", retailer.getRetailerId());
 //            body.put("subMerchantId", SUPER_USERNAME);
             body.put("merchantPin", MERCHANT_MD5_PIN);
-//            body.put("merchantLoginId", retailer.getRetailerId());
+//            body.put("merchantLoginId", req.getMerchantLoginId());
             body.put("superMerchantId", SUPER_MERCHANT_ID);
 
 

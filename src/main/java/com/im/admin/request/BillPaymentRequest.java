@@ -8,10 +8,12 @@ import java.util.List;
 @Data
 public class BillPaymentRequest {
 
+    private String requestId;
     private String retailerId;
     private String subProductId;
     private String agentId;
     private boolean billerAdhoc;
+    private String number;
 
     private AgentDeviceInfo agentDeviceInfo;
     private CustomerInfo customerInfo;
@@ -28,6 +30,9 @@ public class BillPaymentRequest {
     private AmountInfo amountInfo;
     private PaymentMethod paymentMethod;
     private PaymentInfo paymentInfo;
+
+    //  MISSING FIELD ADDED
+    private AdditionalInfo additionalInfo;
 
     // ===================== INNER CLASSES ======================
 
@@ -59,7 +64,7 @@ public class BillPaymentRequest {
 
     @Data
     public static class BillerResponse {
-        private String billAmount;     // ⚠️ STRING as per JSON
+        private String billAmount;     // ⚠ STRING as per JSON
         private String billDate;
         private String billNumber;
         private String billPeriod;
@@ -80,6 +85,17 @@ public class BillPaymentRequest {
         private String paymentMode;
         private String quickPay;
         private String splitPay;
+    }
+
+    @Data
+    public static class AdditionalInfo {
+        private List<Info> info;
+
+        @Data
+        public static class Info {
+            private String infoName;
+            private String infoValue;
+        }
     }
 
     @Data
