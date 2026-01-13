@@ -3,6 +3,7 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.BbpsTranactionRequestDto;
 import com.im.admin.dto.BillRechargeRequestDTO;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Slf4j
@@ -77,6 +79,9 @@ public class BillAvenueServiceImpl implements BillAvenueService {
     private RetailerRepository retailerRepository;
 
     @Autowired
+    private CommonFunctions commonFunctions;
+
+    @Autowired
     private BBPSPendingTransactionsRepository bbpsPendingTransactionsRepository;
 
 
@@ -89,6 +94,12 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
     @Override
     public Object fetchBillerInfo(BillerRequest request) throws Exception {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
 
         String requestedBillerId = request.getBillerId().get(0); // first biller id
 
@@ -120,10 +131,15 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
         Vendors vendor = CommonMethods.getVendors(routing);
 
+        vendorId = vendor.getId();
+
+
         ObjectMapper mapper = new ObjectMapper();
 
         // Step 1: Convert request → JSON string
         String plainJson = mapper.writeValueAsString(request);
+
+        requestJson = plainJson;
 
         // Step 2: Encrypt
         String encryptedHex = BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
@@ -144,49 +160,80 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
         HttpEntity<String> entity = new HttpEntity<>(encryptedHex, headers);
 
-        // Step 6: Call API
-        RestTemplate restTemplate = new RestTemplate();
-        String encryptedResponse = restTemplate.postForObject(finalUrl, entity, String.class);
+        try {
+            // Step 6: Call API
+            RestTemplate restTemplate = new RestTemplate();
+            String encryptedResponse = restTemplate.postForObject(finalUrl, entity, String.class);
 
-        // Step 7: Decrypt
-        String decrypt = BillAvenueCryptoUtil.decrypt(encryptedResponse, WORKING_KEY);
+            // Step 7: Decrypt
+            String decrypt = BillAvenueCryptoUtil.decrypt(encryptedResponse, WORKING_KEY);
 
-        // Step 8: Convert decrypted text → JSON
-        JsonNode jsonNode = mapper.readTree(decrypt);
+            // Step 8: Convert decrypted text → JSON
+            JsonNode jsonNode = mapper.readTree(decrypt);
 
-        ObjectNode responseNode = (ObjectNode) jsonNode;
+            ObjectNode responseNode = (ObjectNode) jsonNode;
 
 // add requestId
-        responseNode.put("requestId", requestIds);
+            responseNode.put("requestId", requestIds);
+
+            responseJson = responseNode.toString();
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
 
 
-        // ----------------------------
-        // 3. Save into DB
-        // ----------------------------
+            // ----------------------------
+            // 3. Save into DB
+            // ----------------------------
 
-        JsonNode billerArray = jsonNode.path("biller");
+            JsonNode billerArray = jsonNode.path("biller");
 
-        if (billerArray.isArray() && billerArray.size() > 0) {
+            if (billerArray.isArray() && billerArray.size() > 0) {
 
-            JsonNode biller = billerArray.get(0);
+                JsonNode biller = billerArray.get(0);
 
-            BillPayConfig cfg = new BillPayConfig();
+                BillPayConfig cfg = new BillPayConfig();
 
-            cfg.setVendor(vendor.getVendorName());
-            cfg.setServiceName(biller.path("billerCategory").asText());
-            cfg.setProviderId(biller.path("billerId").asText());
-            cfg.setProviderName(biller.path("billerName").asText());
-            cfg.setRawConfig(biller.toString());
+                cfg.setVendor(vendor.getVendorName());
+                cfg.setServiceName(biller.path("billerCategory").asText());
+                cfg.setProviderId(biller.path("billerId").asText());
+                cfg.setProviderName(biller.path("billerName").asText());
+                cfg.setRawConfig(biller.toString());
 
-            billPayConfigRepository.save(cfg);
+                billPayConfigRepository.save(cfg);
+            }
+
+            return CommonResponse.success(responseNode, "Biller info fetched from Vendor API");
+        } catch (Exception e) {
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    e.getMessage()
+            );
+
+            throw e;
         }
-
-        return CommonResponse.success(responseNode, "Biller info fetched from Vendor API");
     }
 
 
     @Override
     public Object fetchBill(BillFetchRequest request) throws Exception {
+
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
 
         ObjectMapper mapper = new ObjectMapper();
         request.setAgentId("CC01CC01513515340681");
@@ -220,8 +267,16 @@ public class BillAvenueServiceImpl implements BillAvenueService {
         request.setCustomerInfo(customerInfo);
 
 
+        VendorRouting routing =
+                vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+
+        Vendors vendor = CommonMethods.getVendors(routing);
+
+        vendorId = vendor.getId();
+
         // Step 1: Convert request to JSON string
         String plainJson = mapper.writeValueAsString(request);
+        requestJson = plainJson;
 
 
         // Step 2: Encrypt JSON
@@ -250,6 +305,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
         RestTemplate restTemplate = new RestTemplate();
 
+        try {
         // Step 6: POST API call (EMPTY BODY)
         String encryptedResponse = restTemplate.postForObject(
                 finalUrl,
@@ -260,11 +316,44 @@ public class BillAvenueServiceImpl implements BillAvenueService {
         // Step 7: Decrypt response
         String decrypted = BillAvenueCryptoUtil.decrypt(encryptedResponse, WORKING_KEY);
 
+        JsonNode responseNode = mapper.readTree(decrypted);
+
+        responseJson = responseNode.toString();
+
+        commonFunctions.saveVendorLogs(
+                requestTime,
+                requestJson,
+                vendorId,
+                LocalDateTime.now(),
+                responseJson,
+                null
+        );
+
+
+
         // Step 8: Convert decrypted JSON to object
         return mapper.readTree(decrypted);
     }
+     catch (Exception e) {
 
-    @Transactional
+        // ================================
+        //  FAILURE VENDOR LOG
+        // ================================
+        commonFunctions.saveVendorLogs(
+                requestTime,
+                requestJson,
+                vendorId,
+                LocalDateTime.now(),
+                null,
+                e.getMessage()
+        );
+
+        throw e;
+    }
+}
+
+
+@Transactional
     @Override
     public Object doBillPayment(BillPaymentRequest request) throws Exception {
 
@@ -272,6 +361,11 @@ public class BillAvenueServiceImpl implements BillAvenueService {
         log.info("[PROCESS BILL PAYMENT] Starting transaction | orderId={}", orderId);
 
         String baseTransactionId = commonMethods.generateBaseTransactionId();
+
+    LocalDateTime requestTime = LocalDateTime.now();
+    String requestJson = null;
+    String responseJson = null;
+    String vendorId = null;
 
         try {
             // ⃣ Validate SubProduct
@@ -296,6 +390,8 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                     vendorRoutingRepository.findBySubProductId(request.getSubProductId());
 
             Vendors vendor = CommonMethods.getVendors(routing);
+
+            vendorId = vendor.getId();
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
@@ -382,6 +478,8 @@ public class BillAvenueServiceImpl implements BillAvenueService {
             // 5 Encrypt Request
             ObjectMapper mapper = new ObjectMapper();
             String plainJson = mapper.writeValueAsString(request);
+            requestJson = plainJson;
+
             String encryptedRequest = BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
 
 //            String requestId = RequestIdUtil.generate();
@@ -408,6 +506,19 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
             String decrypted =
                     BillAvenueCryptoUtil.decrypt(encryptedResponse, WORKING_KEY);
+
+            responseJson = decrypted;
+
+            //  SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
 
             BillAvenueBillPayResponse vendorResponse =
                     mapper.readValue(decrypted, BillAvenueBillPayResponse.class);
@@ -467,31 +578,20 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                     baseTransactionId
             );
 
-// 3️ Return failure response
-            //  Extract vendor error message
-            String vendorErrorMessage = "Transaction Failed";
-
-            if (vendorResponse.getVErrorRootVO() != null
-                    && vendorResponse.getVErrorRootVO().getError() != null
-                    && !vendorResponse.getVErrorRootVO().getError().isEmpty()) {
-
-                vendorErrorMessage =
-                        vendorResponse
-                                .getVErrorRootVO()
-                                .getError()
-                                .get(0)
-                                .getErrorMessage();
-            }
-
-//  Return proper failure response
-            return new CommonResponse<>(
-                    400,
-                    vendorErrorMessage,
-                    vendorResponse
-            );
-
+            return new CommonResponse<>(400, "Transaction Failed", vendorResponse);
 
         } catch (Exception ex) {
+
+            //  FAILURE VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
             log.error("[PROCESS BILL PAYMENT] Exception | baseTxnId={}", baseTransactionId, ex);
 
             bbpsRelatedTransactions.reverseTransactionsAndUpdateWallet(
@@ -507,8 +607,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
             throw ex;
         }
-    }
-
+}
 
     private void savePendingTransaction(
             String baseTransactionId,
@@ -555,71 +654,97 @@ public class BillAvenueServiceImpl implements BillAvenueService {
     }
 
     @Override
-    public Object fetchTransactionStatus(TransactionStatusRequest request) throws Exception  {
+    public Object fetchTransactionStatus(TransactionStatusRequest request) throws Exception {
+
+        VendorRouting routing =
+                vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+
+        Vendors vendor = CommonMethods.getVendors(routing);
+
 
         ObjectMapper mapper = new ObjectMapper();
 
-        // Step 1 Prepare plain JSON
-        String plainJson = mapper.writeValueAsString(request);
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = vendor.getId();
 
-        // Step ⃣ Encrypt request
+        try {
+            // ===== Step 1 Prepare plain JSON =====
+            requestJson = mapper.writeValueAsString(request);
 
-        String encryptedRequest =
-                BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
+            // ===== Step 2 Encrypt request =====
+            String encryptedRequest =
+                    BillAvenueCryptoUtil.encrypt(requestJson, WORKING_KEY);
 
-        // Step 3 RequestId
+            // ===== Step 3 RequestId =====
+            String requestId =
+                    request.getRequestId() != null
+                            ? request.getRequestId()
+                            : RequestIdUtil.generate();
 
-        String requestId =
-                request.getRequestId() != null
-                        ? request.getRequestId()
-                        : RequestIdUtil.generate();
+            // ===== Step 4 Build Final URL =====
+            String finalUrl =
+                    "https://stgapi.billavenue.com/billpay/transactionStatus/fetchInfo/json"
+                            + "?accessCode=" + ACCESS_CODE
+                            + "&requestId=" + requestId
+                            + "&ver=1.0"
+                            + "&instituteId=" + INSTITUTE_ID
+                            + "&encRequest=" + encryptedRequest;
 
+            // ===== Step 5 Headers =====
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.TEXT_PLAIN);
 
-        // Step 4 Build Final URL
+            HttpEntity<String> entity = new HttpEntity<>("", headers);
 
-        String finalUrl =
-                "https://stgapi.billavenue.com/billpay/transactionStatus/fetchInfo/json"
-                        + "?accessCode=" + ACCESS_CODE
-                        + "&requestId=" + requestId
-                        + "&ver=1.0"
-                        + "&instituteId=" + INSTITUTE_ID
-                        + "&encRequest=" + encryptedRequest;
+            RestTemplate restTemplate = new RestTemplate();
 
+            // ===== Step 6 Call Vendor API =====
+            String encryptedResponse =
+                    restTemplate.postForObject(
+                            finalUrl,
+                            entity,
+                            String.class
+                    );
 
-        // ================================
-        // Step 5 Headers (EMPTY BODY)
-        // ================================
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.TEXT_PLAIN);
+            // ===== Step 7 Decrypt response =====
+            responseJson =
+                    BillAvenueCryptoUtil.decrypt(
+                            encryptedResponse,
+                            WORKING_KEY
+                    );
 
-        HttpEntity<String> entity =
-                new HttpEntity<>("", headers);
+            //  SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
 
-        RestTemplate restTemplate = new RestTemplate();
+            // ===== Step 8 Return JSON =====
+            return mapper.readTree(responseJson);
 
-        // ================================
-        // Step 6 Call API
-        // ================================
-        String encryptedResponse =
-                restTemplate.postForObject(
-                        finalUrl,
-                        entity,
-                        String.class
-                );
+        } catch (Exception ex) {
 
-        // ================================
-        // Step 7 Decrypt response
-        // ================================
-        String decrypted =
-                BillAvenueCryptoUtil.decrypt(
-                        encryptedResponse,
-                        WORKING_KEY
-                );
+            //  FAILURE VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
 
-        // ================================
-        // Step 8 Return JSON
-        // ================================
-        return mapper.readTree(decrypted);
+            log.error("[FETCH TXN STATUS] Exception | requestId={}",
+                    request.getRequestId(), ex);
+
+            throw ex;
+        }
     }
 
 

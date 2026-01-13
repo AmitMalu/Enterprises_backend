@@ -17,6 +17,7 @@ public class DmtRemitter {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "mobile", unique = true, nullable = false)
     private String mobile;
     private String aadhaar;
 
@@ -28,6 +29,13 @@ public class DmtRemitter {
 
     @Column(name = "name")
     private String name;
+
+    @Column(name = "otp")
+    private String otp;
+
+    @Column(name = "otp_generate_at")
+    private LocalDateTime otpGeneratedAt;
+
 
     @Column(columnDefinition = "VARCHAR(20) DEFAULT 'PENDING'")
     private String status; // PENDING / REGISTERED

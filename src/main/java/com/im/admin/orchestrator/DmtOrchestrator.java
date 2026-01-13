@@ -1,5 +1,7 @@
 package com.im.admin.orchestrator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.DmtResponseDto;
 import com.im.admin.dto.RemitterTransactionResponse;
@@ -27,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Random;
 
@@ -68,11 +71,23 @@ public class DmtOrchestrator {
     @Autowired
     private RetailerRepository retailerRepository;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+
+    @Autowired private ObjectMapper objectMapper;
+
     //  STEP 1: Send OTP
     public CommonResponse<PaysprintSendOtpResponse> sendDmtOtp(SendDmtRequest req) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
         try {
             VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(routing);
+            vendorId = vendor.getId();
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("Vendor credentials not found"));
@@ -110,15 +125,51 @@ public class DmtOrchestrator {
 
             otpResponse.setReferenceId(refId);
 
+            responseJson = objectMapper.writeValueAsString(otpResponse);
+
+            //  SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+
             return CommonResponse.success(otpResponse, otpResponse.getMessage());
-        } catch (Exception e) {
-            log.error("[DMT ORCH] Error in sendDmtOtp: {}", e.getMessage(), e);
+        } catch (Exception ex) {
+
+            //  FAILURE VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
+            log.error(
+                    "[DMT SEND OTP] Exception | mobile={}, beneId={}",
+                    req.getMobile(),
+                    req.getBeneId(),
+                    ex
+            );
+
             return CommonResponse.error(400, "Failed to send OTP");
         }
     }
 
     @Transactional
     public CommonResponse<DmtResponseDto> processDmt(SendDmtRequest req) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
         String orderId = "TXN" + commonMethods.generateBaseTransactionId();
         log.info("[PROCESS DMT] Starting transaction | orderId={}", orderId);
 
@@ -146,6 +197,8 @@ public class DmtOrchestrator {
             }
 
             Vendors vendor = CommonMethods.getVendors(routing);
+            vendorId = vendor.getId();
+
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("Vendor credentials not found"));
@@ -209,9 +262,24 @@ public class DmtOrchestrator {
             req.setLat(retailer.getLatitude());
             req.setLng(retailer.getLongitude());
 
+            requestJson = objectMapper.writeValueAsString(req);
 
             // 6. Call vendor-specific implementation (must return PayoutResponseDto)
             RemitterTransactionResponse remitterTransactionResponse = vendorService.processDmt(req, credentials, orderId, subProducts, walletType);
+
+            // ================== VENDOR SUCCESS LOG ==================
+            responseJson = objectMapper.writeValueAsString(remitterTransactionResponse);
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+
 
             // Save vendor transaction details locally
             DmtTransaction dmtTxn = new DmtTransaction();
@@ -328,7 +396,17 @@ public class DmtOrchestrator {
 
 
         } catch (Exception e) {
-            log.error("[PROCESS DMT] Exception occurred: {}", e.getMessage(), e);
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    e.getMessage()
+            );
+
+            log.error("[PROCESS DMT] Exception occurred | orderId={}", orderId, e);
             return new CommonResponse<>(500, "Error while processing DMT", null);
         }
     }

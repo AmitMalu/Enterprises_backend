@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.entities.*;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.AepsMerchantStatusRepository;
@@ -55,11 +56,14 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
     @Autowired
     private AepsMerchantStatusRepository aepsMerchantStatusRepository;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+
     @Override
     public CommonResponse<AepsMerchantResponseDto> registerMerchantAndCall(AepsMerchantRequestDto aepsMerchantRequestDto) {
 
         // ====== STEP 1: Load Vendor Credentials Dynamically ======
-        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(aepsMerchantRequestDto.getSubProductId()); // subProductId dynamically aayega
+        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(aepsMerchantRequestDto.getSubProductId()); // subProductId dynamically
         Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
         VendorCredentials credentials = vendorCredentialsRepository
@@ -80,6 +84,13 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
         BanksDetails bank = r.getBankDetails();
 
         try {
+
+            LocalDateTime requestDateTime = LocalDateTime.now();
+            String requestJson = "";
+            String responseJson = "";
+            String vendorId = vendor.getId();
+
+
             // Build JSON payload
             Map<String, Object> root = new LinkedHashMap<>();
             root.put("username", SUPER_USERNAME);
@@ -201,6 +212,8 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
             ObjectMapper mapper = new ObjectMapper();
             String json = mapper.writeValueAsString(root);
 
+            requestJson = json;
+
             Resource resource = resourceLoader.getResource("classpath:fingpay_public.cer");
             String certificate = new String(resource.getInputStream().readAllBytes());
 
@@ -222,6 +235,19 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
             );
             AepsMerchantResponseDto res = response.getBody();
 
+
+         // ===== SAVE VENDOR LOGS =====
+            responseJson = mapper.writeValueAsString(res);
+
+            commonFunctions.saveVendorLogs(
+                    requestDateTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+// ==================================
             // ---- Vendor Null Check ----
             if (res == null) {
                 return new CommonResponse<>(500, "Null vendor response", null);

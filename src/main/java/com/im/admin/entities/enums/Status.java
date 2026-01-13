@@ -11,5 +11,6 @@ public enum Status {
     INACTIVE,
     ALL,
     SETTLEMENT_PENDING,
-    VENDOR_PENDING
-}
+    VENDOR_PENDING,
+    REVERSAL
+    }

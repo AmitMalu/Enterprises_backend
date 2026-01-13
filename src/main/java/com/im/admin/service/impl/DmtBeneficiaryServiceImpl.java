@@ -1,6 +1,8 @@
 package com.im.admin.service.impl;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.DmtBeneficiaryDeleteResponse;
 import com.im.admin.dto.DmtBeneficiaryFetchByBeneIdResponse;
 import com.im.admin.dto.DmtBeneficiaryFetchResponse;
@@ -18,6 +20,7 @@ import com.im.admin.response.BeneficiaryRegisterResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DmtBeneficiaryService;
 import com.im.admin.util.CommonMethods;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -26,10 +29,12 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 
@@ -48,17 +53,32 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
     @Autowired
     private RemitterRepository remitterRepository;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+
+    @Autowired private ObjectMapper objectMapper;
+
     @Override
-    public CommonResponse<BeneficiaryRegisterResponse> registerBeneficiary(BeneficiaryRegisterRequest req) {
+    public CommonResponse<BeneficiaryRegisterResponse> registerBeneficiary(BeneficiaryRegisterRequest req) throws Exception {
 
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
 
+        try {
         // ====== STEP 1: Load Vendor Credentials Dynamically ======
         VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
         Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
+        vendorId = vendor.getId();
+
         VendorCredentials credentials = vendorCredentialsRepository
                 .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                 .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+        // ===== STEP 2: Prepare request JSON for logs =====
+        requestJson = objectMapper.writeValueAsString(req);
 
         // ====== STEP 2: Prepare Headers and Body ======
         HttpHeaders headers = getHeaders(credentials);
@@ -73,6 +93,18 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
         );
 
         BeneficiaryRegisterResponse resp = respEntity.getBody();
+
+        responseJson = objectMapper.writeValueAsString(resp);
+
+        //  SUCCESS VENDOR LOG
+        commonFunctions.saveVendorLogs(
+                requestTime,
+                requestJson,
+                vendorId,
+                LocalDateTime.now(),
+                responseJson,
+                null
+        );
 
         // ====== STEP 4: If successful → save in local DB ======
         if (resp != null && resp.getResponse_code() == 1) {
@@ -106,7 +138,28 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
         common.setData(resp);
 
         return common;
+
+    } catch (Exception ex) {
+
+        //  FAILURE VENDOR LOG
+        commonFunctions.saveVendorLogs(
+                requestTime,
+                requestJson,
+                vendorId,
+                LocalDateTime.now(),
+                null,
+                ex.getMessage()
+        );
+
+        log.error(
+                "[REGISTER BENEFICIARY] Exception | mobile={}",
+                req.getMobile(),
+                ex
+        );
+
+            throw ex; //
     }
+}
 
     // Helper method to build headers
     private HttpHeaders getHeaders(VendorCredentials credentials) {
@@ -120,55 +173,106 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 
 
     @Override
-    public CommonResponse<DmtBeneficiaryDeleteResponse> deleteBeneficiary(DmtBeneficiaryDeleteRequest req) {
+    public CommonResponse<DmtBeneficiaryDeleteResponse> deleteBeneficiary(DmtBeneficiaryDeleteRequest req) throws Exception {
+        {
 
-        // Step 1: Load vendor credentials dynamically
-        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
-        Vendors vendor = CommonMethods.getVendors(vendorRouting);
+            LocalDateTime requestTime = LocalDateTime.now();
+            String requestJson = null;
+            String responseJson = null;
+            String vendorId = null;
 
-        VendorCredentials credentials = vendorCredentialsRepository
-                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                .orElseThrow(() -> new RuntimeException("No credentials found for vendor"));
+            try {
+                // Step 1: Load vendor credentials dynamically
+                VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+                Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
-        // Step 2: Prepare headers
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.set("Token", credentials.getToken());
-        headers.set("Authorisedkey", credentials.getSaltKey());
+                vendorId = vendor.getId();
 
-        // Step 3: Prepare request body
-        HttpEntity<DmtBeneficiaryDeleteRequest> entity = new HttpEntity<>(req, headers);
+                VendorCredentials credentials = vendorCredentialsRepository
+                        .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                        .orElseThrow(() -> new RuntimeException("No credentials found for vendor"));
 
-        // Step 4: Call Vendor Delete Beneficiary API
-        ResponseEntity<DmtBeneficiaryDeleteResponse> responseEntity = restTemplate.exchange(
-                credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/deletebeneficiary",
-                HttpMethod.POST,
-                entity,
-                DmtBeneficiaryDeleteResponse.class
-        );
+                requestJson = objectMapper.writeValueAsString(req);
 
-        DmtBeneficiaryDeleteResponse vendorResponse = responseEntity.getBody();
+                // Step 2: Prepare headers
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+                headers.set("Token", credentials.getToken());
+                headers.set("Authorisedkey", credentials.getSaltKey());
 
-        // Step 5: Update Local Database if deleted successfully
-        if (vendorResponse != null && vendorResponse.getResponse_code() == 1) {
-            DmtBeneficiary bene = beneficiaryRepository.findByBeneId(req.getBene_id());
-            if (bene != null) {
-                beneficiaryRepository.delete(bene); // <- DELETE RECORD
+                // Step 3: Prepare request body
+                HttpEntity<DmtBeneficiaryDeleteRequest> entity = new HttpEntity<>(req, headers);
+
+                // Step 4: Call Vendor Delete Beneficiary API
+                ResponseEntity<DmtBeneficiaryDeleteResponse> responseEntity = restTemplate.exchange(
+                        credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/deletebeneficiary",
+                        HttpMethod.POST,
+                        entity,
+                        DmtBeneficiaryDeleteResponse.class
+                );
+
+                DmtBeneficiaryDeleteResponse vendorResponse = responseEntity.getBody();
+
+                responseJson = objectMapper.writeValueAsString(vendorResponse);
+
+                // ✅ SUCCESS VENDOR LOG
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestJson,
+                        vendorId,
+                        LocalDateTime.now(),
+                        responseJson,
+                        null
+                );
+
+                // Step 5: Update Local Database if deleted successfully
+                if (vendorResponse != null && vendorResponse.getResponse_code() == 1) {
+                    DmtBeneficiary bene = beneficiaryRepository.findByBeneId(req.getBene_id());
+                    if (bene != null) {
+                        beneficiaryRepository.delete(bene); // <- DELETE RECORD
+                    }
+                }
+
+                // Step 6: Wrap final response
+                CommonResponse<DmtBeneficiaryDeleteResponse> common = new CommonResponse<>();
+                common.setStatusCode(responseEntity.getStatusCodeValue());
+                common.setMessage(vendorResponse != null ? vendorResponse.getMessage() : "No response from vendor");
+                common.setData(vendorResponse);
+
+                return common;
+
+            } catch (Exception ex) {
+
+                // ❌ FAILURE VENDOR LOG
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestJson,
+                        vendorId,
+                        LocalDateTime.now(),
+                        null,
+                        ex.getMessage()
+                );
+
+                log.error(
+                        "[DELETE BENEFICIARY] Exception | beneId={}",
+                        req.getBene_id(),
+                        ex
+                );
+
+                throw ex;
             }
         }
-
-        // Step 6: Wrap final response
-        CommonResponse<DmtBeneficiaryDeleteResponse> common = new CommonResponse<>();
-        common.setStatusCode(responseEntity.getStatusCodeValue());
-        common.setMessage(vendorResponse != null ? vendorResponse.getMessage() : "No response from vendor");
-        common.setData(vendorResponse);
-
-        return common;
     }
 
     @Override
     public CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>> fetchBeneficiary(DmtBeneficiaryFetchRequest req, int page, int size) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
         try {
 
             Optional<DmtRemitter> optionalRemitter = remitterRepository.findByMobile(req.getMobile());
@@ -202,6 +306,9 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
+
+            vendorId = vendor.getId();
+
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
@@ -220,6 +327,20 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
             );
 
             DmtBeneficiaryFetchResponse resp = response.getBody();
+
+            responseJson = objectMapper.writeValueAsString(resp);
+
+            //  SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+
             if (resp == null) {
                 return CommonResponse.handleErrors("No response from vendor");
             }
@@ -242,19 +363,47 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
                 return CommonResponse.handleErrors(resp.getMessage());
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            return CommonResponse.handleErrors("Error fetching beneficiary list: " + e.getMessage());
+
+        } catch (Exception ex) {
+
+            //  FAILURE VENDOR LOG (only if vendor was involved)
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
+            log.error(
+                    "[FETCH BENEFICIARY] Exception | mobile={}",
+                    req.getMobile(),
+                    ex
+            );
+
+            return CommonResponse.handleErrors(
+                    "Error fetching beneficiary list: " + ex.getMessage()
+            );
         }
     }
 
 
     @Override
     public CommonResponse<DmtBeneficiaryFetchByBeneIdResponse> fetchBeneficiaryByBeneId(DmtBeneficiaryFetchByBeneIdRequest req) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+
         try {
             // ====== STEP 1: Load Vendor Credentials Dynamically ======
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            vendorId = vendor.getId();
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
@@ -265,6 +414,8 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
                     "mobile", req.getMobile(),
                     "beneid", req.getBeneid()
             );
+
+            requestJson = objectMapper.writeValueAsString(reqBody);
 
             HttpHeaders headers = getHeaders(credentials);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(reqBody, headers);
@@ -278,6 +429,19 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
             );
 
             DmtBeneficiaryFetchByBeneIdResponse resp = response.getBody();
+
+            responseJson = objectMapper.writeValueAsString(resp);
+
+            //  SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
             if (resp == null) {
                 return CommonResponse.handleErrors("No response from vendor");
             }
@@ -289,9 +453,28 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
                 return CommonResponse.handleErrors(resp.getMessage());
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            return CommonResponse.handleErrors("Error fetching beneficiary details: " + e.getMessage());
+        } catch (Exception ex) {
+
+            //  FAILURE VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
+            log.error(
+                    "[FETCH BENEFICIARY BY BENE ID] Exception | mobile={}, beneId={}",
+                    req.getMobile(),
+                    req.getBeneid(),
+                    ex
+            );
+
+            return CommonResponse.handleErrors(
+                    "Error fetching beneficiary details: " + ex.getMessage()
+            );
         }
     }
 

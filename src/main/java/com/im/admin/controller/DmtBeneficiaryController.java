@@ -25,7 +25,7 @@ public class DmtBeneficiaryController {
 
     @PostMapping("/register")
     public ResponseEntity<CommonResponse<BeneficiaryRegisterResponse>> registerBeneficiary(
-            @RequestBody BeneficiaryRegisterRequest request) {
+            @RequestBody BeneficiaryRegisterRequest request) throws Exception  {
 
         CommonResponse<BeneficiaryRegisterResponse> response = dmtBeneficiaryService.registerBeneficiary(request);
         return ResponseEntity.status(response.getStatusCode()).body(response);
@@ -33,7 +33,7 @@ public class DmtBeneficiaryController {
 
     @PostMapping("/delete")
     public ResponseEntity<CommonResponse<DmtBeneficiaryDeleteResponse>> deleteBeneficiary(
-            @RequestBody DmtBeneficiaryDeleteRequest request) {
+            @RequestBody DmtBeneficiaryDeleteRequest request) throws Exception {
         CommonResponse<DmtBeneficiaryDeleteResponse> response = dmtBeneficiaryService.deleteBeneficiary(request);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }

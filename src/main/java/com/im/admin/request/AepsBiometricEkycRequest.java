@@ -10,6 +10,7 @@ public class AepsBiometricEkycRequest {
     private CaptureResponse captureResponse;
     private Integer superMerchantId;
     private String merchantLoginId;
+    private String subProductId;
 
 
     private P2CardnumberORUID cardnumberORUID;

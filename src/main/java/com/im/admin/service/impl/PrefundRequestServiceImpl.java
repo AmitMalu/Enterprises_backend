@@ -106,6 +106,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
             entity.setDepositDate(LocalDate.parse(dto.getDepositDate()));
         }
         entity.setDepositType(dto.getDepositType());
+        entity.setRemarks(dto.getRemarks());
 
         PrefundRequest saved = repository.save(entity);
 

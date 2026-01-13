@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.im.admin.entities.vendor.Vendors;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -53,11 +54,13 @@ public class AepsTwoFa {
     private String retailerId;
 
     @Column(name = "created_at")
-    private Long createdAt = System.currentTimeMillis();
+    private LocalDateTime createdAt;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendor_id", nullable = false)
     private Vendors vendor;
+
 }
 
 

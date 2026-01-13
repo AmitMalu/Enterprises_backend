@@ -7,6 +7,7 @@ public class BillFetchRequest {
     private String agentId;
     private String requestId;
     private boolean billerAdhoc;
+    private String subProductId;
 
     private AgentDeviceInfo agentDeviceInfo;
     private CustomerInfo customerInfo;

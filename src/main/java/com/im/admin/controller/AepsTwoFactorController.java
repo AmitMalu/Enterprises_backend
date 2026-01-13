@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.im.admin.dto.Aeps2FACheckStatusRequest;
 import com.im.admin.entities.AepsTwoFa;
 import com.im.admin.request.Aeps2FaRequest;
+import com.im.admin.request.AepsTwoFaStatusDto;
 import com.im.admin.response.Aeps2FaResponseDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AepsTwoFactorService;
@@ -25,7 +26,9 @@ public class AepsTwoFactorController {
 
 
     @PostMapping("/check-status")
-    public ResponseEntity<CommonResponse<AepsTwoFa>> check2FA(@RequestBody Aeps2FACheckStatusRequest aeps2FACheckStatusRequest) {
-        return aepsTwoFactorService.check2FAStatus(aeps2FACheckStatusRequest);
+    public ResponseEntity<CommonResponse<AepsTwoFaStatusDto>> check2FA(
+            @RequestBody Aeps2FACheckStatusRequest req) {
+        return aepsTwoFactorService.check2FAStatus(req);
     }
+
 }

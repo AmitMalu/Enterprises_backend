@@ -26,5 +26,6 @@ public class PrefundRequestDto {
     private String ipAddress;
     private String depositDate;
     private String depositType;
+    private String remarks;
 
 }

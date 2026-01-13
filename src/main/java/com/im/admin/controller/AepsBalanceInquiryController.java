@@ -2,7 +2,9 @@ package com.im.admin.controller;
 
 
 import com.im.admin.request.AepsBalanceInquiryRequest;
+import com.im.admin.request.AepsMiniStatementRequest;
 import com.im.admin.response.AepsBalanceInquiryResponse;
+import com.im.admin.response.AepsMiniStatementResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AepsBalanceInquiryService;
 import lombok.RequiredArgsConstructor;
@@ -26,5 +28,13 @@ public class AepsBalanceInquiryController {
             @RequestBody AepsBalanceInquiryRequest req) {
         return aepsBalanceInquiryService.balanceInquiry(req);
     }
+
+    @PostMapping("/mini-statement")
+    public CommonResponse<AepsMiniStatementResponse> MiniStatemnet(
+            @RequestBody AepsMiniStatementRequest req) {
+        return aepsBalanceInquiryService.ministatement(req);
+    }
+
+
 
 }

@@ -6,11 +6,13 @@ import lombok.Data;
 @Data
 public class Aeps2FaRequest {
 
+//    private  Boolean isFacialTan;
+    private  Boolean isFaceTan;
     private String subProductId;
     private String retailerId;             // From frontend
-    private String otp;                    // Only if OTP flow
-    private int primaryKeyId;              // From Validate API
-    private String encodeFPTxnId;          // From Validate API
+//    private String otp;                    // Only if OTP flow
+//    private int primaryKeyId;              // From Validate API
+//    private String encodeFPTxnId;          // From Validate API
 
     private String requestRemarks;         // Optional
     private String transactionType;        // AUO
@@ -23,12 +25,12 @@ public class Aeps2FaRequest {
     private String mobileNumber;           // Customer mobile
     private String serviceType;            // AEPS or AP
 
-    private String wadh;
+//    private String wadh;
 
     private long timestamp;                // System.currentTimeMillis()
 
-    private String tefPkId;                // Reference ID (from validate API)
-    private String fingpayTransactionId;   // From validate API
+//    private String tefPkId;                // Reference ID (from validate API)
+//    private String fingpayTransactionId;   // From validate API
 
     private int superMerchantId;           // From backend
     private String merchantLoginId;        // Retailer ID from DB
@@ -106,8 +108,7 @@ public class Aeps2FaRequest {
     @Data
     public static class P2CardnumberORUID {
         private String adhaarNumber;                   // Aadhaar number (999999999999 for testing)
-        private int indicatorforUID;                  // 0 for Aadhaar , 2 for VID
+        private String indicatorforUID = "0";                 // 0 for Aadhaar , 2 for VID
         private String nationalBankIdentificationNumber;  // Bank IIN (Mandatory)
-        private String virtualId;                     // ONLY IF indicatorforUID = 2
     }
 }
