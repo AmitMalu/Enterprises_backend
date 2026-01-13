@@ -8,4 +8,5 @@ public class AepsValidateOtpRequest {
     private String otp;
     private Integer primaryKeyId;
     private String encodeFPTxnId;
+    private String subProductId;
 }

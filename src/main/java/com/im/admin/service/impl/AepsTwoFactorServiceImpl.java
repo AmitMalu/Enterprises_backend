@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.Aeps2FACheckStatusRequest;
 import com.im.admin.entities.AepsTwoFa;
 import com.im.admin.entities.Retailer;
@@ -12,7 +13,10 @@ import com.im.admin.repositories.RetailerRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.Aeps2FaRequest;
+import com.im.admin.request.AepsTwoFaStatusDto;
 import com.im.admin.response.Aeps2FaResponseDto;
+import java.time.ZoneId;
+
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AepsTwoFactorService;
 import com.im.admin.util.CommonMethods;
@@ -24,6 +28,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Slf4j
@@ -56,6 +61,9 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
     @Autowired
     private Aeps2FaRepository aAeps2FaRepository;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+
     @Override
     public ResponseEntity<CommonResponse<Aeps2FaResponseDto>> validateAadhar(Aeps2FaRequest req) {
 
@@ -71,6 +79,12 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
                         new RuntimeException("No credentials found for selected vendor"));
 
         CommonResponse<Aeps2FaResponseDto> common = new CommonResponse<>();
+
+        // ===== Vendor Log Variables (outside try) =====
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String requestJson = "";
+        String responseJson = "";
+        String vendorId = vendor.getId();
 
         try {
             // ====== STEP 2: Load Retailer ======
@@ -94,15 +108,15 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
             Aeps2FaRequest.P2CardnumberORUID uid =
                     new Aeps2FaRequest.P2CardnumberORUID();
 
-            uid.setAdhaarNumber(retailer.getAadhaarNumber());
-            uid.setIndicatorforUID(0);
-            uid.setNationalBankIdentificationNumber(null);
-            uid.setVirtualId(null);
+            uid.setAdhaarNumber(req.getCardnumberORUID().getAdhaarNumber());
+            uid.setIndicatorforUID("0");
+            uid.setNationalBankIdentificationNumber("");
 
             req.setCardnumberORUID(uid);
 
             // ====== STEP 5: Convert Request to JSON ======
             String plainJson = objectMapper.writeValueAsString(req);
+            requestJson = plainJson;
 
             // ====== STEP 6: Load Fingpay Public Key ======
             String certificate = new String(
@@ -138,8 +152,19 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
                     );
 
             Aeps2FaResponseDto body = vendorResp.getBody();
+            responseJson = objectMapper.writeValueAsString(body);
 
-            // ====== STEP 10: Save Log ONLY on SUCCESS ======
+            //  SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestDateTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+            // ====== STEP 10: Save Business Log ONLY on SUCCESS ======
             if (body != null && body.isStatus()
                     && body.getData() != null
                     && "00".equals(body.getData().getResponseCode())) {
@@ -156,27 +181,24 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
                 log.setMobileNumber(body.getData().getMobileNumber());
                 log.setTransactionTimestamp(body.getData().getTransactionTimestamp());
                 log.setRetailerId(req.getRetailerId());
+                log.setCreatedAt(LocalDateTime.now());
                 log.setVendor(vendor);
 
                 aAeps2FaRepository.save(log);
             }
 
-            // ====== STEP 11: FINAL RESPONSE TO CLIENT ======
-            if (body != null
-                    && body.isStatus()
+            // ====== STEP 11: FINAL RESPONSE ======
+            if (body != null && body.isStatus()
                     && body.getData() != null
                     && "00".equals(body.getData().getResponseCode())) {
 
-                // ✅ SUCCESS
                 common.setStatusCode(200);
                 common.setMessage(body.getData().getResponseMessage());
                 common.setData(body);
-
                 return ResponseEntity.ok(common);
 
             } else {
 
-                // ❌ FAILURE
                 String vendorMsg = (body != null)
                         ? body.getMessage()
                         : "Vendor response empty";
@@ -184,19 +206,30 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
                 common.setStatusCode(400);
                 common.setMessage(vendorMsg);
                 common.setData(body);
-
-                return ResponseEntity
-                        .status(HttpStatus.BAD_REQUEST)
-                        .body(common);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(common);
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
 
-            // ====== EXCEPTION HANDLING ======
             common.setStatusCode(500);
             common.setMessage("Vendor API failed: " + e.getMessage());
             common.setData(null);
+
+            try {
+                responseJson = objectMapper.writeValueAsString(common);
+            } catch (Exception ignored) {
+                responseJson = e.getMessage();
+            }
+
+            //  FAILURE VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestDateTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    e.getMessage()
+            );
 
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -207,59 +240,67 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
 
 
     @Override
-    public ResponseEntity<CommonResponse<AepsTwoFa>> check2FAStatus(Aeps2FACheckStatusRequest aeps2FACheckStatusRequest) {
-        CommonResponse<AepsTwoFa> response = new CommonResponse<>();
+    public ResponseEntity<CommonResponse<AepsTwoFaStatusDto>> check2FAStatus(
+            Aeps2FACheckStatusRequest req) {
 
-        // fetch latest 2FA record
+        CommonResponse<AepsTwoFaStatusDto> response = new CommonResponse<>();
+        AepsTwoFaStatusDto data = new AepsTwoFaStatusDto();
+
         Optional<AepsTwoFa> optional =
-                aAeps2FaRepository.findTopByRetailerIdOrderByIdDesc(aeps2FACheckStatusRequest.getRetailerId());
+                aAeps2FaRepository.findTopByRetailerIdOrderByIdDesc(req.getRetailerId());
 
-        // 1️ No record found → 2FA never done
+        // 🔹 CASE 3 → 2FA not done
         if (optional.isEmpty()) {
-            log.warn("2FA Check: No record found for retailerId {}", aeps2FACheckStatusRequest.getRetailerId());
-
-            response.setStatusCode(400);
+            response.setStatusCode(200);
             response.setMessage("Aadhaar not validated. Please complete 2FA first.");
-            response.setData(null);
+
+            data.setTwoFaStatus(3);
+            data.setTwoFaData(null);
+
+            response.setData(data);
             return ResponseEntity.ok(response);
         }
 
         AepsTwoFa logData = optional.get();
 
-        // 2️⃣ Check responseCode
+        // 🔹 CASE: 2FA failed
         if (!"00".equals(logData.getResponseCode())) {
-            log.warn("2FA FAILED for retailer {} | Response Code {}",
-                    aeps2FACheckStatusRequest.getRetailerId(), logData.getResponseCode());
-
-            response.setStatusCode(400);
+            response.setStatusCode(200);
             response.setMessage("2FA attempt failed. Please try again.");
-            response.setData(logData);
+
+            data.setTwoFaStatus(3);
+            data.setTwoFaData(logData);
+
+            response.setData(data);
             return ResponseEntity.ok(response);
         }
 
-        // 3⃣ EXPIRY CHECK — 24 HOURS
-        long now = System.currentTimeMillis();
-        long expiryTime = logData.getCreatedAt() + (24 * 60 * 60 * 1000); // 24 hours
+        // 🔹 CASE 4 → 2FA expired
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+        LocalDateTime expiryTime = logData.getCreatedAt().plusHours(24);
 
-        if (now > expiryTime) {
-            log.warn("2FA EXPIRED for retailer {} | CreatedAt {}",
-                    aeps2FACheckStatusRequest.getRetailerId(), logData.getCreatedAt());
-
-            response.setStatusCode(400);
+        if (now.isAfter(expiryTime)) {
+            response.setStatusCode(200);
             response.setMessage("2FA expired. Please do 2FA again.");
-            response.setData(logData);
+
+            data.setTwoFaStatus(4);
+            data.setTwoFaData(logData);
+
+            response.setData(data);
             return ResponseEntity.ok(response);
         }
 
-        // 4⃣ SUCCESS: 2FA is valid
-        log.info("2FA VALID for retailer {} | TranId {}",
-                aeps2FACheckStatusRequest.getRetailerId(), logData.getFingpayTransactionId());
-
+        // 🔹 CASE 5 → 2FA valid
         response.setStatusCode(200);
         response.setMessage("2FA is valid.");
-        response.setData(logData);
+
+        data.setTwoFaStatus(5);
+        data.setTwoFaData(logData);
+
+        response.setData(data);
         return ResponseEntity.ok(response);
     }
-    }
+
+}
 
 

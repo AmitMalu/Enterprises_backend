@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.AepsResponseMapper;
@@ -22,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -41,6 +43,9 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
     @Autowired
     private TransactionEngineServiceImpl transactionEngineServiceImpl;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
+
 
     private static final String SUPER_USERNAME = "nftpayd";
     private static final String MERCHANT_MD5_PIN = "81dc9bdb52d04dc20036dbd8313ed055";  // 81dc9bdb52d04dc20036dbd8313ed055  //1234d
@@ -51,6 +56,13 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
 
         String orderId = "AEPS" + commonMethods.generateBaseTransactionId();
         log.info("[AEPS CW] Start | orderId={}", orderId);
+
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String requestJson = "";
+        String responseJson = "";
+        String errorMsg = null;
+        String vendorId = null;
+
 
         try {
             // ================================
@@ -76,6 +88,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             // ================================
             VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(routing);
+
+            vendorId=vendor.getId();
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
@@ -115,6 +129,7 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             );
 
             req.setCardnumberORUID(uid);
+            req.setTransactionType("CW");
 
             // ================================
             // STEP 7: CALL VENDOR INTERNALLY
@@ -130,6 +145,20 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
 
             CommonResponse<AepsCashWithdrawalResponse> vendorResp =
                     vendorService.processCashWithdrawal(req, credentials);
+
+//            responseJson = objectMapper.writeValueAsString(vendorResp);
+
+//            commonFunctions.saveVendorLogs(
+//                    requestDateTime,
+//                    requestJson,
+//                    vendorId,
+//                    LocalDateTime.now(),
+//                    responseJson,
+//                    null
+//            );
+
+
+
 
 
             if (vendorResp == null) {

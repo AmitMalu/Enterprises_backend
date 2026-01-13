@@ -1,4 +1,4 @@
-package com.im.admin.dto;
+package com.im.admin.request;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -16,4 +16,5 @@ public class RemitterUpdateRequest {
     private String name;          // name of remitter
     private String status;        // REGISTERED / PENDING / etc.
     private String createdAt;     // optional - not recommended to update, but included as per JSON
+    private String otp;
 }

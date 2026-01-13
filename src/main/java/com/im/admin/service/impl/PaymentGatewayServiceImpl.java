@@ -522,10 +522,11 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 )
                 .findFirst()
                 .orElse(matchingSchemes.get(0));
-        log.debug("---- [Callback] Selected scheme: {}", selectedScheme);
+        log.info("---- [Callback] Selected scheme: {}", selectedScheme);
 
         // Fetch scheme, product & subproduct details
         log.debug("---- [Callback] Fetching scheme details for code: {}", selectedScheme.getSchemeCode());
+        log.info("---- [Callback] Fetching scheme details for code: {}", selectedScheme.getSchemeCode());
         Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
                 .orElseThrow(() -> new RuntimeException("Scheme Not Found for code: " + selectedScheme.getSchemeCode()));
 
@@ -533,6 +534,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         short productId = Short.parseShort(hashParts[0]);
         String subProductIdStr = hashParts[1];
         log.debug("---- [Callback] Extracted productId: {}, subProductId: {}", productId, subProductIdStr);
+        log.info("---- [Callback] Extracted productId: {}, subProductId: {}", productId, subProductIdStr);
 
         Products product = productsRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
@@ -561,6 +563,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         dto.setHasCharge(product.getHasCharges());
 
         log.debug("---- [Callback] DTO prepared: {}", dto);
+        log.info("---- [Callback] DTO prepared: {}", dto);
 
         // Forward to central transaction engine
         log.info("---- [Callback] Forwarding to Transaction Engine with Status: {}", callback.getStatus());

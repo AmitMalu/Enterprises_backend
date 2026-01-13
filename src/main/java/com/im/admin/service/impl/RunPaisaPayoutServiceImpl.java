@@ -82,6 +82,12 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
                                         WalletType walletType) {
         log.info("[RUNPAISA] Starting payout for orderId={}", orderId);
 
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = getVendorCode(); // or creds.getVendorId()
+
+
         try {
             // =========================================================
             // Handle AES Token Flow (Admin Panel)
@@ -140,6 +146,9 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
                     "payment_mode", req.getPaymentMode()
             );
 
+            // Convert request to JSON for logging
+            requestJson = objectMapper.writeValueAsString(body);
+
             String url = creds.getBaseUrlProd() + "/payment";
             log.info("[RUNPAISA] Sending payout request to: {}", url);
 
@@ -149,6 +158,9 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
                     new HttpEntity<>(body, headers),
                     Map.class
             );
+
+            // Convert response to JSON
+            responseJson = objectMapper.writeValueAsString(response.getBody());
 
             // =========================================================
             // Parse Vendor Response
@@ -208,6 +220,15 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
                     .message("RunPaisa error: " + e.getMessage())
                     .amount(req.getAmount())
                     .build();
+        } finally {
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
         }
     }
 

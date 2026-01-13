@@ -1,15 +1,22 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.entities.Retailer;
 import com.im.admin.entities.VendorCredentials;
+import com.im.admin.entities.VendorRouting;
+import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.RetailerRepository;
+import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.AepsBalanceInquiryRequest;
 import com.im.admin.request.AepsCashWithdrawalRequest;
+import com.im.admin.request.AepsMiniStatementRequest;
 import com.im.admin.response.AepsBalanceInquiryResponse;
 import com.im.admin.response.AepsCashWithdrawalResponse;
+import com.im.admin.response.AepsMiniStatementResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AepsVendorService;
+import com.im.admin.util.CommonMethods;
 import com.im.admin.util.FingpayEncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ResourceLoader;
@@ -17,6 +24,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 import java.util.HashMap;
@@ -25,7 +33,8 @@ import java.util.Map;
 @Service
 public class FingPayAepsServiceImpl implements AepsVendorService {
 
-    @Autowired private RetailerRepository retailerRepository;
+    @Autowired
+    private RetailerRepository retailerRepository;
 
     private static final String SUPER_USERNAME = "nftpayd";
     private static final String MERCHANT_MD5_PIN = "796c3ee556ac31f3754a38cfd15b8044";  // 81dc9bdb52d04dc20036dbd8313ed055  //1234d
@@ -35,9 +44,18 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
     private static final String FINGPAY_CW_URL =
             "https://fingpayap.tapits.in/fpaepsservice/api/cashWithdrawal/merchant/withdrawal";
 
-    @Autowired private ObjectMapper objectMapper;
-    @Autowired private ResourceLoader resourceLoader;
-    @Autowired private RestTemplate restTemplate;
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private ResourceLoader resourceLoader;
+    @Autowired
+    private RestTemplate restTemplate;
+
+    @Autowired
+    private VendorRoutingRepository vendorRoutingRepository;
+
+    @Autowired
+    private CommonFunctions commonFunctions;
 
     @Override
     public String getVendorCode() {
@@ -47,6 +65,18 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
     @Override
     public CommonResponse<AepsCashWithdrawalResponse> processCashWithdrawal(
             AepsCashWithdrawalRequest req, VendorCredentials credentials) {
+
+        VendorRouting vendorRouting =
+                vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+        Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+
+        // ===== Vendor Log Variables =====
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String requestJson = "";
+        String responseJson = "";
+        String errorMsg = null;
+        String vendorId = vendor.getId();
 
         try {
             Retailer retailer = retailerRepository.findById(req.getRetailerId())
@@ -73,7 +103,7 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
             body.put("longitude", req.getLongitude());
             body.put("mobileNumber", req.getMobileNumber());
             body.put("paymentType", "B");
-            body.put("requestRemarks","Test");
+            body.put("requestRemarks", "Test");
             SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
             String timestamp = sdf.format(new Date());
 
@@ -88,21 +118,16 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
             body.put("superMerchantId", SUPER_MERCHANT_ID);
 
 
+            requestJson = objectMapper.writeValueAsString(body);
 
-            String json = objectMapper.writeValueAsString(body);
-
-
-            // STEP 2: Load certificate
             String certificate = new String(
                     resourceLoader.getResource("classpath:fingpay_public.cer")
                             .getInputStream().readAllBytes()
             );
 
-            // STEP 3: Encrypt request
             FingpayEncryptionUtil.FingpayRequestPayload encrypted =
-                    FingpayEncryptionUtil.buildFinalRequestFromRawJson(json, certificate);
+                    FingpayEncryptionUtil.buildFinalRequestFromRawJson(requestJson, certificate);
 
-            // STEP 4: Prepare headers
             HttpHeaders headers = new HttpHeaders();
             headers.set("trnTimestamp", String.valueOf(System.currentTimeMillis()));
             headers.set("hash", encrypted.hash);
@@ -112,7 +137,6 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
 
             HttpEntity<String> entity = new HttpEntity<>(encrypted.body, headers);
 
-            // STEP 5: Call FingPay API
             ResponseEntity<AepsCashWithdrawalResponse> vendorResp =
                     restTemplate.exchange(
                             FINGPAY_CW_URL,
@@ -121,25 +145,45 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
                             AepsCashWithdrawalResponse.class
                     );
 
-            AepsCashWithdrawalResponse responseBody  = vendorResp.getBody();
+            responseJson = objectMapper.writeValueAsString(vendorResp.getBody());
 
-            // STEP 6: Build CommonResponse (SUCCESS)
-            return new CommonResponse<>(
-                    200,
-                    "Vendor Response Received",
-                    responseBody
+            // ✅ SUCCESS LOG
+            commonFunctions.saveVendorLogs(
+                    requestDateTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
             );
+
+            return new CommonResponse<>(200, "Vendor Response Received", vendorResp.getBody());
 
         } catch (Exception e) {
 
-            AepsCashWithdrawalResponse dto =
-                    new AepsCashWithdrawalResponse(false, "Exception: " + e.getMessage(), 500L, null);
+            errorMsg = e.getMessage();
 
-            // STEP 7: Return CommonResponse (ERROR)
+            try {
+                responseJson = objectMapper.writeValueAsString(
+                        new AepsCashWithdrawalResponse(false, errorMsg, 500L, null)
+                );
+            } catch (Exception ignored) {
+            }
+
+            // ❌ FAILURE LOG
+            commonFunctions.saveVendorLogs(
+                    requestDateTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    errorMsg
+            );
+
             return new CommonResponse<>(
                     500,
                     "Exception occurred",
-                    dto
+                    new AepsCashWithdrawalResponse(false, errorMsg, 500L, null)
             );
         }
     }
@@ -147,6 +191,12 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
 
     @Override
     public ResponseEntity<AepsBalanceInquiryResponse> processBalanceInquiry(AepsBalanceInquiryRequest req, VendorCredentials credentials) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
 
         try {
             String json = objectMapper.writeValueAsString(req);
@@ -178,6 +228,52 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
         } catch (Exception e) {
             e.printStackTrace();
             AepsBalanceInquiryResponse dto = new AepsBalanceInquiryResponse();
+            dto.setStatus(false);
+            dto.setMessage("Exception: " + e.getMessage());
+            dto.setStatusCode(500L);
+            return ResponseEntity.ok(dto);
+        }
+    }
+
+    @Override
+    public ResponseEntity<AepsMiniStatementResponse> processMiniStateMent(AepsMiniStatementRequest req, VendorCredentials credentials) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+
+        try {
+            String json = objectMapper.writeValueAsString(req);
+
+            String certificate = new String(
+                    resourceLoader.getResource("classpath:fingpay_public.cer")
+                            .getInputStream().readAllBytes()
+            );
+
+            FingpayEncryptionUtil.FingpayRequestPayload encrypted =
+                    FingpayEncryptionUtil.buildFinalRequestFromRawJson(json, certificate);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("trnTimestamp", String.valueOf(System.currentTimeMillis()));
+            headers.set("hash", encrypted.hash);
+            headers.set("eskey", encrypted.eskey);
+            headers.set("deviceIMEI", req.getDeviceIMEI() != null ? req.getDeviceIMEI() : "WEB1234567");
+            headers.setContentType(MediaType.TEXT_PLAIN);
+
+            HttpEntity<String> entity = new HttpEntity<>(encrypted.body, headers);
+
+            return restTemplate.exchange(
+                    "https://fingpayap.tapits.in/fpaepsservice/api/miniStatement/merchant/statement",
+                    HttpMethod.POST,
+                    entity,
+                    AepsMiniStatementResponse.class
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            AepsMiniStatementResponse dto = new AepsMiniStatementResponse();
             dto.setStatus(false);
             dto.setMessage("Exception: " + e.getMessage());
             dto.setStatusCode(500L);
