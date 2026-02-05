@@ -20,6 +20,7 @@ public class PgTransactionMapping {
     private String status;       // INITIATED, SUCCESS, FAILED
     private String vendorName;
     private LocalDateTime createdAt = LocalDateTime.now();
+    private String SubProductId;
 
 }
 

@@ -1,11 +1,14 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.RemitterTransactionResponse;
 import com.im.admin.dto.SendOtpRequest;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.enums.WalletType;
+import com.im.admin.orchestrator.DmtOrchestrator;
 import com.im.admin.request.PennyDropRequest;
 import com.im.admin.request.SendDmtRequest;
 import com.im.admin.response.CommonResponse;
@@ -13,18 +16,25 @@ import com.im.admin.response.PaysprintPennyDropResponse;
 import com.im.admin.response.PaysprintSendOtpResponse;
 import com.im.admin.response.TransactionRequest;
 import com.im.admin.service.DmtVendorService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.Jwts;
+import java.nio.charset.StandardCharsets;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.time.Instant;
 
 @Slf4j
 @Service
+//@RequiredArgsConstructor
 public class PaysprintDmtServiceImpl implements DmtVendorService {
 
     @Autowired
@@ -33,6 +43,8 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private CommonFunctions commonFunctions;
 
     @Override
     public String getVendorCode() {
@@ -42,13 +54,22 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
     @Override
     public PaysprintPennyDropResponse pennyDropVerify(PennyDropRequest req,
                                                       VendorCredentials credentials,
-                                                      String baseUrl) {
+                                                      String prodUrl) {
         try {
-            String url = baseUrl +
-                    "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/benenameverify";
+
+            //uat
+//            String url = baseUrl +
+//                    "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/benenameverify";
+
+            //live
+            String url = prodUrl +
+                    "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/benenameverify";
+
+            //  Generate token dynamically
+            String token = generateJwtToken();
 
             // ------------------------------------------------------
-            // 💥 Build JSON body using Map (as per Paysprint Docs)
+            //  Build JSON body using Map (as per Paysprint Docs)
             // ------------------------------------------------------
             Map<String, Object> body = new HashMap<>();
             body.put("mobile", req.getMobile());
@@ -68,7 +89,7 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
             log.info("[PAYSPRINT] PennyDrop Body: {}", bodyJson);
 
             HttpEntity<Map<String, Object>> entity =
-                    new HttpEntity<>(body, getHeaders(credentials));
+                    new HttpEntity<>(body, getHeaders(credentials,token));
 
             ResponseEntity<PaysprintPennyDropResponse> response = restTemplate.exchange(
                     url,
@@ -99,10 +120,19 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
 
 
     @Override
-    public PaysprintSendOtpResponse sendOtp(SendDmtRequest req, VendorCredentials credentials) {
+    public PaysprintSendOtpResponse sendOtp(SendDmtRequest req, VendorCredentials credentials) throws JsonProcessingException {
+        LocalDateTime requestTime = LocalDateTime.now();
         try {
-            String sendOtpUrl = credentials.getBaseUrlUat() +
-                    "/service-api/api/v1/service/dmt/kyc/transact/transact/send_otp";
+            //uat
+//            String sendOtpUrl = credentials.getBaseUrlUat() +
+//                    "/service-api/api/v1/service/dmt/kyc/transact/transact/send_otp";
+
+            //live
+            String sendOtpUrl = credentials.getBaseUrlProd() +
+                    "/api/v1/service/dmt/kyc/transact/transact/send_otp";
+
+            //  Generate token dynamically
+             String token = generateJwtToken();
 
             // -------------------------
             // 1. Prepare Request Body Using Map
@@ -124,7 +154,7 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
             String requestJson = objectMapper.writeValueAsString(body);
 
             HttpEntity<Map<String, String>> requestEntity =
-                    new HttpEntity<>(body, getHeaders(credentials));
+                    new HttpEntity<>(body, getHeaders(credentials,token));
 
             // -------------------------
             // 2. Call Paysprint API
@@ -136,11 +166,32 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
                     PaysprintSendOtpResponse.class
             );
 
+            String responseJson = objectMapper.writeValueAsString(response.getBody());
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    credentials.getVendor().getId(),
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
             return response.getBody();
 
         } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+
+            //  FAILURE LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    null,
+                    credentials.getVendor().getId(),
+                    LocalDateTime.now(),
+                    null,
+                    e.getMessage()
+            );
+
+            throw e; // IMPORTANT: exception upar propagate hone do
         }
     }
 
@@ -152,9 +203,16 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
             SubProducts subProducts,
             WalletType walletType) {
 
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+
         try {
+            //  Generate token dynamically
+               String token = generateJwtToken();
+
             // 1. Headers
-            HttpHeaders headers = getHeaders(credentials);
+            HttpHeaders headers = getHeaders(credentials,token);
 
             // 2. Body
             Map<String, Object> body = new HashMap<>();
@@ -172,10 +230,19 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
             body.put("otp", req.getOtp());
             body.put("stateresp", req.getStateresp());
 
+
+             requestJson = objectMapper.writeValueAsString(body);
+
+
             HttpEntity<Map<String, Object>> txnEntity = new HttpEntity<>(body, headers);
 
-            String txnUrl = credentials.getBaseUrlUat()
-                    + "/service-api/api/v1/service/dmt/kyc/transact/transact";
+            //uat
+//            String txnUrl = credentials.getBaseUrlUat()
+//                    + "/service-api/api/v1/service/dmt/kyc/transact/transact";
+
+            //live
+            String txnUrl = credentials.getBaseUrlProd()
+                    + "/api/v1/service/dmt/kyc/transact/transact";
 
             log.info("[PAYSPRINT] Performing Transaction → URL: {} | Body: {}", txnUrl, body);
 
@@ -191,20 +258,41 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
             RemitterTransactionResponse txnResponse = txnResponseEntity.getBody();
             log.info("[PAYSPRINT] Vendor SUCCESS Response: {}", txnResponse);
 
+             responseJson = objectMapper.writeValueAsString(txnResponse);
+
+            //  SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    credentials.getVendor().getId(),
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
             return txnResponse;
 
         } catch (HttpClientErrorException e) {
 
-            //  Vendor error body mil raha
-            String json = e.getResponseBodyAsString();
-            log.error("[PAYSPRINT] Vendor ERROR Response: {}", json);
+            String errorJson = e.getResponseBodyAsString();
+            log.error("[PAYSPRINT] TXN ERROR | orderId={} | response={}",
+                    orderId, errorJson);
+
+            //  FAILURE VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    credentials.getVendor().getId(),
+                    LocalDateTime.now(),
+                    errorJson,
+                    e.getMessage()
+            );
 
             try {
-                ObjectMapper mapper = new ObjectMapper();
-                RemitterTransactionResponse vendorError =
-                        mapper.readValue(json, RemitterTransactionResponse.class);
-
-                return vendorError;   //  EXACT vendor response
+                return objectMapper.readValue(
+                        errorJson,
+                        RemitterTransactionResponse.class
+                );
             } catch (Exception ex) {
                 return new RemitterTransactionResponse(
                         false,
@@ -212,19 +300,30 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
                         null, null, null, null, null,
                         "Vendor error parse failed",
                         null, null, null, null, null, null, null,
-                        null, null,null
+                        null, null, null
                 );
             }
 
         } catch (Exception e) {
-            log.error("[PAYSPRINT] UNKNOWN Exception: {}", e.getMessage(), e);
+
+            log.error("[PAYSPRINT] TXN UNKNOWN ERROR | orderId={}", orderId, e);
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    credentials.getVendor().getId(),
+                    LocalDateTime.now(),
+                    null,
+                    e.getMessage()
+            );
+
             return new RemitterTransactionResponse(
                     false,
                     0,
                     null, null, null, null, null,
                     "Unknown exception",
                     null, null, null, null, null, null, null,
-                    null, null,null
+                    null, null, null
             );
         }
     }
@@ -232,12 +331,50 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
 
 
     // 🔹 Helper method for common headers
-    private HttpHeaders getHeaders(VendorCredentials credentials) {
+    private HttpHeaders getHeaders(VendorCredentials credentials,String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
-        headers.set("Token", credentials.getToken());
+//        headers.set("Token", credentials.getToken());
+        headers.set("Token", token);
         headers.set("Authorisedkey", credentials.getSaltKey());
         return headers;
+    }
+
+    public String generateJwtToken() {
+
+        int random = getRandom();
+        long timestamp = getTimestamp();
+
+        String jwtKey =
+                "UFMwMDY0MDQ5YTk5MTYxZmI4YjgxMjYyNzBlODY2NDAxMTg3NzIxMjE3NTczMzkxMDA=";
+
+        System.out.println("JWT timestamp = " + timestamp);
+        System.out.println("JWT reqid     = " + random);
+
+        String token = Jwts.builder()
+                .setIssuer("PSPRINT")
+//                .setHeaderParam("typ", "JWT")
+//                .setHeaderParam("alg", "HS256")
+                .claim("timestamp", timestamp)
+                .claim("iat", timestamp - 720)
+                .claim("partnerId", "PS006404")
+                .claim("product","WALLET")
+                .claim("reqid", random)
+                .signWith(SignatureAlgorithm.HS256,
+                        jwtKey.getBytes(StandardCharsets.UTF_8))
+                .compact();
+
+        return token;
+    }
+
+    private static int getRandom() {
+        int random = (int) Math.round(Math.random() * 1000000000);
+        return random;
+    }
+
+    private static long getTimestamp() {
+        long timestamp = Instant.now().getEpochSecond();
+        return timestamp;
     }
 }

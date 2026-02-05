@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.AbstractWalletAmountTable;
@@ -23,13 +24,16 @@ import com.im.admin.service.DmtVendorService;
 import com.im.admin.util.*;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
+import java.math.RoundingMode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -84,13 +88,132 @@ public class BillAvenueServiceImpl implements BillAvenueService {
     @Autowired
     private BBPSPendingTransactionsRepository bbpsPendingTransactionsRepository;
 
+    // old credentials
+//    private static final String ACCESS_CODE = "AVUU30TF96SP77ZJJH";
+//    private static final String INSTITUTE_ID = "NF07";
+//    private static final String WORKING_KEY = "063F0699C1D46414EA1E92D0E6BDCF99";
 
-    private static final String ACCESS_CODE = "AVUU30TF96SP77ZJJH";
-    private static final String INSTITUTE_ID = "NF07";
-    private static final String WORKING_KEY = "063F0699C1D46414EA1E92D0E6BDCF99";
+  // line credentials
+    private static final String ACCESS_CODE = "AVWR10SG05FK02ERLL";
+    private static final String INSTITUTE_ID = "RP98";
+    private static final String WORKING_KEY = "B085170FB32233C416BA61E70E25C86E";
+
 
     private static final String API_URL =
-            "https://stgapi.billavenue.com/billpay/extMdmCntrl/mdmRequestNew/json";
+            "https://api.billavenue.com/billpay/extMdmCntrl/mdmRequestNew/json";
+
+    @Override
+    public Object fetchBillerInfobulk(BillerRequest request) throws Exception {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+        List<String> billerIds = request.getBillerId();
+
+        String requestId = RequestIdUtil.generate();
+        //Check in DB before calling vendor API
+        List<BillPayConfig> existingConfigs =
+                billPayConfigRepository.findByProviderIdIn(billerIds);
+
+        if (existingConfigs.size() == billerIds.size()) {
+
+            ObjectMapper mapper = new ObjectMapper();
+            ArrayNode billerArrayNode = mapper.createArrayNode();
+
+            for (BillPayConfig cfg : existingConfigs) {
+                billerArrayNode.add(mapper.readTree(cfg.getRawConfig()));
+            }
+            ObjectNode responseNode = mapper.createObjectNode();
+            responseNode.set("biller", billerArrayNode);
+            responseNode.put("requestId", requestId);
+
+            return CommonResponse.success(responseNode, "Biller info fetched");
+        }
+        // NOT FOUND → Hit vendor API
+        VendorRouting routing =
+                vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+
+        Vendors vendor = CommonMethods.getVendors(routing);
+        vendorId = vendor.getId();
+        ObjectMapper mapper = new ObjectMapper();
+
+        //  Convert request → JSON string
+        String plainJson = mapper.writeValueAsString(request);
+        requestJson = plainJson;
+
+        //  Encrypt
+        String encryptedHex = BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
+        //  requestId
+        String requestIds = RequestIdUtil.generate();
+        //  Build API URL
+        String finalUrl = API_URL
+                + "?accessCode=" + ACCESS_CODE
+                + "&requestId=" + requestIds
+                + "&ver=1.0"
+                + "&instituteId=" + INSTITUTE_ID;
+
+        // Headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.TEXT_PLAIN);
+
+        HttpEntity<String> entity = new HttpEntity<>(encryptedHex, headers);
+        try {
+            //  Call API
+            RestTemplate restTemplate = new RestTemplate();
+            String encryptedResponse = restTemplate.postForObject(finalUrl, entity, String.class);
+            //  Decrypt
+            String decrypt = BillAvenueCryptoUtil.decrypt(encryptedResponse, WORKING_KEY);
+            //  Convert decrypted text → JSON
+            JsonNode jsonNode = mapper.readTree(decrypt);
+            ObjectNode responseNode = (ObjectNode) jsonNode;
+                  // add requestId
+            responseNode.put("requestId", requestIds);
+            responseJson = responseNode.toString();
+
+//            commonFunctions.saveVendorLogs(
+//                    requestTime,
+//                    requestJson,
+//                    vendorId,
+//                    LocalDateTime.now(),
+//                    responseJson,
+//                    null
+//            );
+            // Save into DB
+            JsonNode billerArray = jsonNode.path("biller");
+
+            if (billerArray.isArray() && billerArray.size() > 0) {
+                List<BillPayConfig> configs = new ArrayList<>();
+
+                for (JsonNode biller : billerArray) {
+
+                    BillPayConfig cfg = new BillPayConfig();
+                    cfg.setVendor(vendor.getVendorName());
+                    cfg.setServiceName(biller.path("billerCategory").asText());
+                    cfg.setProviderId(biller.path("billerId").asText());
+                    cfg.setProviderName(biller.path("billerName").asText());
+                    cfg.setRawConfig(biller.toString());
+
+                    configs.add(cfg);
+                }
+                billPayConfigRepository.saveAll(configs);
+            }
+            return CommonResponse.success(responseNode, "Biller info fetched from Vendor API");
+        } catch (Exception e) {
+
+//            commonFunctions.saveVendorLogs(
+//                    requestTime,
+//                    requestJson,
+//                    vendorId,
+//                    LocalDateTime.now(),
+//                    null,
+//                    e.getMessage()
+//            );
+            throw e;
+        }
+    }
+
 
     @Override
     public Object fetchBillerInfo(BillerRequest request) throws Exception {
@@ -236,7 +359,10 @@ public class BillAvenueServiceImpl implements BillAvenueService {
         String vendorId = null;
 
         ObjectMapper mapper = new ObjectMapper();
-        request.setAgentId("CC01CC01513515340681");
+        // uat
+//        request.setAgentId("CC01CC01513515340681");
+        //live
+        request.setAgentId("CC01RP98AGTBAK020158");
 
         // ================================
         BillFetchRequest.AgentDeviceInfo deviceInfo =
@@ -288,7 +414,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
         // Step 4: Prepare final URL (encRequest included as query param)
         String finalUrl =
-                "https://stgapi.billavenue.com/billpay/extBillCntrl/billFetchRequest/j" +
+                "https://api.billavenue.com/billpay/extBillCntrl/billFetchRequest/j" +
                         "son"
                         + "?accessCode=" + ACCESS_CODE
                         + "&requestId=" + requestId
@@ -444,7 +570,12 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
 
             // set fields from backend
-            request.setAgentId("CC01CC01513515340681");
+            //uat
+//            request.setAgentId("CC01CC01513515340681");
+
+            //live
+            request.setAgentId("CC01RP98AGTBAK020158");
+
             request.setPaymentRefId("45kfpjsc4e0c9fe9pohee94101");
 
             BillPaymentRequest.AgentDeviceInfo deviceInfo =
@@ -474,10 +605,36 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
             request.setCustomerInfo(customerInfo);
 
+            //multiply by 100 and give to vendor code
+            BillPaymentRequest vendorRequest = new BillPaymentRequest();
+            BeanUtils.copyProperties(request, vendorRequest);
+
+             //  DEEP COPY AmountInfo
+            BillPaymentRequest.AmountInfo amountInfo =
+                    new BillPaymentRequest.AmountInfo();
+            BeanUtils.copyProperties(request.getAmountInfo(), amountInfo);
+
+             // multiply for vendor
+            amountInfo.setAmount(
+                    amountInfo.getAmount()
+                            .multiply(BigDecimal.valueOf(100))
+                            .setScale(0, RoundingMode.UNNECESSARY)
+            );
+
+
+            // set back to vendorRequest
+            vendorRequest.setAmountInfo(amountInfo);
+
+            log.info("REQ  AMT = {}", request.getAmountInfo().getAmount());
+            log.info("VEND AMT = {}", vendorRequest.getAmountInfo().getAmount());
 
             // 5 Encrypt Request
             ObjectMapper mapper = new ObjectMapper();
-            String plainJson = mapper.writeValueAsString(request);
+
+            //old
+//            String plainJson = mapper.writeValueAsString(request);
+            // new
+            String plainJson = mapper.writeValueAsString(vendorRequest);
             requestJson = plainJson;
 
             String encryptedRequest = BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
@@ -486,7 +643,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
             String requestId = request.getRequestId();
 
             String finalUrl =
-                    "https://stgapi.billavenue.com/billpay/extBillPayCntrl/billPayRequest/json"
+                    "https://api.billavenue.com/billpay/extBillPayCntrl/billPayRequest/json"
                             + "?accessCode=" + ACCESS_CODE
                             + "&requestId=" + requestId
                             + "&ver=1.0"
@@ -545,12 +702,15 @@ public class BillAvenueServiceImpl implements BillAvenueService {
             // ================= FAILURE FLOW =================
 
 //// 1⃣ Save failed / pending transaction
-            if ("001".equals(vendorResponse.getResponseCode())
-                    || "002".equals(vendorResponse.getResponseCode())
-                    || "FORWARD".equalsIgnoreCase(vendorResponse.getTxnRespType())) {
+//            if ("001".equals(vendorResponse.getResponseCode())
+//                    || "002".equals(vendorResponse.getResponseCode())
+//                    || "FORWARD".equalsIgnoreCase(vendorResponse.getTxnRespType())) {
+                if ("002".equals(vendorResponse.getResponseCode())
+                        || "FORWARD".equalsIgnoreCase(vendorResponse.getTxnRespType())) {
 
 
-                savePendingTransaction(
+
+                    savePendingTransaction(
                         baseTransactionId,
                         retailerId,
                         walletType,
@@ -561,8 +721,10 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                         selectedScheme.getOperatorName(),
                         subProducts,
                         credentials,
-                        vendorResponse.getResponseReason(),
-                        vendorResponse.getResponseReason(),
+//                        vendorResponse.getResponseReason(),
+                        vendorResponse.getVErrorRootVO().getError().get(0).getErrorMessage(),
+//                        vendorResponse.getResponseReason(),
+                        vendorResponse.getVErrorRootVO().getError().get(0).getErrorMessage(),
                         vendorResponse.getTxnRefId()
                 );
                 return CommonResponse.success(

@@ -12,11 +12,13 @@ public class PrefundRequestSpecification {
 
     public static Specification<PrefundRequest> getFilter(
             Long id,
-            String hierarchyId,
+            String requestedBy,
             String mobileNumber,
             Double depositAmount,
             String status,
             LocalDate depositDate,
+            LocalDate fromDate,
+            LocalDate toDate,
             LocalDate createDateTime,
             String bankHolderName,
             String bankAccountName,
@@ -35,8 +37,11 @@ public class PrefundRequestSpecification {
 
             if (id != null) predicates.add(cb.equal(root.get("id"), id));
 
-            if (hierarchyId != null)
-                predicates.add(cb.like(cb.lower(root.get("hierarchyId")), "%" + hierarchyId.toLowerCase() + "%"));
+            if (requestedBy != null)
+                predicates.add(cb.like(
+                        cb.lower(root.get("requestedBy")),
+                        "%" + requestedBy.toLowerCase() + "%"
+                ));
 
             if (mobileNumber != null)
                 predicates.add(cb.like(cb.lower(root.get("mobileNumber")), "%" + mobileNumber.toLowerCase() + "%"));
@@ -49,6 +54,15 @@ public class PrefundRequestSpecification {
 
             if (depositDate != null)
                 predicates.add(cb.equal(root.get("depositDate"), depositDate));
+
+            //  FROM – TO DATE FILTER (createDateTime)
+            if (fromDate != null && toDate != null) {
+                predicates.add(cb.between(
+                        root.get("createDateTime"),
+                        fromDate.atStartOfDay(),
+                        toDate.atTime(23, 59, 59)
+                ));
+            }
 
             if (createDateTime != null)
                 predicates.add(cb.between(

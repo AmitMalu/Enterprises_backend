@@ -25,13 +25,35 @@ import com.im.admin.util.DmtVendorFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+
+import java.time.Instant;
+import java.util.UUID;
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import javax.xml.crypto.dsig.Transform;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+
 
 @Service
 @RequiredArgsConstructor
@@ -74,7 +96,17 @@ public class DmtOrchestrator {
     @Autowired
     private CommonFunctions commonFunctions;
 
-    @Autowired private ObjectMapper objectMapper;
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Value("${paysprint.partner-id}")
+    private String partnerId;
+
+    @Value("${paysprint.secret-key}")
+    private String secretKey;
+
+    @Value("${paysprint.issuer}")
+    private String issuer;
 
     //  STEP 1: Send OTP
     public CommonResponse<PaysprintSendOtpResponse> sendDmtOtp(SendDmtRequest req) {
@@ -125,31 +157,9 @@ public class DmtOrchestrator {
 
             otpResponse.setReferenceId(refId);
 
-            responseJson = objectMapper.writeValueAsString(otpResponse);
-
-            //  SUCCESS VENDOR LOG
-            commonFunctions.saveVendorLogs(
-                    requestTime,
-                    requestJson,
-                    vendorId,
-                    LocalDateTime.now(),
-                    responseJson,
-                    null
-            );
-
 
             return CommonResponse.success(otpResponse, otpResponse.getMessage());
         } catch (Exception ex) {
-
-            //  FAILURE VENDOR LOG
-            commonFunctions.saveVendorLogs(
-                    requestTime,
-                    requestJson,
-                    vendorId,
-                    LocalDateTime.now(),
-                    null,
-                    ex.getMessage()
-            );
 
             log.error(
                     "[DMT SEND OTP] Exception | mobile={}, beneId={}",
@@ -262,23 +272,12 @@ public class DmtOrchestrator {
             req.setLat(retailer.getLatitude());
             req.setLng(retailer.getLongitude());
 
-            requestJson = objectMapper.writeValueAsString(req);
 
             // 6. Call vendor-specific implementation (must return PayoutResponseDto)
             RemitterTransactionResponse remitterTransactionResponse = vendorService.processDmt(req, credentials, orderId, subProducts, walletType);
 
             // ================== VENDOR SUCCESS LOG ==================
             responseJson = objectMapper.writeValueAsString(remitterTransactionResponse);
-
-            commonFunctions.saveVendorLogs(
-                    requestTime,
-                    requestJson,
-                    vendorId,
-                    LocalDateTime.now(),
-                    responseJson,
-                    null
-            );
-
 
 
             // Save vendor transaction details locally
@@ -386,25 +385,14 @@ public class DmtOrchestrator {
             //  Return wrapped success response
             if ("SUCCESS".equalsIgnoreCase(vendorStatus)) {
                 return CommonResponse.success(responseDto, "Transaction Successful");
-            }
-            else if ("PENDING".equalsIgnoreCase(vendorStatus)) {
+            } else if ("PENDING".equalsIgnoreCase(vendorStatus)) {
                 return new CommonResponse<>(202, "Transaction Pending", responseDto);
-            }
-            else {
+            } else {
                 return new CommonResponse<>(400, "Transaction Failed", responseDto);
             }
 
 
         } catch (Exception e) {
-
-            commonFunctions.saveVendorLogs(
-                    requestTime,
-                    requestJson,
-                    vendorId,
-                    LocalDateTime.now(),
-                    null,
-                    e.getMessage()
-            );
 
             log.error("[PROCESS DMT] Exception occurred | orderId={}", orderId, e);
             return new CommonResponse<>(500, "Error while processing DMT", null);
@@ -460,7 +448,7 @@ public class DmtOrchestrator {
             DmtVendorService vendorService = vendorFactory.getVendor(vendor.getVendorName());
 
             PaysprintPennyDropResponse resp =
-                    vendorService.pennyDropVerify(req, credentials, credentials.getBaseUrlUat());
+                    vendorService.pennyDropVerify(req, credentials, credentials.getBaseUrlProd());
 
 
             return CommonResponse.success(resp, resp.getMessage());
@@ -479,4 +467,124 @@ public class DmtOrchestrator {
     }
 
 
-}
+//    public String generateJwtToken() {
+//        long timestamp = Instant.now().getEpochSecond(); // seconds
+//        String reqId = String.valueOf(Math.abs(UUID.randomUUID().hashCode()));
+//
+//
+//        String base64Secret = TextCodec.BASE64.encode(secretKey);
+//
+//        //  Ensure key is at least 32 bytes (256 bits)
+//        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+//
+//        if (keyBytes.length < 32) {
+//            keyBytes = Arrays.copyOf(keyBytes, 32); // zero-padded
+//        }
+//
+//        SecretKey key = Keys.hmacShaKeyFor(keyBytes);
+//
+//        return Jwts.builder()
+//                .setIssuer(issuer)
+//                .setHeaderParam("typ", "JWT")
+//                .setHeaderParam("alg", "HS256")
+//                .claim("timestamp", timestamp)
+//                .claim("partnerId", partnerId)
+//                .claim("reqid", reqId)
+//                .signWith(key, SignatureAlgorithm.HS256)
+//                .compact();
+//    }
+
+//    public String generateJwtToken() {
+//
+//        int random = getRandom();
+//        long timestamp = getTimestamp();
+//
+//        String secretKeyBase64  =
+//                "UFMwMDY0MDQ5YTk5MTYxZmI4YjgxMjYyNzBlODY2NDAxMTg3NzIxMjE3NTczMzkxMDA=";
+//
+//        System.out.println("JWT timestamp = " + timestamp);
+//        System.out.println("JWT reqid     = " + random);
+//
+//        byte[] keyBytes = Base64.getDecoder().decode(secretKeyBase64);
+//
+//        SecretKey key = Keys.hmacShaKeyFor(keyBytes);
+//
+//        return Jwts.builder()
+//                .setIssuer("PSPRINT")
+//                .claim("iss", "PSPRINT")
+//                .claim("timestamp", Instant.now().getEpochSecond())
+//                .claim("partnerId", "PS006404")
+//                .claim("product", "WALLET")
+//                .claim("reqid", System.nanoTime())
+//                .signWith(key, SignatureAlgorithm.HS256)
+//                .compact();
+//    }
+
+    public String generateJwtToken() {
+
+        int random = getRandom();
+        long timestamp = getTimestamp();
+
+        String jwtKey =
+                "UFMwMDY0MDQ5YTk5MTYxZmI4YjgxMjYyNzBlODY2NDAxMTg3NzIxMjE3NTczMzkxMDA=";
+
+        System.out.println("JWT timestamp = " + timestamp);
+        System.out.println("JWT reqid     = " + random);
+
+        String token = Jwts.builder()
+                .setIssuer("PSPRINT")
+//                .setHeaderParam("typ", "JWT")
+//                .setHeaderParam("alg", "HS256")
+                .claim("timestamp", timestamp)
+                .claim("iat", timestamp - 720)
+                .claim("partnerId", "PS006404")
+                .claim("product","WALLET")
+                .claim("reqid", random)
+                .signWith(SignatureAlgorithm.HS256,
+                        jwtKey.getBytes(StandardCharsets.UTF_8))
+                .compact();
+
+        return token;
+    }
+
+    private static int getRandom() {
+        int random = (int) Math.round(Math.random() * 1000000000);
+        return random;
+    }
+
+    private static long getTimestamp() {
+        long timestamp = Instant.now().getEpochSecond();
+        return timestamp;
+    }
+
+
+    public String encrypt(String json, String aesKey, String aesIv) {
+
+        try {
+            String plainText = json;
+            String key = aesKey;
+            String iv = aesIv;
+
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+
+            SecretKeySpec secretKey =
+                    new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
+
+            IvParameterSpec ivSpec =
+                    new IvParameterSpec(iv.getBytes(StandardCharsets.UTF_8));
+
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivSpec);
+
+            byte[] encrypted =
+                    cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
+
+            return Base64.getEncoder().encodeToString(encrypted);
+
+        } catch (Exception e) {
+            throw new RuntimeException("AES encryption error", e);
+        }
+    }
+    }
+
+
+

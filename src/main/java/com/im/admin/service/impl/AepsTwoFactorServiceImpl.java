@@ -169,22 +169,68 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
                     && body.getData() != null
                     && "00".equals(body.getData().getResponseCode())) {
 
-                AepsTwoFa log = new AepsTwoFa();
-                log.setTefPkId(body.getData().getTefPkId());
-                log.setStan(body.getData().getStan());
-                log.setBankRrn(body.getData().getBankRrn());
-                log.setFpRrn(body.getData().getFpRrn());
-                log.setFingpayTransactionId(body.getData().getFingpayTransactionId());
-                log.setMerchantTranId(body.getData().getMerchantTranId());
-                log.setResponseCode(body.getData().getResponseCode());
-                log.setResponseMessage(body.getData().getResponseMessage());
-                log.setMobileNumber(body.getData().getMobileNumber());
-                log.setTransactionTimestamp(body.getData().getTransactionTimestamp());
-                log.setRetailerId(req.getRetailerId());
-                log.setCreatedAt(LocalDateTime.now());
-                log.setVendor(vendor);
+//                AepsTwoFa log = new AepsTwoFa();
+//                log.setTefPkId(body.getData().getTefPkId());
+//                log.setStan(body.getData().getStan());
+//                log.setBankRrn(body.getData().getBankRrn());
+//                log.setFpRrn(body.getData().getFpRrn());
+//                log.setFingpayTransactionId(body.getData().getFingpayTransactionId());
+//                log.setMerchantTranId(body.getData().getMerchantTranId());
+//                log.setResponseCode(body.getData().getResponseCode());
+//                log.setResponseMessage(body.getData().getResponseMessage());
+//                log.setMobileNumber(body.getData().getMobileNumber());
+//                log.setTransactionTimestamp(body.getData().getTransactionTimestamp());
+//                log.setRetailerId(req.getRetailerId());
+//                log.setCreatedAt(LocalDateTime.now());
+//                log.setVendor(vendor);
+//
+//                aAeps2FaRepository.save(log);
 
-                aAeps2FaRepository.save(log);
+                Optional<AepsTwoFa> existingOpt =
+                        aAeps2FaRepository.findByRetailerId(req.getRetailerId());
+
+                AepsTwoFa log;
+
+                if (existingOpt.isPresent()) {
+                    // UPDATE
+                    log = existingOpt.get();
+
+                    log.setTefPkId(body.getData().getTefPkId());
+                    log.setStan(body.getData().getStan());
+                    log.setBankRrn(body.getData().getBankRrn());
+                    log.setFpRrn(body.getData().getFpRrn());
+                    log.setFingpayTransactionId(body.getData().getFingpayTransactionId());
+                    log.setMerchantTranId(body.getData().getMerchantTranId());
+                    log.setResponseCode(body.getData().getResponseCode());
+                    log.setResponseMessage(body.getData().getResponseMessage());
+                    log.setMobileNumber(body.getData().getMobileNumber());
+                    log.setTransactionTimestamp(body.getData().getTransactionTimestamp());
+//                    log.setUpdatedAt(LocalDateTime.now());
+
+                    aAeps2FaRepository.save(log);
+
+                } else {
+                    // INSERT
+                    log = new AepsTwoFa();
+                    log.setRetailerId(req.getRetailerId());
+                    log.setVendor(vendor);
+                    log.setCreatedAt(LocalDateTime.now());
+
+                    log.setTefPkId(body.getData().getTefPkId());
+                    log.setStan(body.getData().getStan());
+                    log.setBankRrn(body.getData().getBankRrn());
+                    log.setFpRrn(body.getData().getFpRrn());
+                    log.setFingpayTransactionId(body.getData().getFingpayTransactionId());
+                    log.setMerchantTranId(body.getData().getMerchantTranId());
+                    log.setResponseCode(body.getData().getResponseCode());
+                    log.setResponseMessage(body.getData().getResponseMessage());
+                    log.setMobileNumber(body.getData().getMobileNumber());
+                    log.setTransactionTimestamp(body.getData().getTransactionTimestamp());
+//                    log.setUpdatedAt(LocalDateTime.now());
+
+                    aAeps2FaRepository.save(log);
+
+                }
             }
 
             // ====== STEP 11: FINAL RESPONSE ======

@@ -17,6 +17,8 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.response.DmtRemitterResponseDto;
 import com.im.admin.service.RemitterService;
 import com.im.admin.util.CommonMethods;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
@@ -24,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.im.admin.entities.vendor.Vendors;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -101,12 +105,16 @@ public class RemitterServiceImpl implements RemitterService {
 
             requestJson = objectMapper.writeValueAsString(reqBody);
 
-            HttpHeaders headers = getHeaders(credentials);
+            String token = generateJwtToken();
+
+            HttpHeaders headers = getHeaders(credentials,token);
             HttpEntity<Map<String, Object>> httpEntity = new HttpEntity<>(reqBody, headers);
 
             // ====== STEP 4: Call Vendor Remitter Query API ======
             ResponseEntity<RemitterQueryResponse> responseEntity =
-                    restTemplate.exchange(credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/remitter/queryremitter",
+                    restTemplate.exchange(
+//                            credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/remitter/queryremitter",
+                            credentials.getBaseUrlProd() + "/api/v1/service/dmt/kyc/remitter/queryremitter",
                             HttpMethod.POST, httpEntity, RemitterQueryResponse.class);
 
             RemitterQueryResponse res = responseEntity.getBody();
@@ -130,7 +138,7 @@ public class RemitterServiceImpl implements RemitterService {
             switch (code) {
 
                 case 1: // Remitter already exists on vendor side
-                    saveRemitter(res); // Save in our DB as REGISTERED
+                    saveRemitter(res,vendor); // Save in our DB as REGISTERED
                     return CommonResponse.success(res, "Remitter exists. You can proceed");
 
                 case 2: // KYC required
@@ -185,12 +193,15 @@ public class RemitterServiceImpl implements RemitterService {
         // ===== STEP 2: Prepare request JSON for logs =====
         requestJson = objectMapper.writeValueAsString(request);
 
+            String token = generateJwtToken();
+
         // STEP 2: Vendor API call
-        HttpHeaders headers = getHeaders(credentials);
+        HttpHeaders headers = getHeaders(credentials,token);
         HttpEntity<RemitterEkycRequest> entity = new HttpEntity<>(request, headers);
 
         ResponseEntity<Map> resp = restTemplate.exchange(
-                credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/remitter/queryremitter/kyc",
+//                credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/remitter/queryremitter/kyc",
+                credentials.getBaseUrlProd() + "/api/v1/service/dmt/kyc/remitter/queryremitter/kyc",
                 HttpMethod.POST,
                 entity,
                 Map.class
@@ -289,13 +300,16 @@ public class RemitterServiceImpl implements RemitterService {
         // ===== STEP 2: Prepare request JSON for logs =====
         requestJson = objectMapper.writeValueAsString(req);
 
+            String token = generateJwtToken();
+
         // STEP 2: Call Vendor API
-        HttpHeaders headers = getHeaders(credentials);
+        HttpHeaders headers = getHeaders(credentials,token);
         HttpEntity<RemitterRegisterRequest> entity = new HttpEntity<>(req, headers);
 
         ResponseEntity<RemitterRegisterResponse> respEntity =
                 restTemplate.exchange(
-                        credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/remitter/registerremitter",
+//                        credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/remitter/registerremitter",
+                        credentials.getBaseUrlProd() + "/api/v1/service/dmt/kyc/remitter/registerremitter",
                         HttpMethod.POST,
                         entity,
                         RemitterRegisterResponse.class
@@ -357,11 +371,14 @@ public class RemitterServiceImpl implements RemitterService {
 
     //                HELPER METHODS
     // Common method to set headers dynamically from VendorCredentials
-    private HttpHeaders getHeaders(VendorCredentials credentials) {
+    private HttpHeaders getHeaders(VendorCredentials credentials,String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.set("Token", credentials.getToken());
+        //uat
+//        headers.set("Token", credentials.getToken());
+        //live
+        headers.set("Token", token);
         headers.set("Authorisedkey", credentials.getSaltKey());
         return headers;
     }
@@ -374,7 +391,7 @@ public class RemitterServiceImpl implements RemitterService {
 //        remitterRepository.save(en);
 //    }
 
-    private void saveRemitter(RemitterQueryResponse res) {
+    private void saveRemitter(RemitterQueryResponse res,Vendors vendor) {
 
         String mobile = res.getData().getMobile();
 
@@ -385,6 +402,7 @@ public class RemitterServiceImpl implements RemitterService {
             // Already exists → just ensure status
             DmtRemitter rem = existing.get();
             rem.setStatus("REGISTERED");
+            rem.setVendor(vendor);
             remitterRepository.save(rem);
             return;
         }
@@ -394,6 +412,8 @@ public class RemitterServiceImpl implements RemitterService {
         en.setMobile(mobile);
         en.setStatus("REGISTERED");
         en.setCreatedAt(LocalDateTime.now());
+        en.setVendor(vendor);
+        en.setLimitAmount(res.getData().getLimit());
 
         remitterRepository.save(en);
     }
@@ -551,6 +571,44 @@ public class RemitterServiceImpl implements RemitterService {
         smsGatewayAPI.sendOTPSms(mobile, newOtp);
 
         return CommonResponse.success(null, "OTP resent successfully");
+    }
+
+
+    public String generateJwtToken() {
+
+        int random = getRandom();
+        long timestamp = getTimestamp();
+
+        String jwtKey =
+                "UFMwMDY0MDQ5YTk5MTYxZmI4YjgxMjYyNzBlODY2NDAxMTg3NzIxMjE3NTczMzkxMDA=";
+
+        System.out.println("JWT timestamp = " + timestamp);
+        System.out.println("JWT reqid     = " + random);
+
+        String token = Jwts.builder()
+                .setIssuer("PSPRINT")
+//                .setHeaderParam("typ", "JWT")
+//                .setHeaderParam("alg", "HS256")
+                .claim("timestamp", timestamp)
+                .claim("iat", timestamp - 720)
+                .claim("partnerId", "PS006404")
+                .claim("product","WALLET")
+                .claim("reqid", random)
+                .signWith(SignatureAlgorithm.HS256,
+                        jwtKey.getBytes(StandardCharsets.UTF_8))
+                .compact();
+
+        return token;
+    }
+
+    private static int getRandom() {
+        int random = (int) Math.round(Math.random() * 1000000000);
+        return random;
+    }
+
+    private static long getTimestamp() {
+        long timestamp = Instant.now().getEpochSecond();
+        return timestamp;
     }
 
 

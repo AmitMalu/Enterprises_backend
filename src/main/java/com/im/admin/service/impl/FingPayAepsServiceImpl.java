@@ -147,7 +147,7 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
 
             responseJson = objectMapper.writeValueAsString(vendorResp.getBody());
 
-            // ✅ SUCCESS LOG
+            //  SUCCESS LOG
             commonFunctions.saveVendorLogs(
                     requestDateTime,
                     requestJson,
@@ -170,7 +170,7 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
             } catch (Exception ignored) {
             }
 
-            // ❌ FAILURE LOG
+            //  FAILURE LOG
             commonFunctions.saveVendorLogs(
                     requestDateTime,
                     requestJson,

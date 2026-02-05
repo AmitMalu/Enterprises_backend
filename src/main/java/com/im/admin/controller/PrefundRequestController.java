@@ -65,11 +65,21 @@ public class  PrefundRequestController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Long id,
-            @RequestParam(required = false) String hierarchyId,
+            @RequestParam(required = false) String requestedBy,
             @RequestParam(required = false) String mobileNumber,
             @RequestParam(required = false) Double depositAmount,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate depositDate,
+
+            //  NEW
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "dd-MM-yyyy")
+            LocalDate fromDate,
+
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "dd-MM-yyyy")
+            LocalDate toDate,
+
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createDateTime,
             @RequestParam(required = false) String bankHolderName,
             @RequestParam(required = false) String bankAccountName,
@@ -85,8 +95,8 @@ public class  PrefundRequestController {
     ) {
         log.info("Fetching all Prefund Requests with filters - mobileNumber: {}, status: {}", mobileNumber, status);
         Page<PrefundRequest> pagedResult = prefundRequestService.getAllPrefundRequests(
-                page, size, id, hierarchyId, mobileNumber, depositAmount, status,
-                depositDate, createDateTime, bankHolderName, bankAccountName,
+                page, size, id, requestedBy, mobileNumber, depositAmount, status,
+                depositDate,fromDate, toDate, createDateTime, bankHolderName, bankAccountName,
                 bankAccountNumber, bankTranId, paymentMode, narration, ipAddress,
                 approveOrRejectDate, approveOrRejectTime, remarks, depositType
         );

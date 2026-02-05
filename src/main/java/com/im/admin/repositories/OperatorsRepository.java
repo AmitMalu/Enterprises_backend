@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+//import java.lang.ScopedValue;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,6 +39,12 @@ public interface OperatorsRepository extends JpaRepository<Operators, String>, J
 
     // Checks if any operator exists with the same operator code, subProduct, and product combination
     boolean existsByOperatorCodeAndSubProductCodeAndProductCode(String operatorCode, String subProductCode, String productCode);
+
+    Optional<Operators> findByOperatorNameIgnoreCaseAndSubProductId(
+            String operatorName,
+            String subProductId
+    );
+
 
 }
 

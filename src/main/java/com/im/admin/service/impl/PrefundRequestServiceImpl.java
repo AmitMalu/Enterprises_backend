@@ -114,13 +114,15 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     }
 
     @Override
-    public Page<PrefundRequest> getAllPrefundRequests(int page, int size, Long id, String hierarchyId, String mobileNumber, Double depositAmount, String status, LocalDate depositDate, LocalDate createDateTime,
+    public Page<PrefundRequest> getAllPrefundRequests(int page, int size, Long id, String requestedBy, String mobileNumber, Double depositAmount, String status, LocalDate depositDate,  LocalDate fromDate,
+                                                      LocalDate toDate, LocalDate createDateTime,
                                                       String bankHolderName, String bankAccountName, String bankAccountNumber,
                                                       String bankTranId, String paymentMode, String narration, String ipAddress,
                                                       LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks, String depositType) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createDateTime"));
         Specification<PrefundRequest> spec = PrefundRequestSpecification.getFilter(
-                id, hierarchyId, mobileNumber, depositAmount, status, depositDate,
+                id, requestedBy, mobileNumber, depositAmount, status, depositDate,
+                fromDate, toDate,
                 createDateTime, bankHolderName, bankAccountName, bankAccountNumber,
                 bankTranId, paymentMode, narration, ipAddress,
                 approveOrRejectDate, approveOrRejectTime, remarks, depositType

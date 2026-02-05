@@ -176,8 +176,12 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             txnMap.setAmount(req.getAmount());
             txnMap.setStatus("INITIATED");
             txnMap.setVendorName(vendor.getVendorName());
-
+            txnMap.setSubProductId(req.getSubProductId());
             pgTransactionMappingRepository.save(txnMap);
+
+            log.info("subProductId: ", req.getSubProductId());
+            log.info("initiatedBy", req.getInitiatedBy());
+
 
             // ====== Check Vendor Type ======
             if ("AES".equalsIgnoreCase(credentials.getTokenType())) {
@@ -495,6 +499,39 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         PgTransactionMapping pgTransactionMapping = pgTransactionMappingRepository.findByOrderId(callback.getOrderId())
                 .orElseThrow(() -> new RuntimeException("Transaction not found for Order ID: " + callback.getOrderId()));
 
+        String subProductId = pgTransactionMapping.getSubProductId();
+        log.info("---- [Callback] Fetching SubProduct using subProductId: {}", subProductId);
+
+        SubProducts subProducts =
+                subProductsRepository.findById(subProductId)
+                        .orElseThrow(() -> {
+                            log.error("---- [Callback] SubProduct NOT FOUND for subProductId: {}", subProductId);
+                            return new RuntimeException("SubProduct not found for subProductId: " + subProductId);
+                        });
+
+        log.info("---- [Callback] SubProduct fetched successfully | subProductId={}", subProducts.getId());
+
+        log.info("---- [Callback] SubProduct fetched successfully | subProductId={}, subProductCode={}",
+                subProducts.getId(),
+                subProducts.getSubProductCode());
+
+        SchemeAllocation schemeAllocation =
+                schemeAllocationRepository
+                        .findByHierarchyIdAndSubProductCode(
+                                pgTransactionMapping.getInitiatedBy(),
+                                subProducts.getSubProductCode()
+                        )
+                        .orElseThrow(() -> new RuntimeException(
+                                "SchemeAllocation not found | hierarchyId="
+                                        + pgTransactionMapping.getInitiatedBy()
+                                        + ", subProductCode="
+                                        + subProducts.getSubProductCode()
+                        ));
+
+        String schemeCode = schemeAllocation.getSchemeCode();
+
+        log.info("---- [Callback] SchemeAllocation fetched successfully | schemeCode={}", schemeCode);
+
         // Prepare base data
         Double txnAmt = Double.valueOf(callback.getTxnAmount());
         log.info("---- [Callback] Parsed transaction amount: {}", txnAmt);
@@ -506,12 +543,24 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         );
         log.info("---- [Callback] Using operatorName for DB lookup: {}", callbackOperatorName);
 
-        // Fetch all matching schemes for operator name
-        List<SchemeRate> matchingSchemes = schemeRateRepository.findSchemeByOperatorName(callbackOperatorName);
+
+        List<SchemeRate> matchingSchemes =
+                schemeRateRepository.findBySchemeCodeAndOperatorName(
+                        schemeCode,
+                        callbackOperatorName
+                );
         if (matchingSchemes == null || matchingSchemes.isEmpty()) {
-            log.error("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
+            log.error("---- [Callback] No matching scheme found for schemeCode={} and operatorName={}",
+                    schemeCode, callbackOperatorName);
             return;
         }
+
+//        // Fetch all matching schemes for operator name
+//        List<SchemeRate> matchingSchemes = schemeRateRepository.findSchemeByOperatorName(callbackOperatorName);
+//        if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+//            log.error("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
+//            return;
+//        }
         log.info("---- [Callback] Scheme(s) found: {}", matchingSchemes.size());
 
         // Pick correct scheme by amount range or fixed value

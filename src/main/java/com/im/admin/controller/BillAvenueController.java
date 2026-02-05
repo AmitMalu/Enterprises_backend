@@ -19,6 +19,14 @@ public class BillAvenueController {
     @Autowired
     private BillAvenueService billAvenueService;
 
+    @PostMapping("/biller-info-bulk")
+    public CommonResponse<Object> fetchBillerBulk(@RequestBody BillerRequest request) throws Exception {
+
+        Object responseJson = billAvenueService.fetchBillerInfobulk(request);
+
+        return CommonResponse.success(responseJson, "Biller info fetched successfully");
+    }
+
     @PostMapping("/biller-info")
     public CommonResponse<Object> fetchBiller(@RequestBody BillerRequest request) throws Exception {
 

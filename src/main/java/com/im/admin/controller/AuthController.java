@@ -406,6 +406,7 @@ public class AuthController {
         responseMap.put("hierarchyId", user.getHierarchyId());
         responseMap.put("mobileNumber", user.getMobileNumber());
         responseMap.put("emailId", user.getEmailId());
+//        responseMap.put("logoUrl","https://www.instantmudra.net/apps/home/media/logos/logo-white.png");
 
         String hierarchyCode = user.getHierarchyCode();
         log.debug("Resolving role for hierarchyCode: {}", hierarchyCode);
@@ -454,7 +455,7 @@ public class AuthController {
                     product.put("productId", entry.getKey());
                     product.put("productName", adProductIdToName.get(entry.getKey()));
 
-                    // ✅ Add active and blocked fields from product table
+                    //  Add active and blocked fields from product table
                     Products productEntity = adProductIdToEntity.get(entry.getKey());
                     if (productEntity != null) {
                         product.put("active", productEntity.getActive());
@@ -478,6 +479,7 @@ public class AuthController {
                         responseMap.put("sub_role_id", wlSubRole.getSubRoleId());
                     }
                     responseMap.put("role", "WL-AD");
+                    responseMap.put("logoUrl",whiteLabel.getBusinessProofImage());
                 } else {
                     responseMap.put("role", "WL");
                 }
@@ -497,6 +499,7 @@ public class AuthController {
                         && retailer.getOutletAddress() != null
                         && retailer.getOutletAddress().getOutletName() != null) {
                     responseMap.put("outletName", retailer.getOutletAddress().getOutletName());
+                    responseMap.put("logoUrl",retailer.getBusinessProofImage());
                 } else {
                     responseMap.put("outletName", "N/A");
                 }

@@ -158,15 +158,32 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
 //            );
 
 
-
-
-
-            if (vendorResp == null) {
-                return new CommonResponse<>(500, "Vendor returned null response", null);
+            if (vendorResp == null || vendorResp.getData() == null) {
+                return CommonResponse.error(500, "Vendor returned empty response");
             }
 
             AepsCashWithdrawalResponse responseBody = vendorResp.getData();
 
+
+            if (!responseBody.isStatus()) {
+                // Vendor failure – return as it is
+                return CommonResponse.failedResponse(
+                        responseBody.getStatusCode().intValue(),
+                        responseBody.getMessage(),
+                        responseBody
+                );
+            }
+
+
+            AepsCashWithdrawalResponse.CWData data = responseBody.getData();
+
+            if (data == null) {
+                return CommonResponse.failedResponse(
+                        400,
+                        "Transaction failed. No data received from vendor.",
+                        responseBody
+                );
+            }
 
             // ================================
             // STEP 8: SAVE LOG (ONLY IF SUCCESS)
@@ -228,7 +245,9 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             // ================================
             // STEP 11: GET VENDOR STATUS
             // ================================
-            AepsCashWithdrawalResponse.CWData data = responseBody.getData();
+
+
+//            AepsCashWithdrawalResponse.CWData data = responseBody.getData();
 
             String vendorStatus = AepsResponseMapper.map(
                     responseBody.isStatus(),

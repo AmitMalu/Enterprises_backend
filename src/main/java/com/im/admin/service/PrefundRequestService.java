@@ -15,8 +15,9 @@ public interface PrefundRequestService {
     CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile) throws IOException;
 
     Page<PrefundRequest> getAllPrefundRequests(int page, int size,
-                                               Long id, String hierarchyId, String mobileNumber, Double depositAmount,
-                                               String status, LocalDate depositDate, LocalDate createDateTime,
+                                               Long id, String requestedBy, String mobileNumber, Double depositAmount,
+                                               String status, LocalDate depositDate,   LocalDate fromDate,
+                                               LocalDate toDate,LocalDate createDateTime,
                                                String bankHolderName, String bankAccountName, String bankAccountNumber,
                                                String bankTranId, String paymentMode, String narration, String ipAddress,
                                                LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks, String depositType);
