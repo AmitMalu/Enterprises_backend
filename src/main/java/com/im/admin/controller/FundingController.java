@@ -88,4 +88,23 @@ public class FundingController {
     }
 
 
+    @PostMapping("/settlement-updated")
+    public ResponseEntity<CommonResponse> getSettlementPendingUpdated(
+            @RequestBody SettlementPendingRequestDto request,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        log.info("API Call: getSettlementPending with request: {}", request);
+
+        Page<RetailerTransactionResponseDto> transactions =
+                fundingService.getSettlementPendingTransactionsUpdated(request, page, size);
+
+        log.info("success. Total records: {}", transactions.getTotalElements());
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "success", transactions)
+        );
+    }
+
+
 }

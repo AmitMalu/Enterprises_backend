@@ -1,6 +1,7 @@
 package com.im.admin.service;
 
 //import com.im.admin.dto.DmtResponseDto;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.RemitterTransactionResponse;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
@@ -17,8 +18,9 @@ public interface DmtVendorService {
 
     RemitterTransactionResponse processDmt(SendDmtRequest request, VendorCredentials credentials, String orderId, SubProducts subProducts, WalletType walletType);
 
-    PaysprintSendOtpResponse sendOtp(SendDmtRequest request, VendorCredentials credentials);
+    PaysprintSendOtpResponse sendOtp(SendDmtRequest request, VendorCredentials credentials) throws JsonProcessingException;
 
     PaysprintPennyDropResponse pennyDropVerify(PennyDropRequest request, VendorCredentials credentials, String baseUrl);
 
+    String generateJwtToken();
 }

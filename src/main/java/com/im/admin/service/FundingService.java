@@ -21,4 +21,7 @@ public interface FundingService {
 
     Page<RetailerTransactionResponseDto> getSettlementPendingTransactions(SettlementPendingRequestDto request, int page, int size);
 
+    Page<RetailerTransactionResponseDto> getSettlementPendingTransactionsUpdated(SettlementPendingRequestDto request, int page, int size);
+
+
 }

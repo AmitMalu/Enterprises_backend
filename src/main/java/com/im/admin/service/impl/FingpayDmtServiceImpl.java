@@ -14,6 +14,11 @@ import com.im.admin.service.DmtVendorService;
 
 public class FingpayDmtServiceImpl implements DmtVendorService {
     @Override
+    public String generateJwtToken() {
+        return "";
+    }
+
+    @Override
     public PaysprintPennyDropResponse pennyDropVerify(PennyDropRequest request, VendorCredentials credentials, String baseUrl) {
         return null;
     }
@@ -32,4 +37,5 @@ public class FingpayDmtServiceImpl implements DmtVendorService {
     public PaysprintSendOtpResponse sendOtp(SendDmtRequest request, VendorCredentials credentials) {
         return null;
     }
+
 }

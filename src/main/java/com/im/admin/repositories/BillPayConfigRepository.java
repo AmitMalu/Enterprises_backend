@@ -30,4 +30,7 @@ public interface BillPayConfigRepository extends JpaRepository<BillPayConfig,Lon
 
 
     Optional<BillPayConfig> findByProviderId(String requestedBillerId);
+
+    List<BillPayConfig> findByProviderIdIn(List<String> providerIds);
+
 }

@@ -16,8 +16,11 @@ public class RunpaisaPayoutCallback {
     private String code;
     private String status;
     private String message;
-    private String order_id;
-    private String utr_no;
+//    private String order_id; // new payout
+     private String orderid;// old_payout - current
+
+//    private String utr_no; // new payout
+      private String utrno; // old_payout - current
     private String txn_amount;
 
 }

@@ -13,7 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -56,7 +56,14 @@ public class ProductsServiceImpl implements ProductsService {
         existingProduct.setProductCode(product.getProductCode());
         existingProduct.setProductCodeForScheme(product.getProductCodeForScheme());
         existingProduct.setIsVisible(product.getIsVisible());
-        existingProduct.setTransactionType(product.getTransactionType());
+
+//        existingProduct.setTransactionType(product.getTransactionType());
+
+        if (StringUtils.hasText(product.getTransactionType())) {
+            existingProduct.setTransactionType(product.getTransactionType());
+        }
+
+
         existingProduct.setIsCommissions(product.getIsCommissions());
         existingProduct.setSelectIsCommission(product.getSelectIsCommission());
         existingProduct.setActive(product.getActive());

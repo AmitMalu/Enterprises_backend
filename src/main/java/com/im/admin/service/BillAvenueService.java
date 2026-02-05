@@ -7,6 +7,9 @@ import com.im.admin.request.TransactionStatusRequest;
 
 public interface BillAvenueService {
 
+    Object fetchBillerInfobulk(BillerRequest request) throws Exception;
+
+
     Object fetchBillerInfo(BillerRequest request) throws Exception;
 
     Object fetchBill(BillFetchRequest request)throws Exception;

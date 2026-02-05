@@ -10,5 +10,8 @@ import java.util.Optional;
 public interface Aeps2FaRepository extends JpaRepository<AepsTwoFa, Long> {
     Optional<AepsTwoFa> findTopByRetailerIdOrderByIdDesc(String retailerId);
 
+    Optional<AepsTwoFa> findByRetailerId(String retailerId);
+
+
 }
 

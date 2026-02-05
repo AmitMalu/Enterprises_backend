@@ -20,6 +20,8 @@ import com.im.admin.response.BeneficiaryRegisterResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.DmtBeneficiaryService;
 import com.im.admin.util.CommonMethods;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -29,6 +31,8 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -80,13 +84,18 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
         // ===== STEP 2: Prepare request JSON for logs =====
         requestJson = objectMapper.writeValueAsString(req);
 
+            String token = generateJwtToken();
+
         // ====== STEP 2: Prepare Headers and Body ======
-        HttpHeaders headers = getHeaders(credentials);
+        HttpHeaders headers = getHeaders(credentials,token);
         HttpEntity<BeneficiaryRegisterRequest> entity = new HttpEntity<>(req, headers);
 
         // ====== STEP 3: Call Vendor API ======
         ResponseEntity<BeneficiaryRegisterResponse> respEntity = restTemplate.exchange(
-                credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary",
+                //uat
+//                credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary",
+                //live
+                credentials.getBaseUrlProd() + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary",
                 HttpMethod.POST,
                 entity,
                 BeneficiaryRegisterResponse.class
@@ -111,6 +120,23 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 
             DmtRemitter dmtRemitter = remitterRepository.findByMobile(req.getMobile())
                     .orElseThrow(() -> new RuntimeException("Remitter not found for mobile: " + req.getMobile()));
+
+            Optional<DmtBeneficiary> existing =
+                    beneficiaryRepository.findByRemitterAndBeneId(
+                            dmtRemitter,
+                            resp.getData().getBene_id()
+                    );
+
+            if (existing.isPresent()) {
+
+                CommonResponse<BeneficiaryRegisterResponse> common = new CommonResponse<>();
+                common.setStatusCode(200);
+                common.setMessage("Beneficiary already registered");
+                common.setData(resp);
+
+                return common;
+            }
+
 
 
             DmtBeneficiary bene = new DmtBeneficiary();
@@ -162,11 +188,14 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 }
 
     // Helper method to build headers
-    private HttpHeaders getHeaders(VendorCredentials credentials) {
+    private HttpHeaders getHeaders(VendorCredentials credentials,String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.set("Token", credentials.getToken());
+        //uat
+//        headers.set("Token", credentials.getToken());
+        //live
+        headers.set("Token",token);
         headers.set("Authorisedkey", credentials.getSaltKey());
         return headers;
     }
@@ -194,11 +223,14 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 
                 requestJson = objectMapper.writeValueAsString(req);
 
+                String token = generateJwtToken();
+
                 // Step 2: Prepare headers
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-                headers.set("Token", credentials.getToken());
+//                headers.set("Token", credentials.getToken());
+                headers.set("Token", token);
                 headers.set("Authorisedkey", credentials.getSaltKey());
 
                 // Step 3: Prepare request body
@@ -206,7 +238,10 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 
                 // Step 4: Call Vendor Delete Beneficiary API
                 ResponseEntity<DmtBeneficiaryDeleteResponse> responseEntity = restTemplate.exchange(
-                        credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/deletebeneficiary",
+                        //uat
+//                        credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/deletebeneficiary",
+                        //live
+                        credentials.getBaseUrlProd() + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/deletebeneficiary",
                         HttpMethod.POST,
                         entity,
                         DmtBeneficiaryDeleteResponse.class
@@ -216,7 +251,7 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 
                 responseJson = objectMapper.writeValueAsString(vendorResponse);
 
-                // ✅ SUCCESS VENDOR LOG
+                //  SUCCESS VENDOR LOG
                 commonFunctions.saveVendorLogs(
                         requestTime,
                         requestJson,
@@ -244,7 +279,7 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 
             } catch (Exception ex) {
 
-                // ❌ FAILURE VENDOR LOG
+                //  FAILURE VENDOR LOG
                 commonFunctions.saveVendorLogs(
                         requestTime,
                         requestJson,
@@ -313,14 +348,18 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
+            String token = generateJwtToken();
             // ====== STEP 2: Prepare Request ======
             Map<String, Object> reqBody = Map.of("mobile", req.getMobile());
-            HttpHeaders headers = getHeaders(credentials);
+            HttpHeaders headers = getHeaders(credentials,token);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(reqBody, headers);
 
             // ====== STEP 3: Call Vendor API ======
             ResponseEntity<DmtBeneficiaryFetchResponse> response = restTemplate.exchange(
-                    credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiary",
+                    //uat
+//                    credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiary",
+                    //live
+                    credentials.getBaseUrlProd() + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiary",
                     HttpMethod.POST,
                     entity,
                     DmtBeneficiaryFetchResponse.class
@@ -417,12 +456,17 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
 
             requestJson = objectMapper.writeValueAsString(reqBody);
 
-            HttpHeaders headers = getHeaders(credentials);
+            String token = generateJwtToken();
+
+            HttpHeaders headers = getHeaders(credentials,token);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(reqBody, headers);
 
             // ====== STEP 3: Call Vendor API ======
             ResponseEntity<DmtBeneficiaryFetchByBeneIdResponse> response = restTemplate.exchange(
-                    credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiarybybeneid",
+                    //uat
+//                    credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiarybybeneid",
+                    //live
+                    credentials.getBaseUrlProd() + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiarybybeneid",
                     HttpMethod.POST,
                     entity,
                     DmtBeneficiaryFetchByBeneIdResponse.class
@@ -546,6 +590,43 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
         dto.setPaytm(false);   // if not available in DB
 
         return dto;
+    }
+
+    public String generateJwtToken() {
+
+        int random = getRandom();
+        long timestamp = getTimestamp();
+
+        String jwtKey =
+                "UFMwMDY0MDQ5YTk5MTYxZmI4YjgxMjYyNzBlODY2NDAxMTg3NzIxMjE3NTczMzkxMDA=";
+
+        System.out.println("JWT timestamp = " + timestamp);
+        System.out.println("JWT reqid     = " + random);
+
+        String token = Jwts.builder()
+                .setIssuer("PSPRINT")
+//                .setHeaderParam("typ", "JWT")
+//                .setHeaderParam("alg", "HS256")
+                .claim("timestamp", timestamp)
+                .claim("iat", timestamp - 720)
+                .claim("partnerId", "PS006404")
+                .claim("product","WALLET")
+                .claim("reqid", random)
+                .signWith(SignatureAlgorithm.HS256,
+                        jwtKey.getBytes(StandardCharsets.UTF_8))
+                .compact();
+
+        return token;
+    }
+
+    private static int getRandom() {
+        int random = (int) Math.round(Math.random() * 1000000000);
+        return random;
+    }
+
+    private static long getTimestamp() {
+        long timestamp = Instant.now().getEpochSecond();
+        return timestamp;
     }
 
 

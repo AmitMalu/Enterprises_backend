@@ -7,7 +7,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/billavenue")
 public class BillAvenueEncryptController {
 
-    private static final String WORKING_KEY = "063F0699C1D46414EA1E92D0E6BDCF99";
+    //uat
+//    private static final String WORKING_KEY = "063F0699C1D46414EA1E92D0E6BDCF99";
+
+    //live
+    private static final String WORKING_KEY = "B085170FB32233C416BA61E70E25C86E";
 
     @PostMapping("/encrypt")
     public String encrypt(@RequestBody String json) throws Exception {

@@ -80,8 +80,28 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         }
 
         // ===== PRODUCT FILTER =====
+//        String productParam = "ALL";
+//        if (StringUtils.hasText(request.getProductName())
+//                && !"ALL".equalsIgnoreCase(request.getProductName())) {
+//
+//            productParam = Arrays.stream(request.getProductName().split(","))
+//                    .map(String::trim)
+//                    .filter(s -> !s.isEmpty())
+//                    .collect(Collectors.joining(","));
+//        }
+
+        // ===== PRODUCT FILTER =====
         String productParam = "ALL";
-        if (StringUtils.hasText(request.getProductName())
+
+//  Highest priority → productId
+        if (request.getProductId() != null) {
+            Products product = productsRepository.findById(request.getProductId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid productId"));
+
+            productParam = product.getName();
+        }
+// Fallback → productName (old behavior)
+        else if (StringUtils.hasText(request.getProductName())
                 && !"ALL".equalsIgnoreCase(request.getProductName())) {
 
             productParam = Arrays.stream(request.getProductName().split(","))
@@ -89,6 +109,8 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                     .filter(s -> !s.isEmpty())
                     .collect(Collectors.joining(","));
         }
+
+
 
         List<MyTransactionReportResponse> allData = new ArrayList<>();
         long totalCount = 0;
@@ -142,6 +164,7 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
 
         // ===== REGISTER PARAMS (EXACTLY SP KE ORDER ME) =====
         query.registerStoredProcedureParameter("p_table_name", String.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_hierarchy_type", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_hierarchy_id", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_from_date", Date.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_to_date", Date.class, ParameterMode.IN);
@@ -167,6 +190,10 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         query.setParameter("p_table_name", walletType.name());
 // PREPAID or POSTPAID
 
+        query.setParameter(
+                "p_hierarchy_type",
+                StringUtils.hasText(request.getHierarchyType()) ? request.getHierarchyType() : null
+        );
 
 //        query.setParameter("p_hierarchy_id", null);
         query.setParameter(
@@ -249,7 +276,7 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             dto.setNarration((String) row[11]);
             dto.setHierarchyId((String) row[12]);
 
-            // wallet type JAVA se
+            // wallet type
             dto.setWalletType(walletType);
 
             results.add(dto);

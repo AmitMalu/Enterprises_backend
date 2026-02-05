@@ -5,18 +5,28 @@ import com.im.admin.dto.DashboardResponseDto;
 import com.im.admin.dto.WalletBalanceResponseDto;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
+import com.im.admin.request.DashboardTransactionRequest;
 import com.im.admin.response.*;
 import com.im.admin.service.DashboardService;
+import com.im.admin.service.MonthlyTransactionVolumeProjection;
+import com.im.admin.service.ProductAmountProjection;
 import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.util.StringUtils;
+
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -57,6 +67,19 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Autowired
     private BankDetailsRepository bankDetailsRepository;
+
+    @Autowired
+    private RetailerPrepaidTransactionDetailsRepository retailerPrepaidTransactionDetailsRepository;
+
+    @Autowired
+    private RetailerPrepaidAmountRepository retailerPrepaidAmountRepository;
+
+    @Autowired
+    private RetailerPostpaidAmountRepository retailerPostpaidAmountRepository;
+
+
+    @Autowired
+    private RetailerPostpaidTransactionDetailsRepository retailerPostpaidTransactionDetailsRepository;
 
     @Override
     public DashboardResponseDto getAdminDashboard() {
@@ -509,4 +532,388 @@ public class DashboardServiceImpl implements DashboardService {
         return response;
     }
 
+    @Override
+    public Map<String, Object> getDashboardTransactions(DashboardTransactionRequest request) {
+
+        LocalDate fromDate = StringUtils.hasText(request.getFromDate())
+                ? LocalDate.parse(request.getFromDate())
+                : null;
+
+        LocalDate toDate = StringUtils.hasText(request.getToDate())
+                ? LocalDate.parse(request.getToDate())
+                : null;
+
+
+
+        String type = commonMethods.extractHierarchyType(request.getHierarchyId());
+
+        switch (type) {
+
+            case "AD" -> {
+                adminRepository.findById(request.getHierarchyId())
+                        .orElseThrow(() -> new RuntimeException("Admin not found"));
+                return Map.of("profile", Map.of(), "tableData", List.of());
+            }
+
+            case "EN" -> {
+                enterprisesRepository.findByEnterpriseId(request.getHierarchyId())
+                        .orElseThrow(() -> new RuntimeException("Enterprise not found"));
+                return Map.of("profile", Map.of(), "tableData", List.of());
+            }
+
+            case "WL" -> {
+                whiteLabelRepository.findByWhiteLabelId(request.getHierarchyId())
+                        .orElseThrow(() -> new RuntimeException("WhiteLabel not found"));
+                return Map.of("profile", Map.of(), "tableData", List.of());
+            }
+
+            case "SD" -> {
+                superDistributorRepository.findBySuperDistributorId(request.getHierarchyId())
+                        .orElseThrow(() -> new RuntimeException("SuperDistributor not found"));
+                return Map.of("profile", Map.of(), "tableData", List.of());
+            }
+
+            case "PT" -> {
+                partnerRepository.findByPartnerId(request.getHierarchyId())
+                        .orElseThrow(() -> new RuntimeException("Partner not found"));
+                return Map.of("profile", Map.of(), "tableData", List.of());
+            }
+
+            case "DT" -> {
+                distributorRepository.findByDistributorId(request.getHierarchyId())
+                        .orElseThrow(() -> new RuntimeException("Distributor not found"));
+                return Map.of("profile", Map.of(), "tableData", List.of());
+            }
+
+            // ================= RETAILER DASHBOARD =================
+            case "RT" -> {
+
+                // ===== Parse retailer =====
+                Retailer retailer = retailerRepository.findByRetailerId(request.getHierarchyId())
+                        .orElseThrow(() -> new RuntimeException("Retailer not found"));
+
+                // ===== Last 5 transactions =====
+                List<DashboardTransactionDto> prepaid =
+                        retailerPrepaidTransactionDetailsRepository
+                                .fetchDashboardTransactions(request.getHierarchyId());
+
+                List<DashboardTransactionDto> postpaid =
+                        retailerPostpaidTransactionDetailsRepository
+                                .fetchDashboardTransactions(request.getHierarchyId());
+
+                List<DashboardTransactionDto> transactions =
+                        Stream.concat(prepaid.stream(), postpaid.stream())
+                                .sorted(
+                                        Comparator
+                                                .comparing(DashboardTransactionDto::getTransactionDate, Comparator.reverseOrder())
+                                                .thenComparing(DashboardTransactionDto::getTransactionTime, Comparator.reverseOrder())
+                                )
+                                .limit(5)
+                                .toList();
+
+                // ===== Table data mapping =====
+                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM-yy");
+                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("hh:mm a");
+
+                List<Map<String, String>> tableData = transactions.stream()
+                        .map(t -> {
+                            Map<String, String> map = new HashMap<>();
+
+                            map.put(
+                                    "dateTime",
+                                    (t.getTransactionDate() != null && t.getTransactionTime() != null)
+                                            ? t.getTransactionDate().format(dateFormatter) + " " +
+                                            t.getTransactionTime().format(timeFormatter)
+                                            : ""
+                            );
+
+                            map.put("wallet", t.getWalletType() != null ? t.getWalletType() : "");
+                            map.put("product", t.getProductName() != null ? t.getProductName() : "");
+                            map.put("status", t.getTranStatus() != null ? t.getTranStatus() : "");
+                            map.put("amount", t.getAmount() != null ? t.getAmount().toPlainString() : "0");
+
+                            return map;
+                        })
+                        .toList();
+
+
+                // ===== Wallet balances =====
+                RetailerPrepaidAmount prepaidAmount =
+                        retailerPrepaidAmountRepository
+                                .findByRetailerId_RetailerId(request.getHierarchyId())
+                                .orElse(null);
+
+                RetailerPostpaidAmount postpaidAmount =
+                        retailerPostpaidAmountRepository
+                                .findByRetailerId_RetailerId(request.getHierarchyId())
+                                .orElse(null);
+
+                Map<String, Object> profile = Map.of(
+                        "image", retailer.getShopImage() != null ? retailer.getShopImage() : "",
+                        "name", retailer.getOutletAddress().getOutletName(),
+                        "retailerId", retailer.getRetailerId(),
+                        "prepaid", prepaidAmount != null ? prepaidAmount.getAvailableBalance() : BigDecimal.ZERO,
+                        "postpaid", postpaidAmount != null ? postpaidAmount.getAvailableBalance() : BigDecimal.ZERO
+                );
+
+                // ===== TRANSACTION VOLUME (TXN% + SUCCESS + date range) =====
+                BigDecimal prepaidVolume =
+                        retailerPrepaidTransactionDetailsRepository
+                                .sumTransactionVolume(
+                                        request.getHierarchyId(),
+                                        fromDate,
+                                        toDate
+                                );
+
+                BigDecimal postpaidVolume =
+                        retailerPostpaidTransactionDetailsRepository
+                                .sumTransactionVolume(
+                                        request.getHierarchyId(),
+                                        fromDate,
+                                        toDate
+                                );
+
+                BigDecimal transactionVolume =
+                        prepaidVolume.add(postpaidVolume);
+
+                BigDecimal prepaidCommission =
+                        retailerPrepaidTransactionDetailsRepository
+                                .sumCommissionEarned(
+                                        request.getHierarchyId(),
+                                        fromDate,
+                                        toDate
+                                );
+
+                BigDecimal postpaidCommission =
+                        retailerPostpaidTransactionDetailsRepository
+                                .sumCommissionEarned(
+                                        request.getHierarchyId(),
+                                        fromDate,
+                                        toDate
+                                );
+
+                BigDecimal commissionEarned =
+                        prepaidCommission.add(postpaidCommission);
+
+                Long prepaidPending =
+                        retailerPrepaidTransactionDetailsRepository
+                                .countPendingTransactions(
+                                        request.getHierarchyId(),
+                                        fromDate,
+                                        toDate
+                                );
+
+                Long postpaidPending =
+                        retailerPostpaidTransactionDetailsRepository
+                                .countPendingTransactions(
+                                        request.getHierarchyId(),
+                                        fromDate,
+                                        toDate
+                                );
+
+                Long pendingTransactions =
+                        (prepaidPending != null ? prepaidPending : 0)
+                                + (postpaidPending != null ? postpaidPending : 0);
+
+
+                // ===== LAST 4 MONTHS FROM DATE =====
+                LocalDate fromDatee = LocalDate.now()
+                        .minusMonths(3)
+                        .withDayOfMonth(1);
+
+// ===== PREPAID DATA =====
+                List<MonthlyTransactionVolumeProjection> prepaidData =
+                        retailerPrepaidTransactionDetailsRepository
+                                .getLast4MonthsTransactionVolume(
+                                        request.getHierarchyId(),
+                                        fromDatee
+                                );
+
+// ===== POSTPAID DATA =====
+                List<MonthlyTransactionVolumeProjection> postpaidData =
+                        retailerPostpaidTransactionDetailsRepository
+                                .getLast4MonthsTransactionVolume(
+                                        request.getHierarchyId(),
+                                        fromDatee
+                                );
+
+// ===== MERGE MONTH WISE (PREPAID + POSTPAID) =====
+                Map<String, BigDecimal> monthVsAmount = new HashMap<>();
+
+                for (MonthlyTransactionVolumeProjection p : prepaidData) {
+                    monthVsAmount.merge(
+                            p.getMonth(),
+                            p.getValue(),
+                            BigDecimal::add
+                    );
+                }
+
+                for (MonthlyTransactionVolumeProjection p : postpaidData) {
+                    monthVsAmount.merge(
+                            p.getMonth(),
+                            p.getValue(),
+                            BigDecimal::add
+                    );
+                }
+
+// ===== BUILD GRAPH DATA (ENSURE 4 MONTHS, ZERO IF MISSING) =====
+                List<Map<String, Object>> graphData = new ArrayList<>();
+
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM");
+
+                for (int i = 3; i >= 0; i--) {
+                    LocalDate monthDate = LocalDate.now().minusMonths(i);
+                    String monthKey = monthDate.format(formatter);
+
+                    graphData.add(
+                            Map.of(
+                                    "month", monthKey,
+                                    "value", monthVsAmount.getOrDefault(monthKey, BigDecimal.ZERO)
+                            )
+                    );
+                }
+
+
+
+                List<Map<String, String>> cards = List.of(
+                        Map.of(
+                                "label", "TRANSACTION VOLUME",
+                                "value", transactionVolume.toPlainString()
+                        ),
+                        Map.of(
+                                "label", "COMMISSION EARNED",
+                                "value", commissionEarned.toPlainString()
+                        ),
+                        Map.of(
+                                "label", "PENDING TRANSACTION",
+                                "value", pendingTransactions.toString()
+                        )
+                );
+
+//                // ===== PREPAID =====
+//                List<ProductAmountProjection> prepaidData =
+//                        retailerPrepaidTransactionDetailsRepository
+//                                .getThisMonthProductWiseAmount(request.getHierarchyId());
+//
+//// ===== POSTPAID =====
+//                List<ProductAmountProjection> prepaidData =
+//                        retailerPostpaidTransactionDetailsRepository
+//                                .getThisMonthProductWiseAmount(request.getHierarchyId());
+//
+//// ===== MERGE PRODUCT WISE =====
+//                Map<String, BigDecimal> productVsAmount = new HashMap<>();
+//
+//                for (ProductAmountProjection p : prepaid) {
+//                    productVsAmount.merge(
+//                            p.getProductName(),
+//                            p.getAmount(),
+//                            BigDecimal::add
+//                    );
+//                }
+//
+//                for (ProductAmountProjection p : postpaid) {
+//                    productVsAmount.merge(
+//                            p.getProductName(),
+//                            p.getAmount(),
+//                            BigDecimal::add
+//                    );
+//                }
+//
+//// ===== TOTAL AMOUNT (100%) =====
+//                BigDecimal totalAmount = productVsAmount.values().stream()
+//                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+//
+//// ===== PIE DATA (PERCENTAGE) =====
+//                List<Map<String, Object>> servicePieData = new ArrayList<>();
+//
+//                for (Map.Entry<String, BigDecimal> entry : productVsAmount.entrySet()) {
+//
+//                    BigDecimal percentage = totalAmount.compareTo(BigDecimal.ZERO) > 0
+//                            ? entry.getValue()
+//                            .multiply(BigDecimal.valueOf(100))
+//                            .divide(totalAmount, 2, RoundingMode.HALF_UP)
+//                            : BigDecimal.ZERO;
+//
+//                    servicePieData.add(
+//                            Map.of(
+//                                    "name", entry.getKey(),
+//                                    "value", percentage
+//                            )
+//                    );
+//                }
+
+
+                // ===== PREPAID =====
+                List<ProductAmountProjection> prepaidProductData =
+                        retailerPrepaidTransactionDetailsRepository
+                                .getThisMonthProductWiseAmount(request.getHierarchyId());
+
+// ===== POSTPAID =====
+                List<ProductAmountProjection> postpaidProductData =
+                        retailerPostpaidTransactionDetailsRepository
+                                .getThisMonthProductWiseAmount(request.getHierarchyId());
+
+// ===== MERGE PRODUCT WISE =====
+                Map<String, BigDecimal> productVsAmount = new HashMap<>();
+
+                for (ProductAmountProjection p : prepaidProductData) {
+                    productVsAmount.merge(
+                            p.getProductName(),
+                            p.getAmount(),
+                            BigDecimal::add
+                    );
+                }
+
+                for (ProductAmountProjection p : postpaidProductData) {
+                    productVsAmount.merge(
+                            p.getProductName(),
+                            p.getAmount(),
+                            BigDecimal::add
+                    );
+                }
+
+// ===== TOTAL AMOUNT =====
+                BigDecimal totalAmount = productVsAmount.values().stream()
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+// ===== PIE DATA =====
+                List<Map<String, Object>> servicePieData = new ArrayList<>();
+
+                for (Map.Entry<String, BigDecimal> entry : productVsAmount.entrySet()) {
+
+                    BigDecimal percentage = totalAmount.compareTo(BigDecimal.ZERO) > 0
+                            ? entry.getValue()
+                            .multiply(BigDecimal.valueOf(100))
+                            .divide(totalAmount, 2, RoundingMode.HALF_UP)
+                            : BigDecimal.ZERO;
+
+                    servicePieData.add(
+                            Map.of(
+                                    "name", entry.getKey(),
+                                    "value", percentage
+                            )
+                    );
+                }
+
+
+
+
+
+                // ===== SINGLE RETURN =====
+                return Map.of(
+                        "profile", profile,
+                        "cards", cards,
+                        "tableData", tableData,
+                        "graphData", graphData,
+                        "servicePieData", servicePieData
+                );
+            }
+
+
+            default -> throw new RuntimeException("Unsupported hierarchy type: " + type);
+        }
+    }
+
 }
+
+

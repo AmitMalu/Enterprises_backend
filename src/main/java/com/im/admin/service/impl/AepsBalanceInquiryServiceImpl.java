@@ -253,6 +253,12 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
 
+            String txnId = buildTransactionId("TXN", baseTxnId);
+
+            if (response != null && response.getData() != null) {
+                response.getData().setTransactionId(txnId);
+            }
+
 
             // ===== FINAL RESPONSE =====
             if ("SUCCESS".equalsIgnoreCase(vendorStatus)) {
@@ -269,6 +275,12 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             return new CommonResponse<>(500, "Exception: " + e.getMessage(), null);
         }
+
+
+    }
+
+    public String buildTransactionId(String prefix, String baseId) {
+        return prefix + baseId;
     }
 
 

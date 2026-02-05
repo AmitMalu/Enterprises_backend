@@ -28,5 +28,6 @@ public class AepsBalanceInquiryResponse {
         private String responseCode;
         private String errorCode;
         private String errorMessage;
+        private String TransactionId;
     }
 }

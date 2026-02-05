@@ -70,7 +70,8 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
 
     @Override
     public String getVendorCode() {
-        return "Runpaisa Payout";
+//        return "Runpaisa";
+        return "v1";
     }
 
     @Override
@@ -267,39 +268,66 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
     }
 
 
-    public String generateTokenForPayout(VendorCredentials vendorCredentials) {
+    public String generateTokenForPayout(VendorCredentials vendorCredentials) throws JsonProcessingException {
 
-        // Set headers only
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("client_id", vendorCredentials.getClientId());
-        headers.set("client_secret", vendorCredentials.getClientSecret());
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = vendorCredentials.getVendor().getVendorCode();
 
-        HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
+        try {
+            // Set headers only
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("client_id", vendorCredentials.getClientId());
+            headers.set("client_secret", vendorCredentials.getClientSecret());
 
-        String url = vendorCredentials.getTokenUrlProd();
-        log.info("Sending token request to URL: {}", url);
+            HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
 
-        ResponseEntity<PayoutTokenResponseDTO> response = restTemplate.postForEntity(
-                url,
-                requestEntity,
-                PayoutTokenResponseDTO.class
-        );
+            requestJson = "Headers: client_id=" + vendorCredentials.getClientId();
 
-        PayoutTokenResponseDTO tokenResponse = response.getBody();
-        log.info("Bearer token response: {}", tokenResponse);
+            String url = vendorCredentials.getTokenUrlProd();
+            log.info("Sending token request to URL: {}", url);
 
-        if (tokenResponse != null && tokenResponse.getData() != null) {
-            return tokenResponse.getData().getToken();
-        } else {
-            throw new RuntimeException("Failed To Get Token From Payout Vendor");
+            ResponseEntity<PayoutTokenResponseDTO> response = restTemplate.postForEntity(
+                    url,
+                    requestEntity,
+                    PayoutTokenResponseDTO.class
+            );
+
+            responseJson = objectMapper.writeValueAsString(response.getBody());
+
+            PayoutTokenResponseDTO tokenResponse = response.getBody();
+            log.info("Bearer token response: {}", tokenResponse);
+
+            if (tokenResponse != null && tokenResponse.getData() != null) {
+                return tokenResponse.getData().getToken();
+            } else {
+                throw new RuntimeException("Failed To Get Token From Payout Vendor");
+            }
+
+        } finally {
+            //  ALWAYS save vendor logs (success + failure)
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
         }
     }
 
-    @Override
     public PayoutMerchantCallbackResponse registerCallbackUrl(VendorCredentials credentials, String callbackUrl) {
         log.info("[RUNPAISA] Registering callback URL for merchant={} | callback={}",
                 credentials.getVendor().getVendorName(), callbackUrl);
+
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = credentials.getVendor().getVendorCode();
 
         try {
             // Generate auth token
@@ -314,6 +342,8 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
             Map<String, Object> body = new HashMap<>();
             body.put("callback_url", callbackUrl);
 
+            requestJson = objectMapper.writeValueAsString(body);
+
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
             String url = credentials.getBaseUrlProd() + "/updatemerchantcallback";
@@ -326,23 +356,44 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
                     PayoutMerchantCallbackResponse.class
             );
 
+
+            responseJson = objectMapper.writeValueAsString(response.getBody());
+
             log.info("[RUNPAISA] Callback registered successfully. StatusCode={}, Response={}",
                     response.getStatusCode(), response.getBody());
 
             return response.getBody();
 
         } catch (HttpStatusCodeException e) {
-            log.error("[RUNPAISA] HTTP error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+
+            responseJson = e.getResponseBodyAsString();
+            log.error("[RUNPAISA] HTTP error: {} - {}", e.getStatusCode(), responseJson);
+
             PayoutMerchantCallbackResponse errorResponse = new PayoutMerchantCallbackResponse();
-            errorResponse.setCode("500");
-            errorResponse.setMessage("Vendor API Error: " + e.getResponseBodyAsString());
+            errorResponse.setCode(String.valueOf(e.getStatusCode().value()));
+            errorResponse.setMessage("Vendor API Error");
             return errorResponse;
+
         } catch (Exception e) {
+
+            responseJson = e.getMessage();
             log.error("[RUNPAISA] Exception while registering callback URL: {}", e.getMessage(), e);
+
             PayoutMerchantCallbackResponse errorResponse = new PayoutMerchantCallbackResponse();
             errorResponse.setCode("500");
             errorResponse.setMessage("Exception: " + e.getMessage());
             return errorResponse;
+
+        } finally {
+            //  ALWAYS EXECUTES
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
         }
     }
 
@@ -364,12 +415,14 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
 
             // Create a unified callback object
             RunPaisaCallback callback = new RunPaisaCallback();
-            callback.setOrderId(payoutCallback.getOrder_id());
+//            callback.setOrderId(payoutCallback.getOrder_id()); // for newpayout
+            callback.setOrderId(payoutCallback.getOrderid());  // old poayout current
             callback.setTxnAmount(payoutCallback.getTxn_amount());
             callback.setStatus(payoutCallback.getStatus());
             callback.setStatusCode(payoutCallback.getCode());
             callback.setTxnInfo(payoutCallback.getMessage());
-            callback.setBankTxnId(payoutCallback.getUtr_no());
+//            callback.setBankTxnId(payoutCallback.getUtr_no());
+            callback.setBankTxnId(payoutCallback.getUtrno());
 
             log.info("<------------------ Calling Process Callback Method ------------------>");
             processCallback(callback);
@@ -489,6 +542,12 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
 
     @Override
     public PayoutStatusResponse checkPayoutStatus(String orderId, VendorCredentials credentials) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = credentials.getVendor().getVendorCode();
+
         try {
             String token = generateTokenForPayout(credentials);
 
@@ -497,6 +556,8 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
             headers.set("token", token);
 
             Map<String, String> requestBody = Map.of("order_id", orderId);
+
+            requestJson = objectMapper.writeValueAsString(requestBody);
 
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
 
@@ -510,6 +571,8 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
                     Map.class
             );
 
+            responseJson = objectMapper.writeValueAsString(response.getBody());
+
             Map<String, Object> body = response.getBody();
             log.info("[RUNPAISA] Raw status response: {}", body);
 
@@ -520,9 +583,26 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
             );
 
         } catch (Exception e) {
-            log.error("[RUNPAISA] Error checking status for orderId={}: {}", orderId, e.getMessage());
-            return new PayoutStatusResponse(orderId, "FAILED", "Error during status check");
+
+            responseJson = e.getMessage();
+            log.error("[RUNPAISA] Error checking status for orderId={}: {}", orderId, e.getMessage(), e);
+
+            return new PayoutStatusResponse(
+                    orderId,
+                    "FAILED",
+                    "Error during status check"
+            );
+
+        } finally {
+            //  ALWAYS EXECUTES (success / failure / exception)
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
         }
     }
-
 }
