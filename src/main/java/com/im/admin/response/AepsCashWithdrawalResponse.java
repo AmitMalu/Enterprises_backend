@@ -21,5 +21,6 @@ public class AepsCashWithdrawalResponse {
             private Double transactionAmount;
             private Double balanceAmount;
             private String terminalId;
+            private String TransactionId;
         }
 }

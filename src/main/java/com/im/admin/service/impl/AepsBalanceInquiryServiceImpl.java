@@ -450,6 +450,12 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
 
+            String txnId = buildTransactionId("TXN", baseTxnId);
+
+            if (response != null && response.getData() != null) {
+                response.getData().setTransactionId(txnId);
+            }
+
 
             // ===== FINAL RESPONSE =====
             if ("SUCCESS".equalsIgnoreCase(vendorStatus)) {

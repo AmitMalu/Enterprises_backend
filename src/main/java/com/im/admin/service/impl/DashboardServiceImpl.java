@@ -31,6 +31,10 @@ import java.util.stream.Stream;
 @Service
 @Slf4j
 public class DashboardServiceImpl implements DashboardService {
+    @Autowired
+    private SuperDistributorPostpaidAmountRepository superDistributorPostpaidAmountRepository;
+    @Autowired
+    private SuperDistributorPrepaidAmountRepository superDistributorPrepaidAmountRepository;
 
     @Autowired
     private DashboardQueryRepository dashboardQueryRepository;
@@ -568,9 +572,76 @@ public class DashboardServiceImpl implements DashboardService {
             }
 
             case "SD" -> {
-                superDistributorRepository.findBySuperDistributorId(request.getHierarchyId())
+                SuperDistributor superdistributor  = superDistributorRepository.findBySuperDistributorId(request.getHierarchyId())
                         .orElseThrow(() -> new RuntimeException("SuperDistributor not found"));
-                return Map.of("profile", Map.of(), "tableData", List.of());
+
+                // ===== Wallet balances =====
+                SuperDistributorPrepaidAmount superDistributorPrepaidAmount = superDistributorPrepaidAmountRepository
+                        .findBySuperDistributorId_SuperDistributorId(request.getHierarchyId())
+                        .orElse(null);
+
+                SuperDistributorPostpaidAmount superDistributorPostpaidAmount = superDistributorPostpaidAmountRepository
+                        .findBySuperDistributorId_SuperDistributorId(request.getHierarchyId())
+                        .orElse(null);
+
+
+                Map<String, Object> profile = Map.of(
+                        "image", superdistributor.getShopImage() != null ? superdistributor.getShopImage() : "",
+                        "name", superdistributor.getOutletAddress().getOutletName(),
+                        "retailerId", superdistributor.getSuperDistributorId(),
+                        "prepaid", superDistributorPrepaidAmount != null ? superDistributorPostpaidAmount.getAvailableBalance() : BigDecimal.ZERO,
+                        "postpaid", superDistributorPostpaidAmount != null ? superDistributorPostpaidAmount.getAvailableBalance() : BigDecimal.ZERO
+                );
+
+                // ===== CARDS Transaction Volume
+                BigDecimal txnVolume =
+                                getSdTransactionVolume(
+                                request.getHierarchyId(),
+                                fromDate,
+                                toDate
+                        );
+
+                //2 cards pending txn
+                Long pendingTxnCount =
+                        getSdPendingTransactionCount(
+                                request.getHierarchyId(),
+                                fromDate,
+                                toDate
+                        );
+
+                //3 cards Retailers count
+                Long retailerCount =
+                        getSdRetailerCount(request.getHierarchyId());
+
+                //garph data
+
+                List<Map<String, Object>> graphData =
+                        getSdLast4MonthsGraphData(request.getHierarchyId());
+
+
+                List<Map<String, Object>> cards = List.of(
+                        Map.of(
+                                "label", "TRANSACTION VOLUME",
+                                "value", txnVolume
+                        ),
+                        Map.of(
+                                "label", "PENDING TRANSACTION",
+                                "value", pendingTxnCount
+                        ),
+                        Map.of(
+                                "label", "RETAILERS CREATED",
+                                "value", retailerCount
+                        )
+
+                );
+
+                return Map.of(
+                        "profile", profile,
+                        "cards", cards,
+                        "graphData", graphData
+                );
+
+
             }
 
             case "PT" -> {
@@ -913,6 +984,158 @@ public class DashboardServiceImpl implements DashboardService {
             default -> throw new RuntimeException("Unsupported hierarchy type: " + type);
         }
     }
+
+    public BigDecimal getSdTransactionVolume(
+            String sdId,
+            LocalDate fromDate,
+            LocalDate toDate
+    ) {
+
+        // SD -> Partner
+        List<String> partnerIds =
+                partnerRepository.findPartnerIdsBySd(sdId);
+        if (partnerIds.isEmpty()) return BigDecimal.ZERO;
+
+        // Partner -> Distributor
+        List<String> distributorIds =
+                distributorRepository.findDistributorIdsByPartners(partnerIds);
+        if (distributorIds.isEmpty()) return BigDecimal.ZERO;
+
+        // Distributor -> Retailer
+        List<String> retailerIds =
+                retailerRepository.findRetailerIdsByDistributors(distributorIds);
+        if (retailerIds.isEmpty()) return BigDecimal.ZERO;
+
+        BigDecimal prepaid =
+                retailerPrepaidTransactionDetailsRepository.sumTransactionVolumeForRetailers(
+                        retailerIds, fromDate, toDate);
+
+        BigDecimal postpaid =
+                retailerPostpaidTransactionDetailsRepository.sumTransactionVolumeForRetailers(
+                        retailerIds, fromDate, toDate);
+
+        return prepaid.add(postpaid);
+    }
+
+    public Long getSdPendingTransactionCount(
+            String sdId,
+            LocalDate fromDate,
+            LocalDate toDate
+    ) {
+
+        // SD -> Partner
+        List<String> partnerIds =
+                partnerRepository.findPartnerIdsBySd(sdId);
+        if (partnerIds.isEmpty()) return 0L;
+
+        // Partner -> Distributor
+        List<String> distributorIds =
+                distributorRepository.findDistributorIdsByPartners(partnerIds);
+        if (distributorIds.isEmpty()) return 0L;
+
+        // Distributor -> Retailer
+        List<String> retailerIds =
+                retailerRepository.findRetailerIdsByDistributors(distributorIds);
+        if (retailerIds.isEmpty()) return 0L;
+
+        Long prepaidPending =
+                retailerPrepaidTransactionDetailsRepository
+                        .countPendingTransactionsForRetailers(
+                                retailerIds, fromDate, toDate);
+
+        Long postpaidPending =
+                retailerPostpaidTransactionDetailsRepository
+                        .countPendingTransactionsForRetailers(
+                                retailerIds, fromDate, toDate);
+
+        return prepaidPending + postpaidPending;
+    }
+
+
+    public Long getSdRetailerCount(String sdId) {
+
+        // SD -> Partner
+        List<String> partnerIds =
+                partnerRepository.findPartnerIdsBySd(sdId);
+        if (partnerIds.isEmpty()) return 0L;
+
+        // Partner -> Distributor
+        List<String> distributorIds =
+                distributorRepository.findDistributorIdsByPartners(partnerIds);
+        if (distributorIds.isEmpty()) return 0L;
+
+        // Distributor -> Retailer (COUNT)
+        return retailerRepository.countRetailersByDistributors(distributorIds);
+    }
+
+
+    public List<Map<String, Object>> getSdLast4MonthsGraphData(String sdId) {
+
+        // ===== LAST 4 MONTHS FROM DATE =====
+        LocalDate fromDate = LocalDate.now()
+                .minusMonths(3)
+                .withDayOfMonth(1);
+
+        // SD -> Partner
+        List<String> partnerIds =
+                partnerRepository.findPartnerIdsBySd(sdId);
+        if (partnerIds.isEmpty()) return List.of();
+
+        // Partner -> Distributor
+        List<String> distributorIds =
+                distributorRepository.findDistributorIdsByPartners(partnerIds);
+        if (distributorIds.isEmpty()) return List.of();
+
+        // Distributor -> Retailer
+        List<String> retailerIds =
+                retailerRepository.findRetailerIdsByDistributors(distributorIds);
+        if (retailerIds.isEmpty()) return List.of();
+
+        // ===== PREPAID =====
+        List<MonthlyTransactionVolumeProjection> prepaidData =
+                retailerPrepaidTransactionDetailsRepository
+                        .getLast4MonthsTransactionVolumeForRetailers(
+                                retailerIds, fromDate
+                        );
+
+        // ===== POSTPAID =====
+        List<MonthlyTransactionVolumeProjection> postpaidData =
+                retailerPostpaidTransactionDetailsRepository
+                        .getLast4MonthsTransactionVolumeForRetailers(
+                                retailerIds, fromDate
+                        );
+
+        // ===== MERGE MONTH WISE =====
+        Map<String, BigDecimal> monthVsAmount = new HashMap<>();
+
+        for (MonthlyTransactionVolumeProjection p : prepaidData) {
+            monthVsAmount.merge(p.getMonth(), p.getValue(), BigDecimal::add);
+        }
+
+        for (MonthlyTransactionVolumeProjection p : postpaidData) {
+            monthVsAmount.merge(p.getMonth(), p.getValue(), BigDecimal::add);
+        }
+
+        // ===== BUILD GRAPH DATA (ALWAYS 4 MONTHS) =====
+        List<Map<String, Object>> graphData = new ArrayList<>();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM");
+
+        for (int i = 3; i >= 0; i--) {
+            LocalDate monthDate = LocalDate.now().minusMonths(i);
+            String monthKey = monthDate.format(formatter);
+
+            graphData.add(
+                    Map.of(
+                            "month", monthKey,
+                            "value", monthVsAmount.getOrDefault(monthKey, BigDecimal.ZERO)
+                    )
+            );
+        }
+
+        return graphData;
+    }
+
+
 
 }
 

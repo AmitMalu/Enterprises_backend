@@ -15,6 +15,8 @@ import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.Aeps2FaRequest;
 import com.im.admin.request.AepsTwoFaStatusDto;
 import com.im.admin.response.Aeps2FaResponseDto;
+
+import java.time.LocalDate;
 import java.time.ZoneId;
 
 import com.im.admin.response.CommonResponse;
@@ -29,6 +31,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.Optional;
 
 @Slf4j
@@ -321,20 +326,49 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
             return ResponseEntity.ok(response);
         }
 
-        // 🔹 CASE 4 → 2FA expired
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
-        LocalDateTime expiryTime = logData.getCreatedAt().plusHours(24);
+//        // CASE 4 → 2FA expired
+//        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+//        LocalDateTime expiryTime = logData.getCreatedAt().plusHours(24);
+//
+//        if (now.isAfter(expiryTime)) {
+//            response.setStatusCode(200);
+//            response.setMessage("2FA expired. Please do 2FA again.");
+//
+//            data.setTwoFaStatus(4);
+//            data.setTwoFaData(logData);
+//
+//            response.setData(data);
+//            return ResponseEntity.ok(response);
+//        }
 
-        if (now.isAfter(expiryTime)) {
+        // CASE 4 → 2FA expired (DATE BASED)
+            // today's date (India timezone)
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+
+        DateTimeFormatter formatter =
+                DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss z yyyy", Locale.ENGLISH);
+
+        ZonedDateTime txnZdt =
+                ZonedDateTime.parse(logData.getTransactionTimestamp(), formatter);
+
+        LocalDate txnDate = txnZdt
+                .withZoneSameInstant(ZoneId.of("Asia/Kolkata"))
+                .toLocalDate();
+
+
+// if date does NOT match → expired
+        if (!txnDate.isEqual(today)) {
+
             response.setStatusCode(200);
             response.setMessage("2FA expired. Please do 2FA again.");
 
-            data.setTwoFaStatus(4);
+            data.setTwoFaStatus(4); // expired
             data.setTwoFaData(logData);
 
             response.setData(data);
             return ResponseEntity.ok(response);
         }
+
 
         // 🔹 CASE 5 → 2FA valid
         response.setStatusCode(200);

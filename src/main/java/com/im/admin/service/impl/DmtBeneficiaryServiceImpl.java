@@ -300,132 +300,306 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
         }
     }
 
+//    @Override
+//    public CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>> fetchBeneficiary(DmtBeneficiaryFetchRequest req, int page, int size) {
+//
+//        LocalDateTime requestTime = LocalDateTime.now();
+//        String requestJson = null;
+//        String responseJson = null;
+//        String vendorId = null;
+//
+//        try {
+//
+//            Optional<DmtRemitter> optionalRemitter = remitterRepository.findByMobile(req.getMobile());
+//
+//            if (optionalRemitter.isEmpty()) {
+//                return CommonResponse.handleErrors("Remitter not found");
+//            }
+//
+//            DmtRemitter remitter = optionalRemitter.get();
+//            // STEP 2 → Fetch Local Beneficiaries
+//            // ==============================
+//            List<DmtBeneficiary> localList = beneficiaryRepository.findByRemitter(remitter);
+//
+//            if (!localList.isEmpty()) {
+//
+//                // Convert Entity → DTO
+//                List<DmtBeneficiaryFetchResponse.BeneficiaryData> dtoList =
+//                        localList.stream().map(this::convertToDto).toList();
+//
+//
+//
+//                // Apply pagination using PageImpl
+//                int start = (int) PageRequest.of(page, size).getOffset();
+//                int end = Math.min(start + size, dtoList.size());
+//                List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedData = dtoList.subList(start, end);
+//
+//                Page<DmtBeneficiaryFetchResponse.BeneficiaryData> pageResponse =
+//                        new PageImpl<>(pagedData, PageRequest.of(page, size), dtoList.size());
+//
+//                return CommonResponse.success(pageResponse, "Beneficiaries fetched");
+//            }
+//            // ====== STEP 1: Load Vendor Credentials Dynamically ======
+//            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+//            Vendors vendor = CommonMethods.getVendors(vendorRouting);
+//
+//
+//            vendorId = vendor.getId();
+//
+//            VendorCredentials credentials = vendorCredentialsRepository
+//                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+//                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+//
+//            String token = generateJwtToken();
+//            // ====== STEP 2: Prepare Request ======
+//            Map<String, Object> reqBody = Map.of("mobile", req.getMobile());
+//            HttpHeaders headers = getHeaders(credentials,token);
+//            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(reqBody, headers);
+//
+//            // ====== STEP 3: Call Vendor API ======
+//            ResponseEntity<DmtBeneficiaryFetchResponse> response = restTemplate.exchange(
+//                    //uat
+////                    credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiary",
+//                    //live
+//                    credentials.getBaseUrlProd() + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiary",
+//                    HttpMethod.POST,
+//                    entity,
+//                    DmtBeneficiaryFetchResponse.class
+//            );
+//
+//            DmtBeneficiaryFetchResponse resp = response.getBody();
+//
+//            responseJson = objectMapper.writeValueAsString(resp);
+//
+//            //  SUCCESS VENDOR LOG
+//            commonFunctions.saveVendorLogs(
+//                    requestTime,
+//                    requestJson,
+//                    vendorId,
+//                    LocalDateTime.now(),
+//                    responseJson,
+//                    null
+//            );
+//
+//
+//            if (resp == null) {
+//                return CommonResponse.handleErrors("No response from vendor");
+//            }
+//
+//            // ====== STEP 4: Handle Response & Apply Pagination ======
+//            if (resp.getResponse_code() == 1 && resp.getData() != null) {
+//
+//                List<DmtBeneficiaryFetchResponse.BeneficiaryData> beneficiaries = resp.getData();
+//
+//                // Apply manual pagination (since data is fetched externally)
+//                int start = (int) PageRequest.of(page, size).getOffset();
+//                int end = Math.min(start + size, beneficiaries.size());
+//                List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedList = beneficiaries.subList(start, end);
+//
+//                Page<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedResponse =
+//                        new PageImpl<>(pagedList, PageRequest.of(page, size), beneficiaries.size());
+//
+//                return CommonResponse.success(pagedResponse, "Beneficiaries fetched successfully");
+//            } else {
+//                return CommonResponse.handleErrors(resp.getMessage());
+//            }
+//
+//
+//        } catch (Exception ex) {
+//
+//            //  FAILURE VENDOR LOG (only if vendor was involved)
+//            commonFunctions.saveVendorLogs(
+//                    requestTime,
+//                    requestJson,
+//                    vendorId,
+//                    LocalDateTime.now(),
+//                    null,
+//                    ex.getMessage()
+//            );
+//
+//            log.error(
+//                    "[FETCH BENEFICIARY] Exception | mobile={}",
+//                    req.getMobile(),
+//                    ex
+//            );
+//
+//            return CommonResponse.handleErrors(
+//                    "Error fetching beneficiary list: " + ex.getMessage()
+//            );
+//        }
+//    }
     @Override
-    public CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>> fetchBeneficiary(DmtBeneficiaryFetchRequest req, int page, int size) {
+     public CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>> fetchBeneficiary(
+        DmtBeneficiaryFetchRequest req, int page, int size) {
 
-        LocalDateTime requestTime = LocalDateTime.now();
-        String requestJson = null;
-        String responseJson = null;
-        String vendorId = null;
+    LocalDateTime requestTime = LocalDateTime.now();
+    String requestJson = null;
+    String responseJson = null;
+    String vendorId = null;
 
-        try {
+    try {
 
-            Optional<DmtRemitter> optionalRemitter = remitterRepository.findByMobile(req.getMobile());
+        Optional<DmtRemitter> optionalRemitter = remitterRepository.findByMobile(req.getMobile());
 
-            if (optionalRemitter.isEmpty()) {
-                return CommonResponse.handleErrors("Remitter not found");
-            }
-
-            DmtRemitter remitter = optionalRemitter.get();
-            // STEP 2 → Fetch Local Beneficiaries
-            // ==============================
-            List<DmtBeneficiary> localList = beneficiaryRepository.findByRemitter(remitter);
-
-            if (!localList.isEmpty()) {
-
-                // Convert Entity → DTO
-                List<DmtBeneficiaryFetchResponse.BeneficiaryData> dtoList =
-                        localList.stream().map(this::convertToDto).toList();
-
-                // Apply pagination using PageImpl
-                int start = (int) PageRequest.of(page, size).getOffset();
-                int end = Math.min(start + size, dtoList.size());
-                List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedData = dtoList.subList(start, end);
-
-                Page<DmtBeneficiaryFetchResponse.BeneficiaryData> pageResponse =
-                        new PageImpl<>(pagedData, PageRequest.of(page, size), dtoList.size());
-
-                return CommonResponse.success(pageResponse, "Beneficiaries fetched");
-            }
-            // ====== STEP 1: Load Vendor Credentials Dynamically ======
-            VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
-            Vendors vendor = CommonMethods.getVendors(vendorRouting);
-
-
-            vendorId = vendor.getId();
-
-            VendorCredentials credentials = vendorCredentialsRepository
-                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
-
-            String token = generateJwtToken();
-            // ====== STEP 2: Prepare Request ======
-            Map<String, Object> reqBody = Map.of("mobile", req.getMobile());
-            HttpHeaders headers = getHeaders(credentials,token);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(reqBody, headers);
-
-            // ====== STEP 3: Call Vendor API ======
-            ResponseEntity<DmtBeneficiaryFetchResponse> response = restTemplate.exchange(
-                    //uat
-//                    credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiary",
-                    //live
-                    credentials.getBaseUrlProd() + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiary",
-                    HttpMethod.POST,
-                    entity,
-                    DmtBeneficiaryFetchResponse.class
-            );
-
-            DmtBeneficiaryFetchResponse resp = response.getBody();
-
-            responseJson = objectMapper.writeValueAsString(resp);
-
-            //  SUCCESS VENDOR LOG
-            commonFunctions.saveVendorLogs(
-                    requestTime,
-                    requestJson,
-                    vendorId,
-                    LocalDateTime.now(),
-                    responseJson,
-                    null
-            );
-
-
-            if (resp == null) {
-                return CommonResponse.handleErrors("No response from vendor");
-            }
-
-            // ====== STEP 4: Handle Response & Apply Pagination ======
-            if (resp.getResponse_code() == 1 && resp.getData() != null) {
-
-                List<DmtBeneficiaryFetchResponse.BeneficiaryData> beneficiaries = resp.getData();
-
-                // Apply manual pagination (since data is fetched externally)
-                int start = (int) PageRequest.of(page, size).getOffset();
-                int end = Math.min(start + size, beneficiaries.size());
-                List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedList = beneficiaries.subList(start, end);
-
-                Page<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedResponse =
-                        new PageImpl<>(pagedList, PageRequest.of(page, size), beneficiaries.size());
-
-                return CommonResponse.success(pagedResponse, "Beneficiaries fetched successfully");
-            } else {
-                return CommonResponse.handleErrors(resp.getMessage());
-            }
-
-
-        } catch (Exception ex) {
-
-            //  FAILURE VENDOR LOG (only if vendor was involved)
-            commonFunctions.saveVendorLogs(
-                    requestTime,
-                    requestJson,
-                    vendorId,
-                    LocalDateTime.now(),
-                    null,
-                    ex.getMessage()
-            );
-
-            log.error(
-                    "[FETCH BENEFICIARY] Exception | mobile={}",
-                    req.getMobile(),
-                    ex
-            );
-
-            return CommonResponse.handleErrors(
-                    "Error fetching beneficiary list: " + ex.getMessage()
-            );
+        if (optionalRemitter.isEmpty()) {
+            return CommonResponse.handleErrors("Remitter not found");
         }
+
+        DmtRemitter remitter = optionalRemitter.get();
+
+        // ==============================
+        // STEP 2 → Fetch Local Beneficiaries
+        // ==============================
+//        List<DmtBeneficiary> localList = beneficiaryRepository.findByRemitter(remitter);
+
+        List<DmtBeneficiary> localList =
+                beneficiaryRepository.findByRemitterOrderByIdDesc(remitter);
+
+
+        if (!localList.isEmpty()) {
+
+            // Convert Entity → DTO
+            List<DmtBeneficiaryFetchResponse.BeneficiaryData> dtoList =
+                    localList.stream().map(this::convertToDto).toList();
+
+            // 🔹 APPLY FILTERS (NEW)
+            List<DmtBeneficiaryFetchResponse.BeneficiaryData> filteredList =
+                    applyFilters(dtoList, req);
+
+            // Apply pagination
+            int start = (int) PageRequest.of(page, size).getOffset();
+            int end = Math.min(start + size, filteredList.size());
+
+            List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedData =
+                    filteredList.subList(start, end);
+
+            Page<DmtBeneficiaryFetchResponse.BeneficiaryData> pageResponse =
+                    new PageImpl<>(pagedData, PageRequest.of(page, size), filteredList.size());
+
+            return CommonResponse.success(pageResponse, "Beneficiaries fetched");
+        }
+
+        // ====== STEP 1: Load Vendor Credentials Dynamically ======
+        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+        Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+        vendorId = vendor.getId();
+
+        VendorCredentials credentials = vendorCredentialsRepository
+                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+        String token = generateJwtToken();
+
+        // ====== STEP 2: Prepare Request ======
+        Map<String, Object> reqBody = Map.of("mobile", req.getMobile());
+        HttpHeaders headers = getHeaders(credentials, token);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(reqBody, headers);
+
+        // ====== STEP 3: Call Vendor API ======
+        ResponseEntity<DmtBeneficiaryFetchResponse> response = restTemplate.exchange(
+                credentials.getBaseUrlProd()
+                        + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiary",
+                HttpMethod.POST,
+                entity,
+                DmtBeneficiaryFetchResponse.class
+        );
+
+        DmtBeneficiaryFetchResponse resp = response.getBody();
+        responseJson = objectMapper.writeValueAsString(resp);
+
+        // SUCCESS VENDOR LOG
+        commonFunctions.saveVendorLogs(
+                requestTime,
+                requestJson,
+                vendorId,
+                LocalDateTime.now(),
+                responseJson,
+                null
+        );
+
+        if (resp == null) {
+            return CommonResponse.handleErrors("No response from vendor");
+        }
+
+        // ====== STEP 4: Handle Response & Apply Pagination ======
+        if (resp.getResponse_code() == 1 && resp.getData() != null) {
+
+            List<DmtBeneficiaryFetchResponse.BeneficiaryData> beneficiaries = resp.getData();
+
+            // 🔹 APPLY FILTERS (NEW)
+            List<DmtBeneficiaryFetchResponse.BeneficiaryData> filteredList =
+                    applyFilters(beneficiaries, req);
+
+            int start = (int) PageRequest.of(page, size).getOffset();
+            int end = Math.min(start + size, filteredList.size());
+
+            List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedList =
+                    filteredList.subList(start, end);
+
+            Page<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedResponse =
+                    new PageImpl<>(pagedList, PageRequest.of(page, size), filteredList.size());
+
+            return CommonResponse.success(pagedResponse, "Beneficiaries fetched successfully");
+        } else {
+            return CommonResponse.handleErrors(resp.getMessage());
+        }
+
+    } catch (Exception ex) {
+
+        commonFunctions.saveVendorLogs(
+                requestTime,
+                requestJson,
+                vendorId,
+                LocalDateTime.now(),
+                null,
+                ex.getMessage()
+        );
+
+        log.error("[FETCH BENEFICIARY] Exception | mobile={}", req.getMobile(), ex);
+
+        return CommonResponse.handleErrors(
+                "Error fetching beneficiary list: " + ex.getMessage()
+        );
     }
+}
+
+
+    private List<DmtBeneficiaryFetchResponse.BeneficiaryData> applyFilters(
+            List<DmtBeneficiaryFetchResponse.BeneficiaryData> list,
+            DmtBeneficiaryFetchRequest req) {
+
+        return list.stream()
+                .filter(b -> req.getBeneId() == null
+                        || b.getBene_id().equals(req.getBeneId()))
+
+                .filter(b -> req.getBankid() == null
+                        || b.getBankid().equals(req.getBankid()))
+
+                .filter(b -> req.getBankname() == null
+                        || b.getBankname().toLowerCase()
+                        .contains(req.getBankname().toLowerCase()))
+
+                .filter(b -> req.getName() == null
+                        || b.getName().toLowerCase()
+                        .contains(req.getName().toLowerCase()))
+
+                .filter(b -> req.getAccno() == null
+                        || b.getAccno().equals(req.getAccno()))
+
+                .filter(b -> req.getIfsc() == null
+                        || b.getIfsc().equalsIgnoreCase(req.getIfsc()))
+
+                .filter(b -> req.getVerified() == null
+                        || b.getVerified().equals(req.getVerified()))
+
+                .filter(b -> req.getPaytm() == null
+                        || b.isPaytm() == req.getPaytm())
+
+                .toList();
+    }
+
+
 
 
     @Override

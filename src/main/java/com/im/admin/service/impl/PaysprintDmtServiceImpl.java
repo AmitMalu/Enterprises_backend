@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.Jwts;
@@ -122,6 +123,7 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
     @Override
     public PaysprintSendOtpResponse sendOtp(SendDmtRequest req, VendorCredentials credentials) throws JsonProcessingException {
         LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
         try {
             //uat
 //            String sendOtpUrl = credentials.getBaseUrlUat() +
@@ -151,7 +153,7 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
             body.put("referenceid", req.getReferenceId());
 
             // Store request JSON (optional, for logs)
-            String requestJson = objectMapper.writeValueAsString(body);
+             requestJson = objectMapper.writeValueAsString(body);
 
             HttpEntity<Map<String, String>> requestEntity =
                     new HttpEntity<>(body, getHeaders(credentials,token));
@@ -179,19 +181,34 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
 
             return response.getBody();
 
-        } catch (Exception e) {
+        }
+        catch (HttpStatusCodeException e) {
 
-            //  FAILURE LOG
+            String vendorErrorBody = e.getResponseBodyAsString();
+
             commonFunctions.saveVendorLogs(
                     requestTime,
-                    null,
+                    requestJson,
+                    credentials.getVendor().getId(),
+                    LocalDateTime.now(),
+                    vendorErrorBody,
+                    null
+            );
+
+            throw new RuntimeException(vendorErrorBody);
+        }
+        catch (Exception e) {
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
                     credentials.getVendor().getId(),
                     LocalDateTime.now(),
                     null,
                     e.getMessage()
             );
 
-            throw e; // IMPORTANT: exception upar propagate hone do
+            throw e;
         }
     }
 
@@ -232,7 +249,6 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
 
 
              requestJson = objectMapper.writeValueAsString(body);
-
 
             HttpEntity<Map<String, Object>> txnEntity = new HttpEntity<>(body, headers);
 

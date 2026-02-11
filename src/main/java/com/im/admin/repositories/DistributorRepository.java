@@ -34,5 +34,14 @@ public interface DistributorRepository extends JpaRepository<Distributor, String
 
     Distributor findByMobileNumber(String mobileNumber);
 
+    @Query("""
+        SELECT d.distributorId
+        FROM Distributor d
+        WHERE d.parentAccount IN :partnerIds
+    """)
+    List<String> findDistributorIdsByPartners(
+            @Param("partnerIds") List<String> partnerIds
+    );
+
 }
 
