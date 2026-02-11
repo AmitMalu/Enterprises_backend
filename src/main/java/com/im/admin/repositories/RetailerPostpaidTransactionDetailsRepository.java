@@ -247,6 +247,52 @@ WHERE (:id IS NULL OR r.id = :id)
     );
 
 
+    @Query("""
+    SELECT COALESCE(SUM(t.amount), 0)
+    FROM RetailerPostpaidTransactionDetails t
+    WHERE t.retailerId IN :retailerIds
+      AND t.tranStatus = 'SUCCESS'
+      AND t.transactionId LIKE 'TXN%'
+      AND t.dateOfTransaction BETWEEN :fromDate AND :toDate
+""")
+    BigDecimal sumTransactionVolumeForRetailers(
+            @Param("retailerIds") List<String> retailerIds,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+
+    @Query("""
+    SELECT COUNT(t)
+    FROM RetailerPostpaidTransactionDetails t
+    WHERE t.retailerId IN :retailerIds
+      AND t.tranStatus = 'PENDING'
+      AND (:fromDate IS NULL OR t.dateOfTransaction >= :fromDate)
+      AND (:toDate IS NULL OR t.dateOfTransaction <= :toDate)
+""")
+    Long countPendingTransactionsForRetailers(
+            @Param("retailerIds") List<String> retailerIds,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    @Query("""
+    SELECT 
+        FUNCTION('DATE_FORMAT', t.dateOfTransaction, '%Y-%m') AS month,
+        COALESCE(SUM(t.amount), 0) AS value
+    FROM RetailerPostpaidTransactionDetails t
+    WHERE t.retailerId IN :retailerIds
+      AND t.tranStatus = 'SUCCESS'
+      AND t.transactionId LIKE 'TXN%'
+      AND t.dateOfTransaction >= :fromDate
+    GROUP BY FUNCTION('DATE_FORMAT', t.dateOfTransaction, '%Y-%m')
+    ORDER BY month
+""")
+    List<MonthlyTransactionVolumeProjection> getLast4MonthsTransactionVolumeForRetailers(
+            @Param("retailerIds") List<String> retailerIds,
+            @Param("fromDate") LocalDate fromDate
+    );
+
 
 
 

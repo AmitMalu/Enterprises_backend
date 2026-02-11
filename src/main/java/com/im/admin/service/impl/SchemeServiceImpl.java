@@ -176,6 +176,7 @@ public class SchemeServiceImpl implements SchemeService {
         scheme.setSchemeCombinationHashCode(newCombinationHashCode);
         scheme.setEditedBy("Admin");
         scheme.setEditedOn(LocalDateTime.now());
+        scheme.setIsActive(schemeDTO.getIsActive());
 
         schemeRepository.save(scheme);
 
@@ -321,7 +322,8 @@ public class SchemeServiceImpl implements SchemeService {
                             scheme.getCreatedOn(),
                             scheme.getCreatedBy(),
                             scheme.getEditedOn(),
-                            scheme.getEditedBy()
+                            scheme.getEditedBy(),
+                            scheme.getIsActive()
                     );
                 })
                 .filter(s -> (productName == null || productName.isEmpty() || s.getProductName().toLowerCase().contains(productName.toLowerCase())))
@@ -389,7 +391,8 @@ public class SchemeServiceImpl implements SchemeService {
                 scheme.getCreatedOn(),
                 scheme.getCreatedBy(),
                 scheme.getEditedOn(),
-                scheme.getEditedBy()
+                scheme.getEditedBy(),
+                scheme.getIsActive()
         );
     }
 

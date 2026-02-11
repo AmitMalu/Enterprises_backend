@@ -13,6 +13,7 @@ import com.im.admin.repositories.RemitterRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.DmtOtpRequest;
+import com.im.admin.request.VendorRemitterEkycRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.DmtRemitterResponseDto;
 import com.im.admin.service.RemitterService;
@@ -29,6 +30,7 @@ import com.im.admin.entities.vendor.Vendors;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -180,86 +182,103 @@ public class RemitterServiceImpl implements RemitterService {
         String vendorId = null;
 
         try {
-        // STEP 1: Vendor Routing
-        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(request.getSubProductId());
-        Vendors vendor = CommonMethods.getVendors(vendorRouting);
+            // STEP 1: Vendor Routing
+            VendorRouting vendorRouting =
+                    vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
-        vendorId = vendor.getId();
+            vendorId = vendor.getId();
 
-        VendorCredentials credentials = vendorCredentialsRepository
-                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                .orElseThrow(() -> new RuntimeException("No credentials found"));
-
-        // ===== STEP 2: Prepare request JSON for logs =====
-        requestJson = objectMapper.writeValueAsString(request);
+            VendorCredentials credentials = vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("No credentials found"));
 
             String token = generateJwtToken();
 
-        // STEP 2: Vendor API call
-        HttpHeaders headers = getHeaders(credentials,token);
-        HttpEntity<RemitterEkycRequest> entity = new HttpEntity<>(request, headers);
+            // ===============================
+            // STEP 2: Prepare request body (Map → RAW JSON)
+            // ===============================
+            Map<String, Object> body = new HashMap<>();
 
-        ResponseEntity<Map> resp = restTemplate.exchange(
-//                credentials.getBaseUrlUat() + "/service-api/api/v1/service/dmt/kyc/remitter/queryremitter/kyc",
-                credentials.getBaseUrlProd() + "/api/v1/service/dmt/kyc/remitter/queryremitter/kyc",
-                HttpMethod.POST,
-                entity,
-                Map.class
-        );
+            body.put("mobile", request.getMobile());
+            body.put("lat", "28.123456");
+            body.put("long", "78.123456");
+            body.put("aadhaar_number", request.getAadhaarNumber());
+            body.put("data", request.getData());
+            body.put("is_iris", "2");
 
-        Map body = resp.getBody();
+            requestJson = objectMapper.writeValueAsString(body);
 
-        responseJson = objectMapper.writeValueAsString(body);
 
-        //  SUCCESS VENDOR LOG
-        commonFunctions.saveVendorLogs(
-                requestTime,
-                requestJson,
-                vendorId,
-                LocalDateTime.now(),
-                responseJson,
-                null
-        );
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+            headers.set("Token", token);
+            headers.set("Authorisedkey", credentials.getSaltKey());
 
-        int responseCode = (int) body.get("response_code");
+            HttpEntity<String> requestEntity =
+                    new HttpEntity<>(requestJson, headers);
 
-        // STEP 3: If E-KYC SUCCESS → Save in DB as PENDING
-        if (responseCode == 1) {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    credentials.getBaseUrlProd()
+                            + "/api/v1/service/dmt/kyc/remitter/queryremitter/kyc",
+                    HttpMethod.POST,
+                    requestEntity,
+                    Map.class
+            );
 
-            Map data = (Map) body.get("data");
 
-            String mobile = (String) data.get("mobile");
+            Map responseBody = response.getBody();
+            responseJson = objectMapper.writeValueAsString(responseBody);
 
-            //  UNIQUE CHECK
-            Optional<DmtRemitter> existing =
-                    remitterRepository.findByMobile(mobile);
+            // SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
 
-            if (existing.isPresent()) {
-                //  Already exists → do NOT insert
-                return CommonResponse.success(
-                        body,
-                        "E-KYC already done for this mobile"
-                );
+            int responseCode = (int) responseBody.get("response_code");
+
+            // ===============================
+            // STEP 4: If E-KYC SUCCESS → Save as PENDING
+            // ===============================
+            if (responseCode == 1) {
+
+                Map data = (Map) responseBody.get("data");
+                String mobile = (String) data.get("mobile");
+
+                Optional<DmtRemitter> existing =
+                        remitterRepository.findByMobile(mobile);
+
+                if (existing.isPresent()) {
+                    return CommonResponse.success(
+                            responseBody,
+                            "E-KYC already done for this mobile"
+                    );
+                }
+
+                DmtRemitter rem = new DmtRemitter();
+                rem.setMobile(mobile);
+                rem.setEkycId((String) data.get("ekyc_id"));
+                rem.setStateResp((String) data.get("stateresp"));
+                rem.setStatus("PENDING");
+                rem.setCreatedAt(LocalDateTime.now());
+                rem.setName(request.getName());
+                rem.setVendor(vendor);
+                rem.setAadhaar(request.getAadhaarNumber());
+
+                remitterRepository.save(rem);
             }
 
-            DmtRemitter rem = new DmtRemitter();
-            rem.setMobile((String) data.get("mobile"));
-            rem.setEkycId((String) data.get("ekyc_id"));
-            rem.setStateResp((String) data.get("stateresp"));
-            rem.setStatus("PENDING"); // IMPORTANT
-            rem.setCreatedAt(LocalDateTime.now());
-            rem.setName(request.getName());
-            rem.setVendor(vendor);
-            rem.setAadhaar(request.getAadhaar_number());
-            remitterRepository.save(rem);
-        }
-
-        // STEP 4: Wrap Response
-        return CommonResponse.success(body, "E-KYC API Response");
+            return CommonResponse.success(responseBody, "E-KYC API Response");
 
         } catch (Exception ex) {
 
-            //  FAILURE VENDOR LOG
+            // FAILURE VENDOR LOG
             commonFunctions.saveVendorLogs(
                     requestTime,
                     requestJson,
@@ -269,12 +288,11 @@ public class RemitterServiceImpl implements RemitterService {
                     ex.getMessage()
             );
 
-            log.error("[DO EKYC] Exception | mobile={}",
-                    request.getMobile(), ex);
-
+            log.error("[DO EKYC] Exception | mobile={}", request.getMobile(), ex);
             throw new RuntimeException(ex);
         }
     }
+
 
 
     //                REGISTER REMITTER API

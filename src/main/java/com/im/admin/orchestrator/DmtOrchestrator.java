@@ -110,7 +110,6 @@ public class DmtOrchestrator {
 
     //  STEP 1: Send OTP
     public CommonResponse<PaysprintSendOtpResponse> sendDmtOtp(SendDmtRequest req) {
-
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = null;
         String responseJson = null;
@@ -168,7 +167,10 @@ public class DmtOrchestrator {
                     ex
             );
 
-            return CommonResponse.error(400, "Failed to send OTP");
+            return CommonResponse.error(
+                    400,
+                    ex.getMessage()
+            );
         }
     }
 
@@ -287,7 +289,7 @@ public class DmtOrchestrator {
             dmtTxn.setUtr(remitterTransactionResponse.getUtr());
             dmtTxn.setResponseCode(remitterTransactionResponse.getResponse_code());
             dmtTxn.setTxnStatus(remitterTransactionResponse.getTxn_status());
-            dmtTxn.setVendorStatus(DmtResponseMapper.map(remitterTransactionResponse.getResponse_code()));
+            dmtTxn.setVendorStatus(DmtResponseMapper.map(remitterTransactionResponse.getResponse_code(),remitterTransactionResponse.getMessage()));
             dmtTxn.setBeneName(remitterTransactionResponse.getBenename());
             dmtTxn.setRemarks(remitterTransactionResponse.getRemarks());
             dmtTxn.setMessage(remitterTransactionResponse.getMessage());
@@ -338,7 +340,7 @@ public class DmtOrchestrator {
 
 
             log.info("[PROCESS PAYOUT ORCH] Saved pending txn: {}, vendorStatus={}", orderId, remitterTransactionResponse.getStatus());
-            String vendorStatus = DmtResponseMapper.map(remitterTransactionResponse.getResponse_code());
+            String vendorStatus = DmtResponseMapper.map(remitterTransactionResponse.getResponse_code(), remitterTransactionResponse.getMessage());
             transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
 
             if ("SUCCESS".equalsIgnoreCase(vendorStatus)) {

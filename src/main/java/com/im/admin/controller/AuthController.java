@@ -209,9 +209,15 @@ public class AuthController {
         resetFailedAttempts(user);
         String otp = generateOtpForUser(user);
 
+        String hierarchyCode = user.getHierarchyCode();
 
         Map<String, String> otpData = Map.of("otp", otp);
-        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData);
+        // create a new map only for response
+        Map<String, String> responseData = new HashMap<>(otpData);
+        responseData.put("role", hierarchyCode);
+
+//        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData); // old
+        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", responseData);
         logLoginAttempt(requestJson, requestTime, response);
         log.info("OTP sent successfully for user ID: {}", user.getHierarchyId());
         return ResponseEntity.ok(response);

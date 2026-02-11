@@ -18,4 +18,6 @@ public interface BeneficiaryRepository extends JpaRepository<DmtBeneficiary, Lon
             Long beneId
     );
 
+    List<DmtBeneficiary> findByRemitterOrderByIdDesc(DmtRemitter remitter);
+
 }

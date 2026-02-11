@@ -14,6 +14,7 @@ public class AepsBankListServiceImpl implements AepsBankListService {
 
     private static final String BANK_API =
             "https://fingpayap.tapits.in/fpaepsservice/api/bankdata/bank/details";
+//            "https://fingpayap.tapits.in/fpaepsservice/api/bankdata/bank/adhaarpay";
 
     @Override
     public FingpayBankApiResponse getFullBankList() {

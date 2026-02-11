@@ -260,6 +260,13 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             // ================================
             transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
 
+            String txnId = buildTransactionId("TXN", baseTxnId);
+
+            if (responseBody != null && responseBody.getData() != null) {
+                responseBody.getData().setTransactionId(txnId);
+            }
+
+
             // ================================
             // STEP 13: RETURN FINAL RESPONSE
             // ================================
@@ -275,6 +282,10 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             e.printStackTrace();
             return new CommonResponse<>(500, "Exception: " + e.getMessage(), null);
         }
+    }
+
+    public String buildTransactionId(String prefix, String baseId) {
+        return prefix + baseId;
     }
 
 }
