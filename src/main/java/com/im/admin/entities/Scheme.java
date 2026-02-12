@@ -26,8 +26,8 @@ public class Scheme {
     private String schemeName;
 
     @Column(name = "scheme_code")
-    @NotBlank(message = "Scheme Code is Required")
-    private String schemeCode;
+//    @NotBlank(message = "Scheme Code is Required")
+    private String schemeCode="1";
 
     @Column(name = "scheme_combination_hashCode")
     private String schemeCombinationHashCode;    //10- productId,-01 sub-productId, -02 vendorId, -001 schemeHierarchySelectionId,00001 and this is generated Id number for table itself

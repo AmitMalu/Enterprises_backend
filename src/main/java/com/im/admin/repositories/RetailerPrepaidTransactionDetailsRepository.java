@@ -293,6 +293,64 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
     );
 
 
+    @Query("""
+    SELECT r FROM RetailerPrepaidTransactionDetails r
+    WHERE (:id IS NULL OR r.id = :id)
+    AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate)
+    AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
+    AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
+    AND (:vendorName IS NULL OR LOWER(r.vendorName) LIKE LOWER(CONCAT('%', :vendorName, '%')))
+    AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)
+    AND (:userId IS NULL OR LOWER(r.retailerId) LIKE LOWER(CONCAT('%', :userId, '%')))
+    AND (:mobileNo IS NULL OR LOWER(r.mobileNo) LIKE LOWER(CONCAT('%', :mobileNo, '%')))
+    AND (:schemeName IS NULL OR LOWER(r.schemeName) LIKE LOWER(CONCAT('%', :schemeName, '%')))
+    AND (:amount IS NULL OR r.amount = :amount)
+
+      AND r.transactionId LIKE 'TXN%'
+       AND (:txId IS NULL OR LOWER(r.transactionId) LIKE LOWER(CONCAT('%', :txId, '%')))
+
+
+    AND (:remarks IS NULL OR LOWER(r.remarks) LIKE LOWER(CONCAT('%', :remarks, '%')))
+    AND (:medium IS NULL OR LOWER(r.medium) LIKE LOWER(CONCAT('%', :medium, '%')))
+    AND (:txType IS NULL OR LOWER(r.transactionType) LIKE LOWER(CONCAT('%', :txType, '%')))
+    
+     AND (
+        :actionOnBalanceAmount IS NULL
+        OR LOWER(r.actionOnBalanceAmount) LIKE
+           CONCAT('%', LOWER(TRIM(:actionOnBalanceAmount)), '%')
+      )
+       AND r.tranStatus <> 'FAILURE'
+    AND (:txStatus IS NULL OR LOWER(r.tranStatus) LIKE LOWER(CONCAT('%', :txStatus, '%')))
+    AND (:dateOfTransaction IS NULL OR r.dateOfTransaction = :dateOfTransaction)
+    AND (:timeOfTransaction IS NULL OR r.timeOfTransaction = :timeOfTransaction)
+    AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
+    AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
+""")
+    Page<RetailerPrepaidTransactionDetails> findFilteredTransactionTXN(
+            @Param("id") Integer id,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("subProductNames") List<String> subProductNames,  // List<String>
+            @Param("vendorName") String vendorName,
+            @Param("tranStatusList") List<String> tranStatusList,
+            @Param("userId") String userId,
+            @Param("mobileNo") String mobileNo,
+            @Param("schemeName") String schemeName,
+            @Param("amount") Double amount,
+            @Param("txId") String txId,
+            @Param("remarks") String remarks,
+            @Param("medium") String medium,
+            @Param("txType") String txType,
+            @Param("actionOnBalanceAmount") String actionOnBalanceAmount,
+            @Param("txStatus") String txStatus,
+            @Param("dateOfTransaction") LocalDate dateOfTransaction,
+            @Param("timeOfTransaction") LocalTime timeOfTransaction,
+            @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction,
+            @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction,
+            Pageable pageable
+    );
+
+
 }
 
 

@@ -5,10 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.RemitterTransactionResponse;
 import com.im.admin.dto.SendOtpRequest;
+import com.im.admin.entities.DmtBankList;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.orchestrator.DmtOrchestrator;
+import com.im.admin.repositories.DmtBankListRepository;
 import com.im.admin.request.PennyDropRequest;
 import com.im.admin.request.SendDmtRequest;
 import com.im.admin.response.CommonResponse;
@@ -30,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.time.Instant;
 
@@ -46,6 +49,9 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
 
     @Autowired
     private CommonFunctions commonFunctions;
+
+    @Autowired
+    private DmtBankListRepository dmtBankListRepository;
 
     @Override
     public String getVendorCode() {
@@ -393,4 +399,10 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
         long timestamp = Instant.now().getEpochSecond();
         return timestamp;
     }
+
+    @Override
+    public List<DmtBankList> getdmtbanklist() {
+        return dmtBankListRepository.findAll();
+    }
+
 }

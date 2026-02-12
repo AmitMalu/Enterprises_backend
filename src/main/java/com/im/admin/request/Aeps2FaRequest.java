@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 public class Aeps2FaRequest {
 
-//    private  Boolean isFacialTan;
+    private  Boolean isFacialTan;
     private  Boolean isFaceTan;
     private String subProductId;
     private String retailerId;             // From frontend

@@ -36,7 +36,7 @@ public class RetailerTransactionResponseDto {
     private String walletType;
     private String productName;
 
-    // ✅ Constructor exactly matching service usage
+    //  Constructor exactly matching service usage
     public RetailerTransactionResponseDto(
             Integer id,
             LocalDate updatedAt,
