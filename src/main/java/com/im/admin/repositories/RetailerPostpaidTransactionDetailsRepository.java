@@ -294,6 +294,60 @@ WHERE (:id IS NULL OR r.id = :id)
     );
 
 
+    @Query("""
+SELECT r FROM RetailerPostpaidTransactionDetails r
+WHERE (:id IS NULL OR r.id = :id)
+  AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate)
+  AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
+  AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
+  AND (:vendorName IS NULL OR r.vendorName = :vendorName)
+  AND (:userId IS NULL OR r.retailerId LIKE %:userId%)
+  AND (:mobileNo IS NULL OR r.mobileNo LIKE %:mobileNo%)
+  AND (:schemeName IS NULL OR r.schemeName LIKE %:schemeName%)
+  AND (:amount IS NULL OR r.amount = :amount)
+
+ AND r.transactionId LIKE 'TXN%'
+       AND (:txId IS NULL OR LOWER(r.transactionId) LIKE LOWER(CONCAT('%', :txId, '%')))
+       
+  AND (:remarks IS NULL OR r.remarks LIKE %:remarks%)
+  AND (:medium IS NULL OR r.medium LIKE %:medium%)
+  AND (:txType IS NULL OR r.transactionType LIKE %:txType%)
+
+  AND (
+        :actionOnBalanceAmount IS NULL
+        OR LOWER(r.actionOnBalanceAmount) LIKE
+           CONCAT('%', LOWER(TRIM(:actionOnBalanceAmount)), '%')
+      )
+       AND r.tranStatus <> 'FAILURE'
+
+  AND (:dateOfTransaction IS NULL OR r.dateOfTransaction = :dateOfTransaction)
+  AND (:timeOfTransaction IS NULL OR r.timeOfTransaction = :timeOfTransaction)
+  AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
+  AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
+""")
+    Page<RetailerPostpaidTransactionDetails> findFilteredTransactionTXN(
+            @Param("id") Integer id,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("subProductNames") List<String> subProductNames,
+            @Param("vendorName") String vendorName,
+            @Param("userId") String userId,
+            @Param("mobileNo") String mobileNo,
+            @Param("schemeName") String schemeName,
+            @Param("amount") Double amount,
+            @Param("txId") String txId,
+            @Param("remarks") String remarks,
+            @Param("medium") String medium,
+            @Param("txType") String txType,
+            @Param("actionOnBalanceAmount") String actionOnBalanceAmount,
+            @Param("dateOfTransaction") LocalDate dateOfTransaction,
+            @Param("timeOfTransaction") LocalTime timeOfTransaction,
+            @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction,
+            @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction,
+            Pageable pageable
+    );
+
+
 
 
 }

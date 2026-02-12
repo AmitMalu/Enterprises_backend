@@ -3,6 +3,7 @@ package com.im.admin.controller;
 
 
 import com.im.admin.dto.DmtResponseDto;
+import com.im.admin.entities.DmtBankList;
 import com.im.admin.orchestrator.DmtOrchestrator;
 import com.im.admin.request.PennyDropRequest;
 import com.im.admin.request.SendDmtRequest;
@@ -12,9 +13,12 @@ import com.im.admin.response.PaysprintSendOtpResponse;
 import com.im.admin.service.DmtVendorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -79,6 +83,27 @@ public class DmtController {
             throw new RuntimeException("Encryption failed", e);
         }
     }
+
+
+    @GetMapping("/bank-list")
+    public ResponseEntity<CommonResponse<List<DmtBankList>>> getDmtBankList() {
+
+        List<DmtBankList> banks = dmtVendorService.getdmtbanklist();
+
+        if (banks.isEmpty()) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(CommonResponse.failure("Bank list not found"));
+        }
+
+        return ResponseEntity.ok(
+                CommonResponse.success(banks, "Bank list fetched successfully")
+        );
+    }
+
+
+
+
 
 
 }

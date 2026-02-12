@@ -27,7 +27,7 @@ public class Operators {
     @Column(name = "operator_category", nullable = false)
     private String operatorCategory;
 
-    @NotBlank(message = "Operator Code is required")
+//    @NotBlank(message = "Operator Code is required")
     @Column(name = "operator_code", nullable = false)
     private String operatorCode;
 

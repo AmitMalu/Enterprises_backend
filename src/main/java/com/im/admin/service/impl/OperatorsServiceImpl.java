@@ -2,10 +2,12 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.OperatorDropdownResponseDTO;
 import com.im.admin.entities.Operators;
+import com.im.admin.entities.SchemeRate;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.OperatorsRepository;
 import com.im.admin.repositories.ProductsRepository;
+import com.im.admin.repositories.SchemeRateRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.service.OperatorsService;
 import com.im.admin.spec.OperatorSpecification;
@@ -30,6 +32,8 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class OperatorsServiceImpl implements OperatorsService {
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
 
     @Autowired
     private OperatorsRepository operatorsRepository;
@@ -57,6 +61,14 @@ public class OperatorsServiceImpl implements OperatorsService {
                 .orElseThrow(() -> new RuntimeException("SubProduct not found with ID: " + operator.getSubProductId()));
         operator.setSubProductCode(subProduct.getSubProductCode());
 
+
+        // Generate ID first
+        String nextId = commonMethods.generateNextIdForTables("operators", "id");
+        operator.setId(nextId);
+
+        //  Set operatorCode = ID
+        operator.setOperatorCode(nextId);
+
         // check for duplicates
         if (operatorsRepository.existsByOperatorNameAndSubProductCodeAndProductCode(
                 operator.getOperatorName(), operator.getSubProductCode(), operator.getProductCode()) ||
@@ -66,7 +78,7 @@ public class OperatorsServiceImpl implements OperatorsService {
         }
 
         // Generate ID and save
-        operator.setId(commonMethods.generateNextIdForTables("operators", "id"));
+//        operator.setId(commonMethods.generateNextIdForTables("operators", "id"));
 
         Operators savedOperator = operatorsRepository.save(operator);
         log.info("Operator saved successfully with ID: {}", savedOperator.getId());
@@ -82,6 +94,14 @@ public class OperatorsServiceImpl implements OperatorsService {
         Operators existingOperator = operatorsRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Operator not found with ID: " + id));
 
+        List<SchemeRate> schemeRates  = schemeRateRepository.findByOperatorCode(existingOperator.getOperatorCode());
+
+
+        for (SchemeRate rate : schemeRates) {
+            rate.setOperatorName(operator.getOperatorName());  // new operator id
+        }
+
+
         Products product = productsRepository.findById(Short.valueOf(operator.getProductId()))
                 .orElseThrow(() -> new RuntimeException("Product not found with ID: " + operator.getProductId()));
 
@@ -91,7 +111,7 @@ public class OperatorsServiceImpl implements OperatorsService {
 
         // Update fields
         existingOperator.setOperatorCategory(operator.getOperatorCategory());
-        existingOperator.setOperatorCode(operator.getOperatorCode());
+//        existingOperator.setOperatorCode(operator.getOperatorCode());*********code chnage***
         existingOperator.setOperatorName(operator.getOperatorName());
         existingOperator.setOperatorAlias(operator.getOperatorAlias());
         existingOperator.setAlias(operator.getAlias());

@@ -2,6 +2,7 @@ package com.im.admin.service;
 
 import com.im.admin.dto.FundCreditDebitDto;
 import com.im.admin.dto.RetailerTransactionResponseDto;
+import com.im.admin.dto.RetailerTransactionResponseDtoCom;
 import com.im.admin.dto.SettlementPendingRequestDto;
 import com.im.admin.response.BulkFundResponse;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,6 +23,11 @@ public interface FundingService {
     Page<RetailerTransactionResponseDto> getSettlementPendingTransactions(SettlementPendingRequestDto request, int page, int size);
 
     Page<RetailerTransactionResponseDto> getSettlementPendingTransactionsUpdated(SettlementPendingRequestDto request, int page, int size);
+
+
+    Page<RetailerTransactionResponseDto> getTransactionReport(SettlementPendingRequestDto request, int page, int size);
+
+    Page<RetailerTransactionResponseDtoCom> getTransactionReportComWise(SettlementPendingRequestDto request, int page, int size);
 
 
 }
