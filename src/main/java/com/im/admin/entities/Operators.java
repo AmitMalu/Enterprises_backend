@@ -72,6 +72,10 @@ public class Operators {
     @Column(name = "edited_by")
     private String editedBy;
 
+    @Column(name = "hard_code")
+    private String hardCode;
+
+
 }
 
 
