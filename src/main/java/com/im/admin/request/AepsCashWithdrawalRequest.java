@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 
 @Data
 public class AepsCashWithdrawalRequest {
+    private  Boolean isFacialTan;
     private String subProductId;
     private String retailerId;
     private String transactionType;

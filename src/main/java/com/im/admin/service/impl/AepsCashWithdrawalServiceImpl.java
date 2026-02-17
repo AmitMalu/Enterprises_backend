@@ -28,6 +28,8 @@ import java.time.LocalDateTime;
 @Slf4j
 @Service
 public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService {
+    @Autowired
+    private OperatorsRepository operatorsRepository;
 
     @Autowired private CommonMethods commonMethods;
     @Autowired private SubProductsRepository subProductsRepository;
@@ -101,6 +103,14 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             Retailer retailer = retailerRepository.findById(req.getRetailerId())
                     .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
+
+            String hardCodeInput = "CW";
+
+            Operators operator = operatorsRepository
+                    .findByHardCode(hardCodeInput)
+                    .orElseThrow(() -> new RuntimeException("Operator not found: " + hardCodeInput));
+
+
             // ================================
             // STEP 5: AUTO SET BACKEND VALUES
             // ================================
@@ -129,7 +139,12 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             );
 
             req.setCardnumberORUID(uid);
-            req.setTransactionType("CW");
+//            req.setTransactionType("CW");
+            req.setTransactionType(
+                    operator.getOperatorName() != null
+                            ? operator.getOperatorName()
+                            : "CW"
+            );
 
             // ================================
             // STEP 7: CALL VENDOR INTERNALLY

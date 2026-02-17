@@ -30,6 +30,10 @@ public class ProductsServiceImpl implements ProductsService {
     public Products saveProduct(Products product) {
         log.info("Saving new product: {}", product);
 
+        if (productsRepository.existsByName(product.getName())) {
+            throw new IllegalArgumentException("Product already exists with name: " + product.getName());
+        }
+
         Short lastInsertedId = productsRepository.findMaxId(); // Fetch the max ID
 
         if (lastInsertedId != null && lastInsertedId >= 99) {

@@ -24,6 +24,13 @@ public class NetworkBankMaster {
     @Column(name = "bank_code")
     private String bankCode;
 
+    @Column(name = "bank_id")
+    private String bankId;
+
+    @Column(name = "verification")
+    private Boolean Verification;
+
+
     @Column(name = "bank_code_BI")
     private String bankCodeBI;
 

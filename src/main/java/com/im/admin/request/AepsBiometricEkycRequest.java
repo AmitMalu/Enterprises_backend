@@ -6,6 +6,7 @@ import lombok.Data;
 public class AepsBiometricEkycRequest {
 
 //    private String retailerId;
+private  Boolean isFacialTan;
     private String requestRemarks;
     private CaptureResponse captureResponse;
     private Integer superMerchantId;

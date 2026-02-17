@@ -35,6 +35,4 @@ public class AepsBalanceInquiryController {
         return aepsBalanceInquiryService.ministatement(req);
     }
 
-
-
 }

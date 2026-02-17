@@ -542,27 +542,37 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         double sum = im + enterprise + whitelabel + superDistributor + partner + distributor + retailer;
 
         if (!doubleEquals(gross, sum)) {
+//            throw new RuntimeException(String.format(
+//                    "Mismatch in %s (Slab: %s) for Operator [%s - %s]:%n" +
+//                            "➡ Expected Gross: %.3f%n" +
+//                            "➡ Actual Sum of Shares: %.3f%n" +
+//                            "➡ Share Breakdown:%n" +
+//                            "   - IM: %.3f%n" +
+//                            "   - Enterprise: %.3f%n" +
+//                            "   - Whitelabel: %.3f%n" +
+//                            "   - SuperDistributor: %.3f%n" +
+//                            "   - Partner: %.3f%n" +
+//                            "   - Distributor: %.3f%n" +
+//                            "   - Retailer: %.3f",
+//                    slabLabel, slabIdentifier, operatorName, operatorCode,
+//                    gross, sum,
+//                    im, enterprise, whitelabel, superDistributor, partner, distributor, retailer
+//            ));
+//        }
+
             throw new RuntimeException(String.format(
-                    "Mismatch in %s (Slab: %s) for Operator [%s - %s]:%n" +
+                    "Mismatch in %s for Operator [%s - %s]:%n" +
                             "➡ Expected Gross: %.3f%n" +
-                            "➡ Actual Sum of Shares: %.3f%n" +
-                            "➡ Share Breakdown:%n" +
-                            "   - IM: %.3f%n" +
-                            "   - Enterprise: %.3f%n" +
-                            "   - Whitelabel: %.3f%n" +
-                            "   - SuperDistributor: %.3f%n" +
-                            "   - Partner: %.3f%n" +
-                            "   - Distributor: %.3f%n" +
-                            "   - Retailer: %.3f",
-                    slabLabel, slabIdentifier, operatorName, operatorCode,
-                    gross, sum,
-                    im, enterprise, whitelabel, superDistributor, partner, distributor, retailer
+                            "➡ Actual Sum of Shares: %.3f",
+                    slabLabel,
+                    operatorName,
+                    operatorCode,
+                    gross,
+                    sum
             ));
+
         }
+
     }
-
-
-
-
 
 }

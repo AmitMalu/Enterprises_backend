@@ -1,6 +1,8 @@
 package com.im.admin.repositories;
 
 import com.im.admin.entities.product.Products;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -21,6 +23,8 @@ public interface ProductsRepository extends JpaRepository<Products, Short>, JpaS
     List<Products> findByActiveTrue();
 
     Optional<Products> findByProductCode(String productCode);
+
+    boolean existsByName(String name);
 
 }
 

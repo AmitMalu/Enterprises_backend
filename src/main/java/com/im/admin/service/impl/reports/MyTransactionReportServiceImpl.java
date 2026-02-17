@@ -266,15 +266,27 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             dto.setBalAfter((BigDecimal) row[5]);
             dto.setSubProductName((String) row[6]);
             dto.setProductName((String) row[7]);
-            dto.setActionOnBalanceAmount((String) row[8]);
+//            dto.setActionOnBalanceAmount((String) row[8]);
+//
+//            String statusStr =
+//                    ((String) row[9]).trim().replace(" ", "_").toUpperCase();
+//            dto.setStatus(Status.valueOf(statusStr));
+//
+//            dto.setTranxId((String) row[10]);
+//            dto.setNarration((String) row[11]);
+//            dto.setHierarchyId((String) row[12]);
+
+            dto.setSchemeName((String) row[8]);
+            dto.setActionOnBalanceAmount((String) row[9]);
 
             String statusStr =
-                    ((String) row[9]).trim().replace(" ", "_").toUpperCase();
+                    ((String) row[10]).trim().replace(" ", "_").toUpperCase();
             dto.setStatus(Status.valueOf(statusStr));
 
-            dto.setTranxId((String) row[10]);
-            dto.setNarration((String) row[11]);
-            dto.setHierarchyId((String) row[12]);
+            dto.setTranxId((String) row[11]);
+            dto.setNarration((String) row[12]);
+            dto.setHierarchyId((String) row[13]);
+
 
             // wallet type
             dto.setWalletType(walletType);

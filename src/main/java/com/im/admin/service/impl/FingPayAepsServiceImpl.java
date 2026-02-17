@@ -116,6 +116,7 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
             body.put("merchantPin", MERCHANT_MD5_PIN);
 //            body.put("merchantLoginId", req.getMerchantLoginId());
             body.put("superMerchantId", SUPER_MERCHANT_ID);
+            body.put("isFacialTan",req.getIsFacialTan());
 
 
             requestJson = objectMapper.writeValueAsString(body);

@@ -36,6 +36,8 @@ import java.util.Date;
 @Slf4j
 @Service
 public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService {
+    @Autowired
+    private OperatorsRepository operatorsRepository;
 
     private static final String FINGPAY_BALANCE_URL =
             "https://fingpayap.tapits.in/fpaepsservice/api/balanceInquiry/merchant/getBalance";
@@ -110,6 +112,11 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
             Retailer retailer = retailerRepository.findById(req.getRetailerId())
                     .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
+            String hardCodeInput = "BE";
+
+            Operators operator = operatorsRepository
+                    .findByHardCode(hardCodeInput)
+                    .orElseThrow(() -> new RuntimeException("Operator not found: " + hardCodeInput));
 
             // ==== Backend controlled fields ====
             req.setSuperMerchantId(SUPER_MERCHANT_ID);
@@ -119,10 +126,14 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
             String timestamp = sdf.format(new Date());
-
             req.setRequestRemarks("Test");
             req.setTimestamp(timestamp);
-            req.setTransactionType("BE");
+//            req.setTransactionType("BALANCE ENQUIRY");
+            req.setTransactionType(
+                    operator.getOperatorName() != null
+                            ? operator.getOperatorName()
+                            : "BE"
+            );
             req.setServiceType("AEPS");
             req.setMerchantTransactionId("BE-" + System.currentTimeMillis());
 
@@ -317,6 +328,12 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
             Retailer retailer = retailerRepository.findById(req.getRetailerId())
                     .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
+            String hardCodeInput = "MS";
+
+            Operators operator = operatorsRepository
+                    .findByHardCode(hardCodeInput)
+                    .orElseThrow(() -> new RuntimeException("Operator not found: " + hardCodeInput));
+
 
             // ==== Backend controlled fields ====
             req.setSuperMerchantId(SUPER_MERCHANT_ID);
@@ -329,7 +346,12 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             req.setRequestRemarks("Test");
             req.setTimestamp(timestamp);
-            req.setTransactionType("MS");
+//            req.setTransactionType("MS");
+            req.setTransactionType(
+                    operator.getOperatorName() != null
+                            ? operator.getOperatorName()
+                            : "MS"
+            );
             req.setServiceType("AEPS");
             req.setMerchantTranId("MS-" + System.currentTimeMillis());
 
