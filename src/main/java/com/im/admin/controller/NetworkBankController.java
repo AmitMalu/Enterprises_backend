@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.NetworkBankMaster;
+import com.im.admin.request.NetworkBankMasterResponseDto;
 import com.im.admin.response.BankInfoResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.NetworkBankDropdownResponse;
@@ -138,4 +139,25 @@ public class NetworkBankController {
                     .body(CommonResponse.failure("Something went wrong"));
         }
     }
+
+    @GetMapping("/all")
+    public ResponseEntity<CommonResponse<List<NetworkBankMasterResponseDto>>>
+    getAllNetworkBanks() {
+
+        List<NetworkBankMasterResponseDto> banks =
+                bankService.getAllNetworkBanks();
+
+        if (banks.isEmpty()) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(CommonResponse.failure("Network bank list not found"));
+        }
+
+        return ResponseEntity.ok(
+                CommonResponse.success(banks,
+                        "Network bank list fetched successfully")
+        );
+    }
+
+
 }

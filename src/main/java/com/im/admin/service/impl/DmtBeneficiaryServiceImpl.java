@@ -145,7 +145,8 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
             bene.setBeneId(resp.getData().getBene_id());
             bene.setName(req.getBenename());
             bene.setBankId(req.getBankid());
-            bene.setBankName(resp.getData().getBankname());
+//            bene.setBankName(resp.getData().getBankname());
+            bene.setBankName(req.getBankName());
             bene.setAccountNo(req.getAccno());
             bene.setIfscCode(req.getIfsccode());
             bene.setVerified(req.getVerified());

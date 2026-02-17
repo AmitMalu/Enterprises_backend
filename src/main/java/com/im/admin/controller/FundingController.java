@@ -107,7 +107,7 @@ public class FundingController {
         );
     }
 
-    @PostMapping("/Transaction-report")
+    @PostMapping("/transaction-report")
     public ResponseEntity<CommonResponse> getTransactionrepoort(
             @RequestBody SettlementPendingRequestDto request,
             @RequestParam(defaultValue = "0") int page,
@@ -125,7 +125,7 @@ public class FundingController {
         );
     }
 
-    @PostMapping("/Transaction-report-com-chg")
+    @PostMapping("/detailed-txn-report")
     public ResponseEntity<CommonResponse> getTransactionrepoortComAndChg(
             @RequestBody SettlementPendingRequestDto request,
             @RequestParam(defaultValue = "0") int page,

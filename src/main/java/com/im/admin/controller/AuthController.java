@@ -510,38 +510,140 @@ public class AuthController {
                     responseMap.put("outletName", "N/A");
                 }
 
+//                 Build product / subProduct list
+//                List<SchemeAllocation> schemes =
+//                        schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
+//
+//                //  FIXED GENERICS
+//                Map<String, List<Map<String, Object>>> productSubMap = new LinkedHashMap<>();
+//                Map<String, String> productIdToName = new HashMap<>();
+//                Map<String, Products> productIdToEntity = new HashMap<>();
+//
+//                for (SchemeAllocation sa : schemes) {
+//
+//                    Optional<Products> productOpt =
+//                            productsRepository.findByProductCode(sa.getProductCode());
+//
+//                    Optional<SubProducts> subProductOpt =
+//                            subProductsRepository.findBySubProductCodeAndIsVisibleTrue(
+//                                    sa.getSubProductCode());
+//
+//                    if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
+//                        log.warn(
+//                                "Skipping scheme due to missing mapping for productCode={} or subProductCode={}",
+//                                sa.getProductCode(),
+//                                sa.getSubProductCode()
+//                        );
+//                        continue;
+//                    }
+//
+//                    Products productEntity = productOpt.get();
+//                    SubProducts subProductEntity = subProductOpt.get();
+//
+//                    String productId = String.valueOf(productEntity.getId());
+//                    String productName = productEntity.getName();
+//                    String subProductId = String.valueOf(subProductEntity.getId());
+//                    String subProductName = subProductEntity.getSubProductTitle();
+//
+//                    VendorRouting routing =
+//                            vendorRoutingRepository.findBySubProduct(subProductEntity);
+//
+//                    String vendorName = "N/A";
+//                    if (routing != null && routing.getRoutingPriority1() != null) {
+//                        vendorName = routing.getRoutingPriority1().getVendorName();
+//                    }
+//
+//                    productIdToName.putIfAbsent(productId, productName);
+//                    productIdToEntity.putIfAbsent(productId, productEntity);
+//
+//                    //  FIXED MAP TYPE
+//                    Map<String, Object> subProductMap = new HashMap<>();
+//                    subProductMap.put("subProductId", subProductId);
+//                    subProductMap.put("subProductName", subProductName);
+//                    subProductMap.put("schemeCode", sa.getSchemeCode());
+//                    subProductMap.put("vendorName", vendorName);
+//
+//                    //  Sub-Product flags
+//                    subProductMap.put("active", subProductEntity.getIsActive());
+//                    subProductMap.put("blocked", subProductEntity.getIsBlocked());
+//                    subProductMap.put("isVisible", subProductEntity.getIsVisible());
+//
+//                    productSubMap
+//                            .computeIfAbsent(productId, k -> new ArrayList<>())
+//                            .add(subProductMap);
+//                }
+//
+//                // Build final product list
+//                List<Map<String, Object>> productList = new ArrayList<>();
+//
+//                //  FIXED GENERICS
+//                for (Map.Entry<String, List<Map<String, Object>>> entry : productSubMap.entrySet()) {
+//
+//                    Map<String, Object> product = new HashMap<>();
+//                    product.put("productId", entry.getKey());
+//                    product.put("productName", productIdToName.get(entry.getKey()));
+//
+//                    Products productEntity = productIdToEntity.get(entry.getKey());
+//                    if (productEntity != null) {
+//                        product.put("active", productEntity.getActive());
+//                        product.put("blocked", productEntity.getBlocked());
+//                        product.put("isVisible", productEntity.getIsVisible());
+//                    }
+//
+//                    product.put("subProducts", entry.getValue());
+//                    productList.add(product);
+//                }
+//
+//                responseMap.put("products", productList);
+//                responseMap.put("role", hierarchyCode);
+//                break;
+
                 // Build product / subProduct list
                 List<SchemeAllocation> schemes =
                         schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
 
-                //  FIXED GENERICS
+// Fetch ALL products
+                List<Products> allProducts = productsRepository.findAll();
+
                 Map<String, List<Map<String, Object>>> productSubMap = new LinkedHashMap<>();
-                Map<String, String> productIdToName = new HashMap<>();
                 Map<String, Products> productIdToEntity = new HashMap<>();
 
-                for (SchemeAllocation sa : schemes) {
+// Initialize all products first (so even products without scheme appear)
+                for (Products product : allProducts) {
+                    String productId = String.valueOf(product.getId());
 
-                    Optional<Products> productOpt =
-                            productsRepository.findByProductCode(sa.getProductCode());
+                    productSubMap.putIfAbsent(productId, new ArrayList<>());
+                    productIdToEntity.put(productId, product);
+                }
+
+// Now loop schemes only for subProducts
+                for (SchemeAllocation sa : schemes) {
 
                     Optional<SubProducts> subProductOpt =
                             subProductsRepository.findBySubProductCodeAndIsVisibleTrue(
                                     sa.getSubProductCode());
 
-                    if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
+                    if (subProductOpt.isEmpty()) {
                         log.warn(
-                                "Skipping scheme due to missing mapping for productCode={} or subProductCode={}",
-                                sa.getProductCode(),
+                                "Skipping scheme due to missing subProductCode={}",
                                 sa.getSubProductCode()
                         );
                         continue;
                     }
 
-                    Products productEntity = productOpt.get();
                     SubProducts subProductEntity = subProductOpt.get();
 
+                    // Find matching product from allProducts using productCode
+                    Products productEntity = allProducts.stream()
+                            .filter(p -> p.getProductCode().equals(sa.getProductCode()))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (productEntity == null) {
+                        continue;
+                    }
+
                     String productId = String.valueOf(productEntity.getId());
-                    String productName = productEntity.getName();
                     String subProductId = String.valueOf(subProductEntity.getId());
                     String subProductName = subProductEntity.getSubProductTitle();
 
@@ -553,44 +655,37 @@ public class AuthController {
                         vendorName = routing.getRoutingPriority1().getVendorName();
                     }
 
-                    productIdToName.putIfAbsent(productId, productName);
-                    productIdToEntity.putIfAbsent(productId, productEntity);
-
-                    //  FIXED MAP TYPE
                     Map<String, Object> subProductMap = new HashMap<>();
                     subProductMap.put("subProductId", subProductId);
                     subProductMap.put("subProductName", subProductName);
                     subProductMap.put("schemeCode", sa.getSchemeCode());
                     subProductMap.put("vendorName", vendorName);
 
-                    //  Sub-Product flags
+                    // Sub-Product flags
                     subProductMap.put("active", subProductEntity.getIsActive());
                     subProductMap.put("blocked", subProductEntity.getIsBlocked());
                     subProductMap.put("isVisible", subProductEntity.getIsVisible());
 
-                    productSubMap
-                            .computeIfAbsent(productId, k -> new ArrayList<>())
-                            .add(subProductMap);
+                    productSubMap.get(productId).add(subProductMap);
                 }
 
-                // Build final product list
+// Build final product list
                 List<Map<String, Object>> productList = new ArrayList<>();
 
-                //  FIXED GENERICS
                 for (Map.Entry<String, List<Map<String, Object>>> entry : productSubMap.entrySet()) {
+
+                    Products productEntity = productIdToEntity.get(entry.getKey());
 
                     Map<String, Object> product = new HashMap<>();
                     product.put("productId", entry.getKey());
-                    product.put("productName", productIdToName.get(entry.getKey()));
+                    product.put("productName", productEntity.getName());
 
-                    Products productEntity = productIdToEntity.get(entry.getKey());
-                    if (productEntity != null) {
-                        product.put("active", productEntity.getActive());
-                        product.put("blocked", productEntity.getBlocked());
-                        product.put("isVisible", productEntity.getIsVisible());
-                    }
+                    product.put("active", productEntity.getActive());
+                    product.put("blocked", productEntity.getBlocked());
+                    product.put("isVisible", productEntity.getIsVisible());
 
                     product.put("subProducts", entry.getValue());
+
                     productList.add(product);
                 }
 

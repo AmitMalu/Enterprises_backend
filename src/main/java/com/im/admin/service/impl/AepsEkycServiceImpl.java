@@ -163,7 +163,7 @@ public class AepsEkycServiceImpl implements AepsEkycService {
                 responseJson = e.getMessage();
             }
 
-            // ✅ FAILURE LOG (MANDATORY)
+            //  FAILURE LOG (MANDATORY)
             commonFunctions.saveVendorLogs(
                     requestDateTime,
                     requestJson,
@@ -191,7 +191,7 @@ public class AepsEkycServiceImpl implements AepsEkycService {
         Retailer r = retailerRepository.findById(req.getRetailerId())
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
-        // ✅ Declare OUTSIDE try (IMPORTANT)
+        //  Declare OUTSIDE try (IMPORTANT)
         LocalDateTime requestDateTime = LocalDateTime.now();
         String requestJson = "";
         String responseJson = "";
@@ -266,7 +266,7 @@ public class AepsEkycServiceImpl implements AepsEkycService {
                 responseJson = ex.getMessage();
             }
 
-            // ✅ FAILURE VENDOR LOG
+            //  FAILURE VENDOR LOG
             commonFunctions.saveVendorLogs(
                     requestDateTime,
                     requestJson,
@@ -396,7 +396,7 @@ public class AepsEkycServiceImpl implements AepsEkycService {
         VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId()); // subProductId dynamically aayega
         Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
-        // ✅ Declare outside try for catch access
+        //  Declare outside try for catch access
         LocalDateTime requestDateTime = LocalDateTime.now();
         String requestJson = "";
         String responseJson = "";
@@ -527,6 +527,7 @@ public class AepsEkycServiceImpl implements AepsEkycService {
 //            bioReq.setRetailerId(req.getRetailerId());
             bioReq.setRequestRemarks("test");
             bioReq.setSubProductId(req.getSubProductId());
+            bioReq.setIsFacialTan(req.getIsFacialTan());
 
             // ==== Convert CaptureResponse to correct DTO ====
             AepsBiometricEkycRequest.CaptureResponse cap = new AepsBiometricEkycRequest.CaptureResponse();

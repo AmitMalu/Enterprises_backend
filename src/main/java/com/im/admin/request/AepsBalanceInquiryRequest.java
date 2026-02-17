@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 @Data
 public class AepsBalanceInquiryRequest {
 
+    private  Boolean isFacialTan;
     private String subProductId;
     private String retailerId;             // From frontend
     private String requestRemarks;         // Optional

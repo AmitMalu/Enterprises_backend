@@ -25,11 +25,14 @@ public class MyTransactionReportResponse {
     private String subProductName;
     private String productName;
 
+    private String schemeName;
     private String actionOnBalanceAmount;
     private Status status;
     private String tranxId;
     private String narration;
     private WalletType walletType;
     private String hierarchyId;
+
+
 
 }

@@ -22,5 +22,8 @@ public class DmtBankList {
     @Column(name = "bank_name")
     private String BankName;
 
+    @Column(name = "ifsc_code")
+    private String ifscCode;
+
 
 }

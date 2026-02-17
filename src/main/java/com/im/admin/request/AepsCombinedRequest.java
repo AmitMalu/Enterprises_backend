@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class AepsCombinedRequest {
 
+    private  Boolean isFacialTan;
     private String retailerId;
     private String aadhaar;
     private String otp;

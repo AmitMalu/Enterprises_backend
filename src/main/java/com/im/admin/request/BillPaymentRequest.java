@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.util.List;
+import com.fasterxml.jackson.databind.JsonNode;
 
 @Data
 public class BillPaymentRequest {
@@ -21,7 +22,10 @@ public class BillPaymentRequest {
     private String billerId;
 
     private InputParams inputParams;
-    private BillerResponse billerResponse;
+//    private BillerResponse billerResponse;
+
+    private JsonNode billerResponse;
+
 
     private String paymentRefId;
     private String schemeCode;
@@ -62,15 +66,15 @@ public class BillPaymentRequest {
         }
     }
 
-    @Data
-    public static class BillerResponse {
-        private String billAmount;     // ⚠ STRING as per JSON
-        private String billDate;
-        private String billNumber;
-        private String billPeriod;
-        private String customerName;
-        private String dueDate;
-    }
+//    @Data
+//    public static class BillerResponse {
+//        private String billAmount;     // ⚠ STRING as per JSON
+//        private String billDate;
+//        private String billNumber;
+//        private String billPeriod;
+//        private String customerName;
+//        private String dueDate;
+//    }
 
     @Data
     public static class AmountInfo {

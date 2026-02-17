@@ -149,6 +149,9 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         query.registerStoredProcedureParameter("p_hierarchy_id", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_from_date", Date.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_to_date", Date.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_transaction_date", Date.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_transaction_time", Time.class, ParameterMode.IN);
+
         query.registerStoredProcedureParameter("p_sub_products", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_product_name", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_tx_type", String.class, ParameterMode.IN);
@@ -179,6 +182,23 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
         query.setParameter("p_from_date", from);
         query.setParameter("p_to_date", to);
+
+        Date tranDate = null;
+        if (StringUtils.hasText(request.getTransactionDate())) {
+            tranDate = Date.valueOf(
+                    LocalDate.parse(request.getTransactionDate())
+            );
+        }
+
+        query.setParameter("p_transaction_date", tranDate);
+
+        query.setParameter(
+                "p_transaction_time",
+                StringUtils.hasText(request.getTransactionTime())
+                        ? Time.valueOf(request.getTransactionTime())
+                        : null
+        );
+
         query.setParameter("p_sub_products", subProducts);
         query.setParameter("p_product_name", products);
         query.setParameter("p_tx_type", request.getReportType());
