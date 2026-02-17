@@ -46,5 +46,7 @@ public interface OperatorsRepository extends JpaRepository<Operators, String>, J
     );
 
 
+    Optional<Operators> findByHardCode(String hardCode);
+
 }
 
