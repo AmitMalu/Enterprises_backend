@@ -785,6 +785,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         creditHierarchy("RT", dto.getHierarchyId(), commission, dto.getWalletType(),
                 tdsRate, baseTxnId, tranStatus, request);
+
     }
 
 
@@ -1881,6 +1882,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setRetailerId(((RetailerPrepaidAmount) wallet).getRetailerId().getRetailerId());
                 transaction.setOperatorName(dto.getOperatorName());
                 transaction.setSubProductName(dto.getSubProductCode());
+                transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());  // new
 
                 retailerPrepaidTransactionDetailsRepository.save(transaction);
                 log.info("Prepaid transaction saved successfully | TranxId: {}", tranxId);
@@ -1902,6 +1904,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setRetailerId(((RetailerPostpaidAmount) wallet).getRetailerId().getRetailerId());
                 transaction.setOperatorName(dto.getOperatorName());
                 transaction.setSubProductName(dto.getSubProductCode());
+                transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());  // new
 
                 retailerPostpaidTransactionDetailsRepository.save(transaction);
                 log.info("Postpaid transaction saved successfully | TranxId: {}", tranxId);

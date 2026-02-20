@@ -398,7 +398,10 @@ public class AuthController {
         String encryptedToken = aesEncryptionUtil.encrypt(payload, secretKey, ivSpec);
 
         // final token string: hierarchyCode|salt|iv|ciphertext
-        String fullToken = user.getHierarchyCode() + "|" + saltBase64 + "|" + ivBase64 + "|" + encryptedToken;
+//        String fullToken = user.getHierarchyCode() + "|" + saltBase64 + "|" + ivBase64 + "|" + encryptedToken; //old token
+
+        String fullToken = user.getHierarchyId() + "|" + saltBase64 + "|" + ivBase64 + "|" + encryptedToken;  // current token
+
 
         // 7. Update user login status
         user.setUserLoginStatus(true);

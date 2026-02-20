@@ -646,7 +646,8 @@ public class CommonMethods {
             String service,
             String subProductName,
             String narration,
-            String remark) {
+            String remark,
+            String schemeCode ) { //new
 
 
         log.debug("Starting wallet update process for transaction type: {}, wallet type: {}", tranxType, walletType);
@@ -688,7 +689,8 @@ public class CommonMethods {
                     service,
                     subProductName,
                     narration,
-                    remark
+                    remark,
+                    schemeCode // new
             );
 
             log.info("Transaction record inserted successfully.");
@@ -712,7 +714,8 @@ public class CommonMethods {
             String service,
             String subProductName,
             String narration,
-            String remark) {
+            String remark,
+            String schemeCode) {
 
         log.debug("Preparing to insert transaction record.");
 
@@ -726,9 +729,9 @@ public class CommonMethods {
 
             String sql = "INSERT INTO " + transactionTableName +
                     " (" + columnName + ", service, amount, date_of_transaction, time_of_transaction, " +
-                    "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name, narration, remarks) " +
+                    "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name, narration, remarks,scheme_name) " +
                     "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
-                    ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :subProductName, :narration, :remark)";
+                    ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :subProductName, :narration, :remark, :schemeCode)";
 
             Query query = entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
@@ -744,7 +747,10 @@ public class CommonMethods {
                     .setParameter("tranStatus", tranStatus)
                     .setParameter("subProductName", subProductName)
                     .setParameter("narration", narration)
-                    .setParameter("remark", remark);
+                    .setParameter("remark", remark)
+                    .setParameter("schemeCode", schemeCode
+                    );
+
 
             query.executeUpdate();
             log.info("Transaction inserted successfully for ID: {}", tranxId);
@@ -874,7 +880,7 @@ public class CommonMethods {
         insertTransaction(
                 walletType.name(), hierarchyId, Status.SUCCESS.name(), amount,
                 beforeBalance, wallet.getAvailableBalance(), action,
-                baseTxnId, type.name(), subProductName, narration, remarks
+                baseTxnId, type.name(), subProductName, narration, remarks,""
         );
     }
 

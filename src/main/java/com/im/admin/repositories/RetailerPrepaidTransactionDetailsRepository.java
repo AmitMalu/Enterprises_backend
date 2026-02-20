@@ -301,6 +301,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
     AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
     AND (:vendorName IS NULL OR LOWER(r.vendorName) LIKE LOWER(CONCAT('%', :vendorName, '%')))
     AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)
+     AND (:networkIds IS NULL OR r.retailerId IN :networkIds)
     AND (:userId IS NULL OR LOWER(r.retailerId) LIKE LOWER(CONCAT('%', :userId, '%')))
     AND (:mobileNo IS NULL OR LOWER(r.mobileNo) LIKE LOWER(CONCAT('%', :mobileNo, '%')))
     AND (:schemeName IS NULL OR LOWER(r.schemeName) LIKE LOWER(CONCAT('%', :schemeName, '%')))
@@ -326,13 +327,14 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
     AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
     AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
 """)
-    Page<RetailerPrepaidTransactionDetails> findFilteredTransactionTXN(
+    Page<RetailerPrepaidTransactionDetails> findFilteredTransactionTXN(  //..
             @Param("id") Integer id,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             @Param("subProductNames") List<String> subProductNames,  // List<String>
             @Param("vendorName") String vendorName,
             @Param("tranStatusList") List<String> tranStatusList,
+            @Param("networkIds") List<String> networkIds,
             @Param("userId") String userId,
             @Param("mobileNo") String mobileNo,
             @Param("schemeName") String schemeName,

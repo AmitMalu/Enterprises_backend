@@ -301,6 +301,7 @@ WHERE (:id IS NULL OR r.id = :id)
   AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
   AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
   AND (:vendorName IS NULL OR r.vendorName = :vendorName)
+   AND (:networkIds IS NULL OR r.retailerId IN :networkIds)
   AND (:userId IS NULL OR r.retailerId LIKE %:userId%)
   AND (:mobileNo IS NULL OR r.mobileNo LIKE %:mobileNo%)
   AND (:schemeName IS NULL OR r.schemeName LIKE %:schemeName%)
@@ -325,12 +326,13 @@ WHERE (:id IS NULL OR r.id = :id)
   AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
   AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
 """)
-    Page<RetailerPostpaidTransactionDetails> findFilteredTransactionTXN(
+    Page<RetailerPostpaidTransactionDetails> findFilteredTransactionTXN(  //..
             @Param("id") Integer id,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             @Param("subProductNames") List<String> subProductNames,
             @Param("vendorName") String vendorName,
+            @Param("networkIds") List<String> networkIds,
             @Param("userId") String userId,
             @Param("mobileNo") String mobileNo,
             @Param("schemeName") String schemeName,

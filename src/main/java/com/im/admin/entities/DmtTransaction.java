@@ -30,6 +30,7 @@ public class DmtTransaction {
     private String txnAmount;
     private Double balance;
     private String referenceId;
+    private String TransactionType;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 }

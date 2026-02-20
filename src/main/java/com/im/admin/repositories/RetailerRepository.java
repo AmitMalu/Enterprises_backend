@@ -51,6 +51,7 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
     );
 
 
+//    List<String> findRetailerIdsByParent(String hierarchyId);
 
 }
 

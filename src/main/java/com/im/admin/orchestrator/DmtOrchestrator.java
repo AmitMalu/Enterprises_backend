@@ -228,6 +228,16 @@ public class DmtOrchestrator {
 //            String baseTxnId = orderId.substring(3);
             String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
 
+            SchemeRate selectedScheme = schemeRateRepository
+                    .findSchemeRateByCodeAndOperatorAndAmount(
+                            req.getSchemeCode(),
+                            req.getTxnType(),
+                            req.getAmount().doubleValue())
+                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
+
+            String schemeCode = selectedScheme.getSchemeCode();
+
+
             commonMethods.updateWallet(
                     walletAmountTable,
                     req.getRetailerId(),
@@ -239,7 +249,8 @@ public class DmtOrchestrator {
                     "DEBIT",
                     subProducts.getSubProductTitle(),
                     req.getBeneficiaryName() + " #" + req.getAccountNumber(),
-                    "Fund Transferred #" + req.getAccountNumber()
+                    "Fund Transferred #" + req.getAccountNumber(),
+                    schemeCode   //new
             );
 
             log.debug("[PROCESS DMT] Wallet debited (PENDING) for retailer={}, amount={}",
@@ -284,6 +295,7 @@ public class DmtOrchestrator {
 
             // Save vendor transaction details locally
             DmtTransaction dmtTxn = new DmtTransaction();
+            dmtTxn.setTransactionType(req.getTxnType());
             dmtTxn.setOrderId(orderId);
             dmtTxn.setAckno(remitterTransactionResponse.getAckno());
             dmtTxn.setUtr(remitterTransactionResponse.getUtr());
@@ -310,19 +322,19 @@ public class DmtOrchestrator {
                     orderId, dmtTxn.getVendorStatus());
 
 
-            SchemeRate selectedScheme = schemeRateRepository
-                    .findSchemeRateByCodeAndOperatorAndAmount(
-                            req.getSchemeCode(),
-                            req.getTxnType(),
-                            req.getAmount().doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
+//            SchemeRate selectedScheme = schemeRateRepository
+//                    .findSchemeRateByCodeAndOperatorAndAmount(
+//                            req.getSchemeCode(),
+//                            req.getTxnType(),
+//                            req.getAmount().doubleValue())
+//                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
 
             // Build DTO for transaction engine
             TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
             dto.setBaseTranxId(baseTxnId);
             dto.setAmount(req.getAmount().doubleValue());
             dto.setConfirmAmount(req.getAmount().doubleValue());
-            dto.setOperatorName(subProducts.getSubProductTitle());
+            dto.setOperatorName(req.getTxnType());
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);
 

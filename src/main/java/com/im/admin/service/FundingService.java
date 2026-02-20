@@ -30,4 +30,5 @@ public interface FundingService {
     Page<RetailerTransactionResponseDtoCom> getTransactionReportComWise(SettlementPendingRequestDto request, int page, int size);
 
 
+    List<String> getRetailersUnderHierarchy(String hierarchyId);
 }

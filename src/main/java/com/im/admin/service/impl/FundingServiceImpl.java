@@ -1,7 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.*;
-import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.*;
 import com.im.admin.entities.enums.TransactionType;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
@@ -9,6 +9,7 @@ import com.im.admin.repositories.*;
 import com.im.admin.response.BulkFundResponse;
 import com.im.admin.service.FundingService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,23 @@ import java.util.stream.Stream;
 @Service
 @Slf4j
 public class FundingServiceImpl implements FundingService {
+    @Autowired
+    private SuperDistributorRepository superDistributorRepository;
+    @Autowired
+    private WhiteLabelRepository whiteLabelRepository;
+    @Autowired
+    private EnterprisesRepository enterprisesRepository;
+    @Autowired
+    private UserDetailsRepository userDetailsRepository;
+    @Autowired
+    private DistributorRepository distributorRepository;
+    @Autowired
+    private PartnerRepository partnerRepository;
+    @Autowired
+    private RetailerRepository retailerRepository;
+    @Autowired
+    private TokenUtil tokenUtil;
+
 
     @Autowired
     private CommonMethods commonMethods;
@@ -700,6 +718,14 @@ public class FundingServiceImpl implements FundingService {
 
         log.info("Fetching transactions for walletType: {}", request.getWalletType());
 
+        // network hierarchy logic
+        String hierarchyId = tokenUtil.extractHierarchyId();
+
+        List<String> networkIds =
+                getRetailersUnderHierarchy(hierarchyId);
+
+        log.info("Network IDs for report: {}", networkIds);
+
         List<String> filteredSubProducts = null;
 
         if (request.getProductId() != null) {
@@ -737,9 +763,9 @@ public class FundingServiceImpl implements FundingService {
                 Sort.by("updatedDateOfTransaction").descending());
 
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
-            return fetchPrepaidTXN(request, filteredSubProducts, vendorName, pageable);
+            return fetchPrepaidTXN(request, filteredSubProducts, vendorName, networkIds,  pageable);
         } else {
-            return fetchPostpaidTXN(request, filteredSubProducts, vendorName, pageable);
+            return fetchPostpaidTXN(request, filteredSubProducts, vendorName,networkIds, pageable);
         }
     }
 
@@ -748,6 +774,8 @@ public class FundingServiceImpl implements FundingService {
             SettlementPendingRequestDto request,
             List<String> subProductNames,
             String vendorName,
+            List<String> networkIds,
+
             Pageable pageable) {
 
         Map<String, SubProducts> subProductMap = getSubProductMap();
@@ -759,6 +787,7 @@ public class FundingServiceImpl implements FundingService {
                 subProductNames,
                 vendorName,
                 null, //  statusList REMOVED
+                networkIds,
                 request.getUserId(),
                 request.getMobileNo(),
                 request.getSchemeName(),
@@ -813,6 +842,7 @@ public class FundingServiceImpl implements FundingService {
             SettlementPendingRequestDto request,
             List<String> subProductNames,
             String vendorName,
+            List<String> networkIds,
             Pageable pageable) {
 
         Map<String, SubProducts> subProductMap = getSubProductMap();
@@ -827,6 +857,7 @@ public class FundingServiceImpl implements FundingService {
                 request.getToDate(),
                 subProductNames,
                 vendorName,
+                networkIds,
                 request.getUserId(),
                 request.getMobileNo(),
                 request.getSchemeName(),
@@ -873,12 +904,77 @@ public class FundingServiceImpl implements FundingService {
     }
 
 
+    @Override
+     public List<String> getRetailersUnderHierarchy(String hierarchyId) {
+
+        String type = commonMethods.extractHierarchyType(hierarchyId);
+
+//        if ("RT".equals(type) || "RU".equals(type)) {
+//            return List.of(hierarchyId);
+//        }
+        if ("RU".equals(type)) {
+            return List.of(hierarchyId);
+        }
+
+        List<String> resultIds = new ArrayList<>();
+
+        // Add itself
+        resultIds.add(hierarchyId);
+
+        List<UserDetails> allChildren = new ArrayList<>();
+
+        fetchChildrenRecursively(hierarchyId, allChildren);
+
+        log.info("All children IDs fetched: {}",
+                allChildren.stream()
+                        .map(UserDetails::getHierarchyId)
+                        .toList());
+
+
+        resultIds.addAll(
+         allChildren.stream()
+                .filter(user ->
+                        "RT".equalsIgnoreCase(user.getHierarchyCode()) ||
+                                "RU".equalsIgnoreCase(user.getHierarchyCode())
+                )
+                .map(UserDetails::getHierarchyId)
+                .toList()
+        );
+
+        return resultIds;
+    }
+
+
+    private void fetchChildrenRecursively(
+            String parentId,
+            List<UserDetails> result
+    ) {
+
+        List<UserDetails> children =
+                userDetailsRepository.findByParentAccount(parentId);
+
+        for (UserDetails child : children) {
+            result.add(child);
+            fetchChildrenRecursively(child.getHierarchyId(), result);
+        }
+    }
+
 
     @Override
     public Page<RetailerTransactionResponseDtoCom> getTransactionReportComWise(
             SettlementPendingRequestDto request, int page, int size) {
 
         log.info("Fetching transactions for walletType: {}", request.getWalletType());
+
+        log.info("Fetching transactions for walletType: {}", request.getWalletType());
+
+        // network hierarchy logic
+        String hierarchyId = tokenUtil.extractHierarchyId();
+
+        List<String> networkIds =
+                getRetailersUnderHierarchy(hierarchyId);
+
+        log.info("Network IDs for report: {}", networkIds);
 
         List<String> filteredSubProducts = null;
 
@@ -917,9 +1013,9 @@ public class FundingServiceImpl implements FundingService {
                 Sort.by("updatedDateOfTransaction").descending());
 
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
-            return fetchPrepaidTXNCom(request, filteredSubProducts, vendorName, pageable);
+            return fetchPrepaidTXNCom(request, filteredSubProducts, vendorName,networkIds, pageable);
         } else {
-            return fetchPostpaidTXNCom(request, filteredSubProducts, vendorName, pageable);
+            return fetchPostpaidTXNCom(request, filteredSubProducts, vendorName,networkIds, pageable);
         }
     }
 
@@ -928,6 +1024,7 @@ public class FundingServiceImpl implements FundingService {
             SettlementPendingRequestDto request,
             List<String> subProductNames,
             String vendorName,
+            List<String> networkIds,
             Pageable pageable) {
 
         Map<String, SubProducts> subProductMap = getSubProductMap();
@@ -939,6 +1036,7 @@ public class FundingServiceImpl implements FundingService {
                 subProductNames,
                 vendorName,
                 null,
+                networkIds,
                 request.getUserId(),
                 request.getMobileNo(),
                 request.getSchemeName(),
@@ -1025,6 +1123,7 @@ public class FundingServiceImpl implements FundingService {
             SettlementPendingRequestDto request,
             List<String> subProductNames,
             String vendorName,
+            List<String> networkIds,
             Pageable pageable) {
 
         Map<String, SubProducts> subProductMap = getSubProductMap();
@@ -1039,6 +1138,7 @@ public class FundingServiceImpl implements FundingService {
                 request.getToDate(),
                 subProductNames,
                 vendorName,
+                networkIds,
                 request.getUserId(),
                 request.getMobileNo(),
                 request.getSchemeName(),

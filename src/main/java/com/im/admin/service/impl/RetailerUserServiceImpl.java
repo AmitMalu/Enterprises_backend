@@ -139,6 +139,7 @@ public class RetailerUserServiceImpl implements RetailerUserService {
         user.setUserLoginStatus(false);
         user.setChannel("web");           // optional
         user.setRole_id(saveRetailerUser.getRole_id());
+        user.setParentAccount(parentAccount);
 
         userDetailsRepository.save(user);  // save into login table
 
