@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -46,4 +48,32 @@ public class AepsMiniStatement {
     @Lob
     @Column(name = "response_payload", columnDefinition = "LONGTEXT")
     private String responsePayload;
+
+    @Column(name = "transaction_id")
+    private String transactionId;
+
+    @Column(name = "aadhaar_number")
+    private String aadhaarNumber;
+
+    @Column(name = "mobile_number")
+    private String mobileNumber;
+
+    @Column(name = "bank_name")
+    private String bankName;
+
+    @Column(name = "transaction_amount")
+    private Double transactionAmount;
+
+    @Column(name = "status_message")
+    private String statusMessage;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = LocalDateTime.now();
+    }
+
+
 }

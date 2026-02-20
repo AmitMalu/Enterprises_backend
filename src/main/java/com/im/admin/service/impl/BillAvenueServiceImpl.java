@@ -563,7 +563,8 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                     "DEBIT",
                     subProducts.getSubProductTitle(),
                     "Bill Avenue BillPay",
-                    "Bill payment initiated"
+                    "Bill payment initiated",
+                    ""
             );
 
             bbpsRelatedTransactions.processCharges(bbpsDto, walletAmountTable);

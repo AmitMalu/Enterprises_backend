@@ -200,6 +200,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
                 );
             }
 
+            String txnId = buildTransactionId("TXN", baseTxnId);
+
             // ================================
             // STEP 8: SAVE LOG (ONLY IF SUCCESS)
             // ================================
@@ -218,6 +220,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
                 logEntry.setResponsePayload(objectMapper.writeValueAsString(responseBody));
                 logEntry.setRetailerId(req.getRetailerId());
                 logEntry.setVendorId(vendor.getId());
+                logEntry.setTransactionId(txnId);
+                logEntry.setTerminalId(responseBody.getData().getTerminalId());
 
                 cashWithdrawalRepository.save(logEntry);
             }
@@ -237,11 +241,11 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             // ================================
             // STEP 10: BUILD DTO FOR TRANSACTION ENGINE
             // ================================
-            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();  //CW
             dto.setBaseTranxId(baseTxnId);
             dto.setAmount(req.getTransactionAmount().doubleValue());
             dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
-            dto.setOperatorName(subProducts.getSubProductTitle());
+            dto.setOperatorName("CW");
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);
 
@@ -275,7 +279,7 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             // ================================
             transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
 
-            String txnId = buildTransactionId("TXN", baseTxnId);
+//            String txnId = buildTransactionId("TXN", baseTxnId);
 
             if (responseBody != null && responseBody.getData() != null) {
                 responseBody.getData().setTransactionId(txnId);

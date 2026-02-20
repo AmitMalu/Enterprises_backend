@@ -82,6 +82,8 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
     @Override
     public CommonResponse<AepsBalanceInquiryResponse>  balanceInquiry(AepsBalanceInquiryRequest req) {
 
+
+
         String baseTransactionId = commonMethods.generateBaseTransactionId();
         String orderId = "AEPS" + baseTransactionId;
         log.info("[AEPS BE] Start | orderId={}", orderId);
@@ -168,7 +170,6 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
 
-
             // vemndor call
             ResponseEntity<AepsBalanceInquiryResponse> vendorResp =
                     vendorService.processBalanceInquiry(req, credentials);
@@ -192,6 +193,7 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             }
 
+            String txnId = buildTransactionId("TXN", baseTxnId);
 
             // ===== SAVE SUCCESS LOGS =====
             if (response.isStatus()
@@ -210,6 +212,17 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
                 log.setBalanceAmount(response.getData().getBalanceAmount());
                 log.setRequestPayload(plainJson);
                 log.setResponsePayload(objectMapper.writeValueAsString(response));
+                log.setTransactionId(txnId);
+
+
+                //
+
+                log.setAadhaarNumber(req.getCardnumberORUID().getAdhaarNumber());
+                log.setMobileNumber(req.getMobileNumber());
+//                log.setBankName(response.getData().getBankName());
+                log.setTransactionAmount(response.getData().getTransactionAmount());
+                log.setStatusMessage(response.getData().getErrorMessage()); // or correct field
+
 
                 aepsBalanceEnquiryRepository.save(log);
             }
@@ -222,11 +235,11 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
                     .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getTransactionAmount()));
 
             // Build DTO for transaction engine
-            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();  //BE
             dto.setBaseTranxId(baseTxnId);
             dto.setAmount(req.getTransactionAmount().doubleValue());
             dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
-            dto.setOperatorName(subProducts.getSubProductTitle());
+            dto.setOperatorName("BE");
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);
 
@@ -264,7 +277,7 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
 
-            String txnId = buildTransactionId("TXN", baseTxnId);
+//            String txnId = buildTransactionId("TXN", baseTxnId);
 
             if (response != null && response.getData() != null) {
                 response.getData().setTransactionId(txnId);
@@ -410,6 +423,8 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             }
 
+            String txnId = buildTransactionId("TXN", baseTxnId);
+
 
             // ===== SAVE SUCCESS LOGS =====
             if (response.isStatus()
@@ -428,6 +443,16 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
                 log.setBalanceAmount(response.getData().getBalanceAmount());
                 log.setRequestPayload(plainJson);
                 log.setResponsePayload(objectMapper.writeValueAsString(response));
+                log.setTransactionId(txnId);
+
+                //
+
+                log.setAadhaarNumber(req.getCardnumberORUID().getAdhaarNumber());
+                log.setMobileNumber(req.getMobileNumber());
+//                log.setBankName(response.getData().getBankName());
+                log.setTransactionAmount(response.getData().getTransactionAmount());
+                log.setStatusMessage(response.getData().getErrorMessage()); // or correct field
+
 
                 aepsMiniStatementRepository.save(log);
             }
@@ -440,11 +465,11 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
                     .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getTransactionAmount()));
 
             // Build DTO for transaction engine
-            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();  //MS
             dto.setBaseTranxId(baseTxnId);
             dto.setAmount(req.getTransactionAmount().doubleValue());
             dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
-            dto.setOperatorName(subProducts.getSubProductTitle());
+            dto.setOperatorName("MS");
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);
 
@@ -472,7 +497,7 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
 
-            String txnId = buildTransactionId("TXN", baseTxnId);
+//            String txnId = buildTransactionId("TXN", baseTxnId);
 
             if (response != null && response.getData() != null) {
                 response.getData().setTransactionId(txnId);

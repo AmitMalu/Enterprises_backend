@@ -43,5 +43,7 @@ public interface DistributorRepository extends JpaRepository<Distributor, String
             @Param("partnerIds") List<String> partnerIds
     );
 
+//    List<String> findDistributorIdsByParent(String hierarchyId);
+
 }
 

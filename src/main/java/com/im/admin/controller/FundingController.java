@@ -143,6 +143,19 @@ public class FundingController {
         );
     }
 
+    @PostMapping("/get-networks/{hierarchyId}")
+    public ResponseEntity<CommonResponse> getSettlementPending(
+            @PathVariable String hierarchyId
+           ) {
+
+        List<String> retailersUnderHierarchy = fundingService.getRetailersUnderHierarchy(hierarchyId);
+
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "success", retailersUnderHierarchy)
+        );
+    }
+
 
 
 }
