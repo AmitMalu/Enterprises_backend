@@ -15,10 +15,12 @@ public interface AdminPrepaidTransactionDetailsRepository extends JpaRepository<
 
     // Search by normalized transactionId + enterprisesId
     @Query("SELECT ad FROM AdminPrepaidTransactionDetails ad " +
-            "WHERE ad.transactionId LIKE %:txnId% AND ad.hierarchyId = :hierarchyId")
+            "WHERE ad.transactionId LIKE %:txnId% " +
+            "AND ad.hierarchyId IN :networkIds")
     List<AdminPrepaidTransactionDetails> findTransactionsByTransactionIdAndAdminId(
             @Param("txnId") String txnId,
-            @Param("hierarchyId") String hierarchyId);
+            @Param("networkIds") List<String> networkIds);
+
 
     // Search only by normalized transactionId (for Admin / global search)
     @Query("SELECT ad FROM AdminPrepaidTransactionDetails ad " +

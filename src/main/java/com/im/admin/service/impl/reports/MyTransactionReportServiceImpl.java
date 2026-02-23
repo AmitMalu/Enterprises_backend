@@ -1,16 +1,19 @@
 package com.im.admin.service.impl.reports;
 
 import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.UserDetails;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
+import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.request.reports.MyTransactionReportRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.reports.MyTransactionReportResponse;
 import com.im.admin.service.reports.MyTransactionReportService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ParameterMode;
 import jakarta.persistence.StoredProcedureQuery;
@@ -49,6 +52,12 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
     @Autowired
     private SubProductsRepository subProductsRepository;
 
+    @Autowired
+    private UserDetailsRepository userDetailsRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
+
 
     @Override
     public CommonResponse<Page<MyTransactionReportResponse>> getReport(
@@ -59,6 +68,18 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                 request.getSize(),
                 Sort.by("transactionDate").descending()
         );
+
+        // ===== NETWORK HIERARCHY LOGIC =====
+        String loggedInHierarchyId = tokenUtil.extractHierarchyId();
+
+        List<String> networkIds =
+                getRetailersUnderHierarchy(loggedInHierarchyId);
+
+        log.info("Network IDs for report: {}", networkIds);
+
+// Convert to CSV
+        String networkCsv = String.join(",", networkIds);
+
 
         LocalDate from = StringUtils.hasText(request.getFromDate())
                 ? LocalDate.parse(request.getFromDate())
@@ -130,7 +151,9 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                             to,
                             subProductsParam,
                             productParam,
-                            pageable
+                            pageable,
+                            networkCsv,
+                            loggedInHierarchyId
                     );
 
             allData.addAll(
@@ -156,7 +179,9 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             LocalDate to,
             String subProducts,
             String products,
-            Pageable pageable
+            Pageable pageable,
+            String networkCsv,
+            String loggedInHierarchyId
     ) {
 
         StoredProcedureQuery query =
@@ -185,23 +210,31 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
 
         // ===== SET PARAMS =====
-//        query.setParameter("p_table_name", "ALL");          // 🔥 MAIN POINT
+//        query.setParameter("p_table_name", "ALL");
         // PREPAID or POSTPAID
         query.setParameter("p_table_name", walletType.name());
 // PREPAID or POSTPAID
 
+//        query.setParameter(
+//                "p_hierarchy_type",
+//                StringUtils.hasText(request.getHierarchyType()) ? request.getHierarchyType() : null
+//        );
+//
+////        query.setParameter("p_hierarchy_id", null);
+//        query.setParameter(
+//                "p_hierarchy_id",
+//                StringUtils.hasText(request.getHierarchyId())
+//                        ? request.getHierarchyId()
+//                        : null
+//        );
+
         query.setParameter(
                 "p_hierarchy_type",
-                StringUtils.hasText(request.getHierarchyType()) ? request.getHierarchyType() : null
+                commonMethods.extractHierarchyType(loggedInHierarchyId)
         );
 
-//        query.setParameter("p_hierarchy_id", null);
-        query.setParameter(
-                "p_hierarchy_id",
-                StringUtils.hasText(request.getHierarchyId())
-                        ? request.getHierarchyId()
-                        : null
-        );
+        query.setParameter("p_hierarchy_id", networkCsv);
+
 
 
         query.setParameter("p_from_date", from);
@@ -371,5 +404,58 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         return new ByteArrayInputStream(out.toByteArray());
     }
 
+    public List<String> getRetailersUnderHierarchy(String hierarchyId) {
+
+        String type = commonMethods.extractHierarchyType(hierarchyId);
+
+//        if ("RT".equals(type) || "RU".equals(type)) {
+//            return List.of(hierarchyId);
+//        }
+        if ("RU".equals(type)) {
+            return List.of(hierarchyId);
+        }
+
+        List<String> resultIds = new ArrayList<>();
+
+        // Add itself
+        resultIds.add(hierarchyId);
+
+        List<UserDetails> allChildren = new ArrayList<>();
+
+        fetchChildrenRecursively(hierarchyId, allChildren);
+
+        log.info("All children IDs fetched: {}",
+                allChildren.stream()
+                        .map(UserDetails::getHierarchyId)
+                        .toList());
+
+
+        resultIds.addAll(
+                allChildren.stream()
+                        .filter(user ->
+                                "RT".equalsIgnoreCase(user.getHierarchyCode()) ||
+                                        "RU".equalsIgnoreCase(user.getHierarchyCode())
+                        )
+                        .map(UserDetails::getHierarchyId)
+                        .toList()
+        );
+
+        return resultIds;
+    }
+
+
+    private void fetchChildrenRecursively(
+            String parentId,
+            List<UserDetails> result
+    ) {
+
+        List<UserDetails> children =
+                userDetailsRepository.findByParentAccount(parentId);
+
+        for (UserDetails child : children) {
+            result.add(child);
+            fetchChildrenRecursively(child.getHierarchyId(), result);
+        }
+    }
 
 }

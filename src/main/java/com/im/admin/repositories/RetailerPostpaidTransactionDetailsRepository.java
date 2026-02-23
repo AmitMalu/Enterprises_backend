@@ -32,6 +32,7 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
         AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
         AND (:vendorName IS NULL OR r.vendorName = :vendorName)
         AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)
+         AND (:networkIds IS NULL OR r.retailerId IN :networkIds)
         AND (:userId IS NULL OR r.retailerId LIKE %:userId%)
         AND (:mobileNo IS NULL OR r.mobileNo LIKE %:mobileNo%)
         AND (:schemeName IS NULL OR r.schemeName LIKE %:schemeName%)
@@ -53,6 +54,7 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
             @Param("subProductNames") List<String> subProductNames,
             @Param("vendorName") String vendorName,
             @Param("tranStatusList") List<String> tranStatusList,
+            @Param("networkIds") List<String> networkIds,
             @Param("userId") String userId,
             @Param("mobileNo") String mobileNo,
             @Param("schemeName") String schemeName,
@@ -71,10 +73,12 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
 
 
     @Query("SELECT t FROM RetailerPostpaidTransactionDetails t " +
-            "WHERE t.transactionId LIKE %:txnId% AND t.retailerId = :hierarchyId")
-    List<RetailerPostpaidTransactionDetails> findTransactionsByTransactionIdAndRetailerId(
+            "WHERE t.transactionId LIKE %:txnId% " +
+            "AND t.retailerId IN :networkIds")
+    List<RetailerPostpaidTransactionDetails> findTransactionsByTransactionIdAndRetailerIdIn(
             @Param("txnId") String txnId,
-            @Param("hierarchyId") String hierarchyId);
+            @Param("networkIds") List<String> networkIds);
+
 
     // Search only by normalized transactionId (for Admin / global search)
     @Query("SELECT t FROM RetailerPostpaidTransactionDetails t " +
@@ -319,7 +323,7 @@ WHERE (:id IS NULL OR r.id = :id)
         OR LOWER(r.actionOnBalanceAmount) LIKE
            CONCAT('%', LOWER(TRIM(:actionOnBalanceAmount)), '%')
       )
-       AND r.tranStatus <> 'FAILURE'
+    
 
   AND (:dateOfTransaction IS NULL OR r.dateOfTransaction = :dateOfTransaction)
   AND (:timeOfTransaction IS NULL OR r.timeOfTransaction = :timeOfTransaction)

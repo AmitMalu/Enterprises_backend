@@ -38,4 +38,7 @@ public class CallbackEventLog {
     @Column(name = "response_date_time")
     private LocalDateTime responseDateTime;
 
+    @Column(name = "order_id")
+    private String orderId;
+
 }

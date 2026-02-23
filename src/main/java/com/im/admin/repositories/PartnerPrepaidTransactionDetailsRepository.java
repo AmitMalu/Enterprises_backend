@@ -16,10 +16,12 @@ public interface PartnerPrepaidTransactionDetailsRepository extends JpaRepositor
 
     // Search by normalized transactionId + distributorId
     @Query("SELECT pt FROM PartnerPrepaidTransactionDetails pt " +
-            "WHERE pt.transactionId LIKE %:txnId% AND pt.partnerId = :hierarchyId")
-    List<PartnerPrepaidTransactionDetails> findTransactionsByTransactionIdAndPartnerId(
+            "WHERE pt.transactionId LIKE %:txnId% " +
+            "AND pt.partnerId IN :networkIds")
+    List<PartnerPrepaidTransactionDetails> findTransactionsByTransactionIdAndPartnerIdIn(
             @Param("txnId") String txnId,
-            @Param("hierarchyId") String hierarchyId);
+            @Param("networkIds") List<String> networkIds);
+
 
 
     // Search only by normalized transactionId (for Admin / global search)

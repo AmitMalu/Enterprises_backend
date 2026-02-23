@@ -86,6 +86,9 @@ public class BillAvenueServiceImpl implements BillAvenueService {
     private CommonFunctions commonFunctions;
 
     @Autowired
+    private BillAvenueTransactionRepository billAvenueTransactionRepository;
+
+    @Autowired
     private BBPSPendingTransactionsRepository bbpsPendingTransactionsRepository;
 
     // old credentials
@@ -681,6 +684,49 @@ public class BillAvenueServiceImpl implements BillAvenueService {
             BillAvenueBillPayResponse vendorResponse =
                     mapper.readValue(decrypted, BillAvenueBillPayResponse.class);
 
+            String txnId = buildTransactionId("TXN", baseTransactionId);
+
+            // save vendor response in db
+            BillAvenueTransaction transaction = new BillAvenueTransaction();
+
+            transaction.setCreatedDateTime(LocalDateTime.now());
+            String txnStatus;
+            if ("000".equals(vendorResponse.getResponseCode())) {
+                txnStatus = "SUCCESS";
+            } else if ("002".equals(vendorResponse.getResponseCode())
+                    || "FORWARD".equalsIgnoreCase(vendorResponse.getTxnRespType())) {
+                txnStatus = "PENDING";
+            } else {
+                txnStatus = "FAILED";
+            }
+            transaction.setTxnStatus(txnStatus);
+
+            String billerId = request.getBillerId();
+
+            BillPayConfig config = billPayConfigRepository
+                    .findByProviderId(billerId)
+                    .orElseThrow(() ->
+                            new RuntimeException("No BillPayConfig found for providerId: " + billerId)
+                    );
+            transaction.setBillerName(config.getProviderName());
+
+//            BigDecimal amt =
+//                    new BigDecimal(vendorResponse.getRespAmount())
+//                            .divide(BigDecimal.valueOf(100));
+
+            Long amt = Long.parseLong(vendorResponse.getRespAmount()) / 100;
+
+            transaction.setTxnAmount(amt);
+            transaction.setCustomerName(vendorResponse.getRespCustomerName());
+            transaction.setConsumerNumber(request.getNumber());
+            transaction.setCategory(request.getTxnType());
+            transaction.setTxnId(txnId);
+
+            transaction.setReferenceNumber(
+                    vendorResponse.getApprovalRefNumber()
+            );
+            billAvenueTransactionRepository.save(transaction);
+
             // ================= SUCCESS FLOW =================
             if ("000".equals(vendorResponse.getResponseCode())) {
 
@@ -911,6 +957,9 @@ public class BillAvenueServiceImpl implements BillAvenueService {
     }
 
 
+    public String buildTransactionId(String prefix, String baseId) {
+        return prefix + baseId;
+    }
 }
 
 

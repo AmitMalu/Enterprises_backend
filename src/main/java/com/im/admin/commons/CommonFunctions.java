@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -96,17 +97,41 @@ public class CommonFunctions {
     }
 
 
-    public void saveCallbackEventLog(String request, LocalDateTime requestDateTime, String ipAddress,
-                                     String response, LocalDateTime responseDateTime) {
+//    public void saveCallbackEventLog(String request, LocalDateTime requestDateTime, String ipAddress,
+//                                     String response, LocalDateTime responseDateTime) {
+//
+//        CallbackEventLog callbackEventLog = new CallbackEventLog();
+//        callbackEventLog.setRequest(request);
+//        callbackEventLog.setRequestDateTime(requestDateTime);
+//        callbackEventLog.setIpAddress(ipAddress);
+//        callbackEventLog.setResponse(response);
+//        callbackEventLog.setResponseDateTime(responseDateTime);
+//        callbackEventLogRepository.save(callbackEventLog);
+//    }
+
+    public void saveCallbackEventLog(Map<String, String> payload,
+                                     LocalDateTime requestDateTime,
+                                     String ipAddress,
+                                     String response,
+                                     LocalDateTime responseDateTime) {
 
         CallbackEventLog callbackEventLog = new CallbackEventLog();
-        callbackEventLog.setRequest(request);
+
+        callbackEventLog.setRequest(payload.toString());
         callbackEventLog.setRequestDateTime(requestDateTime);
         callbackEventLog.setIpAddress(ipAddress);
         callbackEventLog.setResponse(response);
         callbackEventLog.setResponseDateTime(responseDateTime);
+
+
+        String orderId = payload.get("ORDER_ID");
+        callbackEventLog.setOrderId(orderId);
+
         callbackEventLogRepository.save(callbackEventLog);
     }
+
+
+
 
     public SmsLog saveSmsLogs(LocalDateTime smsRequestDateTime, String request, LocalDateTime smsResponseDateTime, String response, String ipAddress) {
         SmsLog smsLog = new SmsLog();

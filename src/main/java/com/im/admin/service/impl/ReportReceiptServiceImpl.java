@@ -4,6 +4,7 @@ import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.request.ReportReceiptRequestDto;
 import com.im.admin.response.AepsReceiptResponseDto;
+import com.im.admin.response.BbpsReceiptResponseDto;
 import com.im.admin.response.DmtReceiptResponseDto;
 import com.im.admin.service.ReportReceiptService;
 import com.im.admin.util.AbstractRetailerTransactionDetails;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 
 @Service
@@ -36,6 +38,10 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
 
     @Autowired
     private AepsCashWithdrawalRepository aepsCashWithdrawalRepository;
+
+    @Autowired
+    private BillAvenueTransactionRepository billAvenueTransactionRepository;
+
 
 
     @Override
@@ -164,6 +170,34 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                         cw.getCreatedAt() != null ? cw.getCreatedAt().toString() : null
                 );
             }
+        }
+
+        // ======================= BBPS ============================
+
+        if (productName != null &&
+                productName.toLowerCase().contains("bbps")) {
+
+            BillAvenueTransaction bbps =
+                    billAvenueTransactionRepository
+                            .findByTxnId(request.getTxnId())
+                            .orElseThrow(() ->
+                                    new RuntimeException("BBPS record not found"));
+
+            return BbpsReceiptResponseDto.builder()
+                    .createdDateTime(
+                            bbps.getCreatedDateTime() != null
+                                    ? bbps.getCreatedDateTime().toString()
+                                    : null
+                    )
+                    .txnStatus(bbps.getTxnStatus())
+                    .billerName(bbps.getBillerName())
+                    .txnAmount(bbps.getTxnAmount())
+                    .customerName(bbps.getCustomerName())
+                    .consumerNumber(bbps.getConsumerNumber())
+                    .category(bbps.getCategory())
+                    .txnId(bbps.getTxnId())
+                    .referenceNumber(bbps.getReferenceNumber())
+                    .build();
         }
 
         throw new RuntimeException("Unsupported Product");
