@@ -1,5 +1,6 @@
 package com.im.admin.repositories;
 
+import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorRouting;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -24,4 +25,5 @@ public interface VendorRoutingRepository extends JpaRepository<VendorRouting, Lo
     VendorRouting findBySubProductId(@Param("subProductId") String subProductId);
 
 
+    VendorRouting findBySubProduct(SubProducts subProducts);
 }

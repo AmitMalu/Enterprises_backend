@@ -33,12 +33,13 @@ public class OnboardingHierarchyController {
             @RequestParam(required = false) String mobileNumber,
             @RequestParam(required = false) String emailId,
             @RequestParam(required = false) String parentAccount,
+            @RequestParam(required = false) String rejectionReason,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
         Page<GenericPendingRecordDto> response = onboardingService.getAllRecordsByStatus(
                 status, page, size,
-                type, id, name, createdBy, createdOn, mobileNumber, emailId, parentAccount);
+                type, id, name, createdBy, createdOn, mobileNumber, emailId, parentAccount,rejectionReason);
 
         String formattedStatus = status.toUpperCase();
         String message = switch (formattedStatus) {
@@ -72,4 +73,12 @@ public class OnboardingHierarchyController {
         log.info("Record fetched successfully for ID: {}", id);
         return ResponseEntity.ok(CommonResponse.success(record, "Record fetched successfully"));
     }
+
+    @PutMapping("/move-pending/{hierarchyId}")
+    public ResponseEntity<CommonResponse<String>> moveToPending(@PathVariable String hierarchyId) {
+        log.info("Moving hierarchy {} back to PENDING", hierarchyId);
+        String message = onboardingService.moveToPending(hierarchyId);
+        return ResponseEntity.ok(new CommonResponse<>(200, message, null));
+    }
+
 }

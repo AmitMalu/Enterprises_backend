@@ -152,7 +152,12 @@ public class AESController {
 
 			// 7 Combine everything you’ll need later to decrypt:
 			// hierarchyCode|saltBase64|ivBase64|encryptedToken
-			String fullToken = user.getHierarchyCode() + "|" +
+//			String fullToken = user.getHierarchyCode() + "|" +  // old token
+//					tokenGenerationRequest.getSalt() + "|" +
+//					Base64.getEncoder().encodeToString(tokenIv.getIV()) + "|" +
+//					encryptedToken;
+
+			String fullToken  = user.getHierarchyId() + "|" +   // currrent tpken
 					tokenGenerationRequest.getSalt() + "|" +
 					Base64.getEncoder().encodeToString(tokenIv.getIV()) + "|" +
 					encryptedToken;

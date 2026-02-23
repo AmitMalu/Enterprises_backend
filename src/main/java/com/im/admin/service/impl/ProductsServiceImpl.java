@@ -13,7 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,6 +30,10 @@ public class ProductsServiceImpl implements ProductsService {
     public Products saveProduct(Products product) {
         log.info("Saving new product: {}", product);
 
+        if (productsRepository.existsByName(product.getName())) {
+            throw new IllegalArgumentException("Product already exists with name: " + product.getName());
+        }
+
         Short lastInsertedId = productsRepository.findMaxId(); // Fetch the max ID
 
         if (lastInsertedId != null && lastInsertedId >= 99) {
@@ -37,6 +41,18 @@ public class ProductsServiceImpl implements ProductsService {
         }
 
         Products savedProduct = productsRepository.save(product);
+
+        //**************** chnage code *******************
+        // STEP 2: Get generated ID
+           Short generatedId = savedProduct.getId();
+
+        // STEP 3: Set ID into both fields
+        savedProduct.setProductCode(String.valueOf(generatedId));
+        savedProduct.setProductCodeForScheme(String.valueOf(generatedId));
+
+        // STEP 4: Save again
+        savedProduct = productsRepository.save(savedProduct);
+
 
         log.info("Product saved successfully with ID: {}", savedProduct.getId());
         return savedProduct;
@@ -53,10 +69,17 @@ public class ProductsServiceImpl implements ProductsService {
 
         // Field-by-field update
         existingProduct.setName(product.getName());
-        existingProduct.setProductCode(product.getProductCode());
-        existingProduct.setProductCodeForScheme(product.getProductCodeForScheme());
+//        existingProduct.setProductCode(product.getProductCode());   ******chnage code****
+//        existingProduct.setProductCodeForScheme(product.getProductCodeForScheme());****code change****
         existingProduct.setIsVisible(product.getIsVisible());
-        existingProduct.setTransactionType(product.getTransactionType());
+
+//        existingProduct.setTransactionType(product.getTransactionType());
+
+        if (StringUtils.hasText(product.getTransactionType())) {
+            existingProduct.setTransactionType(product.getTransactionType());
+        }
+
+
         existingProduct.setIsCommissions(product.getIsCommissions());
         existingProduct.setSelectIsCommission(product.getSelectIsCommission());
         existingProduct.setActive(product.getActive());

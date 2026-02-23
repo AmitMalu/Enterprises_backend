@@ -34,5 +34,14 @@ public interface PartnerRepository extends JpaRepository<Partner, String> {
 
     Partner findByMobileNumber(String mobileNumber);
 
+    @Query("""
+        SELECT p.partnerId
+        FROM Partner p
+        WHERE p.parentAccount = :sdId
+    """)
+    List<String> findPartnerIdsBySd(
+            @Param("sdId") String sdId
+    );
+
 }
 

@@ -27,6 +27,8 @@ public class MyTransactionReportRequest {
     @JsonDeserialize(using = StatusDeserializer.class)
     private Status status;  //PENDING or FAILURE or SUCCESS or ALL
 
+    private String productName;
+
     private Integer id;
     private Short productId;
 

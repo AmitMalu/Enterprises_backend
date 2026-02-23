@@ -1,20 +1,25 @@
 package com.im.admin.service;
 
-import com.im.admin.dto.RemitterEkycRequest;
-import com.im.admin.dto.RemitterQueryResponse;
-import com.im.admin.dto.RemitterRegisterRequest;
-import com.im.admin.dto.RemitterRegisterResponse;
+import com.im.admin.dto.*;
+import com.im.admin.request.RemitterUpdateRequest;
 import com.im.admin.entities.DmtRemitter;
+import com.im.admin.request.DmtOtpRequest;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.DmtRemitterResponseDto;
 
 public interface RemitterService {
 
-    CommonResponse<RemitterQueryResponse> checkRemitter(String mobile,String subProductId);
+    CommonResponse<RemitterQueryResponse> checkRemitter(String mobile,String subProductId) throws Exception ;
 
     CommonResponse<RemitterRegisterResponse> registerRemitter(RemitterRegisterRequest request);
 
     CommonResponse<Object> doEkyc(RemitterEkycRequest request);
 
-    CommonResponse<DmtRemitter> fetchRemitterDetails(String mobileNumber);
+    CommonResponse<DmtRemitterResponseDto> fetchRemitterDetails(String mobileNumber);
 
+    CommonResponse<DmtRemitterResponseDto> updateRemitter(RemitterUpdateRequest request);
+
+    CommonResponse<String> sendOtp(DmtOtpRequest dmtOtpRequest);
+
+    CommonResponse<String> resendOtp(String mobile);
 }

@@ -18,6 +18,7 @@ public class CommissionTransactionReportResponse {
     private LocalTime transactionTime;
     //private String outletName;
     private String subProductName;
+    private String productName;
     private String walletType;
     private String txType;
     private BigDecimal balBefore;
@@ -26,6 +27,7 @@ public class CommissionTransactionReportResponse {
     private String operator;
     private String txId;
     private String narration;
+    private String hierarchyId;
 
 
 

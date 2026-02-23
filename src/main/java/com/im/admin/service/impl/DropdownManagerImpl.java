@@ -1,7 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.ChildUserDto;
-import com.im.admin.entities.UserDetails;
+import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.service.DropdownManagerService;
 import com.im.admin.util.CommonMethods;
@@ -48,6 +48,178 @@ public class DropdownManagerImpl implements DropdownManagerService {
     private RetailerRepository retailerRepository;
 
 
+//    @Override
+//    public Page<ChildUserDto> getChildUsers(
+//            String parentHierarchyId,
+//            int page,
+//            int size,
+//            String userId,
+//            String parentAccount,
+//            String abbreviation,
+//            String title,
+//            String name,
+//            String mobileNumber,
+//            String emailId,
+//            String dob,
+//            String status,
+//            Boolean isBlocked,
+//            String network,
+//            String createdOn
+//    ) {
+//        // Extract parent type (e.g., "WL" -> WhiteLabel)
+//        String parentType = commonMethods.extractHierarchyType(parentHierarchyId);
+//        List<String> childEntities = hierarchyChildren.get(parentType);
+//
+//        if (childEntities == null || childEntities.isEmpty())
+//            throw new RuntimeException("No child entities found for hierarchy type: " + parentType);
+//
+//        List<ChildUserDto> allChildUsers = childEntities.stream()
+//                .flatMap(childEntity -> switch (childEntity) {
+//                    case "enterprises" -> enterprisesRepository.findByParentAccount(parentHierarchyId).stream()
+//                            //.filter(e -> "APPROVED".equalsIgnoreCase(e.getStatus()))
+//                            .map(e -> new ChildUserDto(
+//                                    "Enterprises",
+//                                    e.getEnterpriseId(),
+//                                    e.getParentAccount(),
+//                                    e.getAbbreviation(),
+//                                    e.getTitle(),
+//                                    e.getName(),
+//                                    e.getMobileNumber(),
+//                                    e.getEmailId(),
+//                                    e.getDob(),
+//                                    e.getStatus(),
+//                                    userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId())
+//                                            .map(UserDetails::getIsBlocked).orElse(false),
+//                                    e.getRejectionReason(),
+//                                    e.getCreatedOn()
+//                            ));
+//
+//                    case "white_labels" -> whiteLabelRepository.findByParentAccount(parentHierarchyId).stream()
+//                            //.filter(wl -> "APPROVED".equalsIgnoreCase(wl.getStatus()))
+//                            .map(wl -> new ChildUserDto(
+//                                    "White Label",
+//                                    wl.getWhiteLabelId(),
+//                                    wl.getParentAccount(),
+//                                    wl.getAbbreviation(),
+//                                    wl.getTitle(),
+//                                    wl.getName(),
+//                                    wl.getMobileNumber(),
+//                                    wl.getEmailId(),
+//                                    wl.getDob(),
+//                                    wl.getStatus(),
+//                                    userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId())
+//                                            .map(UserDetails::getIsBlocked).orElse(false),
+//                                    wl.getRejectionReason(),
+//                                    wl.getCreatedOn()
+//                            ));
+//
+//                    case "super_distributor" ->
+//                            superDistributorRepository.findByParentAccount(parentHierarchyId).stream()
+//                                    //.filter(s -> "APPROVED".equalsIgnoreCase(s.getStatus()))
+//                                    .map(s -> new ChildUserDto(
+//                                            "Super Distributor",
+//                                            s.getSuperDistributorId(),
+//                                            s.getParentAccount(),
+//                                            s.getAbbreviation(),
+//                                            s.getTitle(),
+//                                            s.getName(),
+//                                            s.getMobileNumber(),
+//                                            s.getEmailId(),
+//                                            s.getDob(),
+//                                            s.getStatus(),
+//                                            userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId())
+//                                                    .map(UserDetails::getIsBlocked).orElse(false),
+//                                            s.getRejectionReason(),
+//                                            s.getCreatedOn()
+//                                    ));
+//
+//                    case "partner" -> partnerRepository.findByParentAccount(parentHierarchyId).stream()
+//                            //.filter(p -> "APPROVED".equalsIgnoreCase(p.getStatus()))
+//                            .map(p -> new ChildUserDto(
+//                                    "Partner",
+//                                    p.getPartnerId(),
+//                                    p.getParentAccount(),
+//                                    p.getAbbreviation(),
+//                                    p.getTitle(),
+//                                    p.getName(),
+//                                    p.getMobileNumber(),
+//                                    p.getEmailId(),
+//                                    p.getDob(),
+//                                    p.getStatus(),
+//                                    userDetailsRepository.findFirstByHierarchyId(p.getPartnerId())
+//                                            .map(UserDetails::getIsBlocked).orElse(false),
+//                                    p.getRejectionReason(),
+//                                    p.getCreatedOn()
+//                            ));
+//
+//                    case "distributor" -> distributorRepository.findByParentAccount(parentHierarchyId).stream()
+//                            //.filter(d -> "APPROVED".equalsIgnoreCase(d.getStatus()))
+//                            .map(d -> new ChildUserDto(
+//                                    "Distributor",
+//                                    d.getDistributorId(),
+//                                    d.getParentAccount(),
+//                                    d.getAbbreviation(),
+//                                    d.getTitle(),
+//                                    d.getName(),
+//                                    d.getMobileNumber(),
+//                                    d.getEmailId(),
+//                                    d.getDob(),
+//                                    d.getStatus(),
+//                                    userDetailsRepository.findFirstByHierarchyId(d.getDistributorId())
+//                                            .map(UserDetails::getIsBlocked).orElse(false),
+//                                    d.getRejectionReason(),
+//                                    d.getCreatedOn()
+//                            ));
+//
+//                    case "retailer" -> retailerRepository.findByParentAccount(parentHierarchyId).stream()
+//                            //.filter(r -> "APPROVED".equalsIgnoreCase(r.getStatus()))
+//                            .map(r -> new ChildUserDto(
+//                                    "Retailer",
+//                                    r.getRetailerId(),
+//                                    r.getParentAccount(),
+//                                    r.getAbbreviation(),
+//                                    r.getTitle(),
+//                                    r.getName(),
+//                                    r.getMobileNumber(),
+//                                    r.getEmailId(),
+//                                    r.getDob(),
+//                                    r.getStatus(),
+//                                    userDetailsRepository.findFirstByHierarchyId(r.getRetailerId())
+//                                            .map(UserDetails::getIsBlocked).orElse(false),
+//                                    r.getRejectionReason(),
+//                                    r.getCreatedOn()
+//                            ));
+//
+//                    default -> Stream.empty();
+//                }).toList();
+//
+//        //  Apply filters
+//        List<ChildUserDto> filtered = allChildUsers.stream()
+//                .filter(u -> userId == null || containsIgnoreCase(u.getUserId(), userId))
+//                .filter(u -> parentAccount == null || containsIgnoreCase(u.getParentAccount(), parentAccount))
+//                .filter(u -> abbreviation == null || containsIgnoreCase(u.getAbbreviation(), abbreviation))
+//                .filter(u -> title == null || containsIgnoreCase(u.getTitle(), title))
+//                .filter(u -> name == null || containsIgnoreCase(u.getName(), name))
+//                .filter(u -> mobileNumber == null || containsIgnoreCase(u.getMobileNumber(), mobileNumber))
+//                .filter(u -> emailId == null || containsIgnoreCase(u.getEmailId(), emailId))
+//                .filter(u -> status == null || containsIgnoreCase(u.getStatus(), status))
+//                .filter(u -> dob == null || (u.getDob() != null && u.getDob().toString().equals(dob)))
+//                .filter(u -> isBlocked == null || u.getIsBlocked().equals(isBlocked))
+//                .filter(u -> network == null || containsIgnoreCase(u.getNetwork(), network))
+//                .filter(u -> createdOn == null || (u.getCreatedOn() != null && u.getCreatedOn().toLocalDate().toString().equals(createdOn)))
+//                .sorted(Comparator.comparing(ChildUserDto::getCreatedOn, Comparator.nullsLast(Comparator.reverseOrder())))
+//                .collect(Collectors.toList());
+//
+//        //  Apply pagination (with Sort metadata) Sort by createdOn (latest first)
+//        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
+//        int start = (int) pageable.getOffset();
+//        int end = Math.min(start + pageable.getPageSize(), filtered.size());
+//        List<ChildUserDto> paginated = (start >= filtered.size()) ? Collections.emptyList() : filtered.subList(start, end);
+//
+//        return new PageImpl<>(paginated, pageable, filtered.size());
+//
+//    }
+
     @Override
     public Page<ChildUserDto> getChildUsers(
             String parentHierarchyId,
@@ -66,128 +238,15 @@ public class DropdownManagerImpl implements DropdownManagerService {
             String network,
             String createdOn
     ) {
-        // Extract parent type (e.g., "WL" -> WhiteLabel)
+
         String parentType = commonMethods.extractHierarchyType(parentHierarchyId);
-        List<String> childEntities = hierarchyChildren.get(parentType);
 
-        if (childEntities == null || childEntities.isEmpty())
-            throw new RuntimeException("No child entities found for hierarchy type: " + parentType);
+        List<ChildUserDto> allChildUsers = new ArrayList<>();
 
-        List<ChildUserDto> allChildUsers = childEntities.stream()
-                .flatMap(childEntity -> switch (childEntity) {
-                    case "enterprises" -> enterprisesRepository.findByParentAccount(parentHierarchyId).stream()
-                            //.filter(e -> "APPROVED".equalsIgnoreCase(e.getStatus()))
-                            .map(e -> new ChildUserDto(
-                                    "Enterprises",
-                                    e.getEnterpriseId(),
-                                    e.getParentAccount(),
-                                    e.getAbbreviation(),
-                                    e.getTitle(),
-                                    e.getName(),
-                                    e.getMobileNumber(),
-                                    e.getEmailId(),
-                                    e.getDob(),
-                                    e.getStatus(),
-                                    userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId())
-                                            .map(UserDetails::getIsBlocked).orElse(false),
-                                    e.getCreatedOn()
-                            ));
+        // Start recursive hierarchy traversal
+        fetchHierarchyRecursively(parentHierarchyId, parentType, allChildUsers);
 
-                    case "white_labels" -> whiteLabelRepository.findByParentAccount(parentHierarchyId).stream()
-                            //.filter(wl -> "APPROVED".equalsIgnoreCase(wl.getStatus()))
-                            .map(wl -> new ChildUserDto(
-                                    "White Label",
-                                    wl.getWhiteLabelId(),
-                                    wl.getParentAccount(),
-                                    wl.getAbbreviation(),
-                                    wl.getTitle(),
-                                    wl.getName(),
-                                    wl.getMobileNumber(),
-                                    wl.getEmailId(),
-                                    wl.getDob(),
-                                    wl.getStatus(),
-                                    userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId())
-                                            .map(UserDetails::getIsBlocked).orElse(false),
-                                    wl.getCreatedOn()
-                            ));
-
-                    case "super_distributor" ->
-                            superDistributorRepository.findByParentAccount(parentHierarchyId).stream()
-                                    //.filter(s -> "APPROVED".equalsIgnoreCase(s.getStatus()))
-                                    .map(s -> new ChildUserDto(
-                                            "Super Distributor",
-                                            s.getSuperDistributorId(),
-                                            s.getParentAccount(),
-                                            s.getAbbreviation(),
-                                            s.getTitle(),
-                                            s.getName(),
-                                            s.getMobileNumber(),
-                                            s.getEmailId(),
-                                            s.getDob(),
-                                            s.getStatus(),
-                                            userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId())
-                                                    .map(UserDetails::getIsBlocked).orElse(false),
-                                            s.getCreatedOn()
-                                    ));
-
-                    case "partner" -> partnerRepository.findByParentAccount(parentHierarchyId).stream()
-                            //.filter(p -> "APPROVED".equalsIgnoreCase(p.getStatus()))
-                            .map(p -> new ChildUserDto(
-                                    "Partner",
-                                    p.getPartnerId(),
-                                    p.getParentAccount(),
-                                    p.getAbbreviation(),
-                                    p.getTitle(),
-                                    p.getName(),
-                                    p.getMobileNumber(),
-                                    p.getEmailId(),
-                                    p.getDob(),
-                                    p.getStatus(),
-                                    userDetailsRepository.findFirstByHierarchyId(p.getPartnerId())
-                                            .map(UserDetails::getIsBlocked).orElse(false),
-                                    p.getCreatedOn()
-                            ));
-
-                    case "distributor" -> distributorRepository.findByParentAccount(parentHierarchyId).stream()
-                            //.filter(d -> "APPROVED".equalsIgnoreCase(d.getStatus()))
-                            .map(d -> new ChildUserDto(
-                                    "Distributor",
-                                    d.getDistributorId(),
-                                    d.getParentAccount(),
-                                    d.getAbbreviation(),
-                                    d.getTitle(),
-                                    d.getName(),
-                                    d.getMobileNumber(),
-                                    d.getEmailId(),
-                                    d.getDob(),
-                                    d.getStatus(),
-                                    userDetailsRepository.findFirstByHierarchyId(d.getDistributorId())
-                                            .map(UserDetails::getIsBlocked).orElse(false),
-                                    d.getCreatedOn()
-                            ));
-
-                    case "retailer" -> retailerRepository.findByParentAccount(parentHierarchyId).stream()
-                            //.filter(r -> "APPROVED".equalsIgnoreCase(r.getStatus()))
-                            .map(r -> new ChildUserDto(
-                                    "Retailer",
-                                    r.getRetailerId(),
-                                    r.getParentAccount(),
-                                    r.getAbbreviation(),
-                                    r.getTitle(),
-                                    r.getName(),
-                                    r.getMobileNumber(),
-                                    r.getEmailId(),
-                                    r.getDob(),
-                                    r.getStatus(),
-                                    userDetailsRepository.findFirstByHierarchyId(r.getRetailerId())
-                                            .map(UserDetails::getIsBlocked).orElse(false),
-                                    r.getCreatedOn()
-                            ));
-
-                    default -> Stream.empty();
-                }).toList();
-
-        //  Apply filters
+        // ================= FILTERING =================
         List<ChildUserDto> filtered = allChildUsers.stream()
                 .filter(u -> userId == null || containsIgnoreCase(u.getUserId(), userId))
                 .filter(u -> parentAccount == null || containsIgnoreCase(u.getParentAccount(), parentAccount))
@@ -200,19 +259,216 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 .filter(u -> dob == null || (u.getDob() != null && u.getDob().toString().equals(dob)))
                 .filter(u -> isBlocked == null || u.getIsBlocked().equals(isBlocked))
                 .filter(u -> network == null || containsIgnoreCase(u.getNetwork(), network))
-                .filter(u -> createdOn == null || (u.getCreatedOn() != null && u.getCreatedOn().toLocalDate().toString().equals(createdOn)))
-                .sorted(Comparator.comparing(ChildUserDto::getCreatedOn, Comparator.nullsLast(Comparator.reverseOrder())))
-                .collect(Collectors.toList());
+                .filter(u -> createdOn == null || (u.getCreatedOn() != null &&
+                        u.getCreatedOn().toLocalDate().toString().equals(createdOn)))
+                .sorted(Comparator.comparing(
+                        ChildUserDto::getCreatedOn,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
 
-        //  Apply pagination (with Sort metadata) Sort by createdOn (latest first)
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
+        Pageable pageable = PageRequest.of(page, size);
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), filtered.size());
-        List<ChildUserDto> paginated = (start >= filtered.size()) ? Collections.emptyList() : filtered.subList(start, end);
+
+        List<ChildUserDto> paginated =
+                (start >= filtered.size()) ? Collections.emptyList() : filtered.subList(start, end);
 
         return new PageImpl<>(paginated, pageable, filtered.size());
-
     }
+
+
+    private void fetchHierarchyRecursively(
+            String parentId,
+            String parentType,
+            List<ChildUserDto> result
+    ) {
+
+        switch (parentType) {
+
+//            case "SA": // SuperAdmin
+//                adminRepository.findByParentAccount(parentId)
+//                        .forEach(a -> {
+//                            result.add(mapAdmin(a));
+//                            fetchHierarchyRecursively(a.getAdminId(), "AD", result);
+//                        });
+//                break;
+
+            case "AD": // Admin
+                enterprisesRepository.findByParentAccount(parentId)
+                        .forEach(e -> {
+                            result.add(mapEnterprise(e));
+                            fetchHierarchyRecursively(e.getEnterpriseId(), "ET", result);
+                        });
+                break;
+
+            case "ET": // Enterprise
+                whiteLabelRepository.findByParentAccount(parentId)
+                        .forEach(wl -> {
+                            result.add(mapWhiteLabel(wl));
+                            fetchHierarchyRecursively(wl.getWhiteLabelId(), "WL", result);
+                        });
+                break;
+
+            case "WL": // WhiteLabel
+                superDistributorRepository.findByParentAccount(parentId)
+                        .forEach(sd -> {
+                            result.add(mapSuperDistributor(sd));
+                            fetchHierarchyRecursively(sd.getSuperDistributorId(), "SD", result);
+                        });
+                break;
+
+            case "SD": // SuperDistributor
+                partnerRepository.findByParentAccount(parentId)
+                        .forEach(p -> {
+                            result.add(mapPartner(p));
+                            fetchHierarchyRecursively(p.getPartnerId(), "PT", result);
+                        });
+                break;
+
+            case "PT": // Partner
+                distributorRepository.findByParentAccount(parentId)
+                        .forEach(d -> {
+                            result.add(mapDistributor(d));
+                            fetchHierarchyRecursively(d.getDistributorId(), "DT", result);
+                        });
+                break;
+
+            case "DT": // Distributor
+                retailerRepository.findByParentAccount(parentId)
+                        .forEach(r -> {
+                            result.add(mapRetailer(r));
+                            fetchHierarchyRecursively(r.getRetailerId(), "RT", result);
+                        });
+                break;
+
+            default:
+                break;
+        }
+    }
+
+
+    private ChildUserDto mapPartner(Partner p) {
+        return new ChildUserDto(
+                "Partner",
+                p.getPartnerId(),
+                p.getParentAccount(),
+                p.getAbbreviation(),
+                p.getTitle(),
+                p.getName(),
+                p.getMobileNumber(),
+                p.getEmailId(),
+                p.getDob(),
+                p.getStatus(),
+                userDetailsRepository.findFirstByHierarchyId(p.getPartnerId())
+                        .map(UserDetails::getIsBlocked).orElse(false),
+                p.getRejectionReason(),
+                p.getCreatedOn()
+        );
+    }
+
+    private ChildUserDto mapEnterprise(Enterprises e) {
+        return new ChildUserDto(
+                "Enterprises",
+                e.getEnterpriseId(),
+                e.getParentAccount(),
+                e.getAbbreviation(),
+                e.getTitle(),
+                e.getName(),
+                e.getMobileNumber(),
+                e.getEmailId(),
+                e.getDob(),
+                e.getStatus(),
+                userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId())
+                        .map(UserDetails::getIsBlocked).orElse(false),
+                e.getRejectionReason(),
+                e.getCreatedOn()
+        );
+    }
+
+
+    private ChildUserDto mapWhiteLabel(WhiteLabels wl) {
+        return new ChildUserDto(
+                "White Label",
+                wl.getWhiteLabelId(),
+                wl.getParentAccount(),
+                wl.getAbbreviation(),
+                wl.getTitle(),
+                wl.getName(),
+                wl.getMobileNumber(),
+                wl.getEmailId(),
+                wl.getDob(),
+                wl.getStatus(),
+                userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId())
+                        .map(UserDetails::getIsBlocked).orElse(false),
+                wl.getRejectionReason(),
+                wl.getCreatedOn()
+        );
+    }
+
+    private ChildUserDto mapSuperDistributor(SuperDistributor s) {
+        return new ChildUserDto(
+                "Super Distributor",
+                s.getSuperDistributorId(),
+                s.getParentAccount(),
+                s.getAbbreviation(),
+                s.getTitle(),
+                s.getName(),
+                s.getMobileNumber(),
+                s.getEmailId(),
+                s.getDob(),
+                s.getStatus(),
+                userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId())
+                        .map(UserDetails::getIsBlocked).orElse(false),
+                s.getRejectionReason(),
+                s.getCreatedOn()
+        );
+    }
+
+
+    private ChildUserDto mapDistributor(Distributor d) {
+        return new ChildUserDto(
+                "Distributor",
+                d.getDistributorId(),
+                d.getParentAccount(),
+                d.getAbbreviation(),
+                d.getTitle(),
+                d.getName(),
+                d.getMobileNumber(),
+                d.getEmailId(),
+                d.getDob(),
+                d.getStatus(),
+                userDetailsRepository.findFirstByHierarchyId(d.getDistributorId())
+                        .map(UserDetails::getIsBlocked).orElse(false),
+                d.getRejectionReason(),
+                d.getCreatedOn()
+        );
+    }
+
+    private ChildUserDto mapRetailer(Retailer r) {
+        return new ChildUserDto(
+                "Retailer",
+                r.getRetailerId(),
+                r.getParentAccount(),
+                r.getAbbreviation(),
+                r.getTitle(),
+                r.getName(),
+                r.getMobileNumber(),
+                r.getEmailId(),
+                r.getDob(),
+                r.getStatus(),
+                userDetailsRepository.findFirstByHierarchyId(r.getRetailerId())
+                        .map(UserDetails::getIsBlocked).orElse(false),
+                r.getRejectionReason(),
+                r.getCreatedOn()
+        );
+    }
+
+
+
+
+
+
+
 
     //  Helper method for safe string matching
     private boolean containsIgnoreCase(String source, String target) {
@@ -260,7 +516,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(e -> new ChildUserDto(
                             "Enterprises", e.getEnterpriseId(), e.getParentAccount(), e.getAbbreviation(), e.getTitle(),
                             e.getName(), e.getMobileNumber(), e.getEmailId(), e.getDob(), e.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId()).map(UserDetails::getIsBlocked).orElse(false), e.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId()).map(UserDetails::getIsBlocked).orElse(false),
+                            e.getRejectionReason(),
+                            e.getCreatedOn()
                     )).toList();
 
             case "white_labels" -> whiteLabelRepository.findByParentAccount(parentHierarchyId).stream()
@@ -268,7 +526,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(wl -> new ChildUserDto(
                             "White Label", wl.getWhiteLabelId(), wl.getParentAccount(), wl.getAbbreviation(), wl.getTitle(),
                             wl.getName(), wl.getMobileNumber(), wl.getEmailId(), wl.getDob(), wl.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId()).map(UserDetails::getIsBlocked).orElse(false), wl.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId()).map(UserDetails::getIsBlocked).orElse(false),
+                            wl.getRejectionReason(),
+                            wl.getCreatedOn()
                     )).toList();
 
             case "super_distributor" -> superDistributorRepository.findByParentAccount(parentHierarchyId).stream()
@@ -276,7 +536,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(s -> new ChildUserDto(
                             "Super Distributor", s.getSuperDistributorId(), s.getParentAccount(), s.getAbbreviation(), s.getTitle(),
                             s.getName(), s.getMobileNumber(), s.getEmailId(), s.getDob(), s.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId()).map(UserDetails::getIsBlocked).orElse(false), s.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId()).map(UserDetails::getIsBlocked).orElse(false),
+                            s.getRejectionReason(),
+                            s.getCreatedOn()
                     )).toList();
 
             case "partner" -> partnerRepository.findByParentAccount(parentHierarchyId).stream()
@@ -284,7 +546,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(p -> new ChildUserDto(
                             "Partner", p.getPartnerId(), p.getParentAccount(), p.getAbbreviation(), p.getTitle(),
                             p.getName(), p.getMobileNumber(), p.getEmailId(), p.getDob(), p.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(p.getPartnerId()).map(UserDetails::getIsBlocked).orElse(false), p.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(p.getPartnerId()).map(UserDetails::getIsBlocked).orElse(false),
+                            p.getRejectionReason(),
+                            p.getCreatedOn()
                     )).toList();
 
             case "distributor" -> distributorRepository.findByParentAccount(parentHierarchyId).stream()
@@ -292,7 +556,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(d -> new ChildUserDto(
                             "Distributor", d.getDistributorId(), d.getParentAccount(), d.getAbbreviation(), d.getTitle(),
                             d.getName(), d.getMobileNumber(), d.getEmailId(), d.getDob(), d.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(d.getDistributorId()).map(UserDetails::getIsBlocked).orElse(false), d.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(d.getDistributorId()).map(UserDetails::getIsBlocked).orElse(false),
+                            d.getRejectionReason(),
+                            d.getCreatedOn()
                     )).toList();
 
             case "retailer" -> retailerRepository.findByParentAccount(parentHierarchyId).stream()
@@ -300,7 +566,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
                     .map(r -> new ChildUserDto(
                             "Retailer", r.getRetailerId(), r.getParentAccount(), r.getAbbreviation(), r.getTitle(),
                             r.getName(), r.getMobileNumber(), r.getEmailId(), r.getDob(), r.getStatus(),
-                            userDetailsRepository.findFirstByHierarchyId(r.getRetailerId()).map(UserDetails::getIsBlocked).orElse(false), r.getCreatedOn()
+                            userDetailsRepository.findFirstByHierarchyId(r.getRetailerId()).map(UserDetails::getIsBlocked).orElse(false),
+                            r.getRejectionReason(),
+                            r.getCreatedOn()
                     )).toList();
 
             default -> throw new RuntimeException("Invalid child entity type: " + childEntity);

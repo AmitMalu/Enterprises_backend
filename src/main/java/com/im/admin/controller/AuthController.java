@@ -8,6 +8,7 @@ import com.im.admin.dto.ChangePasswordRequestDto;
 import com.im.admin.dto.LoginRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
+import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
 import com.im.admin.request.TokenGenerationRequest;
 import com.im.admin.response.CommonResponse;
@@ -90,6 +91,13 @@ public class AuthController {
 
     @Autowired
     private RetailerRepository retailerRepository;
+
+    @Autowired
+    private VendorRepository vendorRepository;
+
+
+    @Autowired
+    private VendorRoutingRepository vendorRoutingRepository;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
@@ -201,9 +209,15 @@ public class AuthController {
         resetFailedAttempts(user);
         String otp = generateOtpForUser(user);
 
+        String hierarchyCode = user.getHierarchyCode();
 
         Map<String, String> otpData = Map.of("otp", otp);
-        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData);
+        // create a new map only for response
+        Map<String, String> responseData = new HashMap<>(otpData);
+        responseData.put("role", hierarchyCode);
+
+//        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData); // old
+        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", responseData);
         logLoginAttempt(requestJson, requestTime, response);
         log.info("OTP sent successfully for user ID: {}", user.getHierarchyId());
         return ResponseEntity.ok(response);
@@ -243,9 +257,9 @@ public class AuthController {
         log.info("OTP generated for user ID: {}", user.getHierarchyId());
 
         try {
-//            //  Send OTP via SMS
+            //  Send OTP via SMS
 //            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
-//
+
 //            //Save SMS logs
 //            commonFunctions.saveSmsLogs(
 //                    LocalDateTime.now(),
@@ -384,7 +398,10 @@ public class AuthController {
         String encryptedToken = aesEncryptionUtil.encrypt(payload, secretKey, ivSpec);
 
         // final token string: hierarchyCode|salt|iv|ciphertext
-        String fullToken = user.getHierarchyCode() + "|" + saltBase64 + "|" + ivBase64 + "|" + encryptedToken;
+//        String fullToken = user.getHierarchyCode() + "|" + saltBase64 + "|" + ivBase64 + "|" + encryptedToken; //old token
+
+        String fullToken = user.getHierarchyId() + "|" + saltBase64 + "|" + ivBase64 + "|" + encryptedToken;  // current token
+
 
         // 7. Update user login status
         user.setUserLoginStatus(true);
@@ -398,6 +415,7 @@ public class AuthController {
         responseMap.put("hierarchyId", user.getHierarchyId());
         responseMap.put("mobileNumber", user.getMobileNumber());
         responseMap.put("emailId", user.getEmailId());
+//        responseMap.put("logoUrl","https://www.instantmudra.net/apps/home/media/logos/logo-white.png");
 
         String hierarchyCode = user.getHierarchyCode();
         log.debug("Resolving role for hierarchyCode: {}", hierarchyCode);
@@ -410,7 +428,56 @@ public class AuthController {
                     responseMap.put("sub_role_id", adSubRole.getSubRoleId());
                     responseMap.put("role", hierarchyCode);
                 }
+
+                // Build product/subProduct list for AD
+                List<SchemeAllocation> adSchemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
+                Map<String, List<Map<String, String>>> adProductSubMap = new LinkedHashMap<>();
+                Map<String, String> adProductIdToName = new HashMap<>();
+                Map<String, Products> adProductIdToEntity = new HashMap<>();
+
+                for (SchemeAllocation sa : adSchemes) {
+                    Optional<Products> productOpt = productsRepository.findByProductCode(sa.getProductCode());
+                    Optional<SubProducts> subProductOpt = subProductsRepository.findBySubProductCodeAndIsVisibleTrue(sa.getSubProductCode());
+
+                    if (productOpt.isEmpty() || subProductOpt.isEmpty()) continue;
+
+                    Products productEntity = productOpt.get();
+                    String productId = String.valueOf(productEntity.getId());
+                    String productName = productEntity.getName();
+                    String subProductId = String.valueOf(subProductOpt.get().getId());
+                    String subProductName = subProductOpt.get().getSubProductTitle();
+
+                    adProductIdToName.putIfAbsent(productId, productName);
+                    adProductIdToEntity.putIfAbsent(productId, productEntity);
+
+                    Map<String, String> subProductMap = new HashMap<>();
+                    subProductMap.put("subProductId", subProductId);
+                    subProductMap.put("subProductName", subProductName);
+                    subProductMap.put("schemeCode", sa.getSchemeCode());
+
+                    adProductSubMap.computeIfAbsent(productId, k -> new ArrayList<>()).add(subProductMap);
+                }
+
+                List<Map<String, Object>> adProductList = new ArrayList<>();
+                for (Map.Entry<String, List<Map<String, String>>> entry : adProductSubMap.entrySet()) {
+                    Map<String, Object> product = new HashMap<>();
+                    product.put("productId", entry.getKey());
+                    product.put("productName", adProductIdToName.get(entry.getKey()));
+
+                    //  Add active and blocked fields from product table
+                    Products productEntity = adProductIdToEntity.get(entry.getKey());
+                    if (productEntity != null) {
+                        product.put("active", productEntity.getActive());
+                        product.put("blocked", productEntity.getBlocked());
+                    }
+
+                    product.put("subProducts", entry.getValue());
+                    adProductList.add(product);
+                }
+
+                responseMap.put("products", adProductList);
                 break;
+
 
             case "WL":
                 WhiteLabels whiteLabel = whiteLabelRepository.findByMobileNumber(user.getMobileNumber());
@@ -421,6 +488,7 @@ public class AuthController {
                         responseMap.put("sub_role_id", wlSubRole.getSubRoleId());
                     }
                     responseMap.put("role", "WL-AD");
+                    responseMap.put("logoUrl",whiteLabel.getBusinessProofImage());
                 } else {
                     responseMap.put("role", "WL");
                 }
@@ -428,6 +496,7 @@ public class AuthController {
 
             case "RT":
                 responseMap.put("role_id", user.getRole_id());
+
                 ImSubRole rtSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
                 if (rtSubRole != null) {
                     responseMap.put("sub_role_id", rtSubRole.getSubRoleId());
@@ -435,59 +504,199 @@ public class AuthController {
 
                 // Fetch outlet name
                 Retailer retailer = retailerRepository.findByMobileNumber(user.getMobileNumber());
-                if (retailer != null) {
-                    if (retailer.getOutletAddress() != null && retailer.getOutletAddress().getOutletName() != null) {
-                        responseMap.put("outletName", retailer.getOutletAddress().getOutletName());
-                    } else {
-                        responseMap.put("outletName", "N/A");
-                    }
+                if (retailer != null
+                        && retailer.getOutletAddress() != null
+                        && retailer.getOutletAddress().getOutletName() != null) {
+                    responseMap.put("outletName", retailer.getOutletAddress().getOutletName());
+                    responseMap.put("logoUrl",retailer.getBusinessProofImage());
                 } else {
                     responseMap.put("outletName", "N/A");
                 }
 
+//                 Build product / subProduct list
+//                List<SchemeAllocation> schemes =
+//                        schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
+//
+//                //  FIXED GENERICS
+//                Map<String, List<Map<String, Object>>> productSubMap = new LinkedHashMap<>();
+//                Map<String, String> productIdToName = new HashMap<>();
+//                Map<String, Products> productIdToEntity = new HashMap<>();
+//
+//                for (SchemeAllocation sa : schemes) {
+//
+//                    Optional<Products> productOpt =
+//                            productsRepository.findByProductCode(sa.getProductCode());
+//
+//                    Optional<SubProducts> subProductOpt =
+//                            subProductsRepository.findBySubProductCodeAndIsVisibleTrue(
+//                                    sa.getSubProductCode());
+//
+//                    if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
+//                        log.warn(
+//                                "Skipping scheme due to missing mapping for productCode={} or subProductCode={}",
+//                                sa.getProductCode(),
+//                                sa.getSubProductCode()
+//                        );
+//                        continue;
+//                    }
+//
+//                    Products productEntity = productOpt.get();
+//                    SubProducts subProductEntity = subProductOpt.get();
+//
+//                    String productId = String.valueOf(productEntity.getId());
+//                    String productName = productEntity.getName();
+//                    String subProductId = String.valueOf(subProductEntity.getId());
+//                    String subProductName = subProductEntity.getSubProductTitle();
+//
+//                    VendorRouting routing =
+//                            vendorRoutingRepository.findBySubProduct(subProductEntity);
+//
+//                    String vendorName = "N/A";
+//                    if (routing != null && routing.getRoutingPriority1() != null) {
+//                        vendorName = routing.getRoutingPriority1().getVendorName();
+//                    }
+//
+//                    productIdToName.putIfAbsent(productId, productName);
+//                    productIdToEntity.putIfAbsent(productId, productEntity);
+//
+//                    //  FIXED MAP TYPE
+//                    Map<String, Object> subProductMap = new HashMap<>();
+//                    subProductMap.put("subProductId", subProductId);
+//                    subProductMap.put("subProductName", subProductName);
+//                    subProductMap.put("schemeCode", sa.getSchemeCode());
+//                    subProductMap.put("vendorName", vendorName);
+//
+//                    //  Sub-Product flags
+//                    subProductMap.put("active", subProductEntity.getIsActive());
+//                    subProductMap.put("blocked", subProductEntity.getIsBlocked());
+//                    subProductMap.put("isVisible", subProductEntity.getIsVisible());
+//
+//                    productSubMap
+//                            .computeIfAbsent(productId, k -> new ArrayList<>())
+//                            .add(subProductMap);
+//                }
+//
+//                // Build final product list
+//                List<Map<String, Object>> productList = new ArrayList<>();
+//
+//                //  FIXED GENERICS
+//                for (Map.Entry<String, List<Map<String, Object>>> entry : productSubMap.entrySet()) {
+//
+//                    Map<String, Object> product = new HashMap<>();
+//                    product.put("productId", entry.getKey());
+//                    product.put("productName", productIdToName.get(entry.getKey()));
+//
+//                    Products productEntity = productIdToEntity.get(entry.getKey());
+//                    if (productEntity != null) {
+//                        product.put("active", productEntity.getActive());
+//                        product.put("blocked", productEntity.getBlocked());
+//                        product.put("isVisible", productEntity.getIsVisible());
+//                    }
+//
+//                    product.put("subProducts", entry.getValue());
+//                    productList.add(product);
+//                }
+//
+//                responseMap.put("products", productList);
+//                responseMap.put("role", hierarchyCode);
+//                break;
 
-                // Build product/subProduct list
-                List<SchemeAllocation> schemes = schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
-                Map<String, List<Map<String, String>>> productSubMap = new LinkedHashMap<>();
-                Map<String, String> productIdToName = new HashMap<>();
+                // Build product / subProduct list
+                List<SchemeAllocation> schemes =
+                        schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
 
+// Fetch ALL products
+                List<Products> allProducts = productsRepository.findAll();
+
+                Map<String, List<Map<String, Object>>> productSubMap = new LinkedHashMap<>();
+                Map<String, Products> productIdToEntity = new HashMap<>();
+
+// Initialize all products first (so even products without scheme appear)
+                for (Products product : allProducts) {
+                    String productId = String.valueOf(product.getId());
+
+                    productSubMap.putIfAbsent(productId, new ArrayList<>());
+                    productIdToEntity.put(productId, product);
+                }
+
+// Now loop schemes only for subProducts
                 for (SchemeAllocation sa : schemes) {
-                    Optional<Products> productOpt = productsRepository.findByProductCode(sa.getProductCode());
-                    Optional<SubProducts> subProductOpt = subProductsRepository.findBySubProductCodeAndIsVisibleTrue(sa.getSubProductCode());
 
-                    if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
-                        log.warn("Skipping scheme due to missing mapping for productCode={} or subProductCode={}",
-                                sa.getProductCode(), sa.getSubProductCode());
+                    Optional<SubProducts> subProductOpt =
+                            subProductsRepository.findBySubProductCodeAndIsVisibleTrue(
+                                    sa.getSubProductCode());
+
+                    if (subProductOpt.isEmpty()) {
+                        log.warn(
+                                "Skipping scheme due to missing subProductCode={}",
+                                sa.getSubProductCode()
+                        );
                         continue;
                     }
 
-                    String productId = String.valueOf(productOpt.get().getId());
-                    String productName = productOpt.get().getName();
-                    String subProductId = String.valueOf(subProductOpt.get().getId());
-                    String subProductName = subProductOpt.get().getSubProductTitle();
+                    SubProducts subProductEntity = subProductOpt.get();
 
-                    productIdToName.putIfAbsent(productId, productName);
+                    // Find matching product from allProducts using productCode
+                    Products productEntity = allProducts.stream()
+                            .filter(p -> p.getProductCode().equals(sa.getProductCode()))
+                            .findFirst()
+                            .orElse(null);
 
-                    Map<String, String> subProductMap = new HashMap<>();
+                    if (productEntity == null) {
+                        continue;
+                    }
+
+                    String productId = String.valueOf(productEntity.getId());
+                    String subProductId = String.valueOf(subProductEntity.getId());
+                    String subProductName = subProductEntity.getSubProductTitle();
+
+                    VendorRouting routing =
+                            vendorRoutingRepository.findBySubProduct(subProductEntity);
+
+                    String vendorName = "N/A";
+                    if (routing != null && routing.getRoutingPriority1() != null) {
+                        vendorName = routing.getRoutingPriority1().getVendorName();
+                    }
+
+                    Map<String, Object> subProductMap = new HashMap<>();
                     subProductMap.put("subProductId", subProductId);
                     subProductMap.put("subProductName", subProductName);
                     subProductMap.put("schemeCode", sa.getSchemeCode());
+                    subProductMap.put("vendorName", vendorName);
 
-                    productSubMap.computeIfAbsent(productId, k -> new ArrayList<>()).add(subProductMap);
+                    // Sub-Product flags
+                    subProductMap.put("active", subProductEntity.getIsActive());
+                    subProductMap.put("blocked", subProductEntity.getIsBlocked());
+                    subProductMap.put("isVisible", subProductEntity.getIsVisible());
+
+                    productSubMap.get(productId).add(subProductMap);
                 }
 
+// Build final product list
                 List<Map<String, Object>> productList = new ArrayList<>();
-                for (Map.Entry<String, List<Map<String, String>>> entry : productSubMap.entrySet()) {
+
+                for (Map.Entry<String, List<Map<String, Object>>> entry : productSubMap.entrySet()) {
+
+                    Products productEntity = productIdToEntity.get(entry.getKey());
+
                     Map<String, Object> product = new HashMap<>();
                     product.put("productId", entry.getKey());
-                    product.put("productName", productIdToName.get(entry.getKey()));
+                    product.put("productName", productEntity.getName());
+
+                    product.put("active", productEntity.getActive());
+                    product.put("blocked", productEntity.getBlocked());
+                    product.put("isVisible", productEntity.getIsVisible());
+
                     product.put("subProducts", entry.getValue());
+
                     productList.add(product);
                 }
 
                 responseMap.put("products", productList);
                 responseMap.put("role", hierarchyCode);
                 break;
+
+
 
             case "RU":
                 responseMap.put("role_id", user.getRole_id());

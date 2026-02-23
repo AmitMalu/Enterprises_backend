@@ -32,4 +32,5 @@ public class TicketWithTransactionDto {
     private BigDecimal amount;
     private String service;
     private String actionOnBalanceAmount;
+    private String remark;
 }

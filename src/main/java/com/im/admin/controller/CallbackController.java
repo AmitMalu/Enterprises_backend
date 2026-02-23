@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.orchestrator.PayoutOrchestrator;
+import com.im.admin.orchestrator.PayoutOrchestratorV0;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,14 +21,20 @@ import java.util.Map;
 @Slf4j
 public class CallbackController {
 
+    // payout v1
+//    @Autowired
+//    private PayoutOrchestrator orchestrator; // for fallback or shared logic
+
     @Autowired
-    private PayoutOrchestrator orchestrator; // for fallback or shared logic
+    private PayoutOrchestratorV0 payoutOrchestratorV0;
+
 
     @PostMapping("/callback")
     public ResponseEntity<String> payoutCallback(@RequestBody Map<String, String> payload,
                                                  HttpServletRequest request) throws JsonProcessingException {
         log.info("<---------------- Received callback request with payload: {} --------------------->", payload);
-        String response = orchestrator.processPayoutCallback("Runpaisa Payout", payload, request);
+//        String response = orchestrator.processPayoutCallback("Runpaisa Payout", payload, request);
+        String response = payoutOrchestratorV0.processPayoutCallback("Runpaisa Payout old", payload, request);
         log.info("Callback response: {}", response);
         return ResponseEntity.ok(response);
     }

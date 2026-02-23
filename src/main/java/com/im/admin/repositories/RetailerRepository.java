@@ -32,5 +32,26 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
 
     //boolean existsByAbbreviation(String abbrivation);
 
+    @Query("""
+        SELECT r.retailerId
+        FROM Retailer r
+        WHERE r.parentAccount IN :distributorIds
+    """)
+    List<String> findRetailerIdsByDistributors(
+            @Param("distributorIds") List<String> distributorIds
+    );
+
+    @Query("""
+    SELECT COUNT(r)
+    FROM Retailer r
+    WHERE r.parentAccount IN :distributorIds
+""")
+    Long countRetailersByDistributors(
+            @Param("distributorIds") List<String> distributorIds
+    );
+
+
+//    List<String> findRetailerIdsByParent(String hierarchyId);
+
 }
 

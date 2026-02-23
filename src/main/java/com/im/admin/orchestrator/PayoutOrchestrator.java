@@ -127,12 +127,15 @@ public class PayoutOrchestrator {
                     "DEBIT",
                     subProducts.getSubProductTitle(),
                     req.getBeneficiaryName() + " #" + req.getAccountNumber(),
-                    "Fund Transferred #" + req.getAccountNumber()
+                    "Fund Transferred #" + req.getAccountNumber(),
+                    ""
             );
             log.debug("[PROCESS PAYOUT ORCH] Wallet debited (PENDING) for retailer={}, amount={}", req.getRetailerId(), req.getAmount());
 
             // 6. Call vendor-specific implementation (must return PayoutResponseDto)
             PayoutResponseDto vendorResp = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType);
+
+
             if (vendorResp == null) {
                 // defensive fallback
                 vendorResp = PayoutResponseDto.builder()

@@ -46,6 +46,14 @@ public class SubProductsServiceImpl implements SubProductsService {
 
         subProduct.setProduct(product);
 
+        //  Generate ID first
+        String nextId = commonMethods.generateNextIdForTables("sub_products", "id");
+        subProduct.setId(nextId);
+
+        //  Set subProductCode = id (same like Product logic)
+        subProduct.setSubProductCode(nextId);
+
+
         Optional<SubProducts> existingSubProduct = subProductsRepository
                 .findBySubProductCodeOrSubProductTitle(subProduct.getSubProductCode(), subProduct.getSubProductTitle());
 
@@ -59,7 +67,7 @@ public class SubProductsServiceImpl implements SubProductsService {
             }
         }
 
-        subProduct.setId(commonMethods.generateNextIdForTables("sub_products", "id"));
+//        subProduct.setId(commonMethods.generateNextIdForTables("sub_products", "id"));
 
         if(!Boolean.TRUE.equals(subProduct.getIsSettlement())) {
             subProduct.setIsSettlement(false);
@@ -99,7 +107,8 @@ public class SubProductsServiceImpl implements SubProductsService {
         }
 
         existingSubProduct.setSubProductTitle(subProduct.getSubProductTitle());
-        existingSubProduct.setSubProductCode(subProduct.getSubProductCode());
+//        existingSubProduct.setSubProductCode(subProduct.getSubProductCode()); // ******chnage code****
+
 //        existingSubProduct.setProductId(subProduct.getProductId());
         existingSubProduct.setIsSettlement(subProduct.getIsSettlement());
         existingSubProduct.setWalletType(subProduct.getWalletType());

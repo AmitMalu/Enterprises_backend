@@ -15,4 +15,5 @@ public class BeneficiaryRegisterRequest {
     private String address;      // Beneficiary address
     private String pincode;      // Beneficiary pincode
     private String subProductId;
+    private String bankName;
 }

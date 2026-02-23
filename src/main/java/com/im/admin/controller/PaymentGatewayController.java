@@ -76,6 +76,8 @@ public class PaymentGatewayController {
         return ResponseEntity.ok(result);
     }
 
+
+
     @PostMapping("/fetch/card-bin-no")
     public ResponseEntity<CommonResponse<RetailerCommissionResponseDTO>> fetchCardBinNo(
             @RequestBody PaymentGatewayCardBinRequestDTO paymentGatewayCardBinRequestDTO) {

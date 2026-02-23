@@ -89,7 +89,8 @@ public class OnboardingServiceImpl implements OnboardingService {
                                                                String createdOn,
                                                                String mobileNumber,
                                                                String emailId,
-                                                               String parentAccount) {
+                                                               String parentAccount,
+                                                               String rejectionReason) {
 
         CompletableFuture<List<Retailer>> retailersFuture = asyncPendingFetcher.fetchRetailers(status);
         CompletableFuture<List<Distributor>> distributorsFuture = asyncPendingFetcher.fetchDistributors(status);
@@ -124,6 +125,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 .filter(r -> mobileNumber == null || mobileNumber.isEmpty() || r.getMobileNumber().contains(mobileNumber))
                 .filter(r -> emailId == null || emailId.isEmpty() || r.getEmailId().toLowerCase().contains(emailId.toLowerCase()))
                 .filter(r -> parentAccount == null || parentAccount.isEmpty() || r.getParentAccount().toLowerCase().contains(parentAccount.toLowerCase()))
+                .filter(r -> rejectionReason == null || rejectionReason.isEmpty() || r.getRemarks().toLowerCase().contains(rejectionReason.toLowerCase()))
                 //  sort by createdOn descending (latest first)
                 .sorted((a, b) -> b.getCreatedOn().compareTo(a.getCreatedOn()))
                 .toList();
@@ -156,7 +158,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     rt.setStatus("APPROVED");
                     rt.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, rt.getRetailerId(), rt.getMobileNumber(), rt.getEmailId(), rt.getName());
+                    response = createUserDetails(hierarchyType, rt.getRetailerId(), rt.getMobileNumber(), rt.getEmailId(), rt.getName(),rt.getParentAccount());
                 } else {
                     rt.setStatus("REJECTED");
                     rt.setRejectionReason(remarks);
@@ -171,7 +173,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     dt.setStatus("APPROVED");
                     dt.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, dt.getDistributorId(), dt.getMobileNumber(), dt.getEmailId(), dt.getName());
+                    response = createUserDetails(hierarchyType, dt.getDistributorId(), dt.getMobileNumber(), dt.getEmailId(), dt.getName(),dt.getParentAccount());
                 } else {
                     dt.setStatus("REJECTED");
                     dt.setRejectionReason(remarks);
@@ -186,7 +188,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     pt.setStatus("APPROVED");
                     pt.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, pt.getPartnerId(), pt.getMobileNumber(), pt.getEmailId(), pt.getName());
+                    response = createUserDetails(hierarchyType, pt.getPartnerId(), pt.getMobileNumber(), pt.getEmailId(), pt.getName(),pt.getParentAccount());
                 } else {
                     pt.setStatus("REJECTED");
                     pt.setRejectionReason(remarks);
@@ -201,7 +203,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     sd.setStatus("APPROVED");
                     sd.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, sd.getSuperDistributorId(), sd.getMobileNumber(), sd.getEmailId(), sd.getName());
+                    response = createUserDetails(hierarchyType, sd.getSuperDistributorId(), sd.getMobileNumber(), sd.getEmailId(), sd.getName(),sd.getParentAccount());
                 } else {
                     sd.setStatus("REJECTED");
                     sd.setRejectionReason(remarks);
@@ -216,7 +218,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     wl.setStatus("APPROVED");
                     wl.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, wl.getWhiteLabelId(), wl.getMobileNumber(), wl.getEmailId(), wl.getTitle());
+                    response = createUserDetails(hierarchyType, wl.getWhiteLabelId(), wl.getMobileNumber(), wl.getEmailId(), wl.getTitle(),wl.getParentAccount());
                 } else {
                     wl.setStatus("REJECTED");
                     wl.setRejectionReason(remarks);
@@ -231,7 +233,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     et.setStatus("APPROVED");
                     et.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, et.getEnterpriseId(), et.getMobileNumber(), et.getEmailId(), et.getName());
+                    response = createUserDetails(hierarchyType, et.getEnterpriseId(), et.getMobileNumber(), et.getEmailId(), et.getName(),et.getParentAccount());
                 } else {
                     et.setStatus("REJECTED");
                     et.setRejectionReason(remarks);
@@ -247,7 +249,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                     ad.setStatus("APPROVED");
                     ad.setRejectionReason("-");
                     ad.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, ad.getId(), ad.getMobileNumber(), ad.getEmailId(), ad.getName());
+                    response = createUserDetails(hierarchyType, ad.getId(), ad.getMobileNumber(), ad.getEmailId(), ad.getName(),"Admin");
                 } else {
                     ad.setStatus("REJECTED");
                     ad.setRejectionReason(remarks);
@@ -262,7 +264,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         return isApproved ? "Hierarchy approved successfully " + response : "Hierarchy rejected successfully";
     }
 
-    private String createUserDetails(String hierarchyType, String hierarchyId, String mobileNo, String email, String name) {
+    private String createUserDetails(String hierarchyType, String hierarchyId, String mobileNo, String email, String name,String parentAccount) {
         String randomPassword = PasswordGeneratorUtil.generateRandomPassword(8); // e.g., Ab1!xY2@
         String encodedPassword = passwordEncoder.encode(randomPassword);
 
@@ -278,6 +280,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         user.setEditedBy("ADMIN");
         user.setEditedDate(LocalDate.now());
         user.setEditedTime(LocalTime.now());
+        user.setParentAccount(parentAccount);
 
         // Only for RT, set hardcoded role_id and save subRoleId in ImSubRole
         if ("RT".equalsIgnoreCase(hierarchyType)) {
@@ -309,37 +312,37 @@ public class OnboardingServiceImpl implements OnboardingService {
 
         public static GenericPendingRecordDto fromRetailer(Retailer r) {
             return new GenericPendingRecordDto("RETAILER", r.getRetailerId(), r.getName(), r.getStatus(),
-                    r.getCreatedBy(), toStringOrNull(r.getCreatedOn()), r.getMobileNumber(), r.getEmailId(), r.getParentAccount());
+                    r.getCreatedBy(), toStringOrNull(r.getCreatedOn()), r.getMobileNumber(), r.getEmailId(), r.getParentAccount(),r.getRejectionReason());
         }
 
         public static GenericPendingRecordDto fromDistributor(Distributor d) {
             return new GenericPendingRecordDto("DISTRIBUTOR", d.getDistributorId(), d.getName(), d.getStatus(),
-                    d.getCreatedBy(), toStringOrNull(d.getCreatedOn()), d.getMobileNumber(), d.getEmailId(), d.getParentAccount());
+                    d.getCreatedBy(), toStringOrNull(d.getCreatedOn()), d.getMobileNumber(), d.getEmailId(), d.getParentAccount(),d.getRejectionReason());
         }
 
         public static GenericPendingRecordDto fromPartner(Partner p) {
             return new GenericPendingRecordDto("PARTNER", p.getPartnerId(), p.getName(), p.getStatus(),
-                    p.getCreatedBy(), toStringOrNull(p.getCreatedOn()), p.getMobileNumber(), p.getEmailId(), p.getParentAccount());
+                    p.getCreatedBy(), toStringOrNull(p.getCreatedOn()), p.getMobileNumber(), p.getEmailId(), p.getParentAccount(),p.getRejectionReason());
         }
 
         public static GenericPendingRecordDto fromSuperDistributor(SuperDistributor s) {
             return new GenericPendingRecordDto("SUPER_DISTRIBUTOR", s.getSuperDistributorId(), s.getName(), s.getStatus(),
-                    s.getCreatedBy(), toStringOrNull(s.getCreatedOn()), s.getMobileNumber(), s.getEmailId(), s.getParentAccount());
+                    s.getCreatedBy(), toStringOrNull(s.getCreatedOn()), s.getMobileNumber(), s.getEmailId(), s.getParentAccount(),s.getRejectionReason());
         }
 
         public static GenericPendingRecordDto fromWhiteLabel(WhiteLabels w) {
             return new GenericPendingRecordDto("WHITE_LABEL", w.getWhiteLabelId(), w.getName(), w.getStatus(),
-                    w.getCreatedBy(), toStringOrNull(w.getCreatedOn()), w.getMobileNumber(), w.getEmailId(), w.getParentAccount());
+                    w.getCreatedBy(), toStringOrNull(w.getCreatedOn()), w.getMobileNumber(), w.getEmailId(), w.getParentAccount(),w.getRejectionReason());
         }
 
         public static GenericPendingRecordDto fromEnterprise(Enterprises e) {
             return new GenericPendingRecordDto("ENTERPRISE", e.getEnterpriseId(), e.getName(), e.getStatus(),
-                    e.getCreatedBy(), toStringOrNull(e.getCreatedOn()), e.getMobileNumber(), e.getEmailId(), e.getParentAccount());
+                    e.getCreatedBy(), toStringOrNull(e.getCreatedOn()), e.getMobileNumber(), e.getEmailId(), e.getParentAccount(),e.getRejectionReason());
         }
 
         public static GenericPendingRecordDto fromAdmin(Admin a) {
             return new GenericPendingRecordDto("ADMIN", a.getId(), a.getName(), a.getStatus(),
-                    a.getCreatedBy(), toStringOrNull(a.getCreatedOn()), a.getMobileNumber(), a.getEmailId(), null);
+                    a.getCreatedBy(), toStringOrNull(a.getCreatedOn()), a.getMobileNumber(), a.getEmailId(), null,null);
         }
 
         private static String toStringOrNull(LocalDateTime dt) {
@@ -516,5 +519,114 @@ public class OnboardingServiceImpl implements OnboardingService {
 
         return "Retailer status updated to PENDING successfully.";
     }
+
+
+    @Override
+    @Transactional
+    public String moveToPending(String hierarchyId) {
+
+        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
+
+        switch (hierarchyType) {
+
+            case "RT" -> {
+                Retailer rt = retailerRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Retailer not found"));
+
+                if (!"REJECTED".equalsIgnoreCase(rt.getStatus()))
+                    return "Only REJECTED retailers can be moved to PENDING";
+
+                rt.setStatus("PENDING");
+                rt.setRejectionReason(null);
+                rt.setRemarks("Re-submitted for approval");
+                retailerRepository.save(rt);
+            }
+
+            case "DT" -> {
+                Distributor dt = distributorRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Distributor not found"));
+
+                if (!"REJECTED".equalsIgnoreCase(dt.getStatus()))
+                    return "Only REJECTED distributors can be moved to PENDING";
+
+                dt.setStatus("PENDING");
+                dt.setRejectionReason(null);
+                dt.setRemarks("Re-submitted for approval");
+                distributorRepository.save(dt);
+            }
+
+            case "PT" -> {
+                Partner pt = partnerRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Partner not found"));
+
+                if (!"REJECTED".equalsIgnoreCase(pt.getStatus()))
+                    return "Only REJECTED partners can be moved to PENDING";
+
+                pt.setStatus("PENDING");
+                pt.setRejectionReason(null);
+                pt.setRemarks("Re-submitted for approval");
+                partnerRepository.save(pt);
+            }
+
+            case "SD" -> {
+                SuperDistributor sd = superDistributorRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Super Distributor not found"));
+
+                if (!"REJECTED".equalsIgnoreCase(sd.getStatus()))
+                    return "Only REJECTED super distributors can be moved to PENDING";
+
+                sd.setStatus("PENDING");
+                sd.setRejectionReason(null);
+                sd.setRemarks("Re-submitted for approval");
+                superDistributorRepository.save(sd);
+            }
+
+            case "WL" -> {
+                WhiteLabels wl = whiteLabelsRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("WhiteLabel not found"));
+
+                if (!"REJECTED".equalsIgnoreCase(wl.getStatus()))
+                    return "Only REJECTED whitelabels can be moved to PENDING";
+
+                wl.setStatus("PENDING");
+                wl.setRejectionReason(null);
+                wl.setRemarks("Re-submitted for approval");
+                whiteLabelsRepository.save(wl);
+            }
+
+            case "ET" -> {
+                Enterprises et = enterprisesRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Enterprise not found"));
+
+                if (!"REJECTED".equalsIgnoreCase(et.getStatus()))
+                    return "Only REJECTED enterprises can be moved to PENDING";
+
+                et.setStatus("PENDING");
+                et.setRejectionReason(null);
+                et.setRemarks("Re-submitted for approval");
+                enterprisesRepository.save(et);
+            }
+
+            case "AD", "IM" -> {
+                Admin ad = adminRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+                if (!"REJECTED".equalsIgnoreCase(ad.getStatus()))
+                    return "Only REJECTED admins can be moved to PENDING";
+
+                ad.setStatus("PENDING");
+                ad.setRejectionReason(null);
+                ad.setRemarks("Re-submitted for approval");
+                adminRepository.save(ad);
+            }
+
+            default -> {
+                return "Invalid hierarchy type";
+            }
+        }
+
+        return "Moved to pending successfully";
+    }
+
 
 }

@@ -91,7 +91,7 @@ public class PrefundRequest {
     private LocalTime approveOrRejectTime;
 
     @Column(name = "remarks")
-    private String remarks = "-";
+    private String remarks;
 
     @Column(name = "deposit_type")
     private String depositType;

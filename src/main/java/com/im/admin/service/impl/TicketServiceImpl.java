@@ -190,6 +190,7 @@ public class TicketServiceImpl implements TicketService {
         return tickets.map(ticket -> {
             TicketWithTransactionDto dto = new TicketWithTransactionDto();
             BeanUtils.copyProperties(ticket, dto);
+            dto.setRemark(ticket.getRemark());
 
             try {
                 Map<String, Object> transactionDetails = getTransactionDetailsMap(ticket.getTransactionId(), ticket.getRaisedBy());

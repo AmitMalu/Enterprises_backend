@@ -3,6 +3,7 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.FundCreditDebitDto;
 import com.im.admin.dto.RetailerTransactionResponseDto;
+import com.im.admin.dto.RetailerTransactionResponseDtoCom;
 import com.im.admin.dto.SettlementPendingRequestDto;
 import com.im.admin.response.BulkFundResponse;
 import com.im.admin.response.CommonResponse;
@@ -86,6 +87,75 @@ public class FundingController {
                 new CommonResponse(200, "success", transactions)
         );
     }
+
+
+    @PostMapping("/settlement-updated")
+    public ResponseEntity<CommonResponse> getSettlementPendingUpdated(
+            @RequestBody SettlementPendingRequestDto request,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        log.info("API Call: getSettlementPending with request: {}", request);
+
+        Page<RetailerTransactionResponseDto> transactions =
+                fundingService.getSettlementPendingTransactionsUpdated(request, page, size);
+
+        log.info("success. Total records: {}", transactions.getTotalElements());
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "success", transactions)
+        );
+    }
+
+    @PostMapping("/transaction-report")
+    public ResponseEntity<CommonResponse> getTransactionrepoort(
+            @RequestBody SettlementPendingRequestDto request,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        log.info("API Call: getTransactionReport with request: {}", request);
+
+        Page<RetailerTransactionResponseDto> transactions =
+                fundingService.getTransactionReport(request, page, size);
+
+        log.info("success. Total records: {}", transactions.getTotalElements());
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "success", transactions)
+        );
+    }
+
+    @PostMapping("/detailed-txn-report")
+    public ResponseEntity<CommonResponse> getTransactionrepoortComAndChg(
+            @RequestBody SettlementPendingRequestDto request,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        log.info("API Call: getTransactionReport with request: {}", request);
+
+        Page<RetailerTransactionResponseDtoCom> transactions =
+                fundingService.getTransactionReportComWise(request, page, size);
+
+        log.info("success. Total records: {}", transactions.getTotalElements());
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "success", transactions)
+        );
+    }
+
+    @PostMapping("/get-networks/{hierarchyId}")
+    public ResponseEntity<CommonResponse> getSettlementPending(
+            @PathVariable String hierarchyId
+           ) {
+
+        List<String> retailersUnderHierarchy = fundingService.getRetailersUnderHierarchy(hierarchyId);
+
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "success", retailersUnderHierarchy)
+        );
+    }
+
 
 
 }

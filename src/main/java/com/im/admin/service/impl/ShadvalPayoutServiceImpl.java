@@ -30,7 +30,7 @@ import java.util.Objects;
 @Slf4j
 public class ShadvalPayoutServiceImpl implements PayoutVendorService {
 
-    private static final String VENDOR_CODE = "Shadval Payout";
+    private static final String VENDOR_CODE = "Shadval";
 
     private final RestTemplate restTemplate = new RestTemplate();
 

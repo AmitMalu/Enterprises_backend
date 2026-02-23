@@ -32,5 +32,46 @@ public class RetailerTransactionResponseDto {
     private LocalDate dateOfTransaction;
     private LocalTime timeOfTransaction;
     private LocalDate updatedDateOfTransaction;
-    private LocalTime  updatedTimeOfTransaction;
+    private LocalTime updatedTimeOfTransaction;
+    private String walletType;
+    private String productName;
+
+    //  Constructor exactly matching service usage
+    public RetailerTransactionResponseDto(
+            Integer id,
+            LocalDate updatedAt,
+            String userId,
+            String mobileNo,
+            String schemeName,
+            BigDecimal amount,
+            String txStatus,
+            String txType,
+            String remarks,
+            String txId,
+            String medium,
+            String subProductName,
+            String vendor,
+            LocalDate dateOfTransaction,
+            LocalTime timeOfTransaction,
+            LocalDate updatedDateOfTransaction,
+            LocalTime updatedTimeOfTransaction
+    ) {
+        this.id = id;
+        this.updatedAt = updatedAt;
+        this.userId = userId;
+        this.mobileNo = mobileNo;
+        this.schemeName = schemeName;
+        this.amount = amount;
+        this.txStatus = txStatus;
+        this.txType = txType;
+        this.remarks = remarks;
+        this.txId = txId;
+        this.medium = medium;
+        this.subProductName = subProductName;
+        this.vendor = vendor;
+        this.dateOfTransaction = dateOfTransaction;
+        this.timeOfTransaction = timeOfTransaction;
+        this.updatedDateOfTransaction = updatedDateOfTransaction;
+        this.updatedTimeOfTransaction = updatedTimeOfTransaction;
+    }
 }

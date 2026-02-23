@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.im.admin.orchestrator.PayoutOrchestrator;
+import com.im.admin.orchestrator.PayoutOrchestratorV0;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
@@ -24,15 +25,18 @@ public class MoveToBankController {
     //@Autowired
     //private MoveToBankService moveToBankService;
 
-    @Autowired
-    private PayoutOrchestrator payoutOrchestrator;
+//    @Autowired
+//    private PayoutOrchestrator payoutOrchestrator;
 
-    @PostMapping("/send-payout-request")
+    @Autowired
+    private PayoutOrchestratorV0 payoutOrchestratorV0;
+
+    @PostMapping("/send-payout-request-VO")
     public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest) {
         log.info("======= Calling payoutService.sendPayoutRequest =======");
 
         try {
-            CommonResponse<PayoutResponseDto> response = payoutOrchestrator.processPayout(sendPayoutRequest);
+            CommonResponse<PayoutResponseDto> response = payoutOrchestratorV0.processPayout(sendPayoutRequest);
             log.info("======= sendPayoutRequest completed at {} =======", LocalDateTime.now());
             return ResponseEntity.status(response.getStatusCode()).body(response);
         } catch (Exception e) {

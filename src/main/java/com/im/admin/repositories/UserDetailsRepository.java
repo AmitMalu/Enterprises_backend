@@ -52,4 +52,7 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
     @Transactional
     @Query("DELETE FROM UserDetails u WHERE u.hierarchyId = :hierarchyId")
     void deleteByHierarchyId(@Param("hierarchyId") String hierarchyId);
+
+    List<UserDetails> findByParentAccount(String parentId);
+
 }

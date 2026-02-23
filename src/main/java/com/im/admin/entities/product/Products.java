@@ -30,11 +30,11 @@ public class Products {
     @NotBlank(message = "Product name cannot be blank")
     @Column(name = "name", nullable = false,unique = true)
     private String name;
-
-    @NotNull(message = "Product code cannot be null")
-    @NotBlank(message = "Product code cannot be blank")
+//
+//    @NotNull(message = "Product code cannot be null")
+//    @NotBlank(message = "Product code cannot be blank")
     @Column(name = "product_code", nullable = false, unique = true)
-    private String productCode;
+    private String productCode ="1";
 
     @Column(name = "product_code_for_scheme")
     private String productCodeForScheme;

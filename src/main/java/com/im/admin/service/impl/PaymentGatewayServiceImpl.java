@@ -176,8 +176,12 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             txnMap.setAmount(req.getAmount());
             txnMap.setStatus("INITIATED");
             txnMap.setVendorName(vendor.getVendorName());
-
+            txnMap.setSubProductId(req.getSubProductId());
             pgTransactionMappingRepository.save(txnMap);
+
+            log.info("subProductId: ", req.getSubProductId());
+            log.info("initiatedBy", req.getInitiatedBy());
+
 
             // ====== Check Vendor Type ======
             if ("AES".equalsIgnoreCase(credentials.getTokenType())) {
@@ -495,6 +499,39 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         PgTransactionMapping pgTransactionMapping = pgTransactionMappingRepository.findByOrderId(callback.getOrderId())
                 .orElseThrow(() -> new RuntimeException("Transaction not found for Order ID: " + callback.getOrderId()));
 
+        String subProductId = pgTransactionMapping.getSubProductId();
+        log.info("---- [Callback] Fetching SubProduct using subProductId: {}", subProductId);
+
+        SubProducts subProducts =
+                subProductsRepository.findById(subProductId)
+                        .orElseThrow(() -> {
+                            log.error("---- [Callback] SubProduct NOT FOUND for subProductId: {}", subProductId);
+                            return new RuntimeException("SubProduct not found for subProductId: " + subProductId);
+                        });
+
+        log.info("---- [Callback] SubProduct fetched successfully | subProductId={}", subProducts.getId());
+
+        log.info("---- [Callback] SubProduct fetched successfully | subProductId={}, subProductCode={}",
+                subProducts.getId(),
+                subProducts.getSubProductCode());
+
+        SchemeAllocation schemeAllocation =
+                schemeAllocationRepository
+                        .findByHierarchyIdAndSubProductCode(
+                                pgTransactionMapping.getInitiatedBy(),
+                                subProducts.getSubProductCode()
+                        )
+                        .orElseThrow(() -> new RuntimeException(
+                                "SchemeAllocation not found | hierarchyId="
+                                        + pgTransactionMapping.getInitiatedBy()
+                                        + ", subProductCode="
+                                        + subProducts.getSubProductCode()
+                        ));
+
+        String schemeCode = schemeAllocation.getSchemeCode();
+
+        log.info("---- [Callback] SchemeAllocation fetched successfully | schemeCode={}", schemeCode);
+
         // Prepare base data
         Double txnAmt = Double.valueOf(callback.getTxnAmount());
         log.info("---- [Callback] Parsed transaction amount: {}", txnAmt);
@@ -506,26 +543,39 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         );
         log.info("---- [Callback] Using operatorName for DB lookup: {}", callbackOperatorName);
 
-        // Fetch all matching schemes for operator name
-        List<SchemeRate> matchingSchemes = schemeRateRepository.findSchemeByOperatorName(callbackOperatorName);
+
+        List<SchemeRate> matchingSchemes =
+                schemeRateRepository.findBySchemeCodeAndOperatorName(
+                        schemeCode,
+                        callbackOperatorName
+                );
         if (matchingSchemes == null || matchingSchemes.isEmpty()) {
-            log.error("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
+            log.error("---- [Callback] No matching scheme found for schemeCode={} and operatorName={}",
+                    schemeCode, callbackOperatorName);
             return;
         }
+
+//        // Fetch all matching schemes for operator name
+//        List<SchemeRate> matchingSchemes = schemeRateRepository.findSchemeByOperatorName(callbackOperatorName);
+//        if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+//            log.error("---- [Callback] No matching scheme found for operatorName: {}", callbackOperatorName);
+//            return;
+//        }
         log.info("---- [Callback] Scheme(s) found: {}", matchingSchemes.size());
 
         // Pick correct scheme by amount range or fixed value
         SchemeRate selectedScheme = matchingSchemes.stream()
                 .filter(scheme ->
-                        (scheme.getSlabType() == SlabType.FIXED && Objects.equals(scheme.getFixedSlabValue(), txnAmt)) ||
-                                (scheme.getSlabType() == SlabType.VARIABLE && txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd())
+                        scheme.getSlabType() == SlabType.VARIABLE &&
+                                txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd()
                 )
                 .findFirst()
                 .orElse(matchingSchemes.get(0));
-        log.debug("---- [Callback] Selected scheme: {}", selectedScheme);
+        log.info("---- [Callback] Selected scheme: {}", selectedScheme);
 
         // Fetch scheme, product & subproduct details
         log.debug("---- [Callback] Fetching scheme details for code: {}", selectedScheme.getSchemeCode());
+        log.info("---- [Callback] Fetching scheme details for code: {}", selectedScheme.getSchemeCode());
         Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
                 .orElseThrow(() -> new RuntimeException("Scheme Not Found for code: " + selectedScheme.getSchemeCode()));
 
@@ -533,6 +583,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         short productId = Short.parseShort(hashParts[0]);
         String subProductIdStr = hashParts[1];
         log.debug("---- [Callback] Extracted productId: {}, subProductId: {}", productId, subProductIdStr);
+        log.info("---- [Callback] Extracted productId: {}, subProductId: {}", productId, subProductIdStr);
 
         Products product = productsRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
@@ -561,6 +612,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         dto.setHasCharge(product.getHasCharges());
 
         log.debug("---- [Callback] DTO prepared: {}", dto);
+        log.info("---- [Callback] DTO prepared: {}", dto);
 
         // Forward to central transaction engine
         log.info("---- [Callback] Forwarding to Transaction Engine with Status: {}", callback.getStatus());

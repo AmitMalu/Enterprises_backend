@@ -15,18 +15,24 @@ import java.time.LocalTime;
 @NoArgsConstructor
 public class MyTransactionReportResponse {
 
-    private Integer id;   //0
-    private LocalDate transactionDate;  //1
-    private LocalTime transactionTime;  //2
-    private BigDecimal balBefore;  //3
-    private BigDecimal amount;   //4
-    private BigDecimal balAfter;  //5
-    private String subProductName;  //6
-    private String actionOnBalanceAmount;   //7
-    private Status status;   //8
-    private String tranxId;  //9
-    private String narration;  //10
+    private Integer id;
+    private LocalDate transactionDate;
+    private LocalTime transactionTime;
+    private BigDecimal balBefore;
+    private BigDecimal amount;
+    private BigDecimal balAfter;
+
+    private String subProductName;
+    private String productName;
+
+    private String schemeName;
+    private String actionOnBalanceAmount;
+    private Status status;
+    private String tranxId;
+    private String narration;
     private WalletType walletType;
+    private String hierarchyId;
+
 
 
 }

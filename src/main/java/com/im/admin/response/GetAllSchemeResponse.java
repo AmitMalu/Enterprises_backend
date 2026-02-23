@@ -30,4 +30,5 @@ public class GetAllSchemeResponse {
     private String createdBy;
     private LocalDateTime editedOn;
     private String editedBy;
+    private Boolean isActive;
 }

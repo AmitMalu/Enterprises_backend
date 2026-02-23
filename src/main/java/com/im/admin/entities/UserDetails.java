@@ -107,5 +107,8 @@ public class UserDetails {
     @Column(name = "permission")
     private String permission;
 
+    @Column(name = "parent_account")
+    private String parentAccount;
+
 
 }

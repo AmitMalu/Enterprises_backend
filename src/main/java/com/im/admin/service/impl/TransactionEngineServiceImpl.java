@@ -785,6 +785,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         creditHierarchy("RT", dto.getHierarchyId(), commission, dto.getWalletType(),
                 tdsRate, baseTxnId, tranStatus, request);
+
     }
 
 
@@ -942,8 +943,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         return Optional.empty(); // Admin not found
     }
 
-
     public boolean hasSufficientBalance(String retailerId, BigDecimal requestedAmount, BigDecimal grossAmount, String walletType) {
+
         String amountTable = getAmountTable("RT", walletType);
 
         String sql = "SELECT available_balance FROM " + amountTable + " WHERE retailer_id = :retailerId";
@@ -952,9 +953,13 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 .setParameter("retailerId", retailerId)
                 .getSingleResult();
 
-        log.info("Retailer ID: {} | Available Balance: {} | Total Deduction Amount: {}", retailerId, availableBalance, requestedAmount.add(grossAmount));
+        BigDecimal totalRequired = requestedAmount.add(grossAmount);
 
-        return availableBalance == null || availableBalance.compareTo(requestedAmount.add(grossAmount)) < 0;
+        log.info("Retailer ID: {} | Available Balance: {} | Required Amount: {}",
+                retailerId, availableBalance, totalRequired);
+
+        // Return TRUE only when the balance is enough
+        return availableBalance != null && availableBalance.compareTo(totalRequired) >= 0;
     }
 
     private void distributeCommissionToHierarchies(BigDecimal amount,
@@ -1877,6 +1882,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setRetailerId(((RetailerPrepaidAmount) wallet).getRetailerId().getRetailerId());
                 transaction.setOperatorName(dto.getOperatorName());
                 transaction.setSubProductName(dto.getSubProductCode());
+                transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());  // new
 
                 retailerPrepaidTransactionDetailsRepository.save(transaction);
                 log.info("Prepaid transaction saved successfully | TranxId: {}", tranxId);
@@ -1898,6 +1904,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setRetailerId(((RetailerPostpaidAmount) wallet).getRetailerId().getRetailerId());
                 transaction.setOperatorName(dto.getOperatorName());
                 transaction.setSubProductName(dto.getSubProductCode());
+                transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());  // new
 
                 retailerPostpaidTransactionDetailsRepository.save(transaction);
                 log.info("Postpaid transaction saved successfully | TranxId: {}", tranxId);
@@ -1937,8 +1944,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         // Match against hierarchyId, subProductCode, and operatorCode
         return allocations.stream()
                 .filter(allocation ->
-                        allocation.getHierarchyId().equalsIgnoreCase(request.getHierarchyId()) &&
-                                allocation.getSubProductCode().equalsIgnoreCase(request.getSubProductCode()) //&&
+                                allocation.getHierarchyId().equalsIgnoreCase(request.getHierarchyId()) &&
+                                        allocation.getSubProductCode().equalsIgnoreCase(request.getSubProductCode()) //&&
 //                                allocation.getOperatorCode().equalsIgnoreCase(request.getOperatorCode())
                 )
                 .findFirst()
@@ -1976,11 +1983,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         return schemeRates.stream()
                 .filter(rate -> {
                     double amount = request.getAmount();
-                    if (rate.getSlabType() == SlabType.FIXED) {
-                        return Double.compare(amount, rate.getFixedSlabValue()) == 0;
-                    } else {
-                        return amount >= rate.getSlabStart() && amount <= rate.getSlabEnd();
-                    }
+                    return amount >= rate.getSlabStart() && amount <= rate.getSlabEnd();
                 })
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No matching Scheme Rate found for amount: " + request.getAmount()));
@@ -2263,6 +2266,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 AbstractRetailerTransactionDetails txn;
                 String walletType = request.getWalletType().toUpperCase();
                 String baseTransactionId = tranxId.replaceFirst("^TXN", "");
+
+
                 String fullTxnId = "TXN" + baseTransactionId;
 
                 if ("PREPAID".equals(walletType)) {
@@ -2270,11 +2275,24 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                             .findByTransactionId(fullTxnId)
                             .orElseThrow(() -> new RuntimeException("Prepaid transaction not found"));
 
-                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(prepaidTxn.getTranStatus())) {
-                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(prepaidTxn.getTranStatus()).append("\n");
+                    //old logic chk SETTLEMENT PENDING with tranStatus field
+//                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(prepaidTxn.getTranStatus())) {
+//                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(prepaidTxn.getTranStatus()).append("\n");
+//                        continue;
+//                    }
+
+                    //new logic chk SETTLEMENT PENDING with actionOnBalanceAmount field
+                    String action = prepaidTxn.getActionOnBalanceAmount();
+                    if (action == null ||
+                            !action.trim().toLowerCase().startsWith("settlement pending")) {
+
+                        lastResult.append("SKIPPED: ")
+                                .append(fullTxnId)
+                                .append(" already processed with action: ")
+                                .append(action)
+                                .append("\n");
                         continue;
                     }
-
                     txn = prepaidTxn;
 
                 } else if ("POSTPAID".equals(walletType)) {
@@ -2282,8 +2300,23 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                             .findByTransactionId(fullTxnId)
                             .orElseThrow(() -> new RuntimeException("Postpaid transaction not found"));
 
-                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(postpaidTxn.getTranStatus())) {
-                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(postpaidTxn.getTranStatus()).append("\n");
+                    //old logic chk SETTLEMENT PENDING with tranStatus field
+//                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(postpaidTxn.getTranStatus())) {
+//                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(postpaidTxn.getTranStatus()).append("\n");
+//                        continue;
+//                    }
+
+                     //new logic chk SETTLEMENT PENDING with actionOnBalanceAmount field
+                    String action = postpaidTxn.getActionOnBalanceAmount();
+
+                    if (action == null ||
+                            !action.trim().toLowerCase().startsWith("settlement pending")) {
+
+                        lastResult.append("SKIPPED: ")
+                                .append(fullTxnId)
+                                .append(" already processed with action: ")
+                                .append(action)
+                                .append("\n");
                         continue;
                     }
 
@@ -2307,11 +2340,18 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 newRequest.setAmount(amount.doubleValue());
                 newRequest.setConfirmAmount(amount.doubleValue());
 
-                Operators operator = operatorsRepository.findByOperatorName(operatorName)
-                        .orElseThrow(() -> new RuntimeException("Operator not found: " + operatorName));
+//                Operators operator = operatorsRepository.findByOperatorName(operatorName)
+//                        .orElseThrow(() -> new RuntimeException("Operator not found: " + operatorName));
 
                 SubProducts subProduct = subProductsRepository.findBySubProductTitle(subProductName)
                         .orElseThrow(() -> new RuntimeException("SubProduct not found: " + subProductName));
+
+                Operators operator = operatorsRepository
+                        .findByOperatorNameIgnoreCaseAndSubProductId(operatorName, subProduct.getId())
+                        .orElseThrow(() -> new RuntimeException(
+                                "Operator not found: " + operatorName + ", subProductId: " + subProduct.getId()
+                        ));
+
 
                 newRequest.setOperatorCode(operator.getOperatorCode());
                 newRequest.setProductCode(subProduct.getProduct().getProductCode());
@@ -2470,6 +2510,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         // Save wallet changes
         saveWallet(walletType, wallet);
+        // 🔥 CLEANUP OLD SETTLEMENT PENDING ENTRY
+        deleteOldSettlementPendingEntry("TXN" + baseTransactionId, walletType);
         return "Transaction Successful";
     }
 
@@ -2540,5 +2582,20 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         return new CommonResponse<>(200, "Bulk update completed", resultList);
     }
+
+    @Transactional
+    public void deleteOldSettlementPendingEntry(
+            String txnId,
+            String walletType) {
+
+        if ("POSTPAID".equalsIgnoreCase(walletType)) {
+            retailerPostpaidTransactionDetailsRepository
+                    .deleteSettlementPendingRecord(txnId);
+        } else if ("PREPAID".equalsIgnoreCase(walletType)) {
+            retailerPrepaidTransactionDetailsRepository
+                    .deleteSettlementPendingRecord(txnId);
+        }
+    }
+
 
 }

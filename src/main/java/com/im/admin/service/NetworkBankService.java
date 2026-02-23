@@ -2,6 +2,7 @@ package com.im.admin.service;
 
 import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.NetworkBankMaster;
+import com.im.admin.request.NetworkBankMasterResponseDto;
 import com.im.admin.response.BankInfoResponse;
 import com.im.admin.response.NetworkBankDropdownResponse;
 import org.springframework.data.domain.Page;
@@ -27,4 +28,9 @@ public interface NetworkBankService {
     BankInfoResponse getBankInfoByIfsc(String ifscCode);
 
     Page<NetworkBankMaster> getAllBanks(Pageable pageable, String id, String bankCode, String bankName, String bankBranchName, String ifscCode, Boolean imps, Boolean neft, Boolean rtgs, Boolean isActive, String createdBy, String editedBy, Boolean isBlocked, LocalDate createdOn, LocalDate editedOn);
+
+
+    List<NetworkBankMasterResponseDto> getAllNetworkBanks();
+
+
 }

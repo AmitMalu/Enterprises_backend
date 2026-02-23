@@ -32,9 +32,13 @@ public class PayoutVendorFactory {
 
         // Partial match
         for (Map.Entry<String, PayoutVendorService> entry : vendorMap.entrySet()) {
-            if (entry.getKey().contains(normalizedCode)) {
+//            if (entry.getKey().contains(normalizedCode)) {
+//                return entry.getValue();
+//            }
+            if (normalizedCode.contains(entry.getKey())) {
                 return entry.getValue();
             }
+
         }
 
         return null;

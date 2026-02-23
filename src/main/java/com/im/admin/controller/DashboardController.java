@@ -4,13 +4,19 @@ package com.im.admin.controller;
 import com.im.admin.dto.DashboardResponseDto;
 import com.im.admin.dto.WalletBalanceResponseDto;
 import com.im.admin.entities.UserDetails;
+import com.im.admin.request.DashboardTransactionRequest;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.DashboardTransactionDto;
 import com.im.admin.response.MyProfileResponseDto;
 import com.im.admin.service.DashboardService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @Slf4j
@@ -45,6 +51,27 @@ public class DashboardController {
         return ResponseEntity.ok(new CommonResponse<>(200, "Profile fetched successfully", profile));
     }
 
+//    @PostMapping("/transactions")
+//    public ResponseEntity<List<DashboardTransactionDto>> getDashboardTransactions(
+//             @RequestBody DashboardTransactionRequest request) {
+//
+//        return ResponseEntity.ok(
+//                dashboardService.getDashboardTransactions(request.getHierarchyId())
+//        );
+//    }
+
+
+    @PostMapping("/data")
+    public ResponseEntity<CommonResponse<Object>> getDashboardTransactions(
+            @RequestBody DashboardTransactionRequest request) {
+
+        Map<String, Object> responseData =
+                dashboardService.getDashboardTransactions(request);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(responseData, "Dashboard transactions fetched successfully")
+        );
+    }
 
 
 }

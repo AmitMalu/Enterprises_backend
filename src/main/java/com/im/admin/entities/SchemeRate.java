@@ -39,12 +39,12 @@ public class SchemeRate {
     private RateType rateType; // FLAT or PERCENTAGE
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "slab_type")
+    @Column(name = "slab_type", columnDefinition = "VARIABLE")
     private SlabType slabType; // FIXED or VARIABLE
 
     // For Fixed slab type
-    @Column(name = "fixed_slab_value")
-    private Double fixedSlabValue;
+//    @Column(name = "fixed_slab_value")
+//    private Double fixedSlabValue;
 
     // For Variable slab type
     @Column(name = "slab_start")

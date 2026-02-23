@@ -3,6 +3,7 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.NetworkBankMaster;
 import com.im.admin.repositories.NetworkBankMasterRepository;
+import com.im.admin.request.NetworkBankMasterResponseDto;
 import com.im.admin.response.BankInfoResponse;
 import com.im.admin.response.NetworkBankDropdownResponse;
 import com.im.admin.service.NetworkBankService;
@@ -168,4 +169,22 @@ public class NetworkBankServiceImpl implements NetworkBankService {
         return new BankInfoResponse(bank.getBankName(), bank.getBankBranchName());
     }
 
+
+
+    @Override
+    public List<NetworkBankMasterResponseDto> getAllNetworkBanks() {
+
+        return bankMasterRepository.findAll()
+                .stream()
+                .map(bank -> new NetworkBankMasterResponseDto(
+                        bank.getBankId(),
+                        bank.getBankName(),
+                        bank.getIfscCode()
+                ))
+                .toList();
+    }
+
 }
+
+
+
