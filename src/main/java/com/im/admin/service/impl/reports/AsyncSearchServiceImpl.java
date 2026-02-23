@@ -44,10 +44,10 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
     // -------- Retailer --------
     @Override
     @Async
-    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchRetailerById(String txnId, String hierarchyId) {
+    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchRetailerById(String txnId, List<String> networkIds) {
         return CompletableFuture.completedFuture(fetchTransactions(
-                () -> retailerPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndRetailerId(txnId, hierarchyId),
-                () -> retailerPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndRetailerId(txnId, hierarchyId)
+                () -> retailerPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndRetailerId(txnId, networkIds),
+                () -> retailerPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndRetailerIdIn(txnId, networkIds)
         ));
     }
 
@@ -63,10 +63,10 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
     // -------- Distributor --------
     @Override
     @Async
-    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchDistributorById(String txnId, String hierarchyId) {
+    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchDistributorById(String txnId, List<String> networkIds) {
         return CompletableFuture.completedFuture(fetchTransactions(
-                () -> distributorPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndDistributorId(txnId, hierarchyId),
-                () -> distributorPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndDistributorId(txnId, hierarchyId)
+                () -> distributorPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndDistributorIdIn(txnId, networkIds),
+                () -> distributorPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndDistributorIdIn(txnId, networkIds)
         ));
     }
 
@@ -83,10 +83,10 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
     // -------- Partner --------
     @Override
     @Async
-    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchPartnerById(String txnId, String hierarchyId) {
+    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchPartnerById(String txnId, List<String> networkIds) {
         return CompletableFuture.completedFuture(fetchTransactions(
-                () -> partnerPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndPartnerId(txnId, hierarchyId),
-                () -> partnerPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndPartnerId(txnId, hierarchyId)
+                () -> partnerPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndPartnerIdIn(txnId, networkIds),
+                () -> partnerPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndPartnerIdIn(txnId, networkIds)
         ));
     }
 
@@ -102,10 +102,10 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
     // -------- Super Distributor --------
     @Override
     @Async
-    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchSuperDistributorById(String txnId, String hierarchyId) {
+    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchSuperDistributorById(String txnId, List<String> networkIds) {
         return CompletableFuture.completedFuture(fetchTransactions(
-                () -> superDistributorPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndSuperDistributorId(txnId, hierarchyId),
-                () -> superDistributorPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndSuperDistributorId(txnId, hierarchyId)
+                () -> superDistributorPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndSuperDistributorIdIn(txnId, networkIds),
+                () -> superDistributorPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndSuperDistributorIdIn(txnId, networkIds)
         ));
     }
 
@@ -121,10 +121,10 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
     // -------- White Label --------
     @Override
     @Async
-    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchWhiteLabelById(String txnId, String hierarchyId) {
+    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchWhiteLabelById(String txnId, List<String> networkIds) {
         return CompletableFuture.completedFuture(fetchTransactions(
-                () -> whiteLabelPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndWhiteLabelId(txnId, hierarchyId),
-                () -> whiteLabelPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndWhiteLabelId(txnId, hierarchyId)
+                () -> whiteLabelPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndWhiteLabelIdIn(txnId, networkIds),
+                () -> whiteLabelPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndWhiteLabelIdIn(txnId, networkIds)
         ));
     }
 
@@ -140,10 +140,10 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
     // -------- Enterprise --------
     @Override
     @Async
-    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchEnterpriseById(String txnId, String hierarchyId) {
+    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchEnterpriseById(String txnId, List<String> networkIds) {
         return CompletableFuture.completedFuture(fetchTransactions(
-                () -> enterprisesPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndEnterprisesId(txnId, hierarchyId),
-                () -> enterprisesPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndEnterprisesId(txnId, hierarchyId)
+                () -> enterprisesPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndEnterprisesIdIn(txnId, networkIds),
+                () -> enterprisesPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndEnterprisesIdIn(txnId, networkIds)
         ));
     }
 
@@ -159,10 +159,10 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
     // -------- Admin --------
     @Override
     @Async
-    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchAdminById(String txnId, String hierarchyId) {
+    public CompletableFuture<List<SearchTransactionReportResponseDto>> searchAdminById(String txnId, List<String> networkIds) {
         return CompletableFuture.completedFuture(fetchTransactions(
-                () -> adminPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndAdminId(txnId, hierarchyId),
-                () -> adminPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndAdminId(txnId, hierarchyId)
+                () -> adminPrepaidTransactionDetailsRepository.findTransactionsByTransactionIdAndAdminId(txnId, networkIds),
+                () -> adminPostpaidTransactionDetailsRepository.findTransactionsByTransactionIdAndAdminId(txnId, networkIds)
         ));
     }
 

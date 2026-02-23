@@ -19,6 +19,7 @@ public class CreateOrderRequest {
     private String merchantRef; // optional
     private Short productId;
     private String subProductId;
+    private String cardBinNo;
 
     // Include full scheme details here
     private TransactionSchemeDetailsRequestDto transactionScheme;

@@ -254,7 +254,8 @@ public class PayoutOrchestratorV0 {
 
             // Log callback event for auditing
             commonFunctions.saveCallbackEventLog(
-                    payload.toString(),
+//                    payload.toString(),
+                    payload,
                     receivedAt,
                     clientIp,
                     "Callback processed for vendor = " + vendorCode,
@@ -268,7 +269,8 @@ public class PayoutOrchestratorV0 {
             log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
-                    payload.toString(),
+//                    payload.toString(),
+                    payload,
                     receivedAt,
                     clientIp,
                     "Error: " + e.getMessage(),

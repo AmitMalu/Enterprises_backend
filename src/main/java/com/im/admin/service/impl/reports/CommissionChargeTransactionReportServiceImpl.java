@@ -2,15 +2,18 @@ package com.im.admin.service.impl.reports;
 
 
 import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.UserDetails;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
+import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.request.reports.CommissionTransactionReportRequest;
 import com.im.admin.response.reports.CommissionTransactionReportResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.reports.CommissionChargeTransactionReportService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ParameterMode;
 import jakarta.persistence.StoredProcedureQuery;
@@ -56,16 +59,35 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
     @Autowired
     private DataSource dataSource;
 
+    @Autowired
+    private UserDetailsRepository userDetailsRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
+
 
     @Override
     public CommonResponse<Page<CommissionTransactionReportResponse>> getReport(
             CommissionTransactionReportRequest request) {
+
+        // ===== NETWORK HIERARCHY LOGIC =====
+        String loggedInHierarchyId = tokenUtil.extractHierarchyId();
+
+        List<String> networkIds =
+                getRetailersUnderHierarchy(loggedInHierarchyId);
+
+        log.info("Network IDs for commission report: {}", networkIds);
+
+// Convert to CSV for Stored Procedure
+        String networkCsv = String.join(",", networkIds);
 
         Pageable pageable = PageRequest.of(
                 request.getPage(),
                 request.getSize(),
                 Sort.by("transactionDate").descending()
         );
+
+
 
         LocalDate from = StringUtils.hasText(request.getFromDate())
                 ? LocalDate.parse(request.getFromDate())
@@ -113,7 +135,9 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                             to,
                             subProductsParam,
                             productParam,
-                            pageable
+                            pageable,
+                            loggedInHierarchyId,
+                            networkCsv
                     );
 
             allData.addAll(
@@ -137,7 +161,9 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
             LocalDate to,
             String subProducts,
             String products,
-            Pageable pageable) {
+            Pageable pageable,
+            String loggedInHierarchyId,
+            String networkCsv) {
 
         StoredProcedureQuery query =
                 entityManager.createStoredProcedureQuery("commission_charge_transaction_report_v2");
@@ -166,19 +192,27 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         // ===== SET PARAMS =====
         query.setParameter("p_table_name", walletType.name());
 
-        query.setParameter(
-                "p_hierarchy_type",
-                StringUtils.hasText(request.getHierarchyType())
-                        ? request.getHierarchyType()
-                        : null
-        );
+//        query.setParameter(
+//                "p_hierarchy_type",
+//                StringUtils.hasText(request.getHierarchyType())
+//                        ? request.getHierarchyType()
+//                        : null
+//        );
+
+//        query.setParameter(
+//                "p_hierarchy_id",
+//                StringUtils.hasText(request.getHierarchyId())
+//                        ? request.getHierarchyId()
+//                        : null
+//        );
 
         query.setParameter(
-                "p_hierarchy_id",
-                StringUtils.hasText(request.getHierarchyId())
-                        ? request.getHierarchyId()
-                        : null
+                "p_hierarchy_type",
+                commonMethods.extractHierarchyType(loggedInHierarchyId)
         );
+
+        query.setParameter("p_hierarchy_id", networkCsv);
+
 
         query.setParameter("p_from_date", from);
         query.setParameter("p_to_date", to);
@@ -339,6 +373,61 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         }
 
         return columnNames;
+    }
+
+
+    public List<String> getRetailersUnderHierarchy(String hierarchyId) {
+
+        String type = commonMethods.extractHierarchyType(hierarchyId);
+
+//        if ("RT".equals(type) || "RU".equals(type)) {
+//            return List.of(hierarchyId);
+//        }
+        if ("RU".equals(type)) {
+            return List.of(hierarchyId);
+        }
+
+        List<String> resultIds = new ArrayList<>();
+
+        // Add itself
+        resultIds.add(hierarchyId);
+
+        List<UserDetails> allChildren = new ArrayList<>();
+
+        fetchChildrenRecursively(hierarchyId, allChildren);
+
+        log.info("All children IDs fetched: {}",
+                allChildren.stream()
+                        .map(UserDetails::getHierarchyId)
+                        .toList());
+
+
+        resultIds.addAll(
+                allChildren.stream()
+                        .filter(user ->
+                                "RT".equalsIgnoreCase(user.getHierarchyCode()) ||
+                                        "RU".equalsIgnoreCase(user.getHierarchyCode())
+                        )
+                        .map(UserDetails::getHierarchyId)
+                        .toList()
+        );
+
+        return resultIds;
+    }
+
+
+    private void fetchChildrenRecursively(
+            String parentId,
+            List<UserDetails> result
+    ) {
+
+        List<UserDetails> children =
+                userDetailsRepository.findByParentAccount(parentId);
+
+        for (UserDetails child : children) {
+            result.add(child);
+            fetchChildrenRecursively(child.getHierarchyId(), result);
+        }
     }
 
 }

@@ -116,6 +116,7 @@ public class PayoutOrchestrator {
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), req.getRetailerId());
             String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
 
+
             commonMethods.updateWallet(
                     walletAmountTable,
                     req.getRetailerId(),
@@ -254,7 +255,8 @@ public class PayoutOrchestrator {
 
             // Log callback event for auditing
             commonFunctions.saveCallbackEventLog(
-                    payload.toString(),
+//                    payload.toString(),
+                    payload,
                     receivedAt,
                     clientIp,
                     "Callback processed for vendor = " + vendorCode,
@@ -268,7 +270,8 @@ public class PayoutOrchestrator {
             log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
-                    payload.toString(),
+//                    payload.toString(),
+                    payload,
                     receivedAt,
                     clientIp,
                     "Error: " + e.getMessage(),

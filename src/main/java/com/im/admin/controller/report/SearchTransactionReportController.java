@@ -6,6 +6,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.response.SearchTransactionReportResponseDto;
 import com.im.admin.service.reports.SearchTransactionReportService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
@@ -29,13 +30,19 @@ public class SearchTransactionReportController {
     @Autowired
     private CommonMethods commonMethods;
 
+    @Autowired
+    private TokenUtil tokenUtil;
+
     @GetMapping("/view")
     public ResponseEntity<CommonResponse<SearchTransactionReportGroupedResponse>> searchTransaction(
-            @RequestParam String transactionId,
-            @RequestParam(required = false) String hierarchyId) {
+            @RequestParam String transactionId){
+
+        String hierarchyId = tokenUtil.extractHierarchyId();
 
         log.info("Received request to search transaction | transactionId={}, hierarchyId={}",
                 transactionId, hierarchyId);
+
+
 
         String userType = (hierarchyId == null) ? "AD" : commonMethods.extractHierarchyType(hierarchyId);
 

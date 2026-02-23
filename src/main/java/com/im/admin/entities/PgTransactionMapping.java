@@ -21,6 +21,8 @@ public class PgTransactionMapping {
     private String vendorName;
     private LocalDateTime createdAt = LocalDateTime.now();
     private String SubProductId;
+    private String cardBinNo;
+    private String TxnId;
 
 }
 

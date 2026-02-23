@@ -177,6 +177,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             txnMap.setStatus("INITIATED");
             txnMap.setVendorName(vendor.getVendorName());
             txnMap.setSubProductId(req.getSubProductId());
+            txnMap.setCardBinNo(req.getCardBinNo()); //new
             pgTransactionMappingRepository.save(txnMap);
 
             log.info("subProductId: ", req.getSubProductId());
@@ -469,7 +470,9 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
             RunPaisaCallback callback = parser.parse(payload);
             processCallback(callback);
 
-            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+//            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+            commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+
             return "Callback processed successfully";
         } else {
             log.info("---- [Callback] Single callback format detected. Converting to RunPaisaCallback object.");
@@ -478,13 +481,17 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         }
 
         try {
-            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+//            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+            commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+
             log.info("---- [Callback] Successfully logged callback event");
             return "Callback processed successfully";
 
         } catch (Exception e) {
             log.error("---- [Callback] Error while saving callback log: {}", e.getMessage(), e);
-            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, e.getMessage(), LocalDateTime.now());
+//            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, e.getMessage(), LocalDateTime.now());
+            commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp, e.getMessage(), LocalDateTime.now());
+
             throw new RuntimeException("Callback processing failed");
         }
     }
@@ -590,10 +597,26 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
                 .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
 
-        // Build DTO (common for all statuses)
-        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
         String orderId = callback.getOrderId();
         String baseTranxId = orderId.startsWith("ORD") ? orderId.substring(3) : orderId;
+
+        String txnId = buildTransactionId("TXN", baseTranxId);
+
+        PgTransactionMapping mapping = pgTransactionMappingRepository
+                .findByOrderId(orderId)
+                .orElseThrow(() ->
+                        new RuntimeException("Record not found for orderId: " + orderId)
+                );
+
+        mapping.setTxnId(txnId);
+
+        pgTransactionMappingRepository.save(mapping);
+
+        // Build DTO (common for all statuses)
+        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+//        String orderId = callback.getOrderId();
+//        String baseTranxId = orderId.startsWith("ORD") ? orderId.substring(3) : orderId;
 
         dto.setBaseTranxId(baseTranxId);
         dto.setAmount(txnAmt);
@@ -724,4 +747,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 .findByProduct_Id(productId);
     }
 
+    public String buildTransactionId(String prefix, String baseId) {
+        return prefix + baseId;
+    }
 }

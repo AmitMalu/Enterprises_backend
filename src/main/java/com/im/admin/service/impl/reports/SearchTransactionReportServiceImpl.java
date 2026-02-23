@@ -2,10 +2,13 @@ package com.im.admin.service.impl.reports;
 
 import com.im.admin.dto.SearchTransactionReportContentResponse;
 import com.im.admin.dto.SearchTransactionReportGroupedResponse;
+import com.im.admin.entities.UserDetails;
+import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.response.SearchTransactionReportResponseDto;
 import com.im.admin.service.reports.AsyncSearchService;
 import com.im.admin.service.reports.SearchTransactionReportService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import com.im.admin.util.TransactionPrefixUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +34,12 @@ public class SearchTransactionReportServiceImpl implements SearchTransactionRepo
     @Autowired
     private AsyncSearchService asyncService;
 
+    @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private UserDetailsRepository userDetailsRepository;
+
     @Override
     public SearchTransactionReportGroupedResponse searchTransactionById(
             String txnId, String hierarchyId) throws IllegalAccessException {
@@ -38,7 +47,13 @@ public class SearchTransactionReportServiceImpl implements SearchTransactionRepo
         String normalizedTxnId = txnId.length() > 14 ? txnId.substring(txnId.length() - 17) : txnId;
 
         List<CompletableFuture<List<SearchTransactionReportResponseDto>>> futures = new ArrayList<>();
-        String hierarchyType = (hierarchyId == null) ? "AD" : commonMethods.extractHierarchyType(hierarchyId);
+//        String hierarchyType = (hierarchyId == null) ? "AD" : commonMethods.extractHierarchyType(hierarchyId);
+
+        String loggedInHierarchyId = tokenUtil.extractHierarchyId();
+        String hierarchyType = commonMethods.extractHierarchyType(loggedInHierarchyId);
+
+        List<String> networkIds = getRetailersUnderHierarchy(loggedInHierarchyId);
+
 
         if ("AD".equalsIgnoreCase(hierarchyType) || "WL-AD".equalsIgnoreCase(hierarchyType)) {
             futures.add(asyncService.searchRetailer(normalizedTxnId));
@@ -50,13 +65,13 @@ public class SearchTransactionReportServiceImpl implements SearchTransactionRepo
             futures.add(asyncService.searchAdmin(normalizedTxnId));
         } else {
             switch (hierarchyType) {
-                case "RT" -> futures.add(asyncService.searchRetailerById(normalizedTxnId, hierarchyId));
-                case "DT" -> futures.add(asyncService.searchDistributorById(normalizedTxnId, hierarchyId));
-                case "PT" -> futures.add(asyncService.searchPartnerById(normalizedTxnId, hierarchyId));
-                case "SD" -> futures.add(asyncService.searchSuperDistributorById(normalizedTxnId, hierarchyId));
-                case "WL" -> futures.add(asyncService.searchWhiteLabelById(normalizedTxnId, hierarchyId));
-                case "ET" -> futures.add(asyncService.searchEnterpriseById(normalizedTxnId, hierarchyId));
-                case "AD" -> futures.add(asyncService.searchAdminById(normalizedTxnId, hierarchyId));
+                case "RT" -> futures.add(asyncService.searchRetailerById(normalizedTxnId, networkIds));
+                case "DT" -> futures.add(asyncService.searchDistributorById(normalizedTxnId, networkIds));
+                case "PT" -> futures.add(asyncService.searchPartnerById(normalizedTxnId, networkIds));
+                case "SD" -> futures.add(asyncService.searchSuperDistributorById(normalizedTxnId, networkIds));
+                case "WL" -> futures.add(asyncService.searchWhiteLabelById(normalizedTxnId, networkIds));
+                case "ET" -> futures.add(asyncService.searchEnterpriseById(normalizedTxnId, networkIds));
+                case "AD" -> futures.add(asyncService.searchAdminById(normalizedTxnId, networkIds));
                 default -> throw new IllegalAccessException("Unsupported hierarchy type.");
             }
         }
@@ -87,4 +102,58 @@ public class SearchTransactionReportServiceImpl implements SearchTransactionRepo
     }
 
 
+
+    public List<String> getRetailersUnderHierarchy(String hierarchyId) {
+
+        String type = commonMethods.extractHierarchyType(hierarchyId);
+
+//        if ("RT".equals(type) || "RU".equals(type)) {
+//            return List.of(hierarchyId);
+//        }
+        if ("RU".equals(type)) {
+            return List.of(hierarchyId);
+        }
+
+        List<String> resultIds = new ArrayList<>();
+
+        // Add itself
+        resultIds.add(hierarchyId);
+
+        List<UserDetails> allChildren = new ArrayList<>();
+
+        fetchChildrenRecursively(hierarchyId, allChildren);
+
+        log.info("All children IDs fetched: {}",
+                allChildren.stream()
+                        .map(UserDetails::getHierarchyId)
+                        .toList());
+
+
+        resultIds.addAll(
+                allChildren.stream()
+                        .filter(user ->
+                                "RT".equalsIgnoreCase(user.getHierarchyCode()) ||
+                                        "RU".equalsIgnoreCase(user.getHierarchyCode())
+                        )
+                        .map(UserDetails::getHierarchyId)
+                        .toList()
+        );
+
+        return resultIds;
+    }
+
+
+    private void fetchChildrenRecursively(
+            String parentId,
+            List<UserDetails> result
+    ) {
+
+        List<UserDetails> children =
+                userDetailsRepository.findByParentAccount(parentId);
+
+        for (UserDetails child : children) {
+            result.add(child);
+            fetchChildrenRecursively(child.getHierarchyId(), result);
+        }
+    }
 }

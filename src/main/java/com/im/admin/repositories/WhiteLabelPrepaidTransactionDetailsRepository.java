@@ -14,10 +14,13 @@ public interface WhiteLabelPrepaidTransactionDetailsRepository extends JpaReposi
 
     // Search by normalized transactionId + whitelabelId
     @Query("SELECT wl FROM WhiteLabelPrepaidTransactionDetails wl " +
-            "WHERE wl.transactionId LIKE %:txnId% AND wl.whitelabelId = :hierarchyId")
-    List<WhiteLabelPrepaidTransactionDetails> findTransactionsByTransactionIdAndWhiteLabelId(
+            "WHERE wl.transactionId LIKE %:txnId% " +
+            "AND wl.whitelabelId IN :networkIds")
+    List<WhiteLabelPrepaidTransactionDetails> findTransactionsByTransactionIdAndWhiteLabelIdIn(
             @Param("txnId") String txnId,
-            @Param("hierarchyId") String hierarchyId);
+            @Param("networkIds") List<String> networkIds);
+
+
 
 
     // Search only by normalized transactionId (for Admin / global search)

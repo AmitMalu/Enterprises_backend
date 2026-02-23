@@ -1643,9 +1643,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         String sql = "INSERT INTO " + transactionTable +
                 " (" + hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name,scheme_name) " +
                 "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName,:schemeName)";
 
         log.debug("[COMM_TXN_INSERT] Generated SQL: {}", sql);
 
@@ -1664,6 +1664,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
                     .setParameter("subProductName", subProductName)
+                    .setParameter("schemeName", request.getSchemeRate().getSchemeCode())
                     .executeUpdate();
 
             log.info("[COMM_TXN_INSERT] Successfully inserted commission transaction | HierarchyID={} | TranxID={} | Amount={} | Status={}",
