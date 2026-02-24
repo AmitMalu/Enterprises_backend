@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
@@ -27,4 +29,19 @@ public interface SuperDistributorPostpaidTransactionDetailsRepository extends Jp
     @Query("SELECT sd FROM SuperDistributorPostpaidTransactionDetails sd " +
             "WHERE sd.transactionId LIKE %:txnId%")
     List<SuperDistributorPostpaidTransactionDetails> findTransactionsByTransactionId(@Param("txnId") String txnId);
+
+    @Query("""
+       SELECT COALESCE(SUM(t.amount), 0)
+       FROM SuperDistributorPostpaidTransactionDetails t
+       WHERE t.superDistributorId = :sdId
+       AND t.transactionId LIKE 'COM%'
+       AND t.tranStatus = 'SUCCESS'
+       AND (:fromDate IS NULL OR t.dateOfTransaction >= :fromDate)
+       AND (:toDate IS NULL OR t.dateOfTransaction <= :toDate)
+       """)
+    BigDecimal sumCommission(
+            @Param("sdId") String sdId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
 }

@@ -33,6 +33,7 @@ import java.util.stream.Stream;
 public class DashboardServiceImpl implements DashboardService {
     @Autowired
     private SuperDistributorPostpaidAmountRepository superDistributorPostpaidAmountRepository;
+
     @Autowired
     private SuperDistributorPrepaidAmountRepository superDistributorPrepaidAmountRepository;
 
@@ -84,6 +85,31 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Autowired
     private RetailerPostpaidTransactionDetailsRepository retailerPostpaidTransactionDetailsRepository;
+
+    @Autowired
+    private FundTransferRepository fundTransferRepository;
+
+    @Autowired
+    private FundRequestRepository fundRequestRepository;
+
+    @Autowired
+    private SuperDistributorPostpaidTransactionDetailsRepository sdPostpaidTransactionDetailsRepository;
+
+    @Autowired
+    private SuperDistributorPrepaidTransactionDetailsRepository sdPrepaidTransactionDetailsRepository;
+
+    @Autowired
+    private PartnerPrepaidTransactionDetailsRepository ptPrepaidTransactionDetailsRepository;
+
+    @Autowired
+    private PartnerPostpaidTransactionDetailsRepository ptPostpaidTransactionDetailsRepository;
+
+    @Autowired
+    private DistributorPostpaidTransactionDetailsRepository dtPostpaidTransactionDetailsRepository;
+
+    @Autowired
+    private DistributorPrepaidTransactionDetailsRepository dtPrepaidTransactionDetailsRepository;
+
 
     @Override
     public DashboardResponseDto getAdminDashboard() {
@@ -547,8 +573,6 @@ public class DashboardServiceImpl implements DashboardService {
                 ? LocalDate.parse(request.getToDate())
                 : null;
 
-
-
         String type = commonMethods.extractHierarchyType(request.getHierarchyId());
 
         switch (type) {
@@ -572,7 +596,7 @@ public class DashboardServiceImpl implements DashboardService {
             }
 
             case "SD" -> {
-                SuperDistributor superdistributor  = superDistributorRepository.findBySuperDistributorId(request.getHierarchyId())
+                SuperDistributor superdistributor = superDistributorRepository.findBySuperDistributorId(request.getHierarchyId())
                         .orElseThrow(() -> new RuntimeException("SuperDistributor not found"));
 
                 // ===== Wallet balances =====
@@ -589,19 +613,19 @@ public class DashboardServiceImpl implements DashboardService {
                         "image", superdistributor.getShopImage() != null ? superdistributor.getShopImage() : "",
                         "name", superdistributor.getOutletAddress().getOutletName(),
                         "retailerId", superdistributor.getSuperDistributorId(),
-                        "prepaid", superDistributorPrepaidAmount != null ? superDistributorPostpaidAmount.getAvailableBalance() : BigDecimal.ZERO,
+                        "prepaid", superDistributorPrepaidAmount != null ? Objects.requireNonNull(superDistributorPostpaidAmount).getAvailableBalance() : BigDecimal.ZERO,
                         "postpaid", superDistributorPostpaidAmount != null ? superDistributorPostpaidAmount.getAvailableBalance() : BigDecimal.ZERO
                 );
 
-                // ===== CARDS Transaction Volume
+                // ===== CARDS 1.Transaction Volume
                 BigDecimal txnVolume =
-                                getSdTransactionVolume(
+                        getSdTransactionVolume(
                                 request.getHierarchyId(),
                                 fromDate,
                                 toDate
                         );
 
-                //2 cards pending txn
+                //2.Cards pending txn
                 Long pendingTxnCount =
                         getSdPendingTransactionCount(
                                 request.getHierarchyId(),
@@ -609,9 +633,32 @@ public class DashboardServiceImpl implements DashboardService {
                                 toDate
                         );
 
-                //3 cards Retailers count
+                // 3. Fund Transferred (generic for all hierarchies)
+                BigDecimal fundTransferred = getFundTransferred(
+                        request.getHierarchyId(),
+                        fromDate,
+                        toDate
+                );
+
+                // 4. Fund Received (generic for all hierarchies)
+                BigDecimal fundReceived = getFundReceived(
+                        request.getHierarchyId(),
+                        fromDate,
+                        toDate
+                );
+
+                //5 cards Retailers count
                 Long retailerCount =
                         getSdRetailerCount(request.getHierarchyId());
+
+                //6.Commission Earned
+                BigDecimal commissionEarned =
+                        getCommissionEarned(
+                                request.getHierarchyId(),
+                                type,
+                                fromDate,
+                                toDate
+                        );
 
                 //garph data
 
@@ -631,6 +678,18 @@ public class DashboardServiceImpl implements DashboardService {
                         Map.of(
                                 "label", "RETAILERS CREATED",
                                 "value", retailerCount
+                        ),
+                        Map.of(
+                                "label", "FUND TRANSFERRED",
+                                "value", fundTransferred
+                        ),
+                        Map.of(
+                                "label", "FUND RECEIVED",
+                                "value", fundReceived
+                        ),
+                        Map.of(
+                                "label", "COMMISSION EARNED",
+                                "value", commissionEarned.toString()
                         )
 
                 );
@@ -747,24 +806,18 @@ public class DashboardServiceImpl implements DashboardService {
                 BigDecimal transactionVolume =
                         prepaidVolume.add(postpaidVolume);
 
-                BigDecimal prepaidCommission =
-                        retailerPrepaidTransactionDetailsRepository
-                                .sumCommissionEarned(
-                                        request.getHierarchyId(),
-                                        fromDate,
-                                        toDate
-                                );
-
-                BigDecimal postpaidCommission =
-                        retailerPostpaidTransactionDetailsRepository
-                                .sumCommissionEarned(
-                                        request.getHierarchyId(),
-                                        fromDate,
-                                        toDate
-                                );
-
+                //Commission Earned
                 BigDecimal commissionEarned =
-                        prepaidCommission.add(postpaidCommission);
+                        getCommissionEarned(
+                                request.getHierarchyId(),
+                                type,
+                                fromDate,
+                                toDate
+                        );
+
+                //Hierarchy Count
+                HierarchyCountResponse hierarchyCountResponse = getHierarchyCounts(request.getHierarchyId());
+
 
                 Long prepaidPending =
                         retailerPrepaidTransactionDetailsRepository
@@ -845,7 +898,6 @@ public class DashboardServiceImpl implements DashboardService {
                 }
 
 
-
                 List<Map<String, String>> cards = List.of(
                         Map.of(
                                 "label", "TRANSACTION VOLUME",
@@ -858,73 +910,28 @@ public class DashboardServiceImpl implements DashboardService {
                         Map.of(
                                 "label", "PENDING TRANSACTION",
                                 "value", pendingTransactions.toString()
+                        ),
+                        Map.of(
+                                "label", "TOTAL NETWORK",
+                                "value", String.valueOf(hierarchyCountResponse.getTotalCount())
+                        ),
+                        Map.of(
+                                "label", "ACTIVE NETWORK",
+                                "value", String.valueOf(hierarchyCountResponse.getTotalCount())
                         )
                 );
-
-//                // ===== PREPAID =====
-//                List<ProductAmountProjection> prepaidData =
-//                        retailerPrepaidTransactionDetailsRepository
-//                                .getThisMonthProductWiseAmount(request.getHierarchyId());
-//
-//// ===== POSTPAID =====
-//                List<ProductAmountProjection> prepaidData =
-//                        retailerPostpaidTransactionDetailsRepository
-//                                .getThisMonthProductWiseAmount(request.getHierarchyId());
-//
-//// ===== MERGE PRODUCT WISE =====
-//                Map<String, BigDecimal> productVsAmount = new HashMap<>();
-//
-//                for (ProductAmountProjection p : prepaid) {
-//                    productVsAmount.merge(
-//                            p.getProductName(),
-//                            p.getAmount(),
-//                            BigDecimal::add
-//                    );
-//                }
-//
-//                for (ProductAmountProjection p : postpaid) {
-//                    productVsAmount.merge(
-//                            p.getProductName(),
-//                            p.getAmount(),
-//                            BigDecimal::add
-//                    );
-//                }
-//
-//// ===== TOTAL AMOUNT (100%) =====
-//                BigDecimal totalAmount = productVsAmount.values().stream()
-//                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-//
-//// ===== PIE DATA (PERCENTAGE) =====
-//                List<Map<String, Object>> servicePieData = new ArrayList<>();
-//
-//                for (Map.Entry<String, BigDecimal> entry : productVsAmount.entrySet()) {
-//
-//                    BigDecimal percentage = totalAmount.compareTo(BigDecimal.ZERO) > 0
-//                            ? entry.getValue()
-//                            .multiply(BigDecimal.valueOf(100))
-//                            .divide(totalAmount, 2, RoundingMode.HALF_UP)
-//                            : BigDecimal.ZERO;
-//
-//                    servicePieData.add(
-//                            Map.of(
-//                                    "name", entry.getKey(),
-//                                    "value", percentage
-//                            )
-//                    );
-//                }
-
 
                 // ===== PREPAID =====
                 List<ProductAmountProjection> prepaidProductData =
                         retailerPrepaidTransactionDetailsRepository
                                 .getThisMonthProductWiseAmount(request.getHierarchyId());
 
-// ===== POSTPAID =====
+                // ===== POSTPAID =====
                 List<ProductAmountProjection> postpaidProductData =
                         retailerPostpaidTransactionDetailsRepository
                                 .getThisMonthProductWiseAmount(request.getHierarchyId());
 
-// ===== MERGE PRODUCT WISE =====
+                // ===== MERGE PRODUCT WISE =====
                 Map<String, BigDecimal> productVsAmount = new HashMap<>();
 
                 for (ProductAmountProjection p : prepaidProductData) {
@@ -943,11 +950,11 @@ public class DashboardServiceImpl implements DashboardService {
                     );
                 }
 
-// ===== TOTAL AMOUNT =====
+                // ===== TOTAL AMOUNT =====
                 BigDecimal totalAmount = productVsAmount.values().stream()
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-// ===== PIE DATA =====
+                // ===== PIE DATA =====
                 List<Map<String, Object>> servicePieData = new ArrayList<>();
 
                 for (Map.Entry<String, BigDecimal> entry : productVsAmount.entrySet()) {
@@ -965,9 +972,6 @@ public class DashboardServiceImpl implements DashboardService {
                             )
                     );
                 }
-
-
-
 
 
                 // ===== SINGLE RETURN =====
@@ -1135,8 +1139,101 @@ public class DashboardServiceImpl implements DashboardService {
         return graphData;
     }
 
+    public BigDecimal getFundTransferred(String hierarchyId, LocalDate fromDate, LocalDate toDate) {
+        return fundTransferRepository.sumFundTransferred(hierarchyId, fromDate, toDate);
+    }
 
+    public BigDecimal getFundReceived(String hierarchyId, LocalDate fromDate, LocalDate toDate) {
+        return fundRequestRepository.sumFundReceived(hierarchyId, fromDate, toDate);
+    }
 
+    public BigDecimal getCommissionEarned(
+            String hierarchyId,
+            String hierarchyType,
+            LocalDate fromDate,
+            LocalDate toDate
+    ) {
+
+        BigDecimal prepaid = BigDecimal.ZERO;
+        BigDecimal postpaid = BigDecimal.ZERO;
+
+        switch (hierarchyType) {
+
+            case "SD" -> {
+                prepaid = sdPrepaidTransactionDetailsRepository
+                        .sumCommission(hierarchyId, fromDate, toDate);
+
+                postpaid = sdPostpaidTransactionDetailsRepository
+                        .sumCommission(hierarchyId, fromDate, toDate);
+            }
+
+            case "PT" -> {
+                prepaid = ptPrepaidTransactionDetailsRepository
+                        .sumCommission(hierarchyId, fromDate, toDate);
+
+                postpaid = ptPostpaidTransactionDetailsRepository
+                        .sumCommission(hierarchyId, fromDate, toDate);
+            }
+
+            case "DT" -> {
+                prepaid = dtPrepaidTransactionDetailsRepository
+                        .sumCommission(hierarchyId, fromDate, toDate);
+
+                postpaid = dtPostpaidTransactionDetailsRepository
+                        .sumCommission(hierarchyId, fromDate, toDate);
+            }
+
+            case "RT" -> {
+                prepaid = retailerPrepaidTransactionDetailsRepository
+                        .sumCommissionEarned(hierarchyId, fromDate, toDate);
+
+                postpaid = retailerPostpaidTransactionDetailsRepository
+                        .sumCommissionEarned(hierarchyId, fromDate, toDate);
+            }
+        }
+
+        return prepaid.add(postpaid);
+    }
+
+    public HierarchyCountResponse getHierarchyCounts(String hierarchyId) {
+
+        List<UserDetails> allChildren = new ArrayList<>();
+
+        fetchChildrenRecursively(hierarchyId, allChildren);
+
+        // Dynamic grouping by hierarchyCode
+        Map<String, Long> countMap = allChildren.stream()
+                .collect(Collectors.groupingBy(
+                        UserDetails::getHierarchyCode,
+                        Collectors.counting()
+                ));
+
+        long totalCount = countMap.values()
+                .stream()
+                .mapToLong(Long::longValue)
+                .sum();
+
+        HierarchyCountResponse response = new HierarchyCountResponse();
+        response.setHierarchyId(hierarchyId);
+        response.setCounts(countMap);
+        response.setTotalCount(totalCount);
+
+        return response;
+    }
+
+    private void fetchChildrenRecursively(
+            String parentId,
+            List<UserDetails> result
+    ) {
+
+        List<UserDetails> children =
+                userDetailsRepository.findByParentAccount(parentId);
+
+        for (UserDetails child : children) {
+            result.add(child);
+            fetchChildrenRecursively(child.getHierarchyId(), result);
+        }
+    }
 }
 
 
