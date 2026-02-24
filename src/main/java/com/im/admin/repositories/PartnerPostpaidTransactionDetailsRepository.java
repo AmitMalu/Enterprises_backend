@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -26,5 +27,20 @@ public interface PartnerPostpaidTransactionDetailsRepository extends JpaReposito
     @Query("SELECT pt FROM PartnerPostpaidTransactionDetails pt " +
             "WHERE pt.transactionId LIKE %:txnId%")
     List<PartnerPostpaidTransactionDetails> findTransactionsByTransactionId(@Param("txnId") String txnId);
+
+    @Query("""
+       SELECT COALESCE(SUM(t.amount), 0)
+       FROM PartnerPostpaidTransactionDetails t
+       WHERE t.partnerId = :ptId
+       AND t.transactionId LIKE 'COM%'
+       AND t.tranStatus = 'SUCCESS'
+       AND (:fromDate IS NULL OR t.dateOfTransaction >= :fromDate)
+       AND (:toDate IS NULL OR t.dateOfTransaction <= :toDate)
+       """)
+    BigDecimal sumCommission(
+            @Param("ptId") String ptId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
 
 }
