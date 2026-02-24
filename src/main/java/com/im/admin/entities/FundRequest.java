@@ -34,6 +34,7 @@ public class FundRequest {
     @Column(name = "wallet_type", nullable = false)
     private WalletType walletType;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private Status status = Status.PENDING;
