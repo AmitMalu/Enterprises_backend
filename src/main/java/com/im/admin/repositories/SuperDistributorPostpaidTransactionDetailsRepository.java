@@ -2,6 +2,7 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.SuperDistributorPostpaidTransactionDetails;
 import com.im.admin.entities.SuperDistributorPrepaidTransactionDetails;
+import com.im.admin.response.DashboardTransactionDto;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -41,5 +42,24 @@ public interface SuperDistributorPostpaidTransactionDetailsRepository extends Jp
             @Param("sdId") String sdId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate
+    );
+
+    @Query("""
+    SELECT new com.im.admin.response.DashboardTransactionDto(
+        t.dateOfTransaction,
+        t.timeOfTransaction,
+        t.amount,
+        p.name,
+        sp.walletType,
+        t.tranStatus
+    )
+    FROM SuperDistributorPostpaidTransactionDetails t
+    LEFT JOIN SubProducts sp ON sp.subProductTitle = t.subProductName
+    LEFT JOIN sp.product p
+    WHERE t.superDistributorId = :superDistributorId
+    ORDER BY t.dateOfTransaction DESC, t.timeOfTransaction DESC
+""")
+    List<DashboardTransactionDto> fetchDashboardTransactions(
+            @Param("superDistributorId") String superDistributorId
     );
 }

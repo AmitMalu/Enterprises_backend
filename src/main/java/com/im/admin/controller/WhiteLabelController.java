@@ -99,7 +99,7 @@ public class WhiteLabelController {
             return ResponseEntity.ok(whiteLabelsList);
         }
 
-        @GetMapping("/getById/{id}")
+        @GetMapping("/{id}")
         public ResponseEntity<WhiteLabels> getWhiteLabelById(@PathVariable String id) {
             log.info("Fetching WhiteLabel by ID: {}", id);
             WhiteLabels whiteLabel = whiteLabelService.getWhiteLabelById(id);
