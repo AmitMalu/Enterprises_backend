@@ -22,8 +22,6 @@ public interface PartnerPrepaidTransactionDetailsRepository extends JpaRepositor
             "AND pt.partnerId IN :networkIds")
     List<PartnerPrepaidTransactionDetails> findTransactionsByTransactionIdAndPartnerIdIn(
             @Param("txnId") String txnId,
-            @Param("networkIds") List<String> networkIds,
-            @Param("hierarchyId") String hierarchyId,
             @Param("networkIds") List<String> networkIds
         );
 
