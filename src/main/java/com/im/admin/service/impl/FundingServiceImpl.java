@@ -971,8 +971,8 @@ public class FundingServiceImpl implements FundingService {
         resultIds.addAll(
          allChildren.stream()
                 .filter(user ->
-                        "RT".equalsIgnoreCase(user.getHierarchyCode()) ||
-                                "RU".equalsIgnoreCase(user.getHierarchyCode())
+                        "RT".equalsIgnoreCase(user.getHierarchyCode())
+//                                "RU".equalsIgnoreCase(user.getHierarchyCode())
                 )
                 .map(UserDetails::getHierarchyId)
                 .toList()

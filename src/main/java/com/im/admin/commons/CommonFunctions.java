@@ -124,10 +124,28 @@ public class CommonFunctions {
         callbackEventLog.setResponseDateTime(responseDateTime);
 
 
-        String orderId = payload.get("ORDER_ID");
+        String orderId = extractOrderId(payload);
+
         callbackEventLog.setOrderId(orderId);
 
         callbackEventLogRepository.save(callbackEventLog);
+    }
+
+    private String extractOrderId(Map<String, String> payload) {
+
+        for (Map.Entry<String, String> entry : payload.entrySet()) {
+
+            String key = entry.getKey();
+
+            if ("ORDER_ID".equalsIgnoreCase(key)
+                    || "ORDERID".equalsIgnoreCase(key)
+                    || "ORDER-ID".equalsIgnoreCase(key)) {
+
+                return entry.getValue();
+            }
+        }
+
+        return null; // if not found
     }
 
 
