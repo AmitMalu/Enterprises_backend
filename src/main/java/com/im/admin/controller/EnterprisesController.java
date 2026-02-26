@@ -99,7 +99,7 @@ public class EnterprisesController {
         return ResponseEntity.ok(enterprises);
     }
 
-    @GetMapping("/getById/{enterpriseId}")
+    @GetMapping("/{enterpriseId}")
     public ResponseEntity<?> getEnterpriseById(@PathVariable String enterpriseId) throws JsonProcessingException {
         log.info("API Call: getEnterpriseById with ID: {}", enterpriseId);
         Enterprises enterprise = enterprisesService.getEnterpriseById(enterpriseId);

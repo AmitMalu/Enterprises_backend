@@ -3,6 +3,7 @@ package com.im.admin.repositories;
 import com.im.admin.entities.DistributorPostpaidTransactionDetails;
 import com.im.admin.entities.PartnerPrepaidTransactionDetails;
 import com.im.admin.entities.SuperDistributorPostpaidTransactionDetails;
+import com.im.admin.response.DashboardTransactionDto;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,9 +22,10 @@ public interface PartnerPrepaidTransactionDetailsRepository extends JpaRepositor
             "AND pt.partnerId IN :networkIds")
     List<PartnerPrepaidTransactionDetails> findTransactionsByTransactionIdAndPartnerIdIn(
             @Param("txnId") String txnId,
-            @Param("networkIds") List<String> networkIds);
-
-
+            @Param("networkIds") List<String> networkIds,
+            @Param("hierarchyId") String hierarchyId,
+            @Param("networkIds") List<String> networkIds
+        );
 
     // Search only by normalized transactionId (for Admin / global search)
     @Query("SELECT pt FROM PartnerPrepaidTransactionDetails pt " +
@@ -43,6 +45,25 @@ public interface PartnerPrepaidTransactionDetailsRepository extends JpaRepositor
             @Param("ptId") String ptId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate
+    );
+
+    @Query("""
+    SELECT new com.im.admin.response.DashboardTransactionDto(
+        pt.dateOfTransaction,
+        pt.timeOfTransaction,
+        pt.amount,
+        p.name,
+        sp.walletType,
+        pt.tranStatus
+    )
+    FROM PartnerPrepaidTransactionDetails pt
+    LEFT JOIN SubProducts sp ON sp.subProductTitle = pt.subProductName
+    LEFT JOIN sp.product p
+    WHERE pt.partnerId = :partnerId
+    ORDER BY pt.dateOfTransaction DESC, pt.timeOfTransaction DESC
+""")
+    List<DashboardTransactionDto> fetchPTDashboardTransactions(
+            @Param("partnerId") String partnerId
     );
 
 }
