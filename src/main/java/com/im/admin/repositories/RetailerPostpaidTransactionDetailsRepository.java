@@ -5,6 +5,8 @@ import com.im.admin.entities.RetailerPrepaidTransactionDetails;
 import com.im.admin.response.DashboardTransactionDto;
 import com.im.admin.service.MonthlyTransactionVolumeProjection;
 import com.im.admin.service.ProductAmountProjection;
+import com.im.admin.strategy.ProductCountProjection;
+import com.im.admin.strategy.ProductVolumeProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;
@@ -353,7 +355,39 @@ WHERE (:id IS NULL OR r.id = :id)
             Pageable pageable
     );
 
+    @Query("""
+    SELECT sp.product.name AS productName,
+           COALESCE(SUM(r.amount), 0) AS totalAmount
+    FROM RetailerPostpaidTransactionDetails r
+    JOIN SubProducts sp ON r.subProductName = sp.subProductTitle
+    WHERE r.retailerId IN :retailerIds
+      AND r.tranStatus = 'SUCCESS'
+      AND r.transactionId LIKE 'TXN%'
+      AND r.dateOfTransaction BETWEEN :fromDate AND :toDate
+    GROUP BY sp.product.name
+""")
+    List<ProductVolumeProjection> getProductWiseVolumeForRetailers(
+            @Param("retailerIds") List<String> retailerIds,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
 
 
 
+    @Query("""
+    SELECT sp.product.name AS productName,
+           COUNT(r.id) AS transactionCount
+    FROM RetailerPostpaidTransactionDetails r
+    JOIN SubProducts sp ON r.subProductName = sp.subProductTitle
+    WHERE r.retailerId IN :retailerIds
+      AND r.tranStatus = 'SUCCESS'
+      AND r.transactionId LIKE 'TXN%'
+      AND r.dateOfTransaction BETWEEN :fromDate AND :toDate
+    GROUP BY sp.product.name
+""")
+    List<ProductCountProjection> getProductWiseTransactionCount(
+            @Param("retailerIds") List<String> retailerIds,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
 }
