@@ -217,6 +217,9 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             pending.setTransactionType(req.getPaymentMode());
             pending.setStatus("PENDING");
             pending.setCreatedAt(LocalDateTime.now());
+            pending.setIfscCode(req.getIfscCode());
+            pending.setAccountNumber(req.getAccountNumber());
+            pending.setBeneficiaryName(req.getBeneficiaryName());
             payoutPendingTransactionRepository.save(pending);
 
             log.info("[RUNPAISA] Transaction saved | TxnID={} | Status={}", orderId, vendorStatus);

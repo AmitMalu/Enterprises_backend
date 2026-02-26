@@ -3,15 +3,14 @@ package com.im.admin.service.impl;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.request.ReportReceiptRequestDto;
-import com.im.admin.response.AepsReceiptResponseDto;
-import com.im.admin.response.BbpsReceiptResponseDto;
-import com.im.admin.response.DmtReceiptResponseDto;
+import com.im.admin.response.*;
 import com.im.admin.service.ReportReceiptService;
 import com.im.admin.util.AbstractRetailerTransactionDetails;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 
 
@@ -41,6 +40,22 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
 
     @Autowired
     private BillAvenueTransactionRepository billAvenueTransactionRepository;
+
+    @Autowired
+    private BeneficiaryBankAccountRepository beneficiaryBankAccountRepository;
+
+
+    @Autowired
+    PgTransactionMappingRepository pgTransactionMappingRepository;
+
+    @Autowired
+    private CallbackEventLogRepository callbackEventLogRepository;
+
+    @Autowired
+    private CardTypeMasterRepository cardTypeMasterRepository;
+
+    @Autowired
+    PayoutPendingTransactionRepository payoutPendingTransactionRepository;
 
 
 
@@ -200,6 +215,116 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                     .build();
         }
 
+        // ======================= PG ============================
+
+        if (productName != null &&
+                productName.trim().equalsIgnoreCase("payment gateway")) {
+
+            // Step 1: Get mapping
+            PgTransactionMapping pg =
+                    pgTransactionMappingRepository
+                            .findByTxnId(request.getTxnId())
+                            .orElseThrow(() ->
+                                    new RuntimeException("PG mapping not found"));
+
+            String orderId = pg.getOrderId();
+            String cardBin = pg.getCardBinNo();
+
+            // Step 2: Get callback log
+            CallbackEventLog callback =
+                    callbackEventLogRepository
+                            .findTopByOrderIdOrderByIdDesc(orderId)
+                            .orElseThrow(() ->
+                                    new RuntimeException("Callback log not found"));
+
+            Map<String, String> parsedRequest = parseRequest(callback.getRequest());
+
+            String status = parsedRequest.get("STATUS");
+            String txnAmount = parsedRequest.get("TXN_AMOUNT");
+            String txnDate = parsedRequest.get("TXN_DATE");
+            String paymentMode = parsedRequest.get("CARD_CATEGORY");
+            String phone = parsedRequest.get("CUSTOMER_PHONE");
+            String bankRefNo = parsedRequest.get("BANK_TXNID");
+
+            // Step 3: Get bank name from card_type_master
+            String bankName = cardTypeMasterRepository
+                    .findByCardBinNo(cardBin)
+                    .map(CardTypeMaster::getIssuerName)
+                    .orElse("Unknown");
+
+            return PgReceiptResponseDto.builder()
+                    .dateTime(txnDate.replace(" ", "T"))
+                    .txnId(request.getTxnId())
+                    .orderId(orderId)
+                    .number(phone)
+                    .txnAmount(Long.parseLong(txnAmount))
+                    .paymentMode(paymentMode)
+                    .bankName(bankName)
+                    .bankRefNo(bankRefNo)
+                    .txnStatus(status)
+                    .build();
+        }
+
+        // ======================= PAYOUT ============================
+
+        if (productName != null &&
+                productName.trim().equalsIgnoreCase("payout")) {
+
+            // Step 1: Get payout record
+            PayoutPendingTransactions payout =
+                    payoutPendingTransactionRepository
+                            .findByTransactionId(request.getTxnId())
+                            .orElseThrow(() ->
+                                    new RuntimeException("Payout record not found"));
+
+            // Step 2: Get callback
+            CallbackEventLog callback =
+                    callbackEventLogRepository
+                            .findTopByOrderIdOrderByIdDesc(payout.getTransactionId())
+                            .orElseThrow(() ->
+                                    new RuntimeException("Callback log not found"));
+
+            BeneficiaryBankAccount bankAccount =
+                    beneficiaryBankAccountRepository
+                            .findTopByRetailerIdAndAccountNumberOrderByIdDesc(
+                                    payout.getRetailerId(),
+                                    payout.getAccountNumber()
+                            )
+                            .orElse(null);
+
+            String bankName = bankAccount != null
+                    ? bankAccount.getBankName()
+                    : "Unknown";
+
+            Map<String, String> parsed = parseRequest(callback.getRequest());
+
+            String status = parsed.get("STATUS");
+            String txnMode = parsed.get("TXN_MODE");
+            String txnAmount = parsed.get("TXN_AMOUNT");
+            String utr = parsed.get("UTRNO");
+            String processedTime = parsed.get("PROCESSED_TIME");
+
+            return PayoutReceiptResponseDto.builder()
+                    .txnId(payout.getTransactionId())
+                    .txnStatus(status)
+                    .txnAmount(txnAmount != null ? Long.parseLong(txnAmount) : 0L)
+                    .dateTime(processedTime != null
+                            ? processedTime.replace(" ", "T")
+                            : payout.getCreatedAt().toString())
+                    .accountNumber(payout.getAccountNumber())
+                    .ifscCode(payout.getIfscCode())
+                    .bankName(bankName)
+                    .accountName(
+                            bankAccount != null
+                                    ? bankAccount.getBankHolderName()
+                                    : payout.getBeneficiaryName()
+                    )
+                    .txnMode(txnMode)
+                    .utrNumber(utr)
+                    .guid(payout.getRetailerId())
+                    .build();
+        }
+
         throw new RuntimeException("Unsupported Product");
     }
 
@@ -237,4 +362,25 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                 .dateTime(dateTime)
                 .build();
     }
+
+
+    private Map<String, String> parseRequest(String request) {
+
+        Map<String, String> map = new HashMap<>();
+
+        request = request.replace("{", "")
+                .replace("}", "");
+
+        String[] pairs = request.split(",");
+
+        for (String pair : pairs) {
+            String[] keyValue = pair.split("=");
+            if (keyValue.length == 2) {
+                map.put(keyValue[0].trim(), keyValue[1].trim());
+            }
+        }
+
+        return map;
+    }
+
 }

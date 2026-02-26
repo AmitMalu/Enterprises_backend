@@ -605,13 +605,13 @@ public class AuthController {
                 List<SchemeAllocation> schemes =
                         schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
 
-// Fetch ALL products
+                // Fetch ALL products
                 List<Products> allProducts = productsRepository.findAll();
 
                 Map<String, List<Map<String, Object>>> productSubMap = new LinkedHashMap<>();
                 Map<String, Products> productIdToEntity = new HashMap<>();
 
-// Initialize all products first (so even products without scheme appear)
+                // Initialize all products first (so even products without scheme appear)
                 for (Products product : allProducts) {
                     String productId = String.valueOf(product.getId());
 
@@ -619,7 +619,7 @@ public class AuthController {
                     productIdToEntity.put(productId, product);
                 }
 
-// Now loop schemes only for subProducts
+                // Now loop schemes only for subProducts
                 for (SchemeAllocation sa : schemes) {
 
                     Optional<SubProducts> subProductOpt =

@@ -11,5 +11,8 @@ public interface PgTransactionMappingRepository extends JpaRepository<PgTransact
 
     Optional<PgTransactionMapping> findByOrderId(String orderId);
 
+    Optional<PgTransactionMapping> findByTxnId(String txnId);
+
+
 }
 

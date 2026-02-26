@@ -150,7 +150,6 @@ public class FundingController {
 
         List<String> retailersUnderHierarchy = fundingService.getRetailersUnderHierarchy(hierarchyId);
 
-
         return ResponseEntity.ok(
                 new CommonResponse(200, "success", retailersUnderHierarchy)
         );

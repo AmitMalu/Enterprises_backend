@@ -38,6 +38,17 @@ public class PayoutPendingTransactions {
     private String status;
 
     @Column(nullable = false)
+    private String ifscCode;
+
+    @Column(nullable = false)
+    private String accountNumber;
+
+    @Column(nullable = false)
+    private String beneficiaryName;
+
+    @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+
 
 }

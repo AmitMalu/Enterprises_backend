@@ -14,4 +14,5 @@ public interface CardTypeMasterRepository extends JpaRepository<CardTypeMaster, 
 
     boolean existsByCardBinNo(String cardBinNo);
 
+
 }

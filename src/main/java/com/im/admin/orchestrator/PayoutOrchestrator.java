@@ -126,7 +126,8 @@ public class PayoutOrchestrator {
                     baseTxnId,
                     "PENDING",
                     "DEBIT",
-                    subProducts.getSubProductTitle(),
+//                    subProducts.getSubProductTitle(),
+                    subProducts.getSubProductCode(),
                     req.getBeneficiaryName() + " #" + req.getAccountNumber(),
                     "Fund Transferred #" + req.getAccountNumber(),
                     ""

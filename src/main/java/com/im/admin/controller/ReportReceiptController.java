@@ -18,7 +18,6 @@ public class ReportReceiptController {
     @Autowired
    private ReportReceiptService reportReceiptService;
 
-
     @PostMapping("/report-receipt")
     public ResponseEntity<CommonResponse<?>> reportReceipt(
             @RequestBody ReportReceiptRequestDto request) {
