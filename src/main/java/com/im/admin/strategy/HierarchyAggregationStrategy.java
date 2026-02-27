@@ -1,5 +1,7 @@
 package com.im.admin.strategy;
 
+import com.im.admin.response.HierarchyCountResponse;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -21,7 +23,7 @@ public interface HierarchyAggregationStrategy {
 
     Long getPendingTransactionCount(String id, LocalDate from, LocalDate to);
 
-    Long getRetailerCount(String id);
+    HierarchyCountResponse getRetailerCount(String id);
 
     List<Map<String, Object>> getLast4MonthsGraphData(String id);
 

@@ -33,5 +33,7 @@ public interface SuperDistributorRepository extends JpaRepository<SuperDistribut
 
     SuperDistributor findByMobileNumber(String mobileNumber);
 
+    long countByStatus(String status);
+
 }
 
