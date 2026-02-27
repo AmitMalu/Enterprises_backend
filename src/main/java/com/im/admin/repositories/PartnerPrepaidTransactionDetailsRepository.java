@@ -23,8 +23,8 @@ public interface PartnerPrepaidTransactionDetailsRepository extends JpaRepositor
     List<PartnerPrepaidTransactionDetails> findTransactionsByTransactionIdAndPartnerIdIn(
             @Param("txnId") String txnId,
             @Param("networkIds") List<String> networkIds
-        );
-
+    );
+    
     // Search only by normalized transactionId (for Admin / global search)
     @Query("SELECT pt FROM PartnerPrepaidTransactionDetails pt " +
             "WHERE pt.transactionId LIKE %:txnId%")
