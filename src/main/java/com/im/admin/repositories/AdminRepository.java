@@ -23,6 +23,8 @@ AdminRepository extends JpaRepository<Admin, String> {
 
     Admin findByMobileNumber(String mobileNumber);
 
+    long countByStatus(String status);
+
 //    List<Admin> findByParentAccount(String fromId);
 
 

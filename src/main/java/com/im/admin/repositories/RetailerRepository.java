@@ -50,7 +50,7 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
             @Param("distributorIds") List<String> distributorIds
     );
 
-
+    long countByStatus(String status);
 //    List<String> findRetailerIdsByParent(String hierarchyId);
 
 }
