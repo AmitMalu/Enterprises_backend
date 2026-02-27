@@ -43,5 +43,6 @@ public interface PartnerRepository extends JpaRepository<Partner, String> {
             @Param("sdId") String sdId
     );
 
+    long countByStatus(String status);
 }
 

@@ -394,7 +394,21 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate
     );
+
+    @Query("""
+    SELECT COUNT(r)
+    FROM RetailerPrepaidTransactionDetails r
+    WHERE r.retailerId IN :retailerIds
+      AND r.tranStatus = 'PENDING'
+      AND r.dateOfTransaction BETWEEN :fromDate AND :toDate
+""")
+    Long getPendingTransactionCount(
+            @Param("retailerIds") List<String> retailerIds,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
 }
+
 
 
 
