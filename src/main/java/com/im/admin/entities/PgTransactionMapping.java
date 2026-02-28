@@ -24,6 +24,8 @@ public class PgTransactionMapping {
     private String cardBinNo;
     @Column(name = "txn_id")
     private String txnId;
+    @Column(name = "vendor_session_id")
+    private String vendorSessionId;
 
 }
 
