@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -403,6 +404,23 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
       AND r.dateOfTransaction BETWEEN :fromDate AND :toDate
 """)
     Long getPendingTransactionCount(
+            @Param("retailerIds") List<String> retailerIds,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    @Query(value = """
+    SELECT p.partner_id AS id,
+            COALESCE(SUM(t.amount), 0) AS totalBusiness
+    FROM retailer_prepaid_transaction_details t
+    JOIN retailer r ON t.retailer_id = r.retailer_id
+    JOIN partner p ON r.partner_id = p.partner_id
+    WHERE t.retailer_id IN (:retailerIds)
+       AND (:fromDate IS NULL OR t.date_of_transaction >= :fromDate)
+      AND (:toDate IS NULL OR t.date_of_transaction <= :toDate)
+    GROUP BY p.partner_id
+""", nativeQuery = true)
+    List<Map<String, Object>> getPartnerBusinessPrepaid(
             @Param("retailerIds") List<String> retailerIds,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate

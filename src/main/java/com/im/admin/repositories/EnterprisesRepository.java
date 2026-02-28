@@ -33,6 +33,15 @@ public interface EnterprisesRepository extends JpaRepository<Enterprises, String
    Enterprises findByMobileNumber(String mobileNumber);
 
     long countByStatus(String status);
+
+    @Query("""
+    SELECT e.enterpriseId
+    FROM Enterprises e
+    WHERE e.parentAccount = :whiteLabelId
+""")
+    List<String> findEnterpriseIdsByWhiteLabel(
+            @Param("whiteLabelId") String whiteLabelId
+    );
 }
 
 
