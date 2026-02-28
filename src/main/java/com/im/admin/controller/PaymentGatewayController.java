@@ -9,7 +9,7 @@ import com.im.admin.orchestrator.PGOrchestrator;
 import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
-import com.im.admin.service.impl.PaymentGatewayServiceImpl;
+import com.im.admin.service.impl.RunpaisaPGServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class PaymentGatewayController {
 
     private final PGOrchestrator pgOrchestrator;
-    private final PaymentGatewayServiceImpl paymentGatewayService;
+    private final RunpaisaPGServiceImpl paymentGatewayService;
 
 
     @PostMapping("/validate")
