@@ -884,4 +884,9 @@ public class CommonMethods {
         );
     }
 
+    public String buildTransactionId(String prefix, String baseId) {
+        return prefix + baseId;
+    }
+
+
 }
