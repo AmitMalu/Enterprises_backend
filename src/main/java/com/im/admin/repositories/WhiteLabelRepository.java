@@ -38,6 +38,16 @@ public interface WhiteLabelRepository extends JpaRepository<WhiteLabels, String>
 
     long countByStatus(String status);
 
+    @Query("""
+    SELECT w.whiteLabelId
+    FROM WhiteLabels w
+    WHERE w.parentAccount = :enterpriseId
+""")
+    List<String> findWhiteLabelIdsByEnterprise(
+            @Param("enterpriseId") String enterpriseId
+    );
+
+
 
 
 }

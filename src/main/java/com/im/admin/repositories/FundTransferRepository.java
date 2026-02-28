@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Repository
 public interface FundTransferRepository extends JpaRepository<FundTransfer, Long> {
@@ -21,8 +22,8 @@ public interface FundTransferRepository extends JpaRepository<FundTransfer, Long
        """)
     BigDecimal sumFundTransferred(
             @Param("hierarchyId") String hierarchyId,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime  toDate
     );
 
 

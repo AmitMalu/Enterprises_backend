@@ -35,5 +35,14 @@ public interface SuperDistributorRepository extends JpaRepository<SuperDistribut
 
     long countByStatus(String status);
 
+    @Query("""
+    SELECT s.superDistributorId
+    FROM SuperDistributor s
+    WHERE s.parentAccount = :whiteLabelId
+""")
+    List<String> findSuperDistributorIdsByWhiteLabel(
+            @Param("whiteLabelId") String whiteLabelId
+    );
+
 }
 

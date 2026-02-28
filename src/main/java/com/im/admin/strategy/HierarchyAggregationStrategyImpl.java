@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -157,9 +158,26 @@ public class HierarchyAggregationStrategyImpl implements HierarchyAggregationStr
         return List.of();
     }
 
-    @Override
-    public BigDecimal getFundTransferred(String hierarchyId, LocalDate fromDate, LocalDate toDate) {
-        return fundTransferRepository.sumFundTransferred(hierarchyId, fromDate, toDate);
+    public BigDecimal getFundTransferred(String hierarchyId,
+                                         LocalDate fromDate,
+                                         LocalDate toDate) {
+
+        LocalDateTime fromDateTime = null;
+        LocalDateTime toDateTime = null;
+
+        if (fromDate != null) {
+            fromDateTime = fromDate.atStartOfDay(); // 00:00:00
+        }
+
+        if (toDate != null) {
+            toDateTime = toDate.atTime(23, 59, 59); // end of day
+        }
+
+        return fundTransferRepository.sumFundTransferred(
+                hierarchyId,
+                fromDateTime,
+                toDateTime
+        );
     }
 
     @Override
