@@ -15,7 +15,6 @@ import com.im.admin.repositories.*;
 import com.im.admin.request.CreateOrderRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.RunPaisaCallback;
-import com.im.admin.service.PaymentGatewayService;
 import com.im.admin.service.VendorCallbackParser;
 import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
@@ -40,7 +39,7 @@ import java.util.stream.Stream;
 
 @Service
 @Slf4j
-public class PaymentGatewayServiceImpl implements PaymentGatewayService {
+public class RunpaisaPGServiceImpl {
 
     @Autowired
     private CardTypeMasterRepository cardTypeMasterRepository;
@@ -118,7 +117,6 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     private AESController aesController;
 
 
-    @Override
     public String generateToken() {
 
         // Set headers only
@@ -149,7 +147,6 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         }
     }
 
-    @Override
     @Transactional
     public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req) {
         log.info("Received createOrder request: {}", req);
@@ -358,7 +355,6 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     }
 
 
-    @Override
     public CommonResponse<RetailerCommissionResponseDTO> fetchRetailerCommission(PaymentGatewayCardBinRequestDTO requestDTO) {
 
         // 1. Validate Card BIN
@@ -417,7 +413,6 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     }
 
 
-    @Override
     public ResponseEntity<?> orderStatus(String orderId) {
         log.info("Initiating order status check for orderId: {}", orderId);
 
@@ -454,7 +449,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     }
 
     @Transactional
-    @Override
+   // @Override
     public String handleCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException {
         LocalDateTime requestTime = LocalDateTime.now();
         String clientIp = request.getRemoteAddr();
@@ -497,7 +492,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     }
 
 
-    @Override
+   // @Override
     public void processCallback(RunPaisaCallback callback) throws JsonProcessingException {
         log.info("---- [Callback] Processing for Order ID: {}, Status: {}", callback.getOrderId(), callback.getStatus());
 
@@ -601,7 +596,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
         String orderId = callback.getOrderId();
         String baseTranxId = orderId.startsWith("ORD") ? orderId.substring(3) : orderId;
 
-        String txnId = buildTransactionId("TXN", baseTranxId);
+        String txnId = commonMethods.buildTransactionId("TXN", baseTranxId);
 
         PgTransactionMapping mapping = pgTransactionMappingRepository
                 .findByOrderId(orderId)
@@ -704,7 +699,7 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
     }
 
 
-    @Override
+//    @Override
     public CommonResponse<String> validateTransaction(PgTransactionRequestDto request) {
 
         ProductTransactionLimit limit = getLimit(request.getProductId())
@@ -747,7 +742,4 @@ public class PaymentGatewayServiceImpl implements PaymentGatewayService {
                 .findByProduct_Id(productId);
     }
 
-    public String buildTransactionId(String prefix, String baseId) {
-        return prefix + baseId;
-    }
 }

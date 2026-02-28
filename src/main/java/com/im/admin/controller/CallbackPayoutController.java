@@ -19,7 +19,7 @@ import java.util.Map;
 @RequestMapping("/api/payout")
 @RequiredArgsConstructor
 @Slf4j
-public class CallbackController {
+public class CallbackPayoutController {
 
     // payout v1
 //    @Autowired
