@@ -417,9 +417,7 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Override
     @Transactional
-    public ResponseEntity<?>
-
-    AdharPanLink(String aadhaarNumber) {
+    public ResponseEntity<?> AdharPanLink(String aadhaarNumber) {
         LocalDateTime requestDateTime = LocalDateTime.now();
         String requestJson = null;
         String responseJson = null;

@@ -36,13 +36,21 @@ public class UnisusPGServiceImpl implements UnisusPGService {
     @Override
     public String authenticate(UnisusPayCreateOrderRequest req) {
 
+        log.info("Starting Unisus authentication for subProductId={}, initiatedBy={}, amount={}",
+                req.getSubProductId(), req.getInitiatedBy(), req.getAmount());
+
         try {
 
             // ====== 1. Get Vendor & Credentials ======
+            log.debug("Fetching VendorRouting for subProductId={}", req.getSubProductId());
+
             VendorRouting vendorRouting =
                     vendorRoutingRepository.findBySubProductId(req.getSubProductId());
 
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            log.debug("Resolved vendorId={}, productId={}",
+                    vendor.getId(), vendor.getProduct().getId());
 
             VendorCredentials credentials =
                     vendorCredentialsRepository
@@ -52,14 +60,16 @@ public class UnisusPGServiceImpl implements UnisusPGService {
                             .orElseThrow(() ->
                                     new RuntimeException("No credentials found"));
 
+            log.info("Vendor credentials fetched successfully for vendorId={}", vendor.getId());
+
             // ====== 2. Build Authenticate Request ======
             UnisusAuthRequest authRequest = new UnisusAuthRequest(
-                    credentials.getClientId(),     // APIKey
-                    credentials.getUsername(),     // MobileNo
-                    credentials.getClientSecret()     // AgentID or MobileNo
+                    credentials.getClientId(),
+                    credentials.getUsername(),
+                    credentials.getClientSecret()
             );
 
-            log.info("Calling Unisus Authenticate API...");
+            log.info("Calling Unisus Authenticate API at URL={}", credentials.getTokenUrlUat());
 
             WebClient webClient = webClientBuilder.build();
 
@@ -70,7 +80,13 @@ public class UnisusPGServiceImpl implements UnisusPGService {
                     .bodyToMono(UnisusAuthResponse.class)
                     .block();
 
+            log.debug("Received authentication response from Unisus: {}", response);
+
             if (response == null || response.getStatus() != 0) {
+                log.error("Unisus authentication failed. Status={}, Message={}",
+                        response != null ? response.getStatus() : null,
+                        response != null ? response.getStatusMsg() : "null response");
+
                 throw new RuntimeException(
                         "Authentication failed: " + response.getStatusMsg());
             }
@@ -80,7 +96,8 @@ public class UnisusPGServiceImpl implements UnisusPGService {
                     "?SessionID=" + response.getSessionId() +
                     "&AccessKey=" + response.getAccessKey();
 
-            log.info("Unisus Redirect URL Created Successfully");
+            log.info("Unisus Redirect URL created successfully for sessionId={}",
+                    response.getSessionId());
 
             // STEP 1 – Create Internal Transaction FIRST
             String orderId = "ORD" + commonMethods.generateBaseTransactionId();
@@ -94,12 +111,17 @@ public class UnisusPGServiceImpl implements UnisusPGService {
             entity.setVendorSessionId(response.getSessionId());
             entity.setCardBinNo(req.getCardBinNo());
             entity.setVendorName("UnisusPay Payment Gateway");
+
             pgTransactionMappingRepository.save(entity);
+
+            log.info("Transaction saved successfully. orderId={}, vendorSessionId={}, status=INITIATED",
+                    orderId, response.getSessionId());
 
             return redirectUrl;
 
         } catch (Exception e) {
-            log.error("Error during Unisus authentication", e);
+            log.error("Error during Unisus authentication for subProductId={}",
+                    req.getSubProductId(), e);
             throw new RuntimeException("Unisus Authentication Failed");
         }
     }
@@ -108,25 +130,41 @@ public class UnisusPGServiceImpl implements UnisusPGService {
     public UnisusWebhookResponse processWebhook(
             UnisusWebhookRequest request) {
 
+        log.info("Received Unisus Webhook. requestType={}, sessionId={}",
+                request.getRequestType(), request.getSessionID());
+
         return switch (request.getRequestType()) {
             case 15 -> handlePgRequest(request);
             case 16 -> handlePgResponse(request);
-            //case 17 -> handlePgReverse(request);
-            default -> new UnisusWebhookResponse(
-                    1,
-                    "Invalid Request Type",
-                    null
-            );
+            default -> {
+                log.warn("Invalid Request Type received from Unisus: {}",
+                        request.getRequestType());
+                yield new UnisusWebhookResponse(
+                        1,
+                        "Invalid Request Type",
+                        null
+                );
+            }
         };
     }
 
     private UnisusWebhookResponse handlePgRequest(
             UnisusWebhookRequest request) {
 
+        log.info("Processing PG Request webhook. sessionId={}",
+                request.getSessionID());
+
         PgTransactionMapping txn =
                 pgTransactionMappingRepository
                         .findByVendorSessionId(String.valueOf(request.getSessionID()))
-                        .orElseThrow(() -> new RuntimeException("Txn not found"));
+                        .orElseThrow(() -> {
+                            log.error("Transaction not found for sessionId={}",
+                                    request.getSessionID());
+                            return new RuntimeException("Txn not found");
+                        });
+
+        log.info("Transaction found for sessionId={}, orderId={}",
+                request.getSessionID(), txn.getOrderId());
 
         return new UnisusWebhookResponse(
                 0,
@@ -141,15 +179,22 @@ public class UnisusPGServiceImpl implements UnisusPGService {
         String trnRefNo =
                 request.getTransaction().getTrnRefNo();
 
+        log.info("Processing PG Response webhook. trnRefNo={}, sessionId={}",
+                trnRefNo, request.getSessionID());
+
         try {
-            // Trigger async processing
+            log.info("Triggering async processing for trnRefNo={}", trnRefNo);
             asyncProcessor.processAsync(request);
+            log.info("Async processing triggered successfully for trnRefNo={}", trnRefNo);
+
         } catch (Exception e) {
-            log.error("Error triggering async processing", e);
+            log.error("Error triggering async processing for trnRefNo={}",
+                    trnRefNo, e);
             // DO NOT THROW
         }
 
-        // Immediately return success to vendor
+        log.info("Returning success response to Unisus for trnRefNo={}", trnRefNo);
+
         return new UnisusWebhookResponse(
                 0,
                 "Success",

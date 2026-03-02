@@ -2,10 +2,8 @@ package com.im.admin.paymentgateway;
 
 import com.im.admin.dto.PgTransactionRequestDto;
 import com.im.admin.request.UnisusPayCreateOrderRequest;
-import com.im.admin.request.UnisusWebhookRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
-import com.im.admin.response.UnisusWebhookResponse;
 import com.im.admin.service.UnisusPGService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -51,11 +49,11 @@ public class UnisusInitiator implements PaymentInitiator {
 //        throw new UnsupportedOperationException("Use direct webhook");
 //    }
 
-    public UnisusWebhookResponse processWebhookDirect(
-            UnisusWebhookRequest request) {
-
-        return unisusService.processWebhook(request);
-    }
+//    public UnisusWebhookResponse processWebhookDirect(
+//            UnisusWebhookRequest request) {
+//
+//        return unisusService.processWebhook(request);
+//    }
 
     @Override
     public CommonResponse<String> validate(PgTransactionRequestDto request) {
