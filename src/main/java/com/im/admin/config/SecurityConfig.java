@@ -21,7 +21,7 @@ public class SecurityConfig {
             "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password", "/auth/forgot-password",
             "/auth/register", "/api/aes/generate-token", "/api/aes/validate-token", "/api/pg/generate-token",
             "/api/pg/payment/callback","/api/payout/callback", "/auth/forget-verify-otp", "/api/aes/encrypt-credentials",
-            "/api/aes/decrypt-credentials");
+            "/api/aes/decrypt-credentials", "/api/pg/callback/unisus");
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
