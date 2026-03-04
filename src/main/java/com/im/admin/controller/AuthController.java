@@ -622,6 +622,11 @@ public class AuthController {
                 // Now loop schemes only for subProducts
                 for (SchemeAllocation sa : schemes) {
 
+                    if (sa.getSchemeCode() == null ||
+                            sa.getSchemeCode().equalsIgnoreCase("No scheme assigned")) {
+                        continue;
+                    }
+
                     Optional<SubProducts> subProductOpt =
                             subProductsRepository.findBySubProductCodeAndIsVisibleTrue(
                                     sa.getSubProductCode());

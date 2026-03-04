@@ -255,6 +255,7 @@ public class FundingServiceImpl implements FundingService {
                 dto.setConfirmAmount(row.getCell(4).getNumericCellValue());
                 dto.setNarrationType(row.getCell(5).getStringCellValue());
                 dto.setRemarks(row.getCell(6).getStringCellValue());
+                dto.setAdminId(row.getCell(7).getStringCellValue());
 
                 int rowNum = i + 1; // keep track of Excel row for error message
 
