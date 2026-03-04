@@ -26,6 +26,7 @@ public class AepsCashWithdrawalRequest {
     private BigDecimal transactionAmount;
     private String schemeCode;
     private  String subMerchantId;
+    private String adhaarNumber;
 
 
     private CaptureResponse captureResponse;

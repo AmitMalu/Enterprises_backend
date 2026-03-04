@@ -30,8 +30,11 @@ public class AepsMiniStatementRequest {
     private int superMerchantId;
     private String merchantLoginId;
 
+    private String adhaarNumber;
+
     private AepsMiniStatementRequest.CaptureResponse captureResponse;
     private AepsMiniStatementRequest.P2CardnumberORUID cardnumberORUID;
+
 
     // extra optional fields
     private String deviceIMEI;

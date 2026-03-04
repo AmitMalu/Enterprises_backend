@@ -141,14 +141,17 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             req.setLatitude(retailer.getLatitude());
             req.setLongitude(retailer.getLongitude());
-            req.setMobileNumber(retailer.getMobileNumber());
+//            req.setMobileNumber(retailer.getMobileNumber());
+            req.setMobileNumber(req.getMobileNumber());
+
             req.setPaymentType("B");
             req.setLanguageCode("en");
 
             // Aadhaar
             AepsBalanceInquiryRequest.P2CardnumberORUID uid = new AepsBalanceInquiryRequest.P2CardnumberORUID();
             uid.setIndicatorforUID(0);
-            uid.setAdhaarNumber(retailer.getAadhaarNumber());
+//            uid.setAdhaarNumber(retailer.getAadhaarNumber());
+            uid.setAdhaarNumber(req.getAdhaarNumber());
 //            uid.setVirtualId("");
             uid.setNationalBankIdentificationNumber("607153");
 
@@ -370,14 +373,16 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
             req.setLatitude(retailer.getLatitude());
             req.setLongitude(retailer.getLongitude());
-            req.setMobileNumber(retailer.getMobileNumber());
+//            req.setMobileNumber(retailer.getMobileNumber());
+            req.setMobileNumber(req.getMobileNumber());
             req.setPaymentType("B");
             req.setLanguageCode("en");
 
             // Aadhaar
             AepsMiniStatementRequest.P2CardnumberORUID uid = new AepsMiniStatementRequest.P2CardnumberORUID();
             uid.setIndicatorforUID(0);
-            uid.setAdhaarNumber(retailer.getAadhaarNumber());
+//            uid.setAdhaarNumber(retailer.getAadhaarNumber());
+            uid.setAdhaarNumber(req.getAdhaarNumber());
 //            uid.setVirtualId("");
             uid.setNationalBankIdentificationNumber("607153");
 

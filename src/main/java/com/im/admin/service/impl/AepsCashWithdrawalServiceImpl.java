@@ -119,7 +119,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
 
             req.setLatitude(retailer.getLatitude());
             req.setLongitude(retailer.getLongitude());
-            req.setMobileNumber(retailer.getMobileNumber());
+//            req.setMobileNumber(retailer.getMobileNumber());
+            req.setMobileNumber(req.getMobileNumber());
           req.setSubMerchantId(retailer.getRetailerId());
 //          req.setMerchantLoginId(retailer.getRetailerId());
 
@@ -130,7 +131,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             AepsCashWithdrawalRequest.P2CardnumberORUID uid =
                     new AepsCashWithdrawalRequest.P2CardnumberORUID();
 
-            uid.setAdhaarNumber(retailer.getAadhaarNumber());
+//            uid.setAdhaarNumber(retailer.getAadhaarNumber());
+            uid.setAdhaarNumber(req.getAdhaarNumber());
             uid.setIndicatorforUID("0");
             uid.setNationalBankIdentificationNumber(
                     req.getCardnumberORUID() != null

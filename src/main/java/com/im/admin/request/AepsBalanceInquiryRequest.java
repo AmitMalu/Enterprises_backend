@@ -32,6 +32,7 @@ public class AepsBalanceInquiryRequest {
 
     private CaptureResponse captureResponse;
     private P2CardnumberORUID cardnumberORUID;
+    private String adhaarNumber;
 
     // extra optional fields
     private String deviceIMEI;
