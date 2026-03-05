@@ -4,15 +4,14 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
-@Table(name = "beneficiary_bank_accounts")
+@Table(name = "payout_beneficiary_list")
 @Entity
-public class BeneficiaryBankAccount {
+public class PayoutBeneficiaryList {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,6 +19,13 @@ public class BeneficiaryBankAccount {
 
     @Column(name = "retailer_id")
     private String retailerId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bank_id", referencedColumnName = "bank_id")
+    private UnisusPayoutBankList bank;
+
+    @Column(name = "bank_id")
+    private Integer bankId;
 
     @Column(name = "bank_name")
     private String bankName;
@@ -38,6 +44,9 @@ public class BeneficiaryBankAccount {
 
     @Column(name = "is_verified")
     private Boolean isVerified = false;
+
+    @Column(name = "customer_mobile_no")
+    private String customerMobileNo;
 
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
