@@ -149,12 +149,12 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService {
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
 
-        // 🔹 Build Message
+        // Build Message
         String message = "STATUS$"
                 + request.getTransactionRef() + "$"
                 + SMS_PIN;
 
-        // 🔹 Build URL
+        // Build URL
         String url = UriComponentsBuilder
                 .fromHttpUrl(credentials.getBaseUrlUat())
                 .queryParam("UserID", credentials.getUsername())
@@ -163,7 +163,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService {
                 .queryParam("Message", message)
                 .toUriString();
 
-        // 🔹 Call Vendor API
+        //Call Vendor API
         String vendorResponse =
                 restTemplate.getForObject(url, String.class);
 
