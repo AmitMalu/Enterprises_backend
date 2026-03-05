@@ -1,8 +1,10 @@
 package com.im.admin.orchestrator;
 
+import com.im.admin.entities.RechargeTransaction;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.repositories.RechargeTransactionRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.RechargeRequest;
@@ -18,6 +20,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class RechargeOrchestrator {
+
+    @Autowired
+    private RechargeTransactionRepository rechargeTransactionRepository;
 
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
@@ -86,5 +91,14 @@ public class RechargeOrchestrator {
                 vendorFactory.getVendor(vendor.getVendorName());
 
         return vendorService.checkStatus(request, credentials);
+    }
+
+    public String checkStatusDb(RechargeRequest request) {
+        RechargeTransaction transaction =
+                rechargeTransactionRepository
+                        .findByTransactionRef(request.getTransactionRef())
+                        .orElseThrow(() -> new RuntimeException("Transaction not found"));
+
+        return transaction.getStatus();
     }
 }

@@ -57,7 +57,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService {
                 + request.getRechargeType() + "$"
                 + transactionRef;
 
-        // 🔹 Build URL
+        // Build URL
         String url = UriComponentsBuilder
                 .fromHttpUrl(credentials.getBaseUrlUat())
                 .queryParam("UserID", credentials.getUsername())
@@ -66,7 +66,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService {
                 .queryParam("Message", message)
                 .toUriString();
 
-        // 🔹 Save transaction as PENDING before calling vendor
+        // Save transaction as PENDING before calling vendor
         RechargeTransaction transaction = RechargeTransaction.builder()
                 .transactionRef(transactionRef)
                 .operatorCode(request.getOperatorCode())
@@ -81,7 +81,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService {
 
         rechargeTransactionRepository.save(transaction);
 
-        // 🔹 Call Vendor API
+        // Call Vendor API
         String vendorResponse = restTemplate.getForObject(url, String.class);
 
         transaction.setVendorResponse(vendorResponse);
@@ -149,12 +149,12 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService {
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
 
-        // 🔹 Build Message
+        // Build Message
         String message = "STATUS$"
                 + request.getTransactionRef() + "$"
                 + SMS_PIN;
 
-        // 🔹 Build URL
+        // Build URL
         String url = UriComponentsBuilder
                 .fromHttpUrl(credentials.getBaseUrlUat())
                 .queryParam("UserID", credentials.getUsername())
@@ -163,7 +163,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService {
                 .queryParam("Message", message)
                 .toUriString();
 
-        // 🔹 Call Vendor API
+        //Call Vendor API
         String vendorResponse =
                 restTemplate.getForObject(url, String.class);
 
