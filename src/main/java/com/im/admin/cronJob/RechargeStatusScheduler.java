@@ -1,17 +1,23 @@
 package com.im.admin.cronJob;
 
-import com.im.admin.entities.RechargeTransaction;
-import com.im.admin.entities.VendorCredentials;
-import com.im.admin.repositories.RechargeTransactionRepository;
-import com.im.admin.repositories.VendorCredentialsRepository;
+import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.entities.*;
+import com.im.admin.entities.product.Products;
+import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.repositories.*;
 import com.im.admin.service.RechargeVendorService;
+import com.im.admin.service.impl.TransactionEngineServiceImpl;
+import com.im.admin.util.CommonMethods;
 import com.im.admin.util.RechargeVendorFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Component
 public class RechargeStatusScheduler {
 
@@ -19,68 +25,235 @@ public class RechargeStatusScheduler {
     private RechargeTransactionRepository transactionRepository;
 
     @Autowired
+    private VendorRoutingRepository vendorRoutingRepository;
+
+    @Autowired
+    private VendorCredentialsRepository vendorCredentialsRepository;
+
+    @Autowired
     private VendorCredentialsRepository credentialsRepository;
 
     @Autowired
     private RechargeVendorFactory vendorFactory;
+    @Autowired
+    private TransactionEngineServiceImpl transactionEngineServiceImpl;
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
+    @Autowired
+    private SchemeRepository schemeRepository;
+    @Autowired
+    private ProductsRepository productsRepository;
+    @Autowired
+    private SubProductsRepository subProductsRepository;
 
     // Runs every 30 seconds
-    @Scheduled(fixedDelay = 30000)
+    @Transactional
+    @Scheduled(cron = "0 */5 * * * *")
     public void checkPendingTransactions() {
 
         List<RechargeTransaction> pendingList =
                 transactionRepository.findByStatus("PENDING");
 
+        log.info("[RECHARGE_SCHEDULER] Found {} pending transactions", pendingList.size());
+
         for (RechargeTransaction txn : pendingList) {
+
+            String txnRef = txn.getTransactionRef();
+            log.info("[RECHARGE_SCHEDULER] Checking status for TXN_REF={}", txnRef);
 
             try {
 
-                VendorCredentials credentials =
-                        credentialsRepository
-                                .findByVendorIdAndProductId(
-                                        txn.getVendor().getId(),
-                                        txn.getVendor().getProduct().getId())
-                                .orElse(null);
+                // 1 Fetch pending transaction
+                RechargeTransaction rechargeTxn = getPendingTransaction(txnRef);
 
-                if (credentials == null) continue;
+                // 2 Fetch scheme rate
+                SchemeRate schemeRate = getSchemeRate(rechargeTxn);
+
+                // 3 Fetch scheme
+                Scheme scheme = getSchemeEntity(schemeRate.getSchemeCode());
+
+                // 4 Extract product and subproduct
+                String[] hashParts = validateAndSplitSchemeHash(scheme.getSchemeCombinationHashCode());
+
+                short productId = Short.parseShort(hashParts[0]);
+                String subProductId = hashParts[1];
+
+                // 5 Fetch product
+                Products product = getProduct(productId);
+
+                // 6 Fetch subproduct
+                SubProducts subProduct = getSubProduct(subProductId);
+
+                // 7 Fetch vendor credentials
+                VendorCredentials credentials = getVendorCredentials(subProductId);
 
                 RechargeVendorService vendorService =
-                        vendorFactory.getVendor(txn.getVendor().getVendorName());
+                        vendorFactory.getVendor(credentials.getVendor().getVendorName());
 
-                // Call status API
+                // 8 Call vendor status API
                 String vendorResponse =
                         vendorService.checkStatusByTxnRef(
-                                txn.getTransactionRef(),
+                                rechargeTxn.getTransactionRef(),
                                 credentials);
 
-                // Parse and update status
-                updateTransactionStatus(txn, vendorResponse);
+                log.info("[RECHARGE_SCHEDULER] Vendor Response = {}", vendorResponse);
+
+                int statusCode = parseStatusCode(vendorResponse);
+
+                String finalStatus = mapStatus(statusCode);
+
+                if (!"PENDING".equalsIgnoreCase(finalStatus)) {
+
+                    rechargeTxn.setStatus(finalStatus);
+                    rechargeTxn.setVendorResponse(vendorResponse);
+
+                    transactionRepository.save(rechargeTxn);
+
+                    // 9 Build transaction DTO
+                    TransactionSchemeDetailsRequestDto dto =
+                            buildTransactionDTO(
+                                    rechargeTxn,
+                                    schemeRate,
+                                    scheme,
+                                    product,
+                                    subProduct);
+
+                    // 10 Call transaction engine
+                    transactionEngineServiceImpl.processTransaction(dto, finalStatus);
+
+                    log.info("[RECHARGE_SCHEDULER] Processed TXN_REF={} STATUS={}",
+                            txnRef, finalStatus);
+                }
 
             } catch (Exception e) {
-                e.printStackTrace();
+
+                log.error("[RECHARGE_SCHEDULER] Error TXN_REF={} | {}",
+                        txnRef, e.getMessage(), e);
             }
         }
     }
 
-    private void updateTransactionStatus(RechargeTransaction txn,
-                                         String vendorResponse) {
+    private RechargeTransaction getPendingTransaction(String txnRef) {
+
+        return transactionRepository.findByTransactionRef(txnRef)
+                .orElseThrow(() ->
+                        new RuntimeException("Transaction not found: " + txnRef));
+    }
+
+
+    private VendorCredentials getVendorCredentials(RechargeTransaction txn) {
+
+        return credentialsRepository
+                .findByVendorIdAndProductId(
+                        txn.getVendor().getId(),
+                        txn.getVendor().getProduct().getId())
+                .orElseThrow(() ->
+                        new RuntimeException("Vendor credentials not found"));
+    }
+
+
+    private int parseStatusCode(String vendorResponse) {
 
         String[] parts = vendorResponse.split("=");
 
-        int statusCode = Integer.parseInt(parts[0]);
+        return Integer.parseInt(parts[0]);
+    }
 
-        if (statusCode == 1) {
-            txn.setStatus("SUCCESS");
-        } else if (statusCode == 2 || statusCode == 3) {
-            txn.setStatus("FAILED");
-        } else if (statusCode == 4 || statusCode == 6) {
-            txn.setStatus("HOLD");
-        } else if (statusCode == 5) {
-            txn.setStatus("REFUNDED");
+    private String mapStatus(int statusCode) {
+
+        return switch (statusCode) {
+
+            case 1 -> "SUCCESS";
+            case 2,3 -> "FAILED";
+            case 4,6 -> "HOLD";
+            case 5 -> "REFUNDED";
+            default -> "PENDING";
+        };
+    }
+
+    private TransactionSchemeDetailsRequestDto buildTransactionDTO(
+            RechargeTransaction txn,
+            SchemeRate schemeRate,
+            Scheme scheme,
+            Products product,
+            SubProducts subProduct) {
+
+        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
+        String txnRef = txn.getTransactionRef();
+        String baseTxnId = txnRef.startsWith("TXN") ? txnRef.substring(3) : txnRef;
+
+        dto.setBaseTranxId(baseTxnId);
+        dto.setAmount(txn.getAmount().doubleValue());
+        dto.setConfirmAmount(txn.getAmount().doubleValue());
+        dto.setOperatorName(txn.getTransactionType());
+        dto.setOperatorCode(schemeRate.getOperatorCode());
+        dto.setSchemeRate(schemeRate);
+        dto.setTransactionType(product.getTransactionType());
+        dto.setWalletType(subProduct.getWalletType());
+        dto.setGstValue(String.valueOf(product.getSgst()));
+        dto.setTdsRate(String.valueOf(product.getTds()));
+        dto.setProductCode(product.getProductCode());
+        dto.setSubProductCode(subProduct.getSubProductCode());
+        dto.setIsCommission(product.getIsCommissions());
+        dto.setHasCharge(product.getHasCharges());
+        dto.setHierarchyId(txn.getRetailerId());
+
+        return dto;
+    }
+
+    private SchemeRate getSchemeRate(RechargeTransaction txn) {
+
+        return schemeRateRepository
+                .findSchemeRateByCodeAndOperatorAndAmount(
+                        txn.getSchemeCode(),
+                        txn.getTransactionType(),
+                        txn.getAmount().doubleValue())
+                .orElseThrow(() ->
+                        new RuntimeException("No scheme rate found for amount: " + txn.getAmount()));
+    }
+
+    private Scheme getSchemeEntity(String schemeCode) {
+
+        return schemeRepository.findBySchemeCode(schemeCode)
+                .orElseThrow(() ->
+                        new RuntimeException("Scheme not found: " + schemeCode));
+    }
+
+    private String[] validateAndSplitSchemeHash(String hash) {
+
+        String[] parts = hash.split("-");
+
+        if (parts.length < 2) {
+            throw new RuntimeException("Invalid scheme hash: " + hash);
         }
 
-        txn.setVendorResponse(vendorResponse);
+        return parts;
+    }
 
-        transactionRepository.save(txn);
+    private Products getProduct(short productId) {
+
+        return productsRepository.findById(productId)
+                .orElseThrow(() ->
+                        new RuntimeException("Product not found: " + productId));
+    }
+
+    private SubProducts getSubProduct(String subProductId) {
+
+        return subProductsRepository.findById(subProductId)
+                .orElseThrow(() ->
+                        new RuntimeException("SubProduct not found: " + subProductId));
+    }
+
+    private VendorCredentials getVendorCredentials(String subProductId) {
+
+        VendorRouting routing = vendorRoutingRepository.findBySubProductId(subProductId);
+
+        Vendors vendor = CommonMethods.getVendors(routing);
+
+        return vendorCredentialsRepository
+                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                .orElseThrow(() ->
+                        new RuntimeException("Vendor credentials not found"));
     }
 }

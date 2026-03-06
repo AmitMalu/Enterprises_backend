@@ -8,7 +8,7 @@ public interface RechargeVendorService {
 
     String getVendorCode();
 
-    RechargeResponse recharge(RechargeRequest request,
+    RechargeResponse recharge(RechargeRequest request,String orderId,
                               VendorCredentials credentials);
 
     String checkBalance(RechargeRequest request, VendorCredentials credentials);
