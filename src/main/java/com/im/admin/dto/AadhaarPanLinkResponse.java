@@ -25,3 +25,4 @@ public class AadhaarPanLinkResponse {
         private String detailed_reason;
     }
 }
+
