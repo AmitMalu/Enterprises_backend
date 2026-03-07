@@ -19,4 +19,6 @@ public class WalletToWalletTransferDto {
     private BigDecimal confirmAmount;
     private WalletType walletTypeFrom;
     private WalletType walletTypeTo;
+    private String subProductId;
+    private String schemeCode;
 }

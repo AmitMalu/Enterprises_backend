@@ -105,17 +105,17 @@ public class UnisusCallbackAsyncProcessor {
 //            String callbackOperatorName = toDbOperatorName(
 //                    request.getOtherInfo().getPGTrnType()
 //            );
-            log.info("---- [Callback] Using operatorName for DB lookup: {}", request.getOtherInfo().getPGTrnType());
+            log.info("---- [Callback] Using operatorName for DB lookup: {}", request.getOtherInfo().getPgTrnType());
 
 
             List<SchemeRate> matchingSchemes =
                     schemeRateRepository.findBySchemeCodeAndOperatorName(
                             schemeCode,
-                            request.getOtherInfo().getPGTrnType()
+                            request.getOtherInfo().getPgTrnType()
                     );
             if (matchingSchemes == null || matchingSchemes.isEmpty()) {
                 log.error("---- [Callback] No matching scheme found for schemeCode={} and operatorName={}",
-                        schemeCode, request.getOtherInfo().getPGTrnType());
+                        schemeCode, request.getOtherInfo().getPgTrnType());
                 return;
             }
 
@@ -169,7 +169,7 @@ public class UnisusCallbackAsyncProcessor {
             dto.setBaseTranxId(baseTranxId);
             dto.setAmount(txnAmt);
             dto.setConfirmAmount(txnAmt);
-            dto.setOperatorName(request.getOtherInfo().getPGTrnType());
+            dto.setOperatorName(request.getOtherInfo().getPgTrnType());
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);
             dto.setTransactionType(product.getTransactionType());

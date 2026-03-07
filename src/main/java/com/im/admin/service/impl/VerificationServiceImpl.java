@@ -4,16 +4,24 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.*;
+import com.im.admin.entities.SchemeRate;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.VendorRouting;
+import com.im.admin.entities.enums.RateType;
+import com.im.admin.entities.enums.WalletType;
+import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.repositories.SchemeRateRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.response.BankVerificationResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.VerificationService;
+import com.im.admin.service.WalletToWalletTransferService;
+import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,28 +31,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
 @Service
 public class VerificationServiceImpl implements VerificationService {
 
-//    private final RestTemplate restTemplate;
-//
-//    public VerificationServiceImpl(RestTemplate restTemplate) {
-//        this.restTemplate = restTemplate;
-//    }
-
     RestTemplate restTemplate = new RestTemplate();
-
-
-//    @Value("${surepass.sandbox.token}")
-//    private String sandboxToken; // You can set this in application.properties
-//
-//    @Value("${surepass.sandbox.aadhaar-validation-url}")
-//    private String aadhaarValidationUrl;
 
     @Autowired
     private SubProductsRepository subProductsRepository;
@@ -58,9 +55,20 @@ public class VerificationServiceImpl implements VerificationService {
     @Autowired
     private CommonFunctions commonFunctions;
 
+    @Autowired
+    private CommonMethods commonMethods;
+
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private TransactionEngineServiceImpl transactionEngineServiceImpl;
 
     @Override
     @Transactional
@@ -146,7 +154,6 @@ public class VerificationServiceImpl implements VerificationService {
                     .body(CommonResponse.error(200, "Aadhaar validation failed: " + e.getMessage()));
         }
     }
-
 
 
     private static Vendors getVendors(VendorRouting vendorRouting) {
@@ -282,7 +289,6 @@ public class VerificationServiceImpl implements VerificationService {
     }
 
 
-
     @Override
     @Transactional
     public ResponseEntity<?> validateEmail(String email) {
@@ -351,6 +357,7 @@ public class VerificationServiceImpl implements VerificationService {
                     .body(CommonResponse.error(200, "Email validation failed: " + e.getMessage()));
         }
     }
+
     @Override
     @Transactional
     public ResponseEntity<?> validateVoterid(String voterid) {
@@ -506,7 +513,6 @@ public class VerificationServiceImpl implements VerificationService {
     }
 
 
-
     @Override
     @Transactional
     public ResponseEntity<?> validateBank(BankVerificationRequest request) {
@@ -516,10 +522,19 @@ public class VerificationServiceImpl implements VerificationService {
         String vendorId = null;
 
         try {
+
+            String baseTransactionId = commonMethods.generateBaseTransactionId();
+            log.info("Generated base transaction ID: {}", baseTransactionId);
+
             // 1. SubProduct lookup
             SubProducts subProduct = subProductsRepository
-                    .findBySubProductTitle("Bank Verification")
+                    .findBySubProductCode(request.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found for Bank Verification"));
+
+            // Get Product from SubProduct
+            Products product = subProduct.getProduct();
+
+            log.info("---- [Callback] Product fetched successfully | productId={}", product.getId());
 
             // 2. Vendor Routing
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
@@ -530,6 +545,45 @@ public class VerificationServiceImpl implements VerificationService {
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+            // 4. Fetch Scheme Rate
+            List<SchemeRate> schemeRates = schemeRateRepository.findBySchemeCode(request.getSchemeCode());
+
+            if (schemeRates == null || schemeRates.isEmpty()) {
+                throw new RuntimeException("Scheme rate not found. Contact admin.");
+            }
+
+            if (schemeRates.size() > 1) {
+                log.error("Multiple scheme slabs found for schemeCode: {}", request.getSchemeCode());
+                throw new RuntimeException("Multiple scheme slabs found. Contact admin. Issue related to scheme.");
+            }
+
+            SchemeRate schemeRate = schemeRates.get(0);
+
+            log.info("Scheme rate fetched successfully | schemeCode={} | rateType={} | slabType={}",
+                    schemeRate.getSchemeCode(),
+                    schemeRate.getRateType(),
+                    schemeRate.getSlabType());
+
+            BigDecimal grossCharge = BigDecimal.valueOf(schemeRate.getGross());
+
+            String hierarchyId = tokenUtil.extractHierarchyId();
+
+            AbstractWalletAmountTable prepaidWallet = commonMethods.getRetailerWallet(WalletType.PREPAID.name(), hierarchyId);
+
+            BigDecimal availableBalance = prepaidWallet.getAvailableBalance();
+
+            if (availableBalance.compareTo(grossCharge) < 0) {
+                log.warn("Insufficient balance. Required: {}, Available: {}",
+                        grossCharge, availableBalance);
+
+                throw new IllegalArgumentException(
+                        "Insufficient balance in " + WalletType.PREPAID.name() +
+                                " wallet. Required: " + grossCharge +
+                                ", Available: " + availableBalance
+                );
+            }
+
 
             // 4. Prepare request
             HttpHeaders headers = new HttpHeaders();
@@ -553,6 +607,42 @@ public class VerificationServiceImpl implements VerificationService {
 
             // 6. Save logs
             commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
+
+            // Check vendor response before processing charges
+            if (responseBody == null
+                    || responseBody.getData() == null
+                    || responseBody.getStatus_code() != 200) {
+
+                log.warn("Vendor verification failed. Skipping charge processing.");
+
+                String message = responseBody != null && responseBody.getData() != null
+                        ? responseBody.getData().getStatus()
+                        : "Bank verification failed";
+
+                return ResponseEntity.ok(CommonResponse.success(responseBody, message));
+            }
+
+            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
+            dto.setBaseTranxId(baseTransactionId);
+            dto.setAmount(grossCharge.doubleValue());
+            dto.setConfirmAmount(grossCharge.doubleValue());
+            dto.setOperatorName(schemeRate.getOperatorName());
+            dto.setOperatorCode(schemeRate.getSchemeCode());
+            dto.setSchemeRate(schemeRate);
+            dto.setTransactionType(product.getTransactionType());
+            dto.setWalletType(subProduct.getWalletType());
+            dto.setGstValue(String.valueOf(product.getSgst()));
+            dto.setTdsRate(String.valueOf(product.getTds()));
+            dto.setHierarchyId(hierarchyId);
+            dto.setProductCode(product.getProductCode());
+            dto.setSubProductCode(subProduct.getSubProductCode());
+            dto.setIsCommission(product.getIsCommissions());
+            dto.setHasCharge(product.getHasCharges());
+
+            log.debug("---- [Callback] DTO prepared: {}", dto);
+
+            transactionEngineServiceImpl.processCharges(dto, prepaidWallet, BigDecimal.valueOf(schemeRate.getGross()), product.getSgst().toString(), baseTransactionId, "SUCCESS");
 
             String message = responseBody.getData() != null && responseBody.getData().getStatus() != null
                     ? responseBody.getData().getStatus()

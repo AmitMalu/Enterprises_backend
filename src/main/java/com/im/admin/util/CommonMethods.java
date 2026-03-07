@@ -397,7 +397,7 @@ public class CommonMethods {
         };
     }
 
-    private AbstractWalletAmountTable getRetailerWallet(String walletType, String retailerId) {
+    public AbstractWalletAmountTable getRetailerWallet(String walletType, String retailerId) {
         log.debug("Fetching retailer wallet for type.");
 
         WalletType type;

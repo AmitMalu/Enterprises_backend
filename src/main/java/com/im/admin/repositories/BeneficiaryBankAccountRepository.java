@@ -1,7 +1,7 @@
 package com.im.admin.repositories;
 
 
-import com.im.admin.entities.PayoutBeneficiaryList;
+import com.im.admin.entities.BeneficiaryBankAccount;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -9,9 +9,9 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface PayoutBeneficiaryListRepository extends JpaRepository<PayoutBeneficiaryList, Long>, JpaSpecificationExecutor<PayoutBeneficiaryList> {
+public interface BeneficiaryBankAccountRepository extends JpaRepository<BeneficiaryBankAccount, Long>, JpaSpecificationExecutor<BeneficiaryBankAccount> {
 
-    Optional<PayoutBeneficiaryList>
+    Optional<BeneficiaryBankAccount>
     findTopByRetailerIdAndAccountNumberOrderByIdDesc(String retailerId,
                                                      String accountNumber);
 

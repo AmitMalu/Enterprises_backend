@@ -464,7 +464,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         log.info("==== [processChargesAndCommission] END for Transaction ID: {} ====", baseTransactionId);
     }
 
-    private void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
+    public void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
                                 BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
 
         log.info("[CHARGES] Start | BaseTxnId={} | WalletType={} | Hierarchy={} | Status={}",
@@ -2225,7 +2225,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
             log.info("[GST_FLOW] Checking parent | ID={} | Type={} | From={}", parentId, parentType, currentId);
 
-            // ✅ Case 1: Whitelabel (check admin flag)
+            // Case 1: Whitelabel (check admin flag)
             if ("WL".equalsIgnoreCase(parentType)) {
                 boolean isAdminWL = whiteLabelsRepository.findById(parentId)
                         .map(WhiteLabels::getIsAdmin)
@@ -2241,7 +2241,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 log.debug("[GST_FLOW] WL {} is not Admin. Moving up hierarchy...", parentId);
             }
 
-            // ✅ Case 2: IM or AD → Direct admin credit
+            // Case 2: IM or AD → Direct admin credit
             if (isAdminType(parentType)) {
                 log.info("[GST_CREDIT] Admin hierarchy found | Type={} | ID={} | Crediting GST...", parentType, parentId);
                 creditGstToAdmin(parentId, sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus, request);

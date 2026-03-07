@@ -1,27 +1,53 @@
 package com.im.admin.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
 public class Transaction {
 
-    private Integer ServiceType;
-    private String ServiceCode;
-    private String ServiceName;
+    @JsonProperty("ServiceType")
+    private Integer serviceType;
 
-    private String CustomerNo;
-    private String CustomerMobile;
-    private Double Amount;
+    @JsonProperty("ServiceCode")
+    private String serviceCode;
 
-    private Integer DiscOrCharge;
-    private Double DiscOrChargePer;
-    private Double DiscOrChargeRs;
-    private Double DiscTDS;
+    @JsonProperty("ServiceName")
+    private String serviceName;
 
-    private String TrnRefNo;
-    private String OperatorID;
-    private String TransactionID;
+    @JsonProperty("CustomerNo")
+    private String customerNo;
 
-    private Integer Status;
-    private String StatusMsg;
+    @JsonProperty("CustomerMobile")
+    private String customerMobile;
+
+    @JsonProperty("Amount")
+    private Double amount;
+
+    @JsonProperty("DiscOrCharge")
+    private Integer discOrCharge;
+
+    @JsonProperty("DiscOrChargePer")
+    private Double discOrChargePer;
+
+    @JsonProperty("DiscOrChargeRs")
+    private Double discOrChargeRs;
+
+    @JsonProperty("DiscTDS")
+    private Double discTDS;
+
+    @JsonProperty("TrnRefNo")
+    private String trnRefNo;
+
+    @JsonProperty("OperatorID")
+    private String operatorID;
+
+    @JsonProperty("TransactionID")
+    private String transactionID;
+
+    @JsonProperty("Status")
+    private Integer status;
+
+    @JsonProperty("StatusMsg")
+    private String statusMsg;
 }

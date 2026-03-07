@@ -28,7 +28,7 @@ public class TokenUtil {
         }
 
         // Token format:
-        // hierarchyCode|salt|iv|encryptedToken
+        // hierarchyId|salt|iv|encryptedToken
 
         String[] parts = token.split("\\|");
 
@@ -36,6 +36,6 @@ public class TokenUtil {
             throw new RuntimeException("Invalid token format");
         }
 
-        return parts[0];  // 🔥 hierarchyId
+        return parts[0];
     }
 }

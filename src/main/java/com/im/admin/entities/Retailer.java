@@ -99,7 +99,7 @@ public class Retailer {
     private String aadhaarCardBackImage;
 
     @Column(name = "is_aadhaar_verified")
-    private Boolean isAadhaarVerified;
+    private Boolean isAadhaarVerified = false;
 
     @Column(name = "aadhaar_number")
     private String aadhaarNumber;
@@ -111,10 +111,10 @@ public class Retailer {
     private String panNumber;
 
     @Column(name = "pan_verified")
-    private Boolean panVerified;
+    private Boolean panVerified = false;
 
     @Column(name = "aadhaar_pan_verified")
-    private Boolean aadhaarPanVerified;
+    private Boolean aadhaarPanVerified = false;
 
     @Column(name = "shop_image")
     private String shopImage;
@@ -129,7 +129,7 @@ public class Retailer {
     private String businessNumber;
 
     @Column(name = "GST_number_verified")
-    private Boolean gstNumberVerified;
+    private Boolean gstNumberVerified = false;
 
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)

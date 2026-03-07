@@ -25,5 +25,11 @@ public class DmtBankList {
     @Column(name = "ifsc_code")
     private String ifscCode;
 
+    @Column(name = "unisus_mifsc_code")
+    private String unisusMIfcsCode;
+
+    @Column(name = "unisus_bank_id")
+    private Integer unisusBankId;
+
 
 }

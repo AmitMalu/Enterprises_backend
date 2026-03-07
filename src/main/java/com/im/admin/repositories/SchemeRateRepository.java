@@ -12,14 +12,13 @@ import java.util.Optional;
 @Repository
 public interface SchemeRateRepository extends JpaRepository<SchemeRate, Long> {
 
+    List<SchemeRate> findBySchemeCode(String schemeCode);
+
     List<SchemeRate> findByOperatorCode(String operatorCode);
 
     List<SchemeRate> findAllByOperatorNameAndOperatorCode(String operatorName, String operatorCode);
 
     SchemeRate findBySchemeCodeAndOperatorCode(String schemeCode, String operatorCode);
-
-    @Query("SELECT s FROM SchemeRate s WHERE s.operatorName = :operatorName")
-    List<SchemeRate> findSchemeByOperatorName(@Param("operatorName") String operatorName);
 
     List<SchemeRate> findBySchemeCodeAndOperatorName(String schemeCode, String operatorName);
 
