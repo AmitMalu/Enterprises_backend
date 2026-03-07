@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.im.admin.entities.Distributor;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.DistributorResponseDTO;
 import com.im.admin.service.DistributorService;
 import com.im.admin.service.impl.PhoneNumberValidationService;
 import com.im.admin.util.JsonUtil;
@@ -98,11 +99,16 @@ public class DistributorController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Distributor> getDistributorById(@PathVariable String id) {
+    public ResponseEntity<CommonResponse<DistributorResponseDTO>> getDistributorById(
+            @PathVariable String id) {
+
         log.info("API Call: getDistributorById for id: {}", id);
-        Distributor distributor = distributorService.getDistributorById(id);
-        log.info("Distributor fetched: {}", distributor);
-        return ResponseEntity.ok(distributor);
+
+        DistributorResponseDTO dto = distributorService.getDistributorById(id);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(dto, "Distributor fetched successfully")
+        );
     }
 
     @DeleteMapping("/{id}")

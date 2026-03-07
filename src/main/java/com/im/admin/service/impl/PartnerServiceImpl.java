@@ -10,6 +10,7 @@ import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.PartnerPostpaidAmountRepository;
 import com.im.admin.repositories.PartnerPrepaidAmountRepository;
 import com.im.admin.repositories.PartnerRepository;
+import com.im.admin.response.PartnerResponseDTO;
 import com.im.admin.service.PartnerService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -309,37 +310,79 @@ public class PartnerServiceImpl implements PartnerService {
     }
 
     @Override
-    public Partner getPartnerById(String partnerId) throws JsonProcessingException {
+    public PartnerResponseDTO getPartnerById(String partnerId) throws JsonProcessingException {
+
         LocalDateTime requestDateTime = LocalDateTime.now();
         String request = "Fetching Partner with ID: " + partnerId;
 
-        Partner partner = null;
+        PartnerResponseDTO dto = null;
         String response = null;
         LocalDateTime responseDateTime = null;
 
         try {
+
             log.info(request);
-            partner = partnerRepository.findById(partnerId)
-                    .orElseThrow(() -> new RuntimeException("Partner not found with ID: " + partnerId));
-            response = objectMapper.writeValueAsString(partner);
+
+            Partner partner = partnerRepository.findById(partnerId)
+                    .orElseThrow(() ->
+                            new RuntimeException("Partner not found with ID: " + partnerId)
+                    );
+
+            dto = convertToDto(partner);
+
+            response = objectMapper.writeValueAsString(dto);
             responseDateTime = LocalDateTime.now();
+
             log.info("Fetched Partner: {}", partner.getPartnerId());
 
-            return partner;
+            return dto;
+
         } catch (Exception ex) {
+
             response = "Error: " + ex.getMessage();
             responseDateTime = LocalDateTime.now();
+
             log.error("Error fetching Partner with ID {}: {}", partnerId, ex.getMessage(), ex);
+
             throw ex;
+
         } finally {
+
             commonFunctions.saveHierarchyLogs(
                     requestDateTime,
                     request,
-                    null, // ip address if available
+                    null,
                     responseDateTime,
                     response
             );
         }
+
+    }
+
+    private PartnerResponseDTO convertToDto(Partner partner) {
+
+        PartnerResponseDTO dto = new PartnerResponseDTO();
+
+        dto.setPartnerId(partner.getPartnerId());
+        dto.setParentAccount(partner.getParentAccount());
+        dto.setAbbreviation(partner.getAbbreviation());
+        dto.setTitle(partner.getTitle());
+        dto.setName(partner.getName());
+        dto.setMobileNumber(partner.getMobileNumber());
+        dto.setEmailId(partner.getEmailId());
+        dto.setDob(partner.getDob());
+        dto.setStatus(partner.getStatus());
+        dto.setRemarks(partner.getRemarks());
+        dto.setAadhaarNumber(partner.getAadhaarNumber());
+        dto.setPanNumber(partner.getPanNumber());
+        dto.setPanVerified(partner.getPanVerified());
+        dto.setAadhaarPanVerified(partner.getAadhaarPanVerified());
+        dto.setShopNumber(partner.getShopNumber());
+        dto.setBusinessNumber(partner.getBusinessNumber());
+        dto.setCreatedBy(partner.getCreatedBy());
+        dto.setCreatedOn(partner.getCreatedOn());
+
+        return dto;
     }
 
     @Override

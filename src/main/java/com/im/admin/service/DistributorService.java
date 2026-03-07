@@ -2,6 +2,7 @@ package com.im.admin.service;
 
 
 import com.im.admin.entities.Distributor;
+import com.im.admin.response.DistributorResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -17,7 +18,7 @@ public interface DistributorService {
                                   MultipartFile shopImage, MultipartFile businessProofImage) throws IOException;
     List<Distributor> getAllDistributors();
 
-    Distributor getDistributorById(String id);
+    DistributorResponseDTO getDistributorById(String id);
 
     void deleteDistributor(String id);
 }

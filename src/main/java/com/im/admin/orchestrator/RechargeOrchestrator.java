@@ -15,6 +15,7 @@ import com.im.admin.service.RechargeVendorService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.DmtVendorFactory;
 import com.im.admin.util.RechargeVendorFactory;
+import com.im.admin.util.TokenUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,9 @@ public class RechargeOrchestrator {
     private CommonMethods commonMethods;
 
     @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
     private CommonFunctions commonFunctions;
 
 
@@ -56,7 +60,13 @@ public class RechargeOrchestrator {
     @Autowired
     private RechargeVendorFactory vendorFactory;
 
+    @Transactional
     public RechargeResponse recharge(RechargeRequest request) {
+
+        String loggedInHierarchyId = tokenUtil.extractHierarchyId();
+        request.setRetailerId(loggedInHierarchyId);
+
+        request.setRechargeType("0");
 
         String orderId = "TXN" + commonMethods.generateBaseTransactionId();
         log.info("[PROCESS RECHARGE] Starting transaction | orderId={}", orderId);

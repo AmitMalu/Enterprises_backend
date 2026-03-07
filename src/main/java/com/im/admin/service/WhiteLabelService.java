@@ -3,6 +3,7 @@ package com.im.admin.service;
 import com.im.admin.dto.WhiteLabelDropdownDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.WhiteLabels;
+import com.im.admin.response.WhiteLabelResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -24,7 +25,7 @@ public interface WhiteLabelService {
 
     List<WhiteLabels> getAllWhiteLabels();
 
-    WhiteLabels getWhiteLabelById(String id);
+    WhiteLabelResponseDTO getWhiteLabelById(String id);
 
     void deleteWhiteLabel(String id);
 
