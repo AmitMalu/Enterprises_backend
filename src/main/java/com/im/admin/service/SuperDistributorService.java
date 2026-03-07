@@ -2,6 +2,7 @@ package com.im.admin.service;
 
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.SuperDistributor;
+import com.im.admin.response.SuperDistributorResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -21,7 +22,7 @@ public interface SuperDistributorService {
                                   MultipartFile aadhaarCardBackImage, MultipartFile panCardImage,
                                   MultipartFile shopImage, MultipartFile businessProofImage) throws IOException;
 
-    SuperDistributor getSuperDistributor(String id);
+    SuperDistributorResponseDTO getSuperDistributor(String id);
 
     List<SuperDistributor> getAllSuperDistributors();
 

@@ -15,7 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/recharge/operators")
-public class RechargeOperatporController {
+public class RechargeOperatorController {
 
     @Autowired
     private RechargeOperatporService rechargeOperatporService;

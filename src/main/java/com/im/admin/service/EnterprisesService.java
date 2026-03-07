@@ -2,6 +2,7 @@ package com.im.admin.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.entities.Enterprises;
+import com.im.admin.response.EnterpriseResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -23,7 +24,7 @@ public interface EnterprisesService {
 
     List<Enterprises> getAllEnterprises() throws JsonProcessingException;
 
-    Enterprises getEnterpriseById(String id) throws JsonProcessingException;
+    EnterpriseResponseDTO getEnterpriseById(String enterpriseId) throws JsonProcessingException;
 
     void deleteEnterprise(String id);
 }

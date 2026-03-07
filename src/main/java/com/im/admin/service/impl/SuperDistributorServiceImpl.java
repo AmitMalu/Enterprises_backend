@@ -9,6 +9,7 @@ import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.SuperDistributorPostpaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorPrepaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorRepository;
+import com.im.admin.response.SuperDistributorResponseDTO;
 import com.im.admin.service.SuperDistributorService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -207,33 +208,78 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
     }
 
     @Override
-    public SuperDistributor getSuperDistributor(String id) {
+    public SuperDistributorResponseDTO getSuperDistributor(String id) {
+
         LocalDateTime requestTime = LocalDateTime.now();
         String request = "Fetching SuperDistributor with id: " + id;
 
         log.info("Request to get SuperDistributor with id: {}", id);
 
         try {
+
             SuperDistributor superDistributor = superDistributorRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("SuperDistributor not found with id: " + id));
+                    .orElseThrow(() ->
+                            new RuntimeException("SuperDistributor not found with id: " + id)
+                    );
+
+            SuperDistributorResponseDTO dto = convertToDto(superDistributor);
 
             LocalDateTime responseTime = LocalDateTime.now();
-            String response = superDistributor.toString();
 
-            commonFunctions.saveHierarchyLogs(requestTime, request, null, responseTime, response);
+            commonFunctions.saveHierarchyLogs(
+                    requestTime,
+                    request,
+                    null,
+                    responseTime,
+                    dto.toString()
+            );
 
             log.info("Successfully fetched SuperDistributor with id: {}", id);
-            return superDistributor;
+
+            return dto;
 
         } catch (Exception ex) {
-            LocalDateTime responseTime = LocalDateTime.now();
-            String response = "Error: " + ex.getMessage();
 
-            commonFunctions.saveHierarchyLogs(requestTime, request, null, responseTime, response);
+            LocalDateTime responseTime = LocalDateTime.now();
+
+            commonFunctions.saveHierarchyLogs(
+                    requestTime,
+                    request,
+                    null,
+                    responseTime,
+                    "Error: " + ex.getMessage()
+            );
 
             log.error("Failed to fetch SuperDistributor with id: {}", id, ex);
+
             throw ex;
         }
+    }
+
+    private SuperDistributorResponseDTO convertToDto(SuperDistributor sd) {
+
+        SuperDistributorResponseDTO dto = new SuperDistributorResponseDTO();
+
+        dto.setSuperDistributorId(sd.getSuperDistributorId());
+        dto.setParentAccount(sd.getParentAccount());
+        dto.setTitle(sd.getTitle());
+        dto.setName(sd.getName());
+        dto.setMobileNumber(sd.getMobileNumber());
+        dto.setEmailId(sd.getEmailId());
+        dto.setAbbreviation(sd.getAbbreviation());
+        dto.setDob(sd.getDob());
+        dto.setStatus(sd.getStatus());
+        dto.setRemarks(sd.getRemarks());
+        dto.setAadhaarNumber(sd.getAadhaarNumber());
+        dto.setPanNumber(sd.getPanNumber());
+        dto.setPanVerified(sd.getPanVerified());
+        dto.setAadhaarPanVerified(sd.getAadhaarPanVerified());
+        dto.setShopNumber(sd.getShopNumber());
+        dto.setBusinessNumber(sd.getBusinessNumber());
+        dto.setCreatedBy(sd.getCreatedBy());
+        dto.setCreatedOn(sd.getCreatedOn());
+
+        return dto;
     }
 
 

@@ -10,6 +10,7 @@ import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.EnterprisesPostpaidAmountRepository;
 import com.im.admin.repositories.EnterprisesPrepaidAmountRepository;
 import com.im.admin.repositories.EnterprisesRepository;
+import com.im.admin.response.EnterpriseResponseDTO;
 import com.im.admin.service.EnterprisesService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -312,35 +313,70 @@ public class EnterprisesServiceImpl implements EnterprisesService {
     }
 
     @Override
-    public Enterprises getEnterpriseById(String enterpriseId) throws JsonProcessingException, JsonProcessingException {
+    public EnterpriseResponseDTO getEnterpriseById(String enterpriseId) throws JsonProcessingException {
+
         LocalDateTime requestDateTime = LocalDateTime.now();
         String enterpriseRequest = "Fetching enterprise with ID: " + enterpriseId;
 
-        Enterprises enterprise = null;
+        EnterpriseResponseDTO dto = null;
         String enterpriseResponse = null;
         LocalDateTime responseDateTime = null;
 
         try {
-            enterprise = enterpriseRepository.findById(enterpriseId)
-                    .orElseThrow(() -> new RuntimeException("Enterprise not found with ID: " + enterpriseId));
 
-            enterpriseResponse = objectMapper.writeValueAsString(enterprise);
+            Enterprises enterprise = enterpriseRepository.findById(enterpriseId)
+                    .orElseThrow(() ->
+                            new RuntimeException("Enterprise not found with ID: " + enterpriseId)
+                    );
+
+            dto = convertToDto(enterprise);
+
+            enterpriseResponse = objectMapper.writeValueAsString(dto);
             responseDateTime = LocalDateTime.now();
 
-            return enterprise;
+            return dto;
+
         } catch (Exception ex) {
+
             enterpriseResponse = "Error: " + ex.getMessage();
             responseDateTime = LocalDateTime.now();
             throw ex;
+
         } finally {
+
             commonFunctions.saveHierarchyLogs(
                     requestDateTime,
                     enterpriseRequest,
-                    null, // ipAddress if available
+                    null,
                     responseDateTime,
                     enterpriseResponse
             );
         }
+    }
+
+    private EnterpriseResponseDTO convertToDto(Enterprises enterprise) {
+
+        EnterpriseResponseDTO dto = new EnterpriseResponseDTO();
+
+        dto.setEnterpriseId(enterprise.getEnterpriseId());
+        dto.setParentAccount(enterprise.getParentAccount());
+        dto.setName(enterprise.getName());
+        dto.setMobileNumber(enterprise.getMobileNumber());
+        dto.setEmailId(enterprise.getEmailId());
+        dto.setTitle(enterprise.getTitle());
+        dto.setAbbreviation(enterprise.getAbbreviation());
+        dto.setDob(enterprise.getDob());
+        dto.setStatus(enterprise.getStatus());
+        dto.setDomainURL(enterprise.getDomainURL());
+        dto.setBusinessDesc(enterprise.getBusinessDesc());
+        dto.setPanNumber(enterprise.getPanNumber());
+        dto.setAadhaarNumber(enterprise.getAadhaarNumber());
+        dto.setPanVerified(enterprise.getPanVerified());
+        dto.setAadhaarPanVerified(enterprise.getAadhaarPanVerified());
+        dto.setCreatedBy(enterprise.getCreatedBy());
+        dto.setCreatedOn(enterprise.getCreatedOn());
+
+        return dto;
     }
 
 

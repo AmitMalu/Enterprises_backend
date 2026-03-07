@@ -10,6 +10,7 @@ import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.WhiteLabelPostpaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelPrepaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelRepository;
+import com.im.admin.response.WhiteLabelResponseDTO;
 import com.im.admin.service.WhiteLabelService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -337,10 +338,48 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 
 
     @Override
-    public WhiteLabels getWhiteLabelById(String id) {
+    public WhiteLabelResponseDTO getWhiteLabelById(String id) {
+
         log.info("Fetching WhiteLabel by ID: {}", id);
-        return whiteLabelRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("WhiteLabel not found with ID: " + id));
+
+        WhiteLabels whiteLabel = whiteLabelRepository.findById(id)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("WhiteLabel not found with ID: " + id));
+
+        return convertToDto(whiteLabel);
+    }
+
+    private WhiteLabelResponseDTO convertToDto(WhiteLabels wl) {
+
+        WhiteLabelResponseDTO dto = new WhiteLabelResponseDTO();
+
+        dto.setWhiteLabelId(wl.getWhiteLabelId());
+        dto.setTitle(wl.getTitle());
+        dto.setName(wl.getName());
+        dto.setMobileNumber(wl.getMobileNumber());
+        dto.setEmailId(wl.getEmailId());
+        dto.setDob(wl.getDob());
+        dto.setBusinessDesc(wl.getBusinessDesc());
+        dto.setAbbreviation(wl.getAbbreviation());
+        dto.setParentAccount(wl.getParentAccount());
+        dto.setDomainURL(wl.getDomainURL());
+        dto.setIsAdmin(wl.getIsAdmin());
+        dto.setStatus(wl.getStatus());
+        dto.setRejectionReason(wl.getRejectionReason());
+        dto.setAadhaarNumber(wl.getAadhaarNumber());
+        dto.setPanNumber(wl.getPanNumber());
+        dto.setPanVerified(wl.getPanVerified());
+        dto.setAadhaarPanVerified(wl.getAadhaarPanVerified());
+        dto.setEmailVerified(wl.getEmailVerified());
+        dto.setIsAadhaarVerified(wl.getIsAadhaarVerified());
+        dto.setGstNumberVerified(wl.getGstNumberVerified());
+        dto.setShopNumber(wl.getShopNumber());
+        dto.setBusinessNumber(wl.getBusinessNumber());
+        dto.setRemarks(wl.getRemarks());
+        dto.setCreatedBy(wl.getCreatedBy());
+        dto.setCreatedOn(wl.getCreatedOn());
+
+        return dto;
     }
 
     @Transactional

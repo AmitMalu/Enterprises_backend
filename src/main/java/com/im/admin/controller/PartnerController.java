@@ -5,6 +5,7 @@ import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Partner;
 import com.im.admin.entities.Retailer;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.PartnerResponseDTO;
 import com.im.admin.service.PartnerService;
 import com.im.admin.service.impl.PhoneNumberValidationService;
 import com.im.admin.util.JsonUtil;
@@ -90,9 +91,16 @@ public class PartnerController {
     }
 
     @GetMapping("/{partnerId}")
-    public ResponseEntity<Partner> getPartnerById(@PathVariable String partnerId) throws JsonProcessingException {
+    public ResponseEntity<CommonResponse<PartnerResponseDTO>> getPartnerById(
+            @PathVariable String partnerId) throws JsonProcessingException {
+
         log.info("Received request to fetch Partner with ID: {}", partnerId);
-        return ResponseEntity.ok(partnerService.getPartnerById(partnerId));
+
+        PartnerResponseDTO dto = partnerService.getPartnerById(partnerId);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(dto, "Partner fetched successfully")
+        );
     }
 
     @DeleteMapping("/{partnerId}")
