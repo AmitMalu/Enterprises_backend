@@ -100,6 +100,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
 
         // Save transaction as PENDING before calling vendor
         RechargeTransaction transaction = RechargeTransaction.builder()
+                .schemeCode(request.getSchemeCode())
                 .transactionId(orderId)
                 .schemeCode(request.getSchemeCode())
                 .transactionRef(transactionRef)
