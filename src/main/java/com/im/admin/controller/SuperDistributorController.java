@@ -4,6 +4,7 @@ package com.im.admin.controller;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.SuperDistributor;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.SuperDistributorResponseDTO;
 import com.im.admin.service.SuperDistributorService;
 import com.im.admin.service.impl.PhoneNumberValidationService;
 import com.im.admin.util.JsonUtil;
@@ -101,16 +102,15 @@ public class SuperDistributorController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SuperDistributor> getById(@PathVariable String id) {
+    public ResponseEntity<CommonResponse<SuperDistributorResponseDTO>> getById(@PathVariable String id) {
+
         log.info("Fetching SuperDistributor with ID: {}", id);
-        try {
-            SuperDistributor distributor = service.getSuperDistributor(id);
-            log.info("Successfully fetched SuperDistributor: {}", distributor);
-            return ResponseEntity.ok(distributor);
-        } catch (Exception e) {
-            log.error("Error fetching SuperDistributor with ID: {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+
+        SuperDistributorResponseDTO dto = service.getSuperDistributor(id);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(dto, "Super Distributor fetched successfully")
+        );
     }
 
     @GetMapping

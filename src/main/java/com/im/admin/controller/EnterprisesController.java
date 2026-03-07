@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Enterprises;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.EnterpriseResponseDTO;
 import com.im.admin.service.EnterprisesService;
 import com.im.admin.util.JsonUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -100,10 +101,26 @@ public class EnterprisesController {
     }
 
     @GetMapping("/{enterpriseId}")
-    public ResponseEntity<?> getEnterpriseById(@PathVariable String enterpriseId) throws JsonProcessingException {
+    public ResponseEntity<CommonResponse<EnterpriseResponseDTO>> getEnterpriseById(
+            @PathVariable String enterpriseId) {
+
         log.info("API Call: getEnterpriseById with ID: {}", enterpriseId);
-        Enterprises enterprise = enterprisesService.getEnterpriseById(enterpriseId);
-        return ResponseEntity.ok(enterprise);
+
+        try {
+
+            EnterpriseResponseDTO dto = enterprisesService.getEnterpriseById(enterpriseId);
+
+            return ResponseEntity.ok(
+                    CommonResponse.success(dto, "Enterprise fetched successfully")
+            );
+
+        } catch (Exception ex) {
+
+            log.error("Error fetching enterprise: ", ex);
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.failure(ex.getMessage()));
+        }
     }
 
     @DeleteMapping("/delete/{enterpriseId}")

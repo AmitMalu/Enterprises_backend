@@ -12,9 +12,10 @@ public class A2ZRechargeServiceImpl implements RechargeVendorService {
     }
 
     @Override
-    public RechargeResponse recharge(RechargeRequest request, VendorCredentials credentials) {
+    public RechargeResponse recharge(RechargeRequest request,String orderId, VendorCredentials credentials) {
         return null;
     }
+
 
     @Override
     public String checkBalance(RechargeRequest request, VendorCredentials credentials) {

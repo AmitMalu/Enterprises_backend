@@ -4,6 +4,7 @@ import com.im.admin.dto.WhiteLabelDropdownDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.WhiteLabels;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.WhiteLabelResponseDTO;
 import com.im.admin.service.WhiteLabelService;
 import com.im.admin.util.JsonUtil;
 import jakarta.validation.Valid;
@@ -99,13 +100,18 @@ public class WhiteLabelController {
             return ResponseEntity.ok(whiteLabelsList);
         }
 
-        @GetMapping("/{id}")
-        public ResponseEntity<WhiteLabels> getWhiteLabelById(@PathVariable String id) {
-            log.info("Fetching WhiteLabel by ID: {}", id);
-            WhiteLabels whiteLabel = whiteLabelService.getWhiteLabelById(id);
-            log.debug("Fetched WhiteLabel: {}", whiteLabel);
-            return ResponseEntity.ok(whiteLabel);
-        }
+    @GetMapping("/{id}")
+    public ResponseEntity<CommonResponse<WhiteLabelResponseDTO>> getWhiteLabelById(
+            @PathVariable String id) {
+
+        log.info("Fetching WhiteLabel by ID: {}", id);
+
+        WhiteLabelResponseDTO dto = whiteLabelService.getWhiteLabelById(id);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(dto, "WhiteLabel fetched successfully")
+        );
+    }
 
         @DeleteMapping("/delete/{id}")
         public ResponseEntity<String> deleteWhiteLabel(@PathVariable String id) {

@@ -6,6 +6,7 @@ import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
 import com.im.admin.repositories.*;
+import com.im.admin.response.DistributorResponseDTO;
 import com.im.admin.service.DistributorService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -351,21 +352,26 @@ public class DistributorServiceImpl implements DistributorService {
     }
 
     @Override
-    public Distributor getDistributorById(String id) {
+    public DistributorResponseDTO getDistributorById(String id) {
+
         LocalDateTime requestTime = LocalDateTime.now();
         String requestPayload = "Fetching distributor with ID: " + id;
 
         log.info("Request received at {}: {}", requestTime, requestPayload);
 
         try {
+
             Distributor distributor = distributorRepository.findById(id)
-                    .orElseThrow(() -> new EntityNotFoundException("Distributor not found with ID: " + id));
+                    .orElseThrow(() ->
+                            new EntityNotFoundException("Distributor not found with ID: " + id)
+                    );
+
+            DistributorResponseDTO dto = convertToDto(distributor);
 
             LocalDateTime responseTime = LocalDateTime.now();
 
             log.info("Distributor found with ID {} at {}", distributor.getDistributorId(), responseTime);
 
-            // Save logs in DB
             commonFunctions.saveImLogs(
                     requestPayload,
                     requestTime,
@@ -374,8 +380,10 @@ public class DistributorServiceImpl implements DistributorService {
                     responseTime
             );
 
-            return distributor;
+            return dto;
+
         } catch (EntityNotFoundException e) {
+
             LocalDateTime responseTime = LocalDateTime.now();
 
             log.warn("Distributor not found with ID {} at {}", id, responseTime);
@@ -390,6 +398,32 @@ public class DistributorServiceImpl implements DistributorService {
 
             throw e;
         }
+    }
+
+    private DistributorResponseDTO convertToDto(Distributor distributor) {
+
+        DistributorResponseDTO dto = new DistributorResponseDTO();
+
+        dto.setDistributorId(distributor.getDistributorId());
+        dto.setParentAccount(distributor.getParentAccount());
+        dto.setTitle(distributor.getTitle());
+        dto.setName(distributor.getName());
+        dto.setMobileNumber(distributor.getMobileNumber());
+        dto.setEmailId(distributor.getEmailId());
+        dto.setAbbreviation(distributor.getAbbreviation());
+        dto.setDob(distributor.getDob());
+        dto.setStatus(distributor.getStatus());
+        dto.setRemarks(distributor.getRemarks());
+        dto.setAadhaarNumber(distributor.getAadhaarNumber());
+        dto.setPanNumber(distributor.getPanNumber());
+        dto.setPanVerified(distributor.getPanVerified());
+        dto.setAadhaarPanVerified(distributor.getAadhaarPanVerified());
+        dto.setShopNumber(distributor.getShopNumber());
+        dto.setBusinessNumber(distributor.getBusinessNumber());
+        dto.setCreatedBy(distributor.getCreatedBy());
+        dto.setCreatedOn(distributor.getCreatedOn());
+
+        return dto;
     }
 
     @Transactional

@@ -3,6 +3,7 @@ package com.im.admin.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Partner;
+import com.im.admin.response.PartnerResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -16,7 +17,7 @@ public interface PartnerService {
 
     List<Partner> getAllPartners() throws JsonProcessingException;
 
-    Partner getPartnerById(String partnerId) throws JsonProcessingException;
+    PartnerResponseDTO getPartnerById(String partnerId) throws JsonProcessingException;
 
     void deletePartner(String partnerId);
 }

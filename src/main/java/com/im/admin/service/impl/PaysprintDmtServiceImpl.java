@@ -192,6 +192,11 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
 
             String vendorErrorBody = e.getResponseBodyAsString();
 
+
+            if (vendorErrorBody == null || vendorErrorBody.isBlank()) {
+                vendorErrorBody = e.getStatusCode() + " : " + e.getStatusText();
+            }
+
             commonFunctions.saveVendorLogs(
                     requestTime,
                     requestJson,

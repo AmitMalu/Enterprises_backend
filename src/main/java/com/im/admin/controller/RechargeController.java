@@ -54,4 +54,17 @@ public class RechargeController {
                 CommonResponse.success(response, "Status fetched successfully")
         );
     }
+
+    @PostMapping("/db-status")
+    public ResponseEntity<CommonResponse<String>> checkStatusFromDb(
+            @RequestBody RechargeRequest request) {
+
+        String response =
+                rechargeOrchestrator.checkStatusDb(request);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(response, "Status fetched successfully")
+        );
+    }
+
 }
