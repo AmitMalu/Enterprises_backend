@@ -16,6 +16,8 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.nio.charset.StandardCharsets;
@@ -177,20 +179,24 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
         };
     }
 
-    private String generateChecksum(String input) {
+    private String generateChecksum(String data, String apiKey) {
 
         try {
 
-            MessageDigest md = MessageDigest.getInstance("SHA-512");
-            byte[] hash = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            Mac mac = Mac.getInstance("HmacSHA512");
+            SecretKeySpec secretKey = new SecretKeySpec(apiKey.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
+
+            mac.init(secretKey);
+
+            byte[] rawHmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
 
             StringBuilder hex = new StringBuilder();
 
-            for (byte b : hash) {
+            for (byte b : rawHmac) {
                 hex.append(String.format("%02x", b));
             }
 
-            return hex.toString();
+            return hex.toString().toUpperCase();
 
         } catch (Exception e) {
             throw new RuntimeException("Checksum generation failed", e);
@@ -199,7 +205,7 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
 
     private String buildSoapRequest(String ntdReq, VendorCredentials creds) {
 
-        String checksum = generateChecksum(ntdReq);
+        String checksum = generateChecksum(ntdReq, creds.getClientId());
 
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
                 "<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" " +
@@ -210,10 +216,10 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
                 "<DMRAuthHeader xmlns=\"http://tempuri.org/\">" +
                 "<MobileNo>" + creds.getUsername() + "</MobileNo>" +
                 "<APIKey>" + creds.getPassword() + "</APIKey>" +
-                "<ResponseType>XML</ResponseType>" +
+                "<ResponseType>JSON</ResponseType>" +
                 "<Checksum>" + checksum + "</Checksum>" +
                 "<Version>1.0</Version>" +
-                "<AgentCode>" + creds.getToken() + "</AgentCode>" +
+                "<AgentCode>" + "RT01" + "</AgentCode>" +
                 "</DMRAuthHeader>" +
                 "</soap:Header>" +
 

@@ -130,7 +130,6 @@ public class UnisusPGServiceImpl implements UnisusPGService {
     public UnisusWebhookResponse processWebhook(
             UnisusWebhookRequest request) {
 
-        log.info("UnisusPay PG Callback Request" + request.toString());
         log.info("Received Unisus Webhook. requestType={}, sessionId={}",
                 request.getRequestType(), request.getSessionID());
 

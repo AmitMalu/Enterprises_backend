@@ -14,4 +14,7 @@ public class OtherInfo {
 
     @JsonProperty("PGTrnBankOrCode")
     private String pgTrnBankOrCode;
+
+    @JsonProperty("PGName")
+    private String pgName;
 }

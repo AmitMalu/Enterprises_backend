@@ -64,9 +64,10 @@ public class CallbackPGController {
         log.info("RAW CALLBACK: {}", rawBody);
 
         ObjectMapper mapper = new ObjectMapper();
-
         UnisusWebhookRequest request =
                 mapper.readValue(rawBody, UnisusWebhookRequest.class);
+
+        log.debug("Parsed request: {}", request);
 
         UnisusWebhookResponse response =
                 unisusPGService.processWebhook(request);
@@ -75,4 +76,5 @@ public class CallbackPGController {
 
         return ResponseEntity.ok(response);
     }
+
 }

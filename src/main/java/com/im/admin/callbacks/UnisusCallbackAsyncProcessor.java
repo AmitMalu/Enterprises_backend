@@ -105,11 +105,10 @@ public class UnisusCallbackAsyncProcessor {
 //            );
             log.info("---- [Callback] Using operatorName for DB lookup: {}", request.getOtherInfo().getPgTrnType());
 
-
             List<SchemeRate> matchingSchemes =
                     schemeRateRepository.findBySchemeCodeAndOperatorName(
                             schemeCode,
-                            request.getOtherInfo().getPgTrnType()
+                            request.getOtherInfo().getPgTrnType()+"_"+request.getOtherInfo().getPgName()
                     );
             if (matchingSchemes == null || matchingSchemes.isEmpty()) {
                 log.error("---- [Callback] No matching scheme found for schemeCode={} and operatorName={}",
@@ -145,7 +144,6 @@ public class UnisusCallbackAsyncProcessor {
                     .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
             SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
                     .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
-
 
             String baseTranxId = trnRefNo.startsWith("ORD") ? trnRefNo.substring(3) : trnRefNo;
 
