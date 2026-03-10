@@ -75,8 +75,6 @@ public class UnisusCallbackAsyncProcessor {
                                 return new RuntimeException("SubProduct not found for subProductId: " + subProductId);
                             });
 
-            log.info("---- [Callback] SubProduct fetched successfully | subProductId={}", subProducts.getId());
-
             log.info("---- [Callback] SubProduct fetched successfully | subProductId={}, subProductCode={}",
                     subProducts.getId(),
                     subProducts.getSubProductCode());
@@ -192,8 +190,8 @@ public class UnisusCallbackAsyncProcessor {
             log.info("---- [Callback] Processing complete for Order ID: {} | Status: {}", trnRefNo, vendorStatus);
 
             // Call your internal transaction engine here
-            TransactionSchemeDetailsRequestDto transactionSchemeDetailsRequestDto = new TransactionSchemeDetailsRequestDto();
-            transactionServiceImpl.processTransaction(transactionSchemeDetailsRequestDto, vendorStatus);
+//            TransactionSchemeDetailsRequestDto transactionSchemeDetailsRequestDto = new TransactionSchemeDetailsRequestDto();
+//            transactionServiceImpl.processTransaction(transactionSchemeDetailsRequestDto, vendorStatus);
 
         } catch (Exception e) {
             log.error("Async processing failed for orderId: {}", trnRefNo, e);

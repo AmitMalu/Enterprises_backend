@@ -32,6 +32,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -584,7 +585,6 @@ public class VerificationServiceImpl implements VerificationService {
                 );
             }
 
-
             // 4. Prepare request
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -642,7 +642,7 @@ public class VerificationServiceImpl implements VerificationService {
 
             log.debug("---- [Callback] DTO prepared: {}", dto);
 
-            transactionEngineServiceImpl.processCharges(dto, prepaidWallet, BigDecimal.valueOf(schemeRate.getGross()), product.getSgst().toString(), baseTransactionId, "SUCCESS");
+            processCharges(dto, prepaidWallet, BigDecimal.valueOf(schemeRate.getGross()), product.getSgst().toString(), baseTransactionId, "SUCCESS");
 
             String message = responseBody.getData() != null && responseBody.getData().getStatus() != null
                     ? responseBody.getData().getStatus()
@@ -675,6 +675,31 @@ public class VerificationServiceImpl implements VerificationService {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(CommonResponse.error(200, "Bank verification failed: " + e.getMessage()));
         }
+    }
+
+    public void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
+                               BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
+
+        log.info("[CHARGES] Start | BaseTxnId={} | WalletType={} | Hierarchy={} | Status={}",
+                baseTransactionId, dto.getWalletType(), dto.getHierarchyId(), tranStatus);
+
+        BigDecimal grossAmount = transactionEngineServiceImpl.calculateGross(dto, grossAmountInput);
+        BigDecimal gstRate = new BigDecimal(gstValue).divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
+
+        // Step 1: Calculate GST and base
+        BigDecimal baseAmount = grossAmount.divide(BigDecimal.ONE.add(gstRate), 10, RoundingMode.HALF_UP);
+        BigDecimal gstAmount = grossAmount.subtract(baseAmount).setScale(4, RoundingMode.HALF_UP);
+
+        log.debug("[CHARGES] Split amounts | Gross={} | Base={} | GST={} | GST%={}", grossAmount, baseAmount, gstAmount, gstValue);
+
+        // Step 2: Deduct base and GST from wallet
+        transactionEngineServiceImpl.deductCharge(wallet, dto, baseAmount, "CHG", "Deduct Funds (Charge)", baseTransactionId, tranStatus);
+        transactionEngineServiceImpl.deductCharge(wallet, dto, gstAmount, "GST", "Deduct Funds (GST)", baseTransactionId, tranStatus);
+
+        // Step 3: Update wallet meta
+        transactionEngineServiceImpl.updateWalletMeta(wallet, baseAmount.add(gstAmount), gstAmount);
+
+        log.info("[CHARGES] Completed | BaseTxnId={} | WalletType={}", baseTransactionId, dto.getWalletType());
     }
 
 }

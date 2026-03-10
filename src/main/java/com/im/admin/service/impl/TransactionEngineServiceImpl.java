@@ -493,7 +493,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         log.info("[CHARGES] Completed | BaseTxnId={} | WalletType={}", baseTransactionId, dto.getWalletType());
     }
 
-    private BigDecimal calculateGross(TransactionSchemeDetailsRequestDto dto, BigDecimal grossAmountInput) {
+    public BigDecimal calculateGross(TransactionSchemeDetailsRequestDto dto, BigDecimal grossAmountInput) {
         if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
             BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
             BigDecimal gross = BigDecimal.valueOf(dto.getAmount())
@@ -508,7 +508,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     }
 
 
-    private void deductCharge(AbstractWalletAmountTable wallet, TransactionSchemeDetailsRequestDto dto,
+    public void deductCharge(AbstractWalletAmountTable wallet, TransactionSchemeDetailsRequestDto dto,
                               BigDecimal amount, String prefix, String remark,
                               String baseTransactionId, String tranStatus) {
 
@@ -527,7 +527,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 prefix + baseTransactionId, "(" + prefix + ")", tranStatus, dto);
     }
 
-    private void updateWalletMeta(AbstractWalletAmountTable wallet, BigDecimal totalDeducted, BigDecimal lastAmount) {
+    public void updateWalletMeta(AbstractWalletAmountTable wallet, BigDecimal totalDeducted, BigDecimal lastAmount) {
         wallet.setUsedCash(wallet.getUsedCash().add(totalDeducted));
         wallet.setLastUpdatedAmount(lastAmount);
         wallet.setLastUpdatedDate(LocalDate.now());
