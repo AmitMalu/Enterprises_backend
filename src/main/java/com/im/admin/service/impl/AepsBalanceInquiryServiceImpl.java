@@ -153,7 +153,7 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 //            uid.setAdhaarNumber(retailer.getAadhaarNumber());
             uid.setAdhaarNumber(req.getAdhaarNumber());
 //            uid.setVirtualId("");
-            uid.setNationalBankIdentificationNumber("607153");
+            uid.setNationalBankIdentificationNumber(req.getNationalBankIdentificationNumber());
 
             req.setCardnumberORUID(uid);
 
@@ -384,8 +384,7 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 //            uid.setAdhaarNumber(retailer.getAadhaarNumber());
             uid.setAdhaarNumber(req.getAdhaarNumber());
 //            uid.setVirtualId("");
-            uid.setNationalBankIdentificationNumber("607153");
-
+            uid.setNationalBankIdentificationNumber(req.getNationalBankIdentificationNumber());
             req.setCardnumberORUID(uid);
 
             // Request JSON

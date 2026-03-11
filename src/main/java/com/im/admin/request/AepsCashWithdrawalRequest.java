@@ -27,6 +27,7 @@ public class AepsCashWithdrawalRequest {
     private String schemeCode;
     private  String subMerchantId;
     private String adhaarNumber;
+    private String nationalBankIdentificationNumber;
 
 
     private CaptureResponse captureResponse;
@@ -38,7 +39,7 @@ public class AepsCashWithdrawalRequest {
     public static class P2CardnumberORUID {
         private String adhaarNumber;
         private String indicatorforUID = "0";
-        private String nationalBankIdentificationNumber = "607153";
+        private String nationalBankIdentificationNumber;
     }
 
     @Data

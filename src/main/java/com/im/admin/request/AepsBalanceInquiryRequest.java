@@ -25,6 +25,7 @@ public class AepsBalanceInquiryRequest {
     private String mobileNumber;           // Customer mobile
     private String schemeCode;
     private BigDecimal transactionAmount;
+    private String nationalBankIdentificationNumber;
 
     private String timestamp;                // System.currentTimeMillis()
     private int superMerchantId;
@@ -108,7 +109,7 @@ public class AepsBalanceInquiryRequest {
     public static class P2CardnumberORUID {
         private String adhaarNumber;                   // Aadhaar number (12 digits)
         private int indicatorforUID;                  // 0 for Aadhaar , 2 for VID
-        private String nationalBankIdentificationNumber = "607153";
+        private String nationalBankIdentificationNumber;
 //        private String virtualId;
     }
 }

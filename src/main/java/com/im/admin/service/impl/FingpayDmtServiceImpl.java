@@ -1,21 +1,56 @@
 package com.im.admin.service.impl;
 
-import com.im.admin.dto.DmtResponseDto;
-import com.im.admin.dto.RemitterTransactionResponse;
+import com.im.admin.dto.*;
 import com.im.admin.entities.DmtBankList;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.enums.WalletType;
-import com.im.admin.request.PennyDropRequest;
-import com.im.admin.request.SendDmtRequest;
+import com.im.admin.request.*;
+import com.im.admin.response.BeneficiaryRegisterResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PaysprintPennyDropResponse;
 import com.im.admin.response.PaysprintSendOtpResponse;
 import com.im.admin.service.DmtVendorService;
 
 import java.util.List;
+import java.util.Map;
 
 public class FingpayDmtServiceImpl implements DmtVendorService {
+    @Override
+    public RemitterQueryResponse checkRemitter(String mobile, VendorCredentials credentials) throws Exception {
+        return null;
+    }
+
+    @Override
+    public RemitterRegisterResponse registerRemitter(RemitterRegisterRequest request, VendorCredentials credentials) throws Exception {
+        return null;
+    }
+
+    @Override
+    public Map doEkyc(RemitterEkycRequest request, VendorCredentials credentials) throws Exception {
+        return Map.of();
+    }
+
+    @Override
+    public BeneficiaryRegisterResponse registerBeneficiary(BeneficiaryRegisterRequest request, VendorCredentials credentials) throws Exception {
+        return null;
+    }
+
+    @Override
+    public DmtBeneficiaryDeleteResponse deleteBeneficiary(DmtBeneficiaryDeleteRequest request, VendorCredentials credentials) throws Exception {
+        return null;
+    }
+
+    @Override
+    public DmtBeneficiaryFetchResponse fetchBeneficiary(DmtBeneficiaryFetchRequest request, VendorCredentials credentials) throws Exception {
+        return null;
+    }
+
+    @Override
+    public DmtBeneficiaryFetchByBeneIdResponse fetchBeneficiaryByBeneId(DmtBeneficiaryFetchByBeneIdRequest request, VendorCredentials credentials) throws Exception {
+        return null;
+    }
+
     @Override
     public List<DmtBankList> getdmtbanklist() {
         return List.of();

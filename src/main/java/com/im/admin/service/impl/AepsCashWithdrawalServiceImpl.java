@@ -134,11 +134,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
 //            uid.setAdhaarNumber(retailer.getAadhaarNumber());
             uid.setAdhaarNumber(req.getAdhaarNumber());
             uid.setIndicatorforUID("0");
-            uid.setNationalBankIdentificationNumber(
-                    req.getCardnumberORUID() != null
-                            ? req.getCardnumberORUID().getNationalBankIdentificationNumber()
-                            : null
-            );
+           uid.setNationalBankIdentificationNumber(req.getNationalBankIdentificationNumber());
+
 
             req.setCardnumberORUID(uid);
 //            req.setTransactionType("CW");

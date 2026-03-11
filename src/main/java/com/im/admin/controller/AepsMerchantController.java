@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.orchestrator.AepsOrchestrator;
 import com.im.admin.request.AepsCheckStatus;
 import com.im.admin.request.AepsMerchantRequestDto;
 import com.im.admin.request.AepsSendOtpRequest;
@@ -25,6 +26,9 @@ public class AepsMerchantController {
     @Autowired
     private AepsEkycService aepsEkycService;
 
+    @Autowired
+    private AepsOrchestrator aepsOrchestrator;
+
 
     @PostMapping("/onboarding")
     public CommonResponse<AepsMerchantResponseDto> register(
@@ -32,6 +36,14 @@ public class AepsMerchantController {
 
         return aepsMerchantService.registerMerchantAndCall(req);
     }
+
+//    @PostMapping("/onboarding")
+//    public CommonResponse<AepsMerchantResponseDto> register(
+//            @RequestBody AepsMerchantRequestDto req) {
+//
+//        return aepsOrchestrator.registerMerchant(req);
+//    }
+
 
 
     @PostMapping("/check-status")
