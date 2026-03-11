@@ -3,6 +3,8 @@ package com.im.admin.orchestrator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.AbstractWalletAmountTable;
+import com.im.admin.dto.BeneficiaryVerifyRequestDto;
+import com.im.admin.dto.BeneficiaryVerifyResponseDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
@@ -14,10 +16,7 @@ import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PayoutMerchantCallbackResponse;
 import com.im.admin.response.PayoutStatusResponse;
-import com.im.admin.service.PayoutCallbackHandler;
-import com.im.admin.service.PayoutCallbackRegistrar;
-import com.im.admin.service.PayoutVendorService;
-import com.im.admin.service.VendorStatusChecker;
+import com.im.admin.service.*;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.PayoutVendorFactory;
@@ -459,6 +458,52 @@ public class PayoutOrchestratorV0 {
         return dto;
     }
 
+    @Transactional
+    public CommonResponse<BeneficiaryVerifyResponseDto> beneficiaryVerify(
+            BeneficiaryVerifyRequestDto req) {
+
+        try {
+
+//            SubProducts subProduct = subProductsRepository.findById(req.getSubProductId())
+//                    .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+
+            VendorRouting routing =
+                    vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+
+            if (routing == null) {
+                return new CommonResponse<>(404, "Vendor routing not found", null);
+            }
+
+            Vendors vendor = CommonMethods.getVendors(routing);
+
+            VendorCredentials credentials =
+                    vendorCredentialsRepository
+                            .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                            .orElseThrow(() -> new RuntimeException("Vendor credentials not found"));
+
+            PayoutVendorService vendorService =
+                    vendorFactory.getVendor(vendor.getVendorName());
+
+            if (vendorService == null) {
+                return new CommonResponse<>(500, "Vendor implementation not found", null);
+            }
+
+            if (!(vendorService instanceof PayoutBeneficiaryVerifier verifier)) {
+                return new CommonResponse<>(400, "Vendor does not support beneficiary verification", null);
+            }
+
+            BeneficiaryVerifyResponseDto resp =
+                    verifier.verifyBeneficiary(req, credentials);
+
+            return new CommonResponse<>(200, resp.getMessage(), resp);
+
+        } catch (Exception e) {
+
+            log.error("Beneficiary verification error", e);
+
+            return new CommonResponse<>(500, "Internal Server Error", null);
+        }
+    }
 
 
 }

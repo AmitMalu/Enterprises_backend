@@ -1,5 +1,6 @@
 package com.im.admin.callbacks;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.request.UnisusWebhookRequest;
 import com.im.admin.response.UnisusWebhookResponse;
 import com.im.admin.service.UnisusPGService;
@@ -13,7 +14,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/pg/callback")
@@ -38,17 +41,40 @@ public class CallbackPGController {
 
         return ResponseEntity.ok(response);
     }
+//
+//    @PostMapping("/unisus")
+//    public ResponseEntity<String> unisusCallback(
+//            HttpServletRequest request) throws IOException {
+//
+//        log.info("Content-Type: {}", request.getContentType());
+//
+//        String body = request.getReader()
+//                .lines()
+//                .collect(Collectors.joining(System.lineSeparator()));
+//
+//        log.info("RAW BODY: {}", body);
+//
+//        return ResponseEntity.ok("OK");
+//    }
 
-    // UNISUS CALLBACKwa
     @PostMapping("/unisus")
-    public ResponseEntity<String> unisusCallback(
-            @RequestBody UnisusWebhookRequest request) {
+    public ResponseEntity<UnisusWebhookResponse> unisusCallback(
+            @RequestBody String rawBody) throws Exception {
 
-        log.info("Unisus callback received");
+        log.info("RAW CALLBACK: {}", rawBody);
+
+        ObjectMapper mapper = new ObjectMapper();
+        UnisusWebhookRequest request =
+                mapper.readValue(rawBody, UnisusWebhookRequest.class);
+
+        log.debug("Parsed request: {}", request);
 
         UnisusWebhookResponse response =
                 unisusPGService.processWebhook(request);
 
-        return ResponseEntity.ok(response.getStatusMsg());
+        log.info("Sending response to Unisus: {}", response);
+
+        return ResponseEntity.ok(response);
     }
+
 }

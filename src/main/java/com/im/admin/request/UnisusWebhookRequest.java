@@ -1,17 +1,32 @@
 package com.im.admin.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
 public class UnisusWebhookRequest {
 
-    private Integer RequestType;
-    private String RequestTime;
-    private Long RequestID;
-    private Long SessionID;
-    private String MobileNo;
-    private String AgentID;
+    @JsonProperty("RequestType")
+    private Integer requestType;
 
-    private OtherInfo OtherInfo;
-    private Transaction Transaction;
+    @JsonProperty("RequestTime")
+    private String requestTime;
+
+    @JsonProperty("RequestID")
+    private Long requestID;
+
+    @JsonProperty("SessionID")
+    private Long sessionID;
+
+    @JsonProperty("MobileNo")
+    private String mobileNo;
+
+    @JsonProperty("AgentID")
+    private String agentID;
+
+    @JsonProperty("OtherInfo")
+    private OtherInfo otherInfo;
+
+    @JsonProperty("Transaction")
+    private Transaction transaction;
 }

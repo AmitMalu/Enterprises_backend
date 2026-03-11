@@ -75,8 +75,6 @@ public class UnisusCallbackAsyncProcessor {
                                 return new RuntimeException("SubProduct not found for subProductId: " + subProductId);
                             });
 
-            log.info("---- [Callback] SubProduct fetched successfully | subProductId={}", subProducts.getId());
-
             log.info("---- [Callback] SubProduct fetched successfully | subProductId={}, subProductCode={}",
                     subProducts.getId(),
                     subProducts.getSubProductCode());
@@ -105,17 +103,16 @@ public class UnisusCallbackAsyncProcessor {
 //            String callbackOperatorName = toDbOperatorName(
 //                    request.getOtherInfo().getPGTrnType()
 //            );
-            log.info("---- [Callback] Using operatorName for DB lookup: {}", request.getOtherInfo().getPGTrnType());
-
+            log.info("---- [Callback] Using operatorName for DB lookup: {}", request.getOtherInfo().getPgTrnType());
 
             List<SchemeRate> matchingSchemes =
                     schemeRateRepository.findBySchemeCodeAndOperatorName(
                             schemeCode,
-                            request.getOtherInfo().getPGTrnType()
+                            request.getOtherInfo().getPgTrnType()+"_"+request.getOtherInfo().getPgName()
                     );
             if (matchingSchemes == null || matchingSchemes.isEmpty()) {
                 log.error("---- [Callback] No matching scheme found for schemeCode={} and operatorName={}",
-                        schemeCode, request.getOtherInfo().getPGTrnType());
+                        schemeCode, request.getOtherInfo().getPgTrnType());
                 return;
             }
 
@@ -148,7 +145,6 @@ public class UnisusCallbackAsyncProcessor {
             SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
                     .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
 
-
             String baseTranxId = trnRefNo.startsWith("ORD") ? trnRefNo.substring(3) : trnRefNo;
 
             String txnId = commonMethods.buildTransactionId("TXN", baseTranxId);
@@ -169,7 +165,7 @@ public class UnisusCallbackAsyncProcessor {
             dto.setBaseTranxId(baseTranxId);
             dto.setAmount(txnAmt);
             dto.setConfirmAmount(txnAmt);
-            dto.setOperatorName(request.getOtherInfo().getPGTrnType());
+            dto.setOperatorName(request.getOtherInfo().getPgTrnType());
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);
             dto.setTransactionType(product.getTransactionType());
@@ -192,8 +188,8 @@ public class UnisusCallbackAsyncProcessor {
             log.info("---- [Callback] Processing complete for Order ID: {} | Status: {}", trnRefNo, vendorStatus);
 
             // Call your internal transaction engine here
-            TransactionSchemeDetailsRequestDto transactionSchemeDetailsRequestDto = new TransactionSchemeDetailsRequestDto();
-            transactionServiceImpl.processTransaction(transactionSchemeDetailsRequestDto, vendorStatus);
+//            TransactionSchemeDetailsRequestDto transactionSchemeDetailsRequestDto = new TransactionSchemeDetailsRequestDto();
+//            transactionServiceImpl.processTransaction(transactionSchemeDetailsRequestDto, vendorStatus);
 
         } catch (Exception e) {
             log.error("Async processing failed for orderId: {}", trnRefNo, e);

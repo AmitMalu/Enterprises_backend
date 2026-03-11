@@ -11,6 +11,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+
 
 @SpringBootApplication(scanBasePackages = "com.im.admin")
 @EntityScan(basePackages = "com.im.admin.entities") // Ensure correct package
@@ -19,19 +22,19 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 public class AdminApplication extends SpringBootServletInitializer {
 
-	public static void main(String[] args) {
-		SpringApplication.run(AdminApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(AdminApplication.class, args);
+    }
 
-	@Override
-	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
-		// TODO Auto-generated method stub
-		return super.configure(builder);
-	}
+    @Override
+    protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
+        // TODO Auto-generated method stub
+        return super.configure(builder);
+    }
 
-	@Bean
-	public ModelMapper modelMapper() {
-		return new ModelMapper();
-	}
+    @Bean
+    public ModelMapper modelMapper() {
+        return new ModelMapper();
+    }
 
 }

@@ -28,7 +28,7 @@ public class AESFilter extends OncePerRequestFilter {
 	private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/images/","/webjars/**", "cache",
 			"/api/aes/generate-token", "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password","/auth/forgot-password",
 			"/api/aes/validate-token", "/api/pg/generate-token", "/api/pg/payment/callback","/auth/forget-verify-otp", "/api/payout/callback",
-			"/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials");
+			"/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials", "/api/pg/callback/unisus");
 
 	@Value("${app.security.base-secret}")
 	private String baseSecret;
