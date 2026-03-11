@@ -115,7 +115,7 @@ public class AepsTwoFactorServiceImpl implements AepsTwoFactorService {
 
             uid.setAdhaarNumber(req.getCardnumberORUID().getAdhaarNumber());
             uid.setIndicatorforUID("0");
-            uid.setNationalBankIdentificationNumber("");
+            uid.setNationalBankIdentificationNumber(req.getCardnumberORUID().getNationalBankIdentificationNumber());
 
             req.setCardnumberORUID(uid);
 

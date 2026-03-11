@@ -24,6 +24,7 @@ public class Aeps2FaRequest {
     private String merchantTranId;         // UNIQUE transaction reference
     private String mobileNumber;           // Customer mobile
     private String serviceType;            // AEPS or AP
+    private String nationalBankIdentificationNumber;
 
 //    private String wadh;
 

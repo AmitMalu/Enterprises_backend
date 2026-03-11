@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.im.admin.dto.*;
+import com.im.admin.orchestrator.DmtOrchestrator;
 import com.im.admin.request.RemitterUpdateRequest;
 import com.im.admin.entities.DmtRemitter;
 import com.im.admin.request.DmtOtpRequest;
@@ -18,27 +19,61 @@ import org.springframework.web.bind.annotation.*;
 public class DmtRemitterController {
 
     @Autowired
+    private DmtOrchestrator dmtOrchestrator;
+
+    @Autowired
     private  RemitterService remitterService;
+
+//    @PostMapping("/check")
+//    public ResponseEntity<CommonResponse<RemitterQueryResponse>> checkAndProcess(
+//            @RequestBody RemitterQueryRequest request) throws Exception  {
+//
+//        CommonResponse<RemitterQueryResponse> response = remitterService.checkRemitter(request.getMobile(),request.getSubProductId());
+//        return ResponseEntity.status(response.getStatusCode()).body(response);
+//    }
+
+//    dmtOrchestrator
 
     @PostMapping("/check")
     public ResponseEntity<CommonResponse<RemitterQueryResponse>> checkAndProcess(
-            @RequestBody RemitterQueryRequest request) throws Exception  {
+            @RequestBody RemitterQueryRequest request) throws Exception {
 
-        CommonResponse<RemitterQueryResponse> response = remitterService.checkRemitter(request.getMobile(),request.getSubProductId());
+        CommonResponse<RemitterQueryResponse> response =
+                dmtOrchestrator.checkRemitter(
+                        request.getMobile(),
+                        request.getSubProductId()
+                );
+
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
+
+//    @PostMapping("/register")
+//    public ResponseEntity<CommonResponse<RemitterRegisterResponse>> registerRemitter(
+//            @RequestBody RemitterRegisterRequest request) {
+//        CommonResponse<RemitterRegisterResponse> response =
+//                (CommonResponse<RemitterRegisterResponse>) remitterService.registerRemitter(request);
+//        return ResponseEntity.status(response.getStatusCode()).body(response);
+//    }
 
     @PostMapping("/register")
     public ResponseEntity<CommonResponse<RemitterRegisterResponse>> registerRemitter(
             @RequestBody RemitterRegisterRequest request) {
+
         CommonResponse<RemitterRegisterResponse> response =
-                (CommonResponse<RemitterRegisterResponse>) remitterService.registerRemitter(request);
+                dmtOrchestrator.registerRemitter(request);
+
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
+//    @PostMapping("/ekyc")
+//    public ResponseEntity<CommonResponse<Object>> doEkyc(@RequestBody RemitterEkycRequest request) {
+//        CommonResponse<Object> response = remitterService.doEkyc(request);
+//        return ResponseEntity.status(response.getStatusCode()).body(response);
+//    }
+
     @PostMapping("/ekyc")
     public ResponseEntity<CommonResponse<Object>> doEkyc(@RequestBody RemitterEkycRequest request) {
-        CommonResponse<Object> response = remitterService.doEkyc(request);
+        CommonResponse<Object> response = dmtOrchestrator.doEkyc(request);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 

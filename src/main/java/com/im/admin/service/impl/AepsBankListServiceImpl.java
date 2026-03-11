@@ -13,8 +13,8 @@ public class AepsBankListServiceImpl implements AepsBankListService {
     private RestTemplate restTemplate;
 
     private static final String BANK_API =
-            "https://fingpayap.tapits.in/fpaepsservice/api/bankdata/bank/details";
-//            "https://fingpayap.tapits.in/fpaepsservice/api/bankdata/bank/adhaarpay";
+//            "https://fingpayap.tapits.in/fpaepsservice/api/bankdata/bank/details";
+            "https://fingpayap.tapits.in/fpaepsservice/api/bankdata/bank/aadharpay";
 
     @Override
     public FingpayBankApiResponse getFullBankList() {

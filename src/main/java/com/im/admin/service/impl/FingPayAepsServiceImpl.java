@@ -90,7 +90,7 @@ public class FingPayAepsServiceImpl implements AepsVendorService {
             Map<String, Object> cardMap = new HashMap<>();
             cardMap.put("adhaarNumber", req.getCardnumberORUID().getAdhaarNumber());
             cardMap.put("indicatorforUID", 0);
-            cardMap.put("nationalBankIdentificationNumber", 607153);
+            cardMap.put("nationalBankIdentificationNumber", req.getNationalBankIdentificationNumber());
 //            cardMap.put(
 //                    "nationalBankIdentificationNumber",
 //                    req.getCardnumberORUID().getNationalBankIdentificationNumber()

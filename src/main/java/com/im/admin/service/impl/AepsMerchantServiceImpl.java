@@ -186,7 +186,7 @@ public class AepsMerchantServiceImpl implements AepsMerchantService {
             if (r.getOutletAddress() != null) {
                 mkyc.put("shopAddress", ensureMinLen(safeString(r.getOutletAddress().getAddress(), "Highway Road Market"), 5, "Shop"));
                 mkyc.put("shopCity", safeString(r.getOutletAddress().getCity(), "Navi Mumbai"));
-                mkyc.put("shopDistrict", "Hyderabad");
+                mkyc.put("shopDistrict", safeString(r.getOutletAddress().getCity(), "Mumbai"));
                 mkyc.put("shopState", 15);
                 mkyc.put("shopPincode", safeString(r.getOutletAddress().getZipCode(), "411001"));
             } else {

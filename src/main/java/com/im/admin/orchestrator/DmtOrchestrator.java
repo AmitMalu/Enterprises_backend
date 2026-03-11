@@ -2,21 +2,15 @@ package com.im.admin.orchestrator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
-import com.im.admin.dto.AbstractWalletAmountTable;
-import com.im.admin.dto.DmtResponseDto;
-import com.im.admin.dto.RemitterTransactionResponse;
-import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.DmtResponseMapper;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
-import com.im.admin.request.PennyDropRequest;
-import com.im.admin.request.SendDmtRequest;
-import com.im.admin.response.CommonResponse;
-import com.im.admin.response.PaysprintPennyDropResponse;
-import com.im.admin.response.PaysprintSendOtpResponse;
+import com.im.admin.request.*;
+import com.im.admin.response.*;
 import com.im.admin.service.DmtVendorService;
 import com.im.admin.service.impl.PaysprintDmtServiceImpl;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
@@ -26,9 +20,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -110,68 +106,7 @@ public class DmtOrchestrator {
 
     //  STEP 1: Send OTP
     public CommonResponse<PaysprintSendOtpResponse> sendDmtOtp(SendDmtRequest req) {
-        LocalDateTime requestTime = LocalDateTime.now();
-        String requestJson = null;
-        String responseJson = null;
-        String vendorId = null;
-
-        try {
-            VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
-            Vendors vendor = CommonMethods.getVendors(routing);
-            vendorId = vendor.getId();
-            VendorCredentials credentials = vendorCredentialsRepository
-                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                    .orElseThrow(() -> new RuntimeException("Vendor credentials not found"));
-
-            // Fetch beneficiary details
-            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(
-                    Long.valueOf(req.getBeneId())
-            );
-
-            if (beneficiary == null) {
-                return CommonResponse.error(400, "Beneficiary not found");
-            }
-
-            //  Fetch retailer details
-            Retailer retailer = retailerRepository.findByRetailerId(req.getRetailerId())
-                    .orElseThrow(() -> new RuntimeException("Retailer not found"));
-
-            //  Set beneficiary data into req
-            req.setDob(beneficiary.getDob());
-            req.setAddress(beneficiary.getAddress());
-            req.setPincode(beneficiary.getPincode());
-            req.setGstState(beneficiary.getGst_state());
-
-            //  Set retailer lat/long into req
-            req.setLat(retailer.getLatitude());
-            req.setLng(retailer.getLongitude());
-
-
-            //  Generate referenceId (20 chars)
-            String refId = generateReferenceId();
-            req.setReferenceId(refId);
-
-            DmtVendorService vendorService = vendorFactory.getVendor(vendor.getVendorName());
-            PaysprintSendOtpResponse otpResponse = vendorService.sendOtp(req, credentials);
-
-            otpResponse.setReferenceId(refId);
-
-
-            return CommonResponse.success(otpResponse, otpResponse.getMessage());
-        } catch (Exception ex) {
-
-            log.error(
-                    "[DMT SEND OTP] Exception | mobile={}, beneId={}",
-                    req.getMobile(),
-                    req.getBeneId(),
-                    ex
-            );
-
-            return CommonResponse.error(
-                    400,
-                    ex.getMessage()
-            );
-        }
+        return null;
     }
 
     @Transactional
@@ -598,7 +533,809 @@ public class DmtOrchestrator {
             throw new RuntimeException("AES encryption error", e);
         }
     }
+
+    public CommonResponse<RemitterQueryResponse> checkRemitter(
+            String mobile,
+            String subProductId) throws Exception {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+        try {
+
+            // ===== STEP 1 Vendor Routing =====
+            VendorRouting vendorRouting =
+                    vendorRoutingRepository.findBySubProductId(subProductId);
+
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            vendorId = vendor.getId();
+
+            VendorCredentials credentials =
+                    vendorCredentialsRepository
+                            .findByVendorIdAndProductId(
+                                    vendor.getId(),
+                                    vendor.getProduct().getId())
+                            .orElseThrow(() ->
+                                    new RuntimeException("No credentials found for selected vendor"));
+
+            // ===== STEP 2 LOCAL DB CHECK =====
+            Optional<DmtRemitter> exist =
+                    remitterRepository.findByMobile(mobile);
+
+            if (exist.isPresent() &&
+                    "REGISTERED".equals(exist.get().getStatus())) {
+
+                DmtRemitter remitter = exist.get();
+
+                RemitterQueryResponse res = new RemitterQueryResponse();
+                res.setStatus(true);
+                res.setResponse_code(1);
+                res.setMessage("Remitter account details fetched.!");
+
+                RemitterQueryResponse.DataObj data =
+                        new RemitterQueryResponse.DataObj();
+
+                data.setMobile(remitter.getMobile());
+                data.setLimit(remitter.getLimitAmount() != null
+                        ? remitter.getLimitAmount() : 0.00);
+
+                res.setData(data);
+
+                return CommonResponse.success(
+                        res,
+                        "Remitter already registered and active"
+                );
+            }
+
+            // ===== STEP 3 CALL VENDOR SERVICE =====
+
+            Map<String, Object> reqBody = Map.of("mobile", mobile);
+            requestJson = objectMapper.writeValueAsString(reqBody);
+
+            DmtVendorService vendorService =
+                    vendorFactory.getVendor(vendor.getVendorName());
+
+            RemitterQueryResponse res =
+                    vendorService.checkRemitter(mobile, credentials);
+
+            responseJson = objectMapper.writeValueAsString(res);
+
+            // ===== SUCCESS VENDOR LOG =====
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+            int code = res.getResponse_code();
+
+            // ===== STEP 4 SAME SWITCH LOGIC =====
+
+            switch (code) {
+
+                case 1:
+                    saveRemitter(res, vendor);
+                    return CommonResponse.success(
+                            res,
+                            "Remitter exists. You can proceed"  //0
+                    );
+
+                case 2:
+                    return CommonResponse.success(
+                            res,
+                            "EKYC_REQUIRED"
+                    );
+
+                case 3:
+                    return CommonResponse.success(
+                            res,
+                            "OTP sent. Please register remitter."
+                    );
+
+                default:
+                    return CommonResponse.handleErrors(
+                            res.getMessage()
+                    );
+            }
+
+        } catch (Exception ex) {
+
+            // ===== FAILURE VENDOR LOG =====
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
+            log.error("[CHECK REMITTER] Exception | mobile={}", mobile, ex);
+            throw ex;
+        }
     }
+
+
+    private void saveRemitter(RemitterQueryResponse res,Vendors vendor) {
+
+        String mobile = res.getData().getMobile();
+
+        Optional<DmtRemitter> existing =
+                remitterRepository.findByMobile(mobile);
+
+        if (existing.isPresent()) {
+            // Already exists → just ensure status
+            DmtRemitter rem = existing.get();
+            rem.setStatus("REGISTERED");
+            rem.setVendor(vendor);
+            remitterRepository.save(rem);
+            return;
+        }
+
+        // First time insert
+        DmtRemitter en = new DmtRemitter();
+        en.setMobile(mobile);
+        en.setStatus("REGISTERED");
+        en.setCreatedAt(LocalDateTime.now());
+        en.setVendor(vendor);
+        en.setLimitAmount(res.getData().getLimit());
+
+        remitterRepository.save(en);
+    }
+
+    public CommonResponse<RemitterRegisterResponse> registerRemitter(
+            RemitterRegisterRequest req) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+        try {
+
+            // STEP 1 Vendor Routing
+            VendorRouting vendorRouting =
+                    vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            vendorId = vendor.getId();
+
+            VendorCredentials credentials =
+                    vendorCredentialsRepository
+                            .findByVendorIdAndProductId(
+                                    vendor.getId(),
+                                    vendor.getProduct().getId())
+                            .orElseThrow(() -> new RuntimeException("No credentials found"));
+
+            requestJson = objectMapper.writeValueAsString(req);
+
+            // STEP 2 Vendor Call
+            DmtVendorService vendorService =
+                    vendorFactory.getVendor(vendor.getVendorName());
+
+            RemitterRegisterResponse resp =
+                    vendorService.registerRemitter(req, credentials);
+
+            responseJson = objectMapper.writeValueAsString(resp);
+
+            // SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+            // STEP 3 Update DB
+            if (resp != null && resp.getResponse_code() == 1) {
+
+                DmtRemitter rem = remitterRepository
+                        .findByMobile(req.getMobile())
+                        .orElse(new DmtRemitter());
+
+                rem.setMobile(req.getMobile());
+                rem.setVendor(vendor);
+                rem.setStatus("REGISTERED");
+                rem.setEkycId(req.getEkyc_id());
+                rem.setStateResp(req.getStateresp());
+                rem.setLimitAmount(resp.getData().getLimit());
+
+                remitterRepository.save(rem);
+            }
+
+            return CommonResponse.success(resp, resp.getMessage());
+
+        } catch (Exception ex) {
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
+            log.error("[REGISTER REMITTER] Exception | mobile={}",
+                    req.getMobile(), ex);
+
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public CommonResponse<Object> doEkyc(RemitterEkycRequest request) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+        try {
+
+            // STEP 1 Vendor Routing
+            VendorRouting vendorRouting =
+                    vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            vendorId = vendor.getId();
+
+            VendorCredentials credentials =
+                    vendorCredentialsRepository
+                            .findByVendorIdAndProductId(
+                                    vendor.getId(),
+                                    vendor.getProduct().getId())
+                            .orElseThrow(() -> new RuntimeException("No credentials found"));
+
+            requestJson = objectMapper.writeValueAsString(request);
+
+            // STEP 2 Vendor Call
+            DmtVendorService vendorService =
+                    vendorFactory.getVendor(vendor.getVendorName());
+
+            Map responseBody =
+                    vendorService.doEkyc(request, credentials);
+
+            responseJson = objectMapper.writeValueAsString(responseBody);
+
+            // SUCCESS LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+            int responseCode = (int) responseBody.get("response_code");
+
+            // STEP 3 Save DB
+            if (responseCode == 1) {
+
+                Map data = (Map) responseBody.get("data");
+
+                String mobile = (String) data.get("mobile");
+
+                Optional<DmtRemitter> existing =
+                        remitterRepository.findByMobile(mobile);
+
+                if (existing.isPresent()) {
+                    return CommonResponse.success(
+                            responseBody,
+                            "E-KYC already done for this mobile"
+                    );
+                }
+
+                DmtRemitter rem = new DmtRemitter();
+
+                rem.setMobile(mobile);
+                rem.setEkycId((String) data.get("ekyc_id"));
+                rem.setStateResp((String) data.get("stateresp"));
+                rem.setStatus("PENDING");
+                rem.setCreatedAt(LocalDateTime.now());
+                rem.setName(request.getName());
+                rem.setVendor(vendor);
+                rem.setAadhaar(request.getAadhaarNumber());
+
+                remitterRepository.save(rem);
+            }
+
+            return CommonResponse.success(responseBody, "E-KYC API Response");
+
+        } catch (Exception ex) {
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
+            log.error("[DO EKYC] Exception | mobile={}",
+                    request.getMobile(), ex);
+
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public CommonResponse<BeneficiaryRegisterResponse> registerBeneficiary(
+            BeneficiaryRegisterRequest req) throws Exception {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+        try {
+
+            // STEP 1 Vendor Routing
+            VendorRouting vendorRouting =
+                    vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            vendorId = vendor.getId();
+
+            VendorCredentials credentials =
+                    vendorCredentialsRepository
+                            .findByVendorIdAndProductId(
+                                    vendor.getId(),
+                                    vendor.getProduct().getId())
+                            .orElseThrow(() -> new RuntimeException("No credentials found"));
+
+            requestJson = objectMapper.writeValueAsString(req);
+
+            // STEP 2 Vendor Call
+            DmtVendorService vendorService =
+                    vendorFactory.getVendor(vendor.getVendorName());
+
+            BeneficiaryRegisterResponse resp =
+                    vendorService.registerBeneficiary(req, credentials);
+
+            responseJson = objectMapper.writeValueAsString(resp);
+
+            // SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+            // STEP 3 Save DB
+            if (resp != null && resp.getResponse_code() == 1) {
+
+                DmtRemitter dmtRemitter = remitterRepository
+                        .findByMobile(req.getMobile())
+                        .orElseThrow(() ->
+                                new RuntimeException("Remitter not found"));
+
+                Optional<DmtBeneficiary> existing =
+                        beneficiaryRepository.findByRemitterAndBeneId(
+                                dmtRemitter,
+                                resp.getData().getBene_id());
+
+                if (existing.isPresent()) {
+
+                    return CommonResponse.success(
+                            resp,
+                            "Beneficiary already registered"
+                    );
+                }
+
+                DmtBeneficiary bene = new DmtBeneficiary();
+
+                bene.setRemitter(dmtRemitter);
+                bene.setVendor(vendor);
+                bene.setBeneId(resp.getData().getBene_id());
+                bene.setName(req.getBenename());
+                bene.setBankId(req.getBankid());
+                bene.setBankName(req.getBankName());
+                bene.setAccountNo(req.getAccno());
+                bene.setIfscCode(req.getIfsccode());
+                bene.setVerified(req.getVerified());
+                bene.setDob(req.getDob());
+                bene.setAddress(req.getAddress());
+                bene.setPincode(req.getPincode());
+                bene.setGst_state(req.getGst_state());
+                bene.setStatus("REGISTERED");
+
+                beneficiaryRepository.save(bene);
+            }
+
+            return CommonResponse.success(resp,
+                    resp != null ? resp.getMessage() : "Registration failed");
+
+        } catch (Exception ex) {
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
+            log.error("[REGISTER BENEFICIARY] Exception | mobile={}",
+                    req.getMobile(), ex);
+
+            throw ex;
+        }
+    }
+
+    public CommonResponse<DmtBeneficiaryDeleteResponse> deleteBeneficiary(
+            DmtBeneficiaryDeleteRequest req) throws Exception {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+        try {
+
+            // STEP 1 Vendor Routing
+            VendorRouting vendorRouting =
+                    vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            vendorId = vendor.getId();
+
+            VendorCredentials credentials =
+                    vendorCredentialsRepository
+                            .findByVendorIdAndProductId(
+                                    vendor.getId(),
+                                    vendor.getProduct().getId())
+                            .orElseThrow(() -> new RuntimeException("No credentials found"));
+
+            requestJson = objectMapper.writeValueAsString(req);
+
+            // STEP 2 Vendor Call
+            DmtVendorService vendorService =
+                    vendorFactory.getVendor(vendor.getVendorName());
+
+            DmtBeneficiaryDeleteResponse vendorResponse =
+                    vendorService.deleteBeneficiary(req, credentials);
+
+            responseJson = objectMapper.writeValueAsString(vendorResponse);
+
+            // SUCCESS VENDOR LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+            // STEP 3 Update Local DB
+            if (vendorResponse != null && vendorResponse.getResponse_code() == 1) {
+
+                DmtBeneficiary bene =
+                        beneficiaryRepository.findByBeneId(req.getBene_id());
+
+                if (bene != null) {
+                    beneficiaryRepository.delete(bene);
+                }
+            }
+
+            return CommonResponse.success(
+                    vendorResponse,
+                    vendorResponse != null
+                            ? vendorResponse.getMessage()
+                            : "No response from vendor"
+            );
+
+        } catch (Exception ex) {
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
+            log.error("[DELETE BENEFICIARY] Exception | beneId={}",
+                    req.getBene_id(), ex);
+
+            throw ex;
+        }
+    }
+
+
+    public CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>> fetchBeneficiary(
+            DmtBeneficiaryFetchRequest req, int page, int size) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+        try {
+
+            Optional<DmtRemitter> optionalRemitter =
+                    remitterRepository.findByMobile(req.getMobile());
+
+            if (optionalRemitter.isEmpty()) {
+                return CommonResponse.handleErrors("Remitter not found");
+            }
+
+            DmtRemitter remitter = optionalRemitter.get();
+
+            // =============================
+            // STEP 1 → Fetch Local DB
+            // =============================
+            List<DmtBeneficiary> localList =
+                    beneficiaryRepository.findByRemitterOrderByIdDesc(remitter);
+
+            if (!localList.isEmpty()) {
+
+                List<DmtBeneficiaryFetchResponse.BeneficiaryData> dtoList =
+                        localList.stream().map(this::convertToDto).toList();
+
+                List<DmtBeneficiaryFetchResponse.BeneficiaryData> filteredList =
+                        applyFilters(dtoList, req);
+
+                int start = (int) PageRequest.of(page, size).getOffset();
+                int end = Math.min(start + size, filteredList.size());
+
+                List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedData =
+                        filteredList.subList(start, end);
+
+                Page<DmtBeneficiaryFetchResponse.BeneficiaryData> pageResponse =
+                        new PageImpl<>(pagedData, PageRequest.of(page, size), filteredList.size());
+
+                return CommonResponse.success(pageResponse, "Beneficiaries fetched");
+            }
+
+            // =============================
+            // STEP 2 → Vendor Routing
+            // =============================
+            VendorRouting vendorRouting =
+                    vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            vendorId = vendor.getId();
+
+            VendorCredentials credentials =
+                    vendorCredentialsRepository
+                            .findByVendorIdAndProductId(
+                                    vendor.getId(),
+                                    vendor.getProduct().getId())
+                            .orElseThrow(() -> new RuntimeException("No credentials found"));
+
+            requestJson = objectMapper.writeValueAsString(req);
+
+            // =============================
+            // STEP 3 → Vendor API Call
+            // =============================
+            DmtVendorService vendorService =
+                    vendorFactory.getVendor(vendor.getVendorName());
+
+            DmtBeneficiaryFetchResponse resp =
+                    vendorService.fetchBeneficiary(req, credentials);
+
+            responseJson = objectMapper.writeValueAsString(resp);
+
+            // SUCCESS LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+            if (resp == null) {
+                return CommonResponse.handleErrors("No response from vendor");
+            }
+
+            // =============================
+            // STEP 4 → Pagination
+            // =============================
+            if (resp.getResponse_code() == 1 && resp.getData() != null) {
+
+                List<DmtBeneficiaryFetchResponse.BeneficiaryData> beneficiaries =
+                        resp.getData();
+
+                List<DmtBeneficiaryFetchResponse.BeneficiaryData> filteredList =
+                        applyFilters(beneficiaries, req);
+
+                int start = (int) PageRequest.of(page, size).getOffset();
+                int end = Math.min(start + size, filteredList.size());
+
+                List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedList =
+                        filteredList.subList(start, end);
+
+                Page<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedResponse =
+                        new PageImpl<>(pagedList, PageRequest.of(page, size), filteredList.size());
+
+                return CommonResponse.success(
+                        pagedResponse,
+                        "Beneficiaries fetched successfully"
+                );
+
+            } else {
+                return CommonResponse.handleErrors(resp.getMessage());
+            }
+
+        } catch (Exception ex) {
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
+            log.error("[FETCH BENEFICIARY] Exception | mobile={}",
+                    req.getMobile(), ex);
+
+            return CommonResponse.handleErrors(
+                    "Error fetching beneficiary list: " + ex.getMessage()
+            );
+        }
+    }
+
+    private DmtBeneficiaryFetchResponse.BeneficiaryData convertToDto(DmtBeneficiary b) {
+
+        DmtBeneficiaryFetchResponse.BeneficiaryData dto =
+                new DmtBeneficiaryFetchResponse.BeneficiaryData();
+
+        dto.setBene_id(String.valueOf(b.getBeneId()));
+        dto.setBankid(b.getBankId());
+        dto.setBankname(b.getBankName());
+        dto.setName(b.getName());
+        dto.setAccno(b.getAccountNo());
+        dto.setIfsc(b.getIfscCode());
+        dto.setVerified(b.getVerified());
+        dto.setBanktype(null); // if not available in DB
+        dto.setPaytm(false);   // if not available in DB
+
+        return dto;
+    }
+
+    private List<DmtBeneficiaryFetchResponse.BeneficiaryData> applyFilters(
+            List<DmtBeneficiaryFetchResponse.BeneficiaryData> list,
+            DmtBeneficiaryFetchRequest req) {
+
+        return list.stream()
+                .filter(b -> req.getBeneId() == null
+                        || b.getBene_id().equals(req.getBeneId()))
+
+                .filter(b -> req.getBankid() == null
+                        || b.getBankid().equals(req.getBankid()))
+
+                .filter(b -> req.getBankname() == null
+                        || b.getBankname().toLowerCase()
+                        .contains(req.getBankname().toLowerCase()))
+
+                .filter(b -> req.getName() == null
+                        || b.getName().toLowerCase()
+                        .contains(req.getName().toLowerCase()))
+
+                .filter(b -> req.getAccno() == null
+                        || b.getAccno().equals(req.getAccno()))
+
+                .filter(b -> req.getIfsc() == null
+                        || b.getIfsc().equalsIgnoreCase(req.getIfsc()))
+
+                .filter(b -> req.getVerified() == null
+                        || b.getVerified().equals(req.getVerified()))
+
+                .filter(b -> req.getPaytm() == null
+                        || b.isPaytm() == req.getPaytm())
+
+                .toList();
+    }
+
+
+    public CommonResponse<DmtBeneficiaryFetchByBeneIdResponse> fetchBeneficiaryByBeneId(
+            DmtBeneficiaryFetchByBeneIdRequest req) {
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+        try {
+
+            // STEP 1 Vendor Routing
+            VendorRouting vendorRouting =
+                    vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            vendorId = vendor.getId();
+
+            VendorCredentials credentials =
+                    vendorCredentialsRepository
+                            .findByVendorIdAndProductId(
+                                    vendor.getId(),
+                                    vendor.getProduct().getId())
+                            .orElseThrow(() -> new RuntimeException("No credentials found"));
+
+            requestJson = objectMapper.writeValueAsString(req);
+
+            // STEP 2 Vendor Call
+            DmtVendorService vendorService =
+                    vendorFactory.getVendor(vendor.getVendorName());
+
+            DmtBeneficiaryFetchByBeneIdResponse resp =
+                    vendorService.fetchBeneficiaryByBeneId(req, credentials);
+
+            responseJson = objectMapper.writeValueAsString(resp);
+
+            // SUCCESS LOG
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
+
+            if (resp == null) {
+                return CommonResponse.handleErrors("No response from vendor");
+            }
+
+            if (resp.getResponse_code() == 1) {
+                return CommonResponse.success(resp, "Beneficiary fetched successfully");
+            } else {
+                return CommonResponse.handleErrors(resp.getMessage());
+            }
+
+        } catch (Exception ex) {
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendorId,
+                    LocalDateTime.now(),
+                    null,
+                    ex.getMessage()
+            );
+
+            log.error(
+                    "[FETCH BENEFICIARY BY BENE ID] Exception | mobile={}, beneId={}",
+                    req.getMobile(),
+                    req.getBeneid(),
+                    ex
+            );
+
+            return CommonResponse.handleErrors(
+                    "Error fetching beneficiary details: " + ex.getMessage()
+            );
+        }
+    }
+
+//    public CommonResponse<InstantpayMerchantSignupResponse> signupMinKyc(InstantpayMerchantSignupRequest request) {
+//    }
+
+}
 
 
 

@@ -3,20 +3,15 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
-import com.im.admin.dto.RemitterTransactionResponse;
-import com.im.admin.dto.SendOtpRequest;
+import com.im.admin.dto.*;
 import com.im.admin.entities.DmtBankList;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.orchestrator.DmtOrchestrator;
 import com.im.admin.repositories.DmtBankListRepository;
-import com.im.admin.request.PennyDropRequest;
-import com.im.admin.request.SendDmtRequest;
-import com.im.admin.response.CommonResponse;
-import com.im.admin.response.PaysprintPennyDropResponse;
-import com.im.admin.response.PaysprintSendOtpResponse;
-import com.im.admin.response.TransactionRequest;
+import com.im.admin.request.*;
+import com.im.admin.response.*;
 import com.im.admin.service.DmtVendorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +35,7 @@ import java.time.Instant;
 @Service
 //@RequiredArgsConstructor
 public class PaysprintDmtServiceImpl implements DmtVendorService {
+
 
     @Autowired
     private RestTemplate restTemplate;
@@ -410,4 +406,203 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
         return dmtBankListRepository.findAll();
     }
 
+    @Override
+    public RemitterQueryResponse checkRemitter(
+            String mobile,
+            VendorCredentials credentials) throws Exception {
+
+        Map<String, Object> reqBody = Map.of("mobile", mobile);
+
+        String token = generateJwtToken();
+
+        HttpHeaders headers = getHeaders(credentials, token);
+
+        HttpEntity<Map<String, Object>> entity =
+                new HttpEntity<>(reqBody, headers);
+
+        ResponseEntity<RemitterQueryResponse> response =
+                restTemplate.exchange(
+                        credentials.getBaseUrlProd()
+                                + "/api/v1/service/dmt/kyc/remitter/queryremitter",
+                        HttpMethod.POST,
+                        entity,
+                        RemitterQueryResponse.class
+                );
+
+        return response.getBody();
+    }
+
+
+    @Override
+    public RemitterRegisterResponse registerRemitter(
+            RemitterRegisterRequest req,
+            VendorCredentials credentials) throws Exception {
+
+        String token = generateJwtToken();
+
+        HttpHeaders headers = getHeaders(credentials, token);
+
+        HttpEntity<RemitterRegisterRequest> entity =
+                new HttpEntity<>(req, headers);
+
+        ResponseEntity<RemitterRegisterResponse> response =
+                restTemplate.exchange(
+                        credentials.getBaseUrlProd()
+                                + "/api/v1/service/dmt/kyc/remitter/registerremitter",
+                        HttpMethod.POST,
+                        entity,
+                        RemitterRegisterResponse.class
+                );
+
+        return response.getBody();
+    }
+
+    @Override
+    public Map doEkyc(
+            RemitterEkycRequest request,
+            VendorCredentials credentials) throws Exception {
+
+        String token = generateJwtToken();
+
+        Map<String, Object> body = new HashMap<>();
+
+        body.put("mobile", request.getMobile());
+        body.put("lat", "28.123456");
+        body.put("long", "78.123456");
+        body.put("aadhaar_number", request.getAadhaarNumber());
+        body.put("data", request.getData());
+        body.put("is_iris", "2");
+
+        HttpHeaders headers = new HttpHeaders();
+
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        headers.set("Token", token);
+        headers.set("Authorisedkey", credentials.getSaltKey());
+
+        HttpEntity<Map<String, Object>> entity =
+                new HttpEntity<>(body, headers);
+
+        ResponseEntity<Map> response =
+                restTemplate.exchange(
+                        credentials.getBaseUrlProd()
+                                + "/api/v1/service/dmt/kyc/remitter/queryremitter/kyc",
+                        HttpMethod.POST,
+                        entity,
+                        Map.class
+                );
+
+        return response.getBody();
+    }
+
+
+    @Override
+    public BeneficiaryRegisterResponse registerBeneficiary(
+            BeneficiaryRegisterRequest req,
+            VendorCredentials credentials) throws Exception {
+
+        String token = generateJwtToken();
+
+        HttpHeaders headers = getHeaders(credentials, token);
+
+        HttpEntity<BeneficiaryRegisterRequest> entity =
+                new HttpEntity<>(req, headers);
+
+        ResponseEntity<BeneficiaryRegisterResponse> response =
+                restTemplate.exchange(
+                        credentials.getBaseUrlProd()
+                                + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary",
+                        HttpMethod.POST,
+                        entity,
+                        BeneficiaryRegisterResponse.class
+                );
+
+        return response.getBody();
+    }
+
+    @Override
+    public DmtBeneficiaryDeleteResponse deleteBeneficiary(
+            DmtBeneficiaryDeleteRequest req,
+            VendorCredentials credentials) throws Exception {
+
+        String token = generateJwtToken();
+
+        HttpHeaders headers = new HttpHeaders();
+
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        headers.set("Token", token);
+        headers.set("Authorisedkey", credentials.getSaltKey());
+
+        HttpEntity<DmtBeneficiaryDeleteRequest> entity =
+                new HttpEntity<>(req, headers);
+
+        ResponseEntity<DmtBeneficiaryDeleteResponse> response =
+                restTemplate.exchange(
+                        credentials.getBaseUrlProd()
+                                + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/deletebeneficiary",
+                        HttpMethod.POST,
+                        entity,
+                        DmtBeneficiaryDeleteResponse.class
+                );
+
+        return response.getBody();
+    }
+
+
+    @Override
+    public DmtBeneficiaryFetchResponse fetchBeneficiary(
+            DmtBeneficiaryFetchRequest req,
+            VendorCredentials credentials) throws Exception {
+
+        String token = generateJwtToken();
+
+        Map<String, Object> reqBody = Map.of("mobile", req.getMobile());
+
+        HttpHeaders headers = getHeaders(credentials, token);
+
+        HttpEntity<Map<String, Object>> entity =
+                new HttpEntity<>(reqBody, headers);
+
+        ResponseEntity<DmtBeneficiaryFetchResponse> response =
+                restTemplate.exchange(
+                        credentials.getBaseUrlProd()
+                                + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiary",
+                        HttpMethod.POST,
+                        entity,
+                        DmtBeneficiaryFetchResponse.class
+                );
+
+        return response.getBody();
+    }
+
+    @Override
+    public DmtBeneficiaryFetchByBeneIdResponse fetchBeneficiaryByBeneId(
+            DmtBeneficiaryFetchByBeneIdRequest req,
+            VendorCredentials credentials) throws Exception {
+
+        String token = generateJwtToken();
+
+        Map<String, Object> reqBody = Map.of(
+                "mobile", req.getMobile(),
+                "beneid", req.getBeneid()
+        );
+
+        HttpHeaders headers = getHeaders(credentials, token);
+
+        HttpEntity<Map<String, Object>> entity =
+                new HttpEntity<>(reqBody, headers);
+
+        ResponseEntity<DmtBeneficiaryFetchByBeneIdResponse> response =
+                restTemplate.exchange(
+                        credentials.getBaseUrlProd()
+                                + "/api/v1/service/dmt/kyc/beneficiary/registerbeneficiary/fetchbeneficiarybybeneid",
+                        HttpMethod.POST,
+                        entity,
+                        DmtBeneficiaryFetchByBeneIdResponse.class
+                );
+
+        return response.getBody();
+    }
 }
+

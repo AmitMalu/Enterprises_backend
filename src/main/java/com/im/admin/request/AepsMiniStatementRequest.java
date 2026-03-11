@@ -31,6 +31,7 @@ public class AepsMiniStatementRequest {
     private String merchantLoginId;
 
     private String adhaarNumber;
+    private String nationalBankIdentificationNumber;
 
     private AepsMiniStatementRequest.CaptureResponse captureResponse;
     private AepsMiniStatementRequest.P2CardnumberORUID cardnumberORUID;
@@ -110,7 +111,7 @@ public class AepsMiniStatementRequest {
     public static class P2CardnumberORUID {
         private String adhaarNumber;                   // Aadhaar number (12 digits)
         private int indicatorforUID;                  // 0 for Aadhaar , 2 for VID
-        private String nationalBankIdentificationNumber = "607153";
+        private String nationalBankIdentificationNumber;
 //        private String virtualId;
     }
 }
