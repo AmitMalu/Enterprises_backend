@@ -21,5 +21,8 @@ public class SendPayoutRequest {
     private String subProductId;
     private String callbackurl;
     private String schemeCode;
+    private String channelType;
+    private String latitude;
+    private String longitude;
 
 }

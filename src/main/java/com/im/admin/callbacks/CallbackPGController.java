@@ -41,21 +41,6 @@ public class CallbackPGController {
 
         return ResponseEntity.ok(response);
     }
-//
-//    @PostMapping("/unisus")
-//    public ResponseEntity<String> unisusCallback(
-//            HttpServletRequest request) throws IOException {
-//
-//        log.info("Content-Type: {}", request.getContentType());
-//
-//        String body = request.getReader()
-//                .lines()
-//                .collect(Collectors.joining(System.lineSeparator()));
-//
-//        log.info("RAW BODY: {}", body);
-//
-//        return ResponseEntity.ok("OK");
-//    }
 
     @PostMapping("/unisus")
     public ResponseEntity<UnisusWebhookResponse> unisusCallback(

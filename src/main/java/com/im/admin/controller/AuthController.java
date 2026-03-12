@@ -95,6 +95,9 @@ public class AuthController {
     @Autowired
     private VendorRepository vendorRepository;
 
+    @Autowired
+    private SchemeRepository schemeRepository;
+
 
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
@@ -599,7 +602,7 @@ public class AuthController {
 //                break;
 
                 // Build product / subProduct list
-                List<SchemeAllocation> schemes =
+                List<SchemeAllocation> schemeAllocationList =
                         schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
 
                 // Fetch ALL products
@@ -617,10 +620,19 @@ public class AuthController {
                 }
 
                 // Now loop schemes only for subProducts
-                for (SchemeAllocation sa : schemes) {
+                for (SchemeAllocation sa : schemeAllocationList) {
 
                     if (sa.getSchemeCode() == null ||
                             sa.getSchemeCode().equalsIgnoreCase("No scheme assigned")) {
+                        continue;
+                    }
+
+                    // Check scheme exists in scheme table
+                    boolean schemeExists = schemeRepository.existsBySchemeCode(sa.getSchemeCode());
+
+                    if (!schemeExists) {
+                        log.warn("Skipping allocation because schemeCode {} does not exist in scheme table",
+                                sa.getSchemeCode());
                         continue;
                     }
 
@@ -674,7 +686,7 @@ public class AuthController {
                     productSubMap.get(productId).add(subProductMap);
                 }
 
-// Build final product list
+                // Build final product list
                 List<Map<String, Object>> productList = new ArrayList<>();
 
                 for (Map.Entry<String, List<Map<String, Object>>> entry : productSubMap.entrySet()) {

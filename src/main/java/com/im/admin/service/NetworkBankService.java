@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.im.admin.dto.BankListRequest;
 import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.NetworkBankMaster;
 import com.im.admin.request.NetworkBankMasterResponseDto;
@@ -17,8 +18,6 @@ import java.util.List;
 public interface NetworkBankService {
     NetworkBankMaster addBank(BankRequestDto bankRequestDto, MultipartFile logoFile) throws IOException;
 
-    
-
     NetworkBankMaster updateBank(Long id, BankRequestDto bankRequestDto, MultipartFile logoFile);
 
     NetworkBankMaster getBankById(Long id);
@@ -29,8 +28,8 @@ public interface NetworkBankService {
 
     Page<NetworkBankMaster> getAllBanks(Pageable pageable, String id, String bankCode, String bankName, String bankBranchName, String ifscCode, Boolean imps, Boolean neft, Boolean rtgs, Boolean isActive, String createdBy, String editedBy, Boolean isBlocked, LocalDate createdOn, LocalDate editedOn);
 
-
     List<NetworkBankMasterResponseDto> getAllNetworkBanks();
 
+    void saveBankList(BankListRequest request);
 
 }

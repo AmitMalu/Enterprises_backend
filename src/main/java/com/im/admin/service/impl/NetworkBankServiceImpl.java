@@ -1,6 +1,8 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.dto.BankListRequest;
 import com.im.admin.dto.BankRequestDto;
+import com.im.admin.entities.DmtBankList;
 import com.im.admin.entities.NetworkBankMaster;
 import com.im.admin.repositories.NetworkBankMasterRepository;
 import com.im.admin.request.NetworkBankMasterResponseDto;
@@ -163,12 +165,16 @@ public class NetworkBankServiceImpl implements NetworkBankService {
 
     @Override
     public BankInfoResponse getBankInfoByIfsc(String ifscCode) {
-        NetworkBankMaster bank = bankMasterRepository.findByIfscCodeIgnoreCase(ifscCode.trim())
+
+        String trimmedIfsc = ifscCode.trim();
+
+        NetworkBankMaster bank = bankMasterRepository
+                .findByIfscCodeIgnoreCase(trimmedIfsc)
+                .or(() -> bankMasterRepository.findByUnisusMIfcsCodeIgnoreCase(trimmedIfsc))
                 .orElseThrow(() -> new NoSuchElementException("No bank found with IFSC: " + ifscCode));
 
         return new BankInfoResponse(bank.getBankName(), bank.getBankBranchName());
     }
-
 
 
     @Override
@@ -184,7 +190,32 @@ public class NetworkBankServiceImpl implements NetworkBankService {
                 .toList();
     }
 
+
+    @Override
+    public void saveBankList(BankListRequest request) {
+
+        List<NetworkBankMaster> banks = request.getBankList()
+                .stream()
+                .map(dto -> {
+
+                    NetworkBankMaster bank = new NetworkBankMaster();
+
+                    bank.setUnisusBankId(Integer.parseInt(dto.getBankId()));
+                    bank.setBankCode(dto.getBankCode());
+                    bank.setBankName(dto.getBankName());
+                    bank.setUnisusMIfcsCode(dto.getMifscCode());
+
+                    bank.setImps("1".equals(dto.getImps()));
+                    bank.setNeft("1".equals(dto.getNeft()));
+                    bank.setIsActive("1".equals(dto.getStatus()));
+
+                    bank.setCreatedBy("SYSTEM");
+
+                    return bank;
+
+                }).toList();
+
+        bankMasterRepository.saveAll(banks);
+    }
+
 }
-
-
-
