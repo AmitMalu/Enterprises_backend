@@ -33,8 +33,9 @@ public class ChecksumExample {
     public static void main(String[] args) {
         try {
 
-            String data = "<NTDREQ><REQTYPE>GPB</REQTYPE></NTDREQ>";
-            String apiKey = "2zOShm31VWgnidAvQISxgJjIXXmadlNJac3";
+            //beneficiary verify request
+            String data = "<NTDREQ><REQTYPE>BAV</REQTYPE><REFNO>USP00038747843</REFNO><CSTNO>7506821018</CSTNO><CSTNM>Shubham Khopade</CSTNM><BANKID>100</BANKID><ACCNO>38371142066</ACCNO><IFSC>SBIN0000001</IFSC></NTDREQ>";
+            String apiKey = "l944exhoFiQNRht0Z4eDHdWsFnSouI4dOSH";
 
             String checksum = generateChecksum(data, apiKey);
 
