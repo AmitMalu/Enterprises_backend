@@ -37,15 +37,6 @@ public class AepsMerchantController {
         return aepsMerchantService.registerMerchantAndCall(req);
     }
 
-//    @PostMapping("/onboarding")
-//    public CommonResponse<AepsMerchantResponseDto> register(
-//            @RequestBody AepsMerchantRequestDto req) {
-//
-//        return aepsOrchestrator.registerMerchant(req);
-//    }
-
-
-
     @PostMapping("/check-status")
     public CommonResponse<AepsStatusDataDto> checkStatus(@RequestBody AepsCheckStatus req) {
         return aepsMerchantService.checkStatus(req);

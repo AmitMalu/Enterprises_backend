@@ -7,6 +7,7 @@ import com.im.admin.request.AepsTwoFaStatusDto;
 import com.im.admin.response.Aeps2FaResponseDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AepsTwoFactorService;
+import com.im.admin.service.impl.AepsTwoFactorOrchestrator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,12 +19,13 @@ public class AepsTwoFactorController {
     @Autowired
     private AepsTwoFactorService aepsTwoFactorService;
 
+    @Autowired
+    private AepsTwoFactorOrchestrator aepsTwoFactorOrchestrator;
+
     @PostMapping("/validate-aadhar")
     public ResponseEntity<CommonResponse<Aeps2FaResponseDto>> validateAadhar(@RequestBody Aeps2FaRequest req) {
         return aepsTwoFactorService.validateAadhar(req);
     }
-
-
 
     @PostMapping("/check-status")
     public ResponseEntity<CommonResponse<AepsTwoFaStatusDto>> check2FA(

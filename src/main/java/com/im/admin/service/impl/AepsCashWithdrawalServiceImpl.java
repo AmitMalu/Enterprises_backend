@@ -201,9 +201,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
 
             String txnId = buildTransactionId("TXN", baseTxnId);
 
-            // ================================
-            // STEP 8: SAVE LOG (ONLY IF SUCCESS)
-            // ================================
+
+            //  SAVE LOG (ONLY IF SUCCESS)
             if (responseBody != null &&
                     responseBody.isStatus() &&
                     responseBody.getData() != null &&
@@ -225,9 +224,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
                 cashWithdrawalRepository.save(logEntry);
             }
 
-            // ================================
-            // STEP 9: FETCH SCHEME RATE
-            // ================================
+
+            //  FETCH SCHEME RATE
             SchemeRate selectedScheme = schemeRateRepository
                     .findSchemeRateByCodeAndOperatorAndAmount(
                             req.getSchemeCode(),
@@ -237,9 +235,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
                             "No matching scheme rate found for amount: " + req.getTransactionAmount()
                     ));
 
-            // ================================
-            // STEP 10: BUILD DTO FOR TRANSACTION ENGINE
-            // ================================
+
+            //  BUILD DTO FOR TRANSACTION ENGINE
             TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();  //CW
             dto.setBaseTranxId(baseTxnId);
             dto.setAmount(req.getTransactionAmount().doubleValue());
@@ -260,10 +257,7 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
 
-            // ================================
-            // STEP 11: GET VENDOR STATUS
-            // ================================
-
+            // GET VENDOR STATUS
 
 //            AepsCashWithdrawalResponse.CWData data = responseBody.getData();
 
@@ -273,9 +267,9 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
                     data.getBankRRN()
             );
 
-            // ================================
-            // STEP 12: PROCESS TRANSACTION ENGINE
-            // ================================
+
+            //  PROCESS TRANSACTION ENGINE
+
             transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
 
 //            String txnId = buildTransactionId("TXN", baseTxnId);
@@ -285,9 +279,9 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             }
 
 
-            // ================================
-            // STEP 13: RETURN FINAL RESPONSE
-            // ================================
+
+            //  RETURN FINAL RESPONSE
+
             if ("SUCCESS".equalsIgnoreCase(vendorStatus)) {
                 return CommonResponse.success(responseBody, "Transaction Successful");
             } else if ("PENDING".equalsIgnoreCase(vendorStatus)) {

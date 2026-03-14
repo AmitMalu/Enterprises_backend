@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.im.admin.request.*;
 import com.im.admin.response.*;
 import com.im.admin.service.AepsEkycService;
+import com.im.admin.service.impl.AepsEkycOrchestrator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/aeps/ekyc")
 public class AepsEkycController {
 
+    @Autowired
+    private AepsEkycOrchestrator aepsEkycOrchestrator;
+
 
     @Autowired
     private AepsEkycService aepsEkycService;
@@ -22,7 +26,6 @@ public class AepsEkycController {
     public ResponseEntity<CommonResponse<AepsEkycResponseDto>> sendOtp(@RequestBody AepsSendOtpRequest req) {
         return aepsEkycService.sendOtp(req);
     }
-
 
     @PostMapping("/validate-otp")
     public ResponseEntity<AepsValidateOtpResponseDto> validateOtp(@RequestBody AepsValidateOtpRequest req) {
