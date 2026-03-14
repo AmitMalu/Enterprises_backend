@@ -51,4 +51,6 @@ public class AepsMerchantStatus {
     @JoinColumn(name = "vendor_id", nullable = false)
     private Vendors vendor;
 
+    @Column(name = "reference_key", columnDefinition = "TEXT")
+    private String referenceKey;
 }
