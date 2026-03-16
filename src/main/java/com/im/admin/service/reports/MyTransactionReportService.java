@@ -11,7 +11,8 @@ import java.io.IOException;
 
 public interface MyTransactionReportService {
 
-    CommonResponse<Page<MyTransactionReportResponse>> getReport(MyTransactionReportRequest request);
+    CommonResponse<Page<MyTransactionReportResponse>> getReport(MyTransactionReportRequest request,int page,
+                                                                int size);
 
     ByteArrayInputStream downloadExcel(MyTransactionReportRequest request) throws IOException;
 

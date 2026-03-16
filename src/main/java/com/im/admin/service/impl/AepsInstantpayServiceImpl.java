@@ -41,7 +41,6 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
     @Autowired
     private AepsOutletLoginLogRepository aepsOutletLoginLogRepository;
 
-
     @Autowired
     private ObjectMapper objectMapper;
     @Autowired

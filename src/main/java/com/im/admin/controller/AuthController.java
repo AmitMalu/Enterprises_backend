@@ -412,6 +412,8 @@ public class AuthController {
         responseMap.put("hierarchyId", user.getHierarchyId());
         responseMap.put("mobileNumber", user.getMobileNumber());
         responseMap.put("emailId", user.getEmailId());
+
+
 //        responseMap.put("logoUrl","https://www.instantmudra.net/apps/home/media/logos/logo-white.png");
 
         String hierarchyCode = user.getHierarchyCode();

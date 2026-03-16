@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Partner;
 import com.im.admin.entities.Retailer;
@@ -33,6 +34,10 @@ public class PartnerController {
     private PartnerService partnerService;
 
     @Autowired
+    private ObjectMapper objectMapper;
+
+
+    @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -58,10 +63,36 @@ public class PartnerController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+//    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+//    public ResponseEntity<Partner> updatePartner(
+//            @PathVariable String id,
+//            @RequestPart("data") String partnerJson,
+//            @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
+//            @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
+//            @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
+//            @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
+//            @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
+//    ) throws IOException {
+//
+//        Partner partner = JsonUtil.parseJson(partnerJson, Partner.class);
+//
+//        Partner updatedPartner = partnerService.updatePartner(
+//                id,
+//                partner,
+//                aadhaarCardFrontImage,
+//                aadhaarCardBackImage,
+//                panCardImage,
+//                shopImage,
+//                businessProofImage
+//        );
+//
+//        return ResponseEntity.ok(updatedPartner);
+//    }
+
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Partner> updatePartner(
+    public ResponseEntity<CommonResponse<PartnerResponseDTO>> updatePartner(
             @PathVariable String id,
-            @RequestPart("data") String partnerJson,
+            @RequestPart("data") PartnerResponseDTO dto,
             @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
             @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
             @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
@@ -69,7 +100,10 @@ public class PartnerController {
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
 
-        Partner partner = JsonUtil.parseJson(partnerJson, Partner.class);
+        log.info("API Call: updatePartner with ID: {} and data: {}", id, dto);
+
+        // DTO → Entity
+        Partner partner = objectMapper.convertValue(dto, Partner.class);
 
         Partner updatedPartner = partnerService.updatePartner(
                 id,
@@ -81,7 +115,20 @@ public class PartnerController {
                 businessProofImage
         );
 
-        return ResponseEntity.ok(updatedPartner);
+        PartnerResponseDTO responseDto;
+
+        try {
+            // Entity → DTO
+            responseDto = objectMapper.convertValue(updatedPartner, PartnerResponseDTO.class);
+        } catch (IllegalArgumentException ex) {
+            log.error("Error converting Partner entity to DTO for ID: {}", id, ex);
+            throw new RuntimeException("Failed to convert Partner entity to DTO");
+        }
+
+        CommonResponse<PartnerResponseDTO> response =
+                new CommonResponse<>(200, "Partner updated successfully", responseDto);
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping

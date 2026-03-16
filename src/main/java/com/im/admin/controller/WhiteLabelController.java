@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.dto.WhiteLabelDropdownDTO;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.WhiteLabels;
@@ -26,6 +27,9 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class WhiteLabelController {
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private WhiteLabelService whiteLabelService;
@@ -59,38 +63,50 @@ public class WhiteLabelController {
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         }
 
-        @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-        public ResponseEntity<WhiteLabels> updateWhiteLabel(
-                @PathVariable String id,
-                @RequestPart("data") String whiteLabelsJson,
-                @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
-                @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
-                @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
-                @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
-                @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
-        ) throws IOException {
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommonResponse<WhiteLabelResponseDTO>> updateWhiteLabel(
+            @PathVariable String id,
+            @RequestPart("data") WhiteLabelResponseDTO dto,
+            @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
+            @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
+            @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
+            @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
+            @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
+    ) throws IOException {
 
-            log.info("Received request to update WhiteLabel with ID: {}", id);
-            log.debug("Update payload: {}", whiteLabelsJson);
+        log.info("Received request to update WhiteLabel with ID: {}", id);
+        log.debug("Update DTO payload: {}", dto);
 
-            WhiteLabels whiteLabels = JsonUtil.parseJson(whiteLabelsJson, WhiteLabels.class);
+        // DTO → Entity
+        WhiteLabels whiteLabels = objectMapper.convertValue(dto, WhiteLabels.class);
 
-            log.debug("Parsed WhiteLabel object for update: {}", whiteLabels);
+        WhiteLabels updatedWhiteLabel = whiteLabelService.updateWhiteLabel(
+                id,
+                whiteLabels,
+                aadhaarCardFrontImage,
+                aadhaarCardBackImage,
+                panCardImage,
+                shopImage,
+                businessProofImage
+        );
 
-            WhiteLabels updatedDistributor = whiteLabelService.updateWhiteLabel(
-                    id,
-                    whiteLabels,
-                    aadhaarCardFrontImage,
-                    aadhaarCardBackImage,
-                    panCardImage,
-                    shopImage,
-                    businessProofImage
-            );
+        WhiteLabelResponseDTO responseDto;
 
-            log.info("WhiteLabel updated successfully for ID: {}", id);
-
-            return ResponseEntity.ok(updatedDistributor);
+        try {
+            // Entity → DTO
+            responseDto = objectMapper.convertValue(updatedWhiteLabel, WhiteLabelResponseDTO.class);
+        } catch (IllegalArgumentException ex) {
+            log.error("Error converting WhiteLabel entity to DTO for ID: {}", id, ex);
+            throw new RuntimeException("Failed to convert WhiteLabel entity to DTO");
         }
+
+        CommonResponse<WhiteLabelResponseDTO> response =
+                new CommonResponse<>(200, "WhiteLabel updated successfully", responseDto);
+
+        log.info("WhiteLabel updated successfully for ID: {}", id);
+
+        return ResponseEntity.ok(response);
+    }
 
         @GetMapping("/getAll")
         public ResponseEntity<List<WhiteLabels>> getAllWhiteLabels() {

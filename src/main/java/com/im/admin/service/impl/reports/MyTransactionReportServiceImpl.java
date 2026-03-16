@@ -61,11 +61,12 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
 
     @Override
     public CommonResponse<Page<MyTransactionReportResponse>> getReport(
-            MyTransactionReportRequest request) {
+            MyTransactionReportRequest request,int page,
+            int size) {
 
         Pageable pageable = PageRequest.of(
-                request.getPage(),
-                request.getSize(),
+                page,
+                size,
                 Sort.by("transactionDate").descending()
         );
 
@@ -162,10 +163,19 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             totalCount += (Long) walletData.get("totalCount");
         }
 
-        Page<MyTransactionReportResponse> page =
-                new PageImpl<>(allData, pageable, totalCount);
+//        Page<MyTransactionReportResponse> resultPage  =
+//                new PageImpl<>(allData, pageable, totalCount);
 
-        return new CommonResponse<>(200, "Report fetched successfully", page);
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), allData.size());
+
+        List<MyTransactionReportResponse> pagedData =
+                allData.subList(start, end);
+
+        Page<MyTransactionReportResponse> resultPage =
+                new PageImpl<>(pagedData, pageable, totalCount);
+
+        return new CommonResponse<>(200, "Report fetched successfully", resultPage );
     }
 
 
@@ -344,7 +354,7 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
 
     @Override
     public ByteArrayInputStream downloadExcel(MyTransactionReportRequest request) throws IOException {
-        List<MyTransactionReportResponse> data = getReport(request).getData().getContent();
+        List<MyTransactionReportResponse> data = getReport(request,request.getPage(),request.getSize()).getData().getContent();
 
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Transaction_Report");
@@ -377,7 +387,7 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
 
     @Override
     public ByteArrayInputStream downloadCsv(MyTransactionReportRequest request) throws IOException {
-        List<MyTransactionReportResponse> data = getReport(request).getData().getContent();
+        List<MyTransactionReportResponse> data = getReport(request, request.getPage(), request.getSize()).getData().getContent();
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out));

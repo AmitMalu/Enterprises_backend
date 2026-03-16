@@ -307,26 +307,26 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
                 return existingSuperDistributor;
             }
 
-            // Mobile validation
-            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
-            try {
-                phoneNumberValidationService.validatePhoneNumber(superDistributor.getMobileNumber());
-            } catch (IllegalArgumentException ex) {
-                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-            }
-
-            if (!errors.isEmpty()) {
-                log.warn("Validation failed while updating SuperDistributor with ID: {}, Errors: {}", id, errors);
-                throw new CustomValidationException(errors);
-            }
+//            // Mobile validation
+//            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+//            try {
+//                phoneNumberValidationService.validatePhoneNumber(superDistributor.getMobileNumber());
+//            } catch (IllegalArgumentException ex) {
+//                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+//            }
+//
+//            if (!errors.isEmpty()) {
+//                log.warn("Validation failed while updating SuperDistributor with ID: {}, Errors: {}", id, errors);
+//                throw new CustomValidationException(errors);
+//            }
 
             // Update fields selectively
             if (superDistributor.getTitle() != null)
                 existingSuperDistributor.setTitle(superDistributor.getTitle());
             if (superDistributor.getName() != null)
                 existingSuperDistributor.setName(superDistributor.getName());
-            if (superDistributor.getMobileNumber() != null)
-                existingSuperDistributor.setMobileNumber(superDistributor.getMobileNumber());
+//            if (superDistributor.getMobileNumber() != null)
+//                existingSuperDistributor.setMobileNumber(superDistributor.getMobileNumber());
             if (superDistributor.getEmailId() != null)
                 existingSuperDistributor.setEmailId(superDistributor.getEmailId());
             if (superDistributor.getDob() != null)

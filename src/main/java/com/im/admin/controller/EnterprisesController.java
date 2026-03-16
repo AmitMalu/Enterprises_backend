@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Enterprises;
 import com.im.admin.response.CommonResponse;
@@ -35,6 +36,9 @@ public class EnterprisesController {
     @Autowired
     private EnterprisesService enterprisesService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommonResponse<Enterprises>> saveEnterprise(
             @RequestPart("data") String enterprisesJson,
@@ -62,35 +66,41 @@ public class EnterprisesController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Enterprises> updateEnterprise(
-            @PathVariable String id,
-            @RequestPart("data") String enterprisesJson,
-            @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
-            @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
-            @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
-            @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
-            @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
-    ) throws IOException {
 
-        log.info("API Call: updateEnterprise with ID: {} and data: {}", id, enterprisesJson);
 
-        Enterprises enterprises = JsonUtil.parseJson(enterprisesJson, Enterprises.class);
+@PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public ResponseEntity<CommonResponse<EnterpriseResponseDTO>> updateEnterprise(
+        @PathVariable String id,
+        @RequestPart(value = "data") EnterpriseResponseDTO dto,
+        @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
+        @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
+        @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
+        @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
+        @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
+) throws IOException {
 
-        Enterprises updatedEnterprise = enterprisesService.updateEnterprise(
-                id,
-                enterprises,
-                aadhaarCardFrontImage,
-                aadhaarCardBackImage,
-                panCardImage,
-                shopImage,
-                businessProofImage
-        );
+    log.info("API Call: updateEnterprise with ID: {} and data: {}", id, dto);
 
-        log.info("Enterprise updated successfully with ID: {}", id);
+    Enterprises enterprise = objectMapper.convertValue(dto, Enterprises.class);
 
-        return ResponseEntity.ok(updatedEnterprise);
-    }
+    Enterprises updatedEnterprise = enterprisesService.updateEnterprise(
+            id,
+            enterprise,
+            aadhaarCardFrontImage,
+            aadhaarCardBackImage,
+            panCardImage,
+            shopImage,
+            businessProofImage
+    );
+
+    EnterpriseResponseDTO responseDto =
+            objectMapper.convertValue(updatedEnterprise, EnterpriseResponseDTO.class);
+
+    CommonResponse<EnterpriseResponseDTO> response =
+            new CommonResponse<>(200, "Enterprise updated successfully", responseDto);
+
+    return ResponseEntity.ok(response);
+}
 
     @GetMapping("/getAll")
     public ResponseEntity<List<Enterprises>> getAllEnterprises() throws JsonProcessingException {
