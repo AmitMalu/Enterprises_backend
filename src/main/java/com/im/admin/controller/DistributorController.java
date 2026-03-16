@@ -33,6 +33,9 @@ public class DistributorController {
     @Autowired
     private DistributorService distributorService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommonResponse<Distributor>> createDistributor(
             @RequestPart("data") String distributorJson,
@@ -61,9 +64,9 @@ public class DistributorController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Distributor> updateDistributor(
+    public ResponseEntity<CommonResponse<DistributorResponseDTO>> updateDistributor(
             @PathVariable String id,
-            @RequestPart("data") String distributorJson,
+            @RequestPart("data") DistributorResponseDTO dto,
             @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
             @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
             @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
@@ -71,9 +74,10 @@ public class DistributorController {
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
 
-        log.info("API Call: updateDistributor for id: {} with data: {}", id, distributorJson);
+        log.info("API Call: updateDistributor with ID: {} and data: {}", id, dto);
 
-        Distributor distributor = JsonUtil.parseJson(distributorJson, Distributor.class);
+        // DTO → Entity
+        Distributor distributor = objectMapper.convertValue(dto, Distributor.class);
 
         Distributor updatedDistributor = distributorService.updateDistributor(
                 id,
@@ -85,9 +89,20 @@ public class DistributorController {
                 businessProofImage
         );
 
-        log.info("Distributor updated successfully: {}", updatedDistributor);
+        DistributorResponseDTO responseDto;
 
-        return ResponseEntity.ok(updatedDistributor);
+        try {
+            // Entity → DTO
+            responseDto = objectMapper.convertValue(updatedDistributor, DistributorResponseDTO.class);
+        } catch (IllegalArgumentException ex) {
+            log.error("Error converting Distributor entity to DTO for ID: {}", id, ex);
+            throw new RuntimeException("Failed to convert Distributor entity to DTO");
+        }
+
+        CommonResponse<DistributorResponseDTO> response =
+                new CommonResponse<>(200, "Distributor updated successfully", responseDto);
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping

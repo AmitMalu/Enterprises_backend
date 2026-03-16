@@ -221,22 +221,22 @@ public class EnterprisesServiceImpl implements EnterprisesService {
             return existingEnterprises;
         }
 
-        // ===== Mobile Validation =====
-        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
-        try {
-            phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNumber());
-        } catch (IllegalArgumentException ex) {
-            log.warn("Mobile validation failed for Enterprise [{}]: {}", id, ex.getMessage());
-            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-        }
-
-        if (!errors.isEmpty()) {
-            log.error("Validation errors for Enterprise [{}]: {}", id, errors);
-            throw new CustomValidationException(errors);
-        }
+//        // ===== Mobile Validation =====
+//        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+//        try {
+//            phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNumber());
+//        } catch (IllegalArgumentException ex) {
+//            log.warn("Mobile validation failed for Enterprise [{}]: {}", id, ex.getMessage());
+//            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+//        }
+//
+//        if (!errors.isEmpty()) {
+//            log.error("Validation errors for Enterprise [{}]: {}", id, errors);
+//            throw new CustomValidationException(errors);
+//        }
 
         // ===== Update Fields =====
-        if (enterprises.getMobileNumber() != null) existingEnterprises.setMobileNumber(enterprises.getMobileNumber());
+//        if (enterprises.getMobileNumber() != null) existingEnterprises.setMobileNumber(enterprises.getMobileNumber());
         if (enterprises.getAbbreviation() != null) existingEnterprises.setAbbreviation(enterprises.getAbbreviation());
         if (enterprises.getEmailId() != null) existingEnterprises.setEmailId(enterprises.getEmailId());
         if (enterprises.getAddress() != null) existingEnterprises.setAddress(enterprises.getAddress());

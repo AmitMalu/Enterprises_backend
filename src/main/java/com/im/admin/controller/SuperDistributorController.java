@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.SuperDistributor;
 import com.im.admin.response.CommonResponse;
@@ -31,6 +32,9 @@ public class SuperDistributorController {
 
     @Autowired
     private SuperDistributorService service;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private PhoneNumberValidationService phoneNumberValidationService;
@@ -70,10 +74,41 @@ public class SuperDistributorController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+//    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+//    public ResponseEntity<SuperDistributor> updateSuperDistributor(
+//            @PathVariable String id,
+//            @RequestPart("data") String superDistributorJson,
+//            @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
+//            @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
+//            @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
+//            @RequestPart(value = "shopImage", required = false) MultipartFile shopImage,
+//            @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
+//    ) throws IOException {
+//
+//        log.info("Received request to update SuperDistributor with ID: {}", id);
+//        log.debug("Update payload JSON: {}", superDistributorJson);
+//
+//        SuperDistributor superDistributor = JsonUtil.parseJson(superDistributorJson, SuperDistributor.class);
+//        log.debug("Parsed SuperDistributor object for update: {}", superDistributor);
+//
+//        SuperDistributor updatedDistributor = service.updateSuperDistributor(
+//                id,
+//                superDistributor,
+//                aadhaarCardFrontImage,
+//                aadhaarCardBackImage,
+//                panCardImage,
+//                shopImage,
+//                businessProofImage
+//        );
+//
+//        log.info("SuperDistributor updated successfully for ID: {}", id);
+//        return ResponseEntity.ok(updatedDistributor);
+//    }
+
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<SuperDistributor> updateSuperDistributor(
+    public ResponseEntity<CommonResponse<SuperDistributorResponseDTO>> updateSuperDistributor(
             @PathVariable String id,
-            @RequestPart("data") String superDistributorJson,
+            @RequestPart(value = "data") SuperDistributorResponseDTO dto,
             @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
             @RequestPart(value = "aadhaarCardBackImage", required = false) MultipartFile aadhaarCardBackImage,
             @RequestPart(value = "panCardImage", required = false) MultipartFile panCardImage,
@@ -81,15 +116,14 @@ public class SuperDistributorController {
             @RequestPart(value = "businessProofImage", required = false) MultipartFile businessProofImage
     ) throws IOException {
 
-        log.info("Received request to update SuperDistributor with ID: {}", id);
-        log.debug("Update payload JSON: {}", superDistributorJson);
+        log.info("API Call: updateSuperDistributor with ID: {} and data: {}", id, dto);
 
-        SuperDistributor superDistributor = JsonUtil.parseJson(superDistributorJson, SuperDistributor.class);
-        log.debug("Parsed SuperDistributor object for update: {}", superDistributor);
+        SuperDistributor distributor =
+                objectMapper.convertValue(dto, SuperDistributor.class);
 
         SuperDistributor updatedDistributor = service.updateSuperDistributor(
                 id,
-                superDistributor,
+                distributor,
                 aadhaarCardFrontImage,
                 aadhaarCardBackImage,
                 panCardImage,
@@ -97,8 +131,13 @@ public class SuperDistributorController {
                 businessProofImage
         );
 
-        log.info("SuperDistributor updated successfully for ID: {}", id);
-        return ResponseEntity.ok(updatedDistributor);
+        SuperDistributorResponseDTO responseDto =
+                objectMapper.convertValue(updatedDistributor, SuperDistributorResponseDTO.class);
+
+        CommonResponse<SuperDistributorResponseDTO> response =
+                new CommonResponse<>(200, "SuperDistributor updated successfully", responseDto);
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")

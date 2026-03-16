@@ -211,24 +211,24 @@ public class PartnerServiceImpl implements PartnerService {
                 return existingPartner;
             }
 
-            // Validate mobile
-            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
-            try {
-                phoneNumberValidationService.validatePhoneNumber(partner.getMobileNumber());
-            } catch (IllegalArgumentException ex) {
-                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-                log.warn("Phone validation failed for Partner mobile: {}", partner.getMobileNumber());
-            }
-
-            if (!errors.isEmpty()) {
-                log.error("Partner update validation failed: {}", errors);
-                throw new CustomValidationException(errors);
-            }
+//            // Validate mobile
+//            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+//            try {
+//                phoneNumberValidationService.validatePhoneNumber(partner.getMobileNumber());
+//            } catch (IllegalArgumentException ex) {
+//                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+//                log.warn("Phone validation failed for Partner mobile: {}", partner.getMobileNumber());
+//            }
+//
+//            if (!errors.isEmpty()) {
+//                log.error("Partner update validation failed: {}", errors);
+//                throw new CustomValidationException(errors);
+//            }
 
             // Update only provided fields
             if (partner.getTitle() != null) existingPartner.setTitle(partner.getTitle());
             if (partner.getName() != null) existingPartner.setName(partner.getName());
-            if (partner.getMobileNumber() != null) existingPartner.setMobileNumber(partner.getMobileNumber());
+//            if (partner.getMobileNumber() != null) existingPartner.setMobileNumber(partner.getMobileNumber());
             if (partner.getEmailId() != null) existingPartner.setEmailId(partner.getEmailId());
             if (partner.getDob() != null) existingPartner.setDob(partner.getDob());
             if (partner.getAddress() != null) existingPartner.setAddress(partner.getAddress());

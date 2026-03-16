@@ -27,11 +27,15 @@ public class MyTransactionReportController {
 
     @PostMapping("/view")
     public ResponseEntity<CommonResponse<Page<MyTransactionReportResponse>>> getReport(
-            @RequestBody MyTransactionReportRequest request) {
+            @RequestBody MyTransactionReportRequest request,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+
 
         log.info("Received request to fetch MyTransaction report: {}", request);
 
-        CommonResponse<Page<MyTransactionReportResponse>> response = myTransactionReportService.getReport(request);
+        CommonResponse<Page<MyTransactionReportResponse>> response = myTransactionReportService.getReport(request, page, size);
 
         log.info("MyTransaction report fetched | Records count: {}",
                 response.getData() != null ? response.getData().getTotalElements() : 0);

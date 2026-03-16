@@ -234,19 +234,19 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             }
 
             // Validate mobile number
-            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
-            try {
-                phoneNumberValidationService.validatePhoneNumber(whiteLabels.getMobileNumber());
-            } catch (IllegalArgumentException ex) {
-                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-            }
-            if (!errors.isEmpty()) {
-                throw new CustomValidationException(errors);
-            }
+//            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+//            try {
+//                phoneNumberValidationService.validatePhoneNumber(whiteLabels.getMobileNumber());
+//            } catch (IllegalArgumentException ex) {
+//                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+//            }
+//            if (!errors.isEmpty()) {
+//                throw new CustomValidationException(errors);
+//            }
 
             // Update non-null fields
             if (whiteLabels.getTitle() != null) existingWhiteLabels.setTitle(whiteLabels.getTitle());
-            if (whiteLabels.getMobileNumber() != null) existingWhiteLabels.setMobileNumber(whiteLabels.getMobileNumber());
+//            if (whiteLabels.getMobileNumber() != null) existingWhiteLabels.setMobileNumber(whiteLabels.getMobileNumber());
             if (whiteLabels.getAbbreviation() != null) existingWhiteLabels.setAbbreviation(whiteLabels.getAbbreviation());
             if (whiteLabels.getEmailId() != null) existingWhiteLabels.setEmailId(whiteLabels.getEmailId());
             if (whiteLabels.getAddress() != null) existingWhiteLabels.setAddress(whiteLabels.getAddress());

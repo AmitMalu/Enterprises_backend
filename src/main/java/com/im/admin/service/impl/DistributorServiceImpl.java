@@ -241,24 +241,24 @@ public class DistributorServiceImpl implements DistributorService {
             }
 
             // Validate mobile
-            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
-            try {
-                phoneNumberValidationService.validatePhoneNumber(distributor.getMobileNumber());
-            } catch (IllegalArgumentException ex) {
-                log.error("Invalid mobile number for Distributor ID {}: {}", id, ex.getMessage());
-                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-            }
-
-            if (!errors.isEmpty()) {
-                log.error("Validation failed for Distributor update. Errors: {}", errors);
-                throw new CustomValidationException(errors);
-            }
+//            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+//            try {
+//                phoneNumberValidationService.validatePhoneNumber(distributor.getMobileNumber());
+//            } catch (IllegalArgumentException ex) {
+//                log.error("Invalid mobile number for Distributor ID {}: {}", id, ex.getMessage());
+//                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+//            }
+//
+//            if (!errors.isEmpty()) {
+//                log.error("Validation failed for Distributor update. Errors: {}", errors);
+//                throw new CustomValidationException(errors);
+//            }
 
             // Update fields if provided
             if (distributor.getTitle() != null) existingDistributor.setTitle(distributor.getTitle());
             if (distributor.getName() != null) existingDistributor.setName(distributor.getName());
-            if (distributor.getMobileNumber() != null)
-                existingDistributor.setMobileNumber(distributor.getMobileNumber());
+//            if (distributor.getMobileNumber() != null)
+//                existingDistributor.setMobileNumber(distributor.getMobileNumber());
             if (distributor.getEmailId() != null) existingDistributor.setEmailId(distributor.getEmailId());
             if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
             if (distributor.getAddress() != null) existingDistributor.setAddress(distributor.getAddress());

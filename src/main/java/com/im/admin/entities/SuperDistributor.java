@@ -1,6 +1,7 @@
 package com.im.admin.entities;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -76,6 +77,7 @@ public class SuperDistributor {
     })
     private Address outletAddress;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bank_details_id", referencedColumnName = "id")
     private BanksDetails bankDetails;

@@ -176,6 +176,7 @@ public class NetworkBankServiceImpl implements NetworkBankService {
 
         return bankMasterRepository.findAll()
                 .stream()
+                .filter(bank -> bank.getBankId() != null)
                 .map(bank -> new NetworkBankMasterResponseDto(
                         bank.getBankId(),
                         bank.getBankName(),
