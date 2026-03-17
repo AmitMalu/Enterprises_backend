@@ -35,4 +35,6 @@ public interface SchemeRepository extends JpaRepository<Scheme, Long>, JpaSpecif
 
     Optional<Scheme> findBySchemeCodeAndIsActiveTrue(String schemeCode);
 
+    Optional<Scheme> findBySchemeName(String schemeName);
+
 }

@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Optional;
 
 /**
  * @author SHUBHAM KHOPADE
@@ -279,5 +280,55 @@ public class WalletTransactionService {
             throw new RuntimeException("No active vendor found for this subProductId");
         }
         return vendor;
+    }
+
+    public void processHierarchyCharges(
+            String hierarchyId,
+            Products product,
+            SubProducts subProduct,
+            SchemeRate schemeRate,
+            BigDecimal grossCharge,
+            String baseTransactionId) {
+
+        String originalId = hierarchyId;
+        String currentId = hierarchyId;
+
+        WalletType walletType = "POSTPAID".equalsIgnoreCase(subProduct.getWalletType())
+                ? WalletType.POSTPAID
+                : WalletType.PREPAID;
+
+        while (true) {
+
+            Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
+
+            if (parentOpt.isEmpty()) {
+                throw new RuntimeException("No approver found for hierarchy: " + currentId);
+            }
+
+            String parentId = parentOpt.get();
+            String parentType = commonMethods.extractHierarchyType(parentId);
+
+            if (isChargeableParent(parentType)) {
+
+                processChargesForHierarchy(
+                        originalId,
+                        parentId,
+                        walletType,
+                        product,
+                        subProduct,
+                        schemeRate,
+                        grossCharge,
+                        baseTransactionId
+                );
+
+                break;
+            }
+
+            currentId = parentId;
+        }
+    }
+
+    private boolean isChargeableParent(String type) {
+        return "WL".equals(type) || "IM".equals(type) || "AD".equals(type);
     }
 }
