@@ -1,6 +1,14 @@
 package com.im.admin.response;
 
 /**
-* @author SHUBHAM KHOPADE
-*/public class NixaSoftPayoutResponse {
+ * @author SHUBHAM KHOPADE
+ */
+import lombok.Data;
+
+@Data
+public class NixaSoftPayoutResponse {
+
+    private String statuscode;
+    private String message;
+    private NixaSoftPayoutData data;
 }

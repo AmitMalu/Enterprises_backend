@@ -25,4 +25,6 @@ public class SendPayoutRequest {
     private String latitude;
     private String longitude;
 
+    private String emailId;
+
 }

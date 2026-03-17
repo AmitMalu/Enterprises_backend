@@ -22,6 +22,9 @@ public class PGCreateOrderCommand {
 
     private String username;
     private String callbackUrl;
+    private String cardHolderName;
+    private String cardHolderMobile;
+    private String emailId;
 
     private TransactionSchemeDetailsRequestDto schemeDetails;
 }

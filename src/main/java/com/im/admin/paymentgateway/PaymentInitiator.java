@@ -14,12 +14,8 @@ public interface PaymentInitiator {
 
     String getVendorName();
 
-    // STATUS
+    // CHECK STATUS
     ResponseEntity<?> checkStatus(String orderId);
-
-    // CALLBACK
-    //String handleCallback(Map<String, String> payload,
-     //                     HttpServletRequest request) throws JsonProcessingException;
 
     // VALIDATE
     CommonResponse<String> validate(PgTransactionRequestDto request);

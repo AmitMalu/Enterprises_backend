@@ -316,11 +316,6 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
         for (SchemeRate rate : schemeRates) {
 
-            // FIXED slab
-//            if (rate.getSlabType() == SlabType.FIXED) {
-//                return rate;
-//            }
-
             // VARIABLE slab
             if (rate.getSlabType() == SlabType.VARIABLE) {
 

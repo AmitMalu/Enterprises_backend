@@ -15,5 +15,6 @@ public interface BeneficiaryBankAccountRepository extends JpaRepository<Benefici
     findTopByRetailerIdAndAccountNumberOrderByIdDesc(String retailerId,
                                                      String accountNumber);
 
+    BeneficiaryBankAccount findByIfscCode(String ifscCode);
 
 }

@@ -1,8 +1,10 @@
 package com.im.admin.callbacks;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.request.NixaSoftCallbackRequest;
 import com.im.admin.request.UnisusWebhookRequest;
 import com.im.admin.response.UnisusWebhookResponse;
+import com.im.admin.service.NixaSoftPGService;
 import com.im.admin.service.UnisusPGService;
 import com.im.admin.service.impl.RunpaisaPGServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +28,7 @@ public class CallbackPGController {
 
     private final RunpaisaPGServiceImpl paymentGatewayService;
     private final UnisusPGService unisusPGService;
+    private final NixaSoftPGService nixaSoftPGService;
 
 
     // RUNPAISA CALLBACK
@@ -60,6 +63,17 @@ public class CallbackPGController {
         log.info("Sending response to Unisus: {}", response);
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/nixasoft")
+    public ResponseEntity<String> handleCallback(
+            @RequestBody NixaSoftCallbackRequest request) {
+
+        log.info("Received NixaSoft Callback: {}", request);
+
+        nixaSoftPGService.processCallback(request);
+
+        return ResponseEntity.ok("Callback Processed");
     }
 
 }

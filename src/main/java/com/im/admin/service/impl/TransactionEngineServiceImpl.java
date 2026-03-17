@@ -10,6 +10,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.service.TransactionEngineService;
 import com.im.admin.util.AbstractRetailerTransactionDetails;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TransactionHelperService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.NoResultException;
@@ -101,7 +102,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     private EntityManager entityManager;
 
     @Autowired
-    private CommonMethods commonMethods;
+    private TransactionHelperService transactionHelperService;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -743,7 +744,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 //        log.info("==== [processCommission] END for Transaction ID: {} ====", baseTransactionId);
 //    }
 
-    private void processCommission(TransactionSchemeDetailsRequestDto dto,
+    public void processCommission(TransactionSchemeDetailsRequestDto dto,
                                    String baseTransactionId,
                                    String tranStatus,
                                    TransactionSchemeDetailsRequestDto request) {
@@ -1497,7 +1498,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 //        }
 //    }
 
-    private String extractHierarchyType(String hierarchyId) {
+    public String extractHierarchyType(String hierarchyId) {
         String[] parts = hierarchyId.split("-");
         return (parts.length >= 2) ? parts[1] : "UNKNOWN";
     }
@@ -1535,7 +1536,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         }
     }
 
-    private String getTransactionTable(String hierarchyType, String walletType) {
+    public String getTransactionTable(String hierarchyType, String walletType) {
         String entityName = getEntityName(hierarchyType);
 
         String tableName = entityName +
@@ -1549,7 +1550,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         return tableName;
     }
 
-    private String getAmountTable(String hierarchyType, String walletType) {
+    public String getAmountTable(String hierarchyType, String walletType) {
         String entityName = getEntityName(hierarchyType);
 
         String tableName = entityName +
@@ -1623,7 +1624,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         }
     }
 
-    private void insertTransactionForHierarchy(
+    public void insertTransactionForHierarchy(
             String transactionTable, String service, BigDecimal amount, String remarks, String hierarchyId,
             String walletType, BigDecimal beforeTransactionBalance, BigDecimal afterTransactionBalance,
             String actionOnBalance, String tranxId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
@@ -1637,7 +1638,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         String subProductName = subProduct.getSubProductTitle();
 
         String hierarchyType = extractHierarchyType(hierarchyId);
-        String hierarchyColumnName = getHierarchyColumnName(hierarchyType);
+        String hierarchyColumnName = transactionHelperService.getHierarchyColumnName(hierarchyType);
 
         log.debug("[COMM_TXN_INSERT] Detected Hierarchy Type={} | ColumnName={}", hierarchyType, hierarchyColumnName);
 
@@ -1677,40 +1678,37 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         }
     }
 
-    private void updateAmountTable(String hierarchyType, String hierarchyId, String amountTable, BigDecimal amount) {
+    public void updateAmountTable(String hierarchyType, String hierarchyId, String amountTable, BigDecimal amount) {
         log.info("Updating {} | Hierarchy Type: {} | Hierarchy ID: {} | Final Amount to Add: {}",
                 amountTable, hierarchyType, hierarchyId, amount);
 
-        String columnName = getHierarchyColumnName(hierarchyType);
+        String columnName = transactionHelperService.getHierarchyColumnName(hierarchyType);
 
-        String sql = "UPDATE " + amountTable + " SET available_balance = available_balance + :amount, " +
-                "last_updated_amount = :amount, last_updated_date = :date, last_updated_time = :time " +
+        String sql = "UPDATE " + amountTable + " SET " +
+                "available_balance = available_balance + :amount, " +
+                "last_updated_amount = :amount, " +
+                " last_updated_date = :date, " +
+                " last_updated_time = :time " +
                 "WHERE " + columnName + " = :hierarchyId";
 
-        entityManager.createNativeQuery(sql)
+        int updated = entityManager.createNativeQuery(sql)
                 .setParameter("amount", amount)
                 .setParameter("date", new Date())
                 .setParameter("time", new Time(System.currentTimeMillis()))
                 .setParameter("hierarchyId", hierarchyId)
                 .executeUpdate();
+
+        entityManager.flush();
+
+        if (updated == 0) {
+            throw new RuntimeException("Wallet update failed for: " + hierarchyId);
+        }
+
     }
 
-    private String getHierarchyColumnName(String hierarchyType) {
-        return switch (hierarchyType) {
-            case "ET" -> "enterprises_id";
-            case "PT" -> "partner_id";
-            case "RT" -> "retailer_id";
-            case "DT" -> "distributor_id";
-            case "SD" -> "super_distributor_id";
-            case "WL" -> "white_label_id";
-            case "AD" -> "admin_id";
-            default -> throw new IllegalArgumentException("Invalid hierarchy type: " + hierarchyType);
-        };
-    }
-
-    private BigDecimal getCurrentBalance(String hierarchyId, String walletType) {
+    public BigDecimal getCurrentBalance(String hierarchyId, String walletType) {
         String amountTable = getAmountTable(extractHierarchyType(hierarchyId), walletType);
-        String columnName = getHierarchyColumnName(extractHierarchyType(hierarchyId));
+        String columnName = transactionHelperService.getHierarchyColumnName(extractHierarchyType(hierarchyId));
 
         String sql = "SELECT available_balance FROM " + amountTable + " WHERE " + columnName + " = :hierarchyId";
 
@@ -2525,7 +2523,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
             String settlementType,
             String walletType) {
 
-        String tableName = commonMethods.getTransactionTable("RT", walletType);
+        String tableName = getTransactionTable("RT", walletType);
         List<Object> params = new ArrayList<>();
         StringBuilder sql = new StringBuilder("SELECT * FROM " + tableName + " WHERE 1=1");
 
