@@ -62,6 +62,8 @@ public class PayoutBeneficiaryServiceImpl implements PayoutBeneficiaryService {
         entity.setBankHolderName(dto.getBankHolderName());
         entity.setAccountNumber(dto.getAccountNumber());
         entity.setIfscCode(dto.getIfscCode());
+        entity.setEmailId(dto.getEmailId());
+        entity.setMobileNo(dto.getMobileNo());
         entity.setCreatedBy(dto.getCreatedBy());
 
         //   Save entity
@@ -144,8 +146,7 @@ public class PayoutBeneficiaryServiceImpl implements PayoutBeneficiaryService {
             return CommonResponse.error(HttpStatus.BAD_REQUEST.value(),
                     "Beneficiary Bank Account not found for ID: " + id);
         }
-
-
+        
         BeneficiaryBankAccount entity = optional.get();
 
         // Update fields
@@ -156,6 +157,8 @@ public class PayoutBeneficiaryServiceImpl implements PayoutBeneficiaryService {
         if (requestDto.getIfscCode() != null) entity.setIfscCode(requestDto.getIfscCode());
         if (requestDto.getPaymentMode() != null) entity.setPaymentMode(requestDto.getPaymentMode());
         if (requestDto.getIsVerified() != null) entity.setIsVerified(requestDto.getIsVerified());
+        if (requestDto.getEmailId() != null) entity.setEmailId(requestDto.getEmailId());
+        if (requestDto.getMobileNo() != null) entity.setMobileNo(requestDto.getMobileNo());
         if (requestDto.getCreatedBy() != null) entity.setCreatedBy(requestDto.getCreatedBy());
 
         beneficiaryBankAccountRepository.save(entity);
@@ -170,6 +173,8 @@ public class PayoutBeneficiaryServiceImpl implements PayoutBeneficiaryService {
                 entity.getIfscCode(),
                 entity.getPaymentMode(),
                 entity.getIsVerified(),
+                entity.getEmailId(),
+                entity.getMobileNo(),
                 entity.getCreatedBy()
         );
 

@@ -251,7 +251,7 @@ public class BBPSServiceImpl implements BBPSService {
 
             // Fetch scheme rate (variable slab example)
             Optional<SchemeRate> schemeRateOpt = schemeRateRepository.findVariableSlabByOperatorAndAmount(operator, amount);
-            SchemeRate schemeRate = schemeRateOpt.orElseThrow(() -> new RuntimeException("SchemeRate not found for operator: " + operator));
+            SchemeRate schemeRate = schemeRateOpt.orElseThrow(() -> new RuntimeException("Slab not found for operator: " + operator));
             log.info("SchemeRate found: {}", schemeRate.getSchemeCode());
 
             // Find scheme using scheme code

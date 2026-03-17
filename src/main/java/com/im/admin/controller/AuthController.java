@@ -95,6 +95,9 @@ public class AuthController {
     @Autowired
     private VendorRepository vendorRepository;
 
+    @Autowired
+    private SchemeRepository schemeRepository;
+
 
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
@@ -508,8 +511,14 @@ public class AuthController {
                         && retailer.getOutletAddress().getOutletName() != null) {
                     responseMap.put("outletName", retailer.getOutletAddress().getOutletName());
                     responseMap.put("logoUrl",retailer.getBusinessProofImage());
+
+                    responseMap.put("retailerName", retailer.getName());
+                    responseMap.put("aadhaarNumber", retailer.getAadhaarNumber());
                 } else {
                     responseMap.put("outletName", "N/A");
+
+                    responseMap.put("retailerName", retailer != null ? retailer.getName() : "N/A");
+                    responseMap.put("aadhaarNumber", retailer != null ? retailer.getAadhaarNumber() : "N/A");
                 }
 
 //                 Build product / subProduct list
@@ -601,7 +610,7 @@ public class AuthController {
 //                break;
 
                 // Build product / subProduct list
-                List<SchemeAllocation> schemes =
+                List<SchemeAllocation> schemeAllocationList =
                         schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
 
                 // Fetch ALL products
@@ -619,10 +628,19 @@ public class AuthController {
                 }
 
                 // Now loop schemes only for subProducts
-                for (SchemeAllocation sa : schemes) {
+                for (SchemeAllocation sa : schemeAllocationList) {
 
                     if (sa.getSchemeCode() == null ||
                             sa.getSchemeCode().equalsIgnoreCase("No scheme assigned")) {
+                        continue;
+                    }
+
+                    // Check scheme exists in scheme table
+                    boolean schemeExists = schemeRepository.existsBySchemeCode(sa.getSchemeCode());
+
+                    if (!schemeExists) {
+                        log.warn("Skipping allocation because schemeCode {} does not exist in scheme table",
+                                sa.getSchemeCode());
                         continue;
                     }
 
@@ -676,7 +694,7 @@ public class AuthController {
                     productSubMap.get(productId).add(subProductMap);
                 }
 
-// Build final product list
+                // Build final product list
                 List<Map<String, Object>> productList = new ArrayList<>();
 
                 for (Map.Entry<String, List<Map<String, Object>>> entry : productSubMap.entrySet()) {
@@ -698,6 +716,8 @@ public class AuthController {
 
                 responseMap.put("products", productList);
                 responseMap.put("role", hierarchyCode);
+
+                //also here i want to return a name and addhar card number
                 break;
 
 

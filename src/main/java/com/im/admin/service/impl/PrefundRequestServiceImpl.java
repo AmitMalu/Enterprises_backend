@@ -4,17 +4,18 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.FundRequestActionDto;
 import com.im.admin.dto.PrefundRequestDto;
-import com.im.admin.entities.PrefundRequest;
-import com.im.admin.entities.RetailerUser;
+import com.im.admin.entities.*;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
-import com.im.admin.repositories.PrefundRequestRepository;
-import com.im.admin.repositories.RetailerUserRepository;
+import com.im.admin.entities.product.Products;
+import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.PrefundRequestService;
 import com.im.admin.spec.PrefundRequestSpecification;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.WalletTransactionService;
 import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +59,18 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
     @Autowired
     private RetailerUserRepository retailerUserRepository;
+
+    @Autowired
+    private SubProductsRepository subProductsRepository;
+
+    @Autowired
+    private VendorRoutingRepository vendorRoutingRepository;
+
+    @Autowired
+    private VendorCredentialsRepository vendorCredentialsRepository;
+
+    @Autowired
+    private WalletTransactionService walletTransactionService;
 
 
     @Override
@@ -136,6 +149,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     @Override
     public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto) {
 
+        String vendorId = null;
         LocalDate date = LocalDate.now();
         LocalTime time = LocalTime.now();
         PrefundRequest fundRequest = repository.findById(actionDto.getFundRequestId())
@@ -184,6 +198,31 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         }
 
         repository.save(fundRequest);
+
+        SubProducts subProduct = subProductsRepository
+                .findBySubProductCode(actionDto.getSubProductId())
+                .orElseThrow(() -> new RuntimeException("SubProduct not found for Bank Verification"));
+
+        // Get Product from SubProduct
+        Products product = subProduct.getProduct();
+
+        log.info("---- [Callback] Product fetched successfully | productId={}", product.getId());
+
+        // 2. Vendor Routing
+        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
+        Vendors vendor = WalletTransactionService.getVendors(vendorRouting);
+        vendorId = vendor.getId();
+
+        // 3. Vendor Credentials
+        VendorCredentials credentials = vendorCredentialsRepository
+                .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+
+
+
+
+
         return new CommonResponse<>(200, "Fund request action processed successfully", null);
     }
 

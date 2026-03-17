@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.BankListRequest;
 import com.im.admin.dto.BankRequestDto;
 import com.im.admin.entities.NetworkBankMaster;
 import com.im.admin.request.NetworkBankMasterResponseDto;
@@ -159,5 +160,13 @@ public class NetworkBankController {
         );
     }
 
+    @PostMapping("/save")
+    public ResponseEntity<String> saveBankList(@RequestBody BankListRequest request) {
+
+        bankService.saveBankList(request);
+
+        return ResponseEntity.ok("Bank list saved successfully");
+
+    }
 
 }

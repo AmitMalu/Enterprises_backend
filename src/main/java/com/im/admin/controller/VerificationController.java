@@ -27,7 +27,7 @@ public class VerificationController {
     @PostMapping("/pan-validate")
     public ResponseEntity<?> validatePan(@RequestParam String panNumber) {
         log.info("Validating PAN number: {}", panNumber);
-        ResponseEntity<?> response = verificationService.validatepan(panNumber);
+        ResponseEntity<?> response = verificationService.validatePan(panNumber);
         log.debug("PAN validation response: {}", response);
         return response;
     }
@@ -43,7 +43,7 @@ public class VerificationController {
     @PostMapping("/voterId-validate")
     public ResponseEntity<?> validateVoterid(@RequestParam String voterid) {
         log.info("Validating Voter ID: {}", voterid);
-        ResponseEntity<?> response = verificationService.validateVoterid(voterid);
+        ResponseEntity<?> response = verificationService.validateVoterId(voterid);
         log.debug("Voter ID validation response: {}", response);
         return response;
     }

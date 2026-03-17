@@ -30,7 +30,6 @@ public class NetworkBankMaster {
     @Column(name = "verification")
     private Boolean Verification;
 
-
     @Column(name = "bank_code_BI")
     private String bankCodeBI;
 
@@ -79,5 +78,11 @@ public class NetworkBankMaster {
 
     @Column(name = "logo")
     private String logo;
+
+    @Column(name = "unisus_mifsc_code")
+    private String unisusMIfcsCode;
+
+    @Column(name = "unisus_bank_id")
+    private Integer unisusBankId;
 
 }

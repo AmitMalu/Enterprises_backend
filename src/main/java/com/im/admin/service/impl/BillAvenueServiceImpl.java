@@ -539,7 +539,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                             request.getSchemeCode(),
                             request.getTxnType(),
                             amount.doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No scheme found"));
+                    .orElseThrow(() -> new RuntimeException("No slab found for the given amount: " + amount));
 
             BbpsTranactionRequestDto bbpsDto =
                     new BbpsTranactionRequestDto(
