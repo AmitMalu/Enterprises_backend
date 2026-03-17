@@ -509,8 +509,14 @@ public class AuthController {
                         && retailer.getOutletAddress().getOutletName() != null) {
                     responseMap.put("outletName", retailer.getOutletAddress().getOutletName());
                     responseMap.put("logoUrl",retailer.getBusinessProofImage());
+
+                    responseMap.put("retailerName", retailer.getName());
+                    responseMap.put("aadhaarNumber", retailer.getAadhaarNumber());
                 } else {
                     responseMap.put("outletName", "N/A");
+
+                    responseMap.put("retailerName", retailer != null ? retailer.getName() : "N/A");
+                    responseMap.put("aadhaarNumber", retailer != null ? retailer.getAadhaarNumber() : "N/A");
                 }
 
 //                 Build product / subProduct list
@@ -708,6 +714,8 @@ public class AuthController {
 
                 responseMap.put("products", productList);
                 responseMap.put("role", hierarchyCode);
+
+                //also here i want to return a name and addhar card number
                 break;
 
 
