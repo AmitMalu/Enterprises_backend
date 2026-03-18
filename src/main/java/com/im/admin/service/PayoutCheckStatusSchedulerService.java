@@ -48,14 +48,7 @@ public class PayoutCheckStatusSchedulerService {
         for (PayoutPendingTransactions txn : pendingList) {
             try {
 
-
                 //call here
-
-
-
-
-
-
                 log.info("[1] Fetching pending transaction for ORDER_ID: {}", txn.getTransactionId());
                 PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository.findByTransactionId(txn.getTransactionId())
                         .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + txn.getTransactionId()));

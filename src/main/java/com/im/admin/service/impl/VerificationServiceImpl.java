@@ -4,10 +4,7 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.*;
-import com.im.admin.entities.SchemeRate;
-import com.im.admin.entities.SubProducts;
-import com.im.admin.entities.VendorCredentials;
-import com.im.admin.entities.VendorRouting;
+import com.im.admin.entities.*;
 import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
@@ -22,6 +19,7 @@ import com.im.admin.service.VerificationService;
 import com.im.admin.service.WalletToWalletTransferService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.TokenUtil;
+import com.im.admin.util.WalletTransactionService;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +35,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -70,6 +69,9 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Autowired
     private TransactionEngineServiceImpl transactionEngineServiceImpl;
+
+    @Autowired
+    private WalletTransactionService walletTransactionService;
 
     @Override
     @Transactional
@@ -208,7 +210,7 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Override
     @Transactional
-    public ResponseEntity<?> validatepan(String panNumber) {
+    public ResponseEntity<?> validatePan(String panNumber) {
         LocalDateTime requestDateTime = LocalDateTime.now();
         String requestJson = null;
         String responseJson = null;
@@ -361,7 +363,7 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Override
     @Transactional
-    public ResponseEntity<?> validateVoterid(String voterid) {
+    public ResponseEntity<?> validateVoterId(String voterId) {
         try {
             // 1. Find SubProduct by Title
             SubProducts subProduct = subProductsRepository
@@ -384,7 +386,7 @@ public class VerificationServiceImpl implements VerificationService {
 
             // 5. Prepare request
             Map<String, String> body = new HashMap<>();
-            body.put("id_number", voterid);
+            body.put("id_number", voterId);
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
             String url = credentials.getBaseUrlUat() + "/v1/voter-id/voter-id";
@@ -397,6 +399,7 @@ public class VerificationServiceImpl implements VerificationService {
             );
 
             VoterIdValidationResponse responseBody = response.getBody();
+            assert responseBody != null;
             String message = responseBody.getMessage() != null ? responseBody.getMessage() : "Voter ID validation successful";
 
             return ResponseEntity.ok(CommonResponse.success(responseBody, message));
@@ -475,6 +478,7 @@ public class VerificationServiceImpl implements VerificationService {
             // 8. Save vendor logs
             commonFunctions.saveVendorLogs(requestDateTime, requestJson, vendorId, LocalDateTime.now(), responseJson, null);
 
+            assert responseBody != null;
             String message = responseBody.getData() != null && responseBody.getData().getReason() != null
                     ? responseBody.getData().getReason()
                     : "Aadhaar PAN link check successful";
@@ -524,6 +528,8 @@ public class VerificationServiceImpl implements VerificationService {
 
         try {
 
+            String hierarchyId = tokenUtil.extractHierarchyId();
+
             String baseTransactionId = commonMethods.generateBaseTransactionId();
             log.info("Generated base transaction ID: {}", baseTransactionId);
 
@@ -566,21 +572,18 @@ public class VerificationServiceImpl implements VerificationService {
                     schemeRate.getRateType(),
                     schemeRate.getSlabType());
 
-            BigDecimal grossCharge = BigDecimal.valueOf(schemeRate.getGross());
+            BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
 
-            String hierarchyId = tokenUtil.extractHierarchyId();
+            AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(subProduct.getWalletType(), hierarchyId);
+            BigDecimal availableBalance = walletAmountTable.getAvailableBalance();
 
-            AbstractWalletAmountTable prepaidWallet = commonMethods.getRetailerWallet(WalletType.PREPAID.name(), hierarchyId);
-
-            BigDecimal availableBalance = prepaidWallet.getAvailableBalance();
-
-            if (availableBalance.compareTo(grossCharge) < 0) {
+            if (availableBalance.compareTo(grossAmount) < 0) {
                 log.warn("Insufficient balance. Required: {}, Available: {}",
-                        grossCharge, availableBalance);
+                        grossAmount, availableBalance);
 
                 throw new IllegalArgumentException(
                         "Insufficient balance in " + WalletType.PREPAID.name() +
-                                " wallet. Required: " + grossCharge +
+                                " wallet. Required: " + grossAmount +
                                 ", Available: " + availableBalance
                 );
             }
@@ -622,27 +625,35 @@ public class VerificationServiceImpl implements VerificationService {
                 return ResponseEntity.ok(CommonResponse.success(responseBody, message));
             }
 
-            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+            try {
 
-            dto.setBaseTranxId(baseTransactionId);
-            dto.setAmount(grossCharge.doubleValue());
-            dto.setConfirmAmount(grossCharge.doubleValue());
-            dto.setOperatorName(schemeRate.getOperatorName());
-            dto.setOperatorCode(schemeRate.getSchemeCode());
-            dto.setSchemeRate(schemeRate);
-            dto.setTransactionType(product.getTransactionType());
-            dto.setWalletType(subProduct.getWalletType());
-            dto.setGstValue(String.valueOf(product.getSgst()));
-            dto.setTdsRate(String.valueOf(product.getTds()));
-            dto.setHierarchyId(hierarchyId);
-            dto.setProductCode(product.getProductCode());
-            dto.setSubProductCode(subProduct.getSubProductCode());
-            dto.setIsCommission(product.getIsCommissions());
-            dto.setHasCharge(product.getHasCharges());
+                if(Boolean.TRUE.equals(product.getHasCharges())) {
+                    processHierarchyCharges(
+                            hierarchyId,
+                            product,
+                            subProduct,
+                            schemeRate,
+                            grossAmount,
+                            baseTransactionId
+                    );
+                }
 
-            log.debug("---- [Callback] DTO prepared: {}", dto);
+                if(Boolean.TRUE.equals(product.getIsCommissions())) {
 
-            processCharges(dto, prepaidWallet, BigDecimal.valueOf(schemeRate.getGross()), product.getSgst().toString(), baseTransactionId, "SUCCESS");
+                    WalletType walletType = "POSTPAID".equalsIgnoreCase(subProduct.getWalletType())
+                            ? WalletType.POSTPAID
+                            : WalletType.PREPAID;
+
+                    TransactionSchemeDetailsRequestDto dto = walletTransactionService.buildTransactionDto(grossAmount, baseTransactionId,
+                            schemeRate, product, subProduct, hierarchyId, walletType);
+                    transactionEngineServiceImpl.processCommission(dto, baseTransactionId, "SUCCESS", dto);
+
+                }
+
+            } catch (Exception e) {
+                log.error("**** [processChargesAndCommission] ERROR during processing {} {} ****", product.getHasCharges(), product.getIsCommissions(), e);
+                throw e;
+            }
 
             String message = responseBody.getData() != null && responseBody.getData().getStatus() != null
                     ? responseBody.getData().getStatus()
@@ -677,29 +688,55 @@ public class VerificationServiceImpl implements VerificationService {
         }
     }
 
-    public void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
-                               BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
 
-        log.info("[CHARGES] Start | BaseTxnId={} | WalletType={} | Hierarchy={} | Status={}",
-                baseTransactionId, dto.getWalletType(), dto.getHierarchyId(), tranStatus);
+    public void processHierarchyCharges(
+            String hierarchyId,
+            Products product,
+            SubProducts subProduct,
+            SchemeRate schemeRate,
+            BigDecimal grossCharge,
+            String baseTransactionId) {
 
-        BigDecimal grossAmount = transactionEngineServiceImpl.calculateGross(dto, grossAmountInput);
-        BigDecimal gstRate = new BigDecimal(gstValue).divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
+        String originalId = hierarchyId;
+        String currentId = hierarchyId;
 
-        // Step 1: Calculate GST and base
-        BigDecimal baseAmount = grossAmount.divide(BigDecimal.ONE.add(gstRate), 10, RoundingMode.HALF_UP);
-        BigDecimal gstAmount = grossAmount.subtract(baseAmount).setScale(4, RoundingMode.HALF_UP);
+        WalletType walletType = "POSTPAID".equalsIgnoreCase(subProduct.getWalletType())
+                ? WalletType.POSTPAID
+                : WalletType.PREPAID;
 
-        log.debug("[CHARGES] Split amounts | Gross={} | Base={} | GST={} | GST%={}", grossAmount, baseAmount, gstAmount, gstValue);
+        while (true) {
 
-        // Step 2: Deduct base and GST from wallet
-        transactionEngineServiceImpl.deductCharge(wallet, dto, baseAmount, "CHG", "Deduct Funds (Charge)", baseTransactionId, tranStatus);
-        transactionEngineServiceImpl.deductCharge(wallet, dto, gstAmount, "GST", "Deduct Funds (GST)", baseTransactionId, tranStatus);
+            Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
 
-        // Step 3: Update wallet meta
-        transactionEngineServiceImpl.updateWalletMeta(wallet, baseAmount.add(gstAmount), gstAmount);
+            if (parentOpt.isEmpty()) {
+                throw new RuntimeException("No approver found for hierarchy: " + currentId);
+            }
 
-        log.info("[CHARGES] Completed | BaseTxnId={} | WalletType={}", baseTransactionId, dto.getWalletType());
+            String parentId = parentOpt.get();
+            String parentType = commonMethods.extractHierarchyType(parentId);
+
+            if (isChargeableParent(parentType)) {
+
+                walletTransactionService.processChargesForHierarchy(
+                        originalId,
+                        parentId,
+                        walletType,
+                        product,
+                        subProduct,
+                        schemeRate,
+                        grossCharge,
+                        baseTransactionId
+                );
+
+                break;
+            }
+
+            currentId = parentId;
+        }
+    }
+
+    private boolean isChargeableParent(String type) {
+        return "WL".equals(type) || "IM".equals(type) || "AD".equals(type);
     }
 
 }

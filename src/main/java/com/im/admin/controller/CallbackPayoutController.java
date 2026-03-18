@@ -39,4 +39,15 @@ public class CallbackPayoutController {
         return ResponseEntity.ok(response);
     }
 
+
+    @PostMapping("/unisus-callback")
+    public ResponseEntity<String> unisusPayCallback(@RequestBody Map<String, String> payload,
+                                                 HttpServletRequest request) throws JsonProcessingException {
+        log.info("<---------------- UnisusPay callback request with payload: {} --------------------->", payload);
+//        String response = orchestrator.processPayoutCallback("Runpaisa Payout", payload, request);
+        String response = payoutOrchestratorV0.unisusPayoutCallback(payload, request);
+        log.info("Callback response: {}", response);
+        return ResponseEntity.ok(response);
+    }
+
 }

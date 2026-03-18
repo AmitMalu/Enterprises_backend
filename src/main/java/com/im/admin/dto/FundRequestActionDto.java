@@ -14,5 +14,7 @@ public class FundRequestActionDto {
     private Long fundRequestId;
     private Status status; // APPROVED or REJECTED
     private String remarks;
+    private String schemeCode;
+    private String subProductId;
 
 }

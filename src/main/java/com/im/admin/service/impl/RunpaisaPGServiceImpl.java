@@ -177,8 +177,8 @@ public class RunpaisaPGServiceImpl {
             txnMap.setCardBinNo(req.getCardBinNo()); //new
             pgTransactionMappingRepository.save(txnMap);
 
-            log.info("subProductId: ", req.getSubProductId());
-            log.info("initiatedBy", req.getInitiatedBy());
+            log.info("subProductId {} ", req.getSubProductId());
+            log.info("initiatedBy {}", req.getInitiatedBy());
 
 
             // ====== Check Vendor Type ======
@@ -308,6 +308,7 @@ public class RunpaisaPGServiceImpl {
 
         @SuppressWarnings("unchecked")
         Map<String, String> encryptedMap = (Map<String, String>) responseEntity.getBody();
+        assert encryptedMap != null;
         String encUser = encryptedMap.get("cipherUsername");
         String encPass = encryptedMap.get("cipherPassword");
         String salt = encryptedMap.get("salt");
@@ -326,7 +327,7 @@ public class RunpaisaPGServiceImpl {
         HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
 
         ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlUat(), requestEntity, Map.class);
-        Map<String, Object> responseBodyMap = response.getBody();
+        Map responseBodyMap = response.getBody();
         if (responseBodyMap == null || responseBodyMap.get("token") == null) {
             throw new RuntimeException("AES token generation failed: " + responseBodyMap);
         }
@@ -344,7 +345,7 @@ public class RunpaisaPGServiceImpl {
         HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
         ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlProd(), requestEntity, Map.class);
 
-        Map<String, Object> responseBodyMap = response.getBody();
+        Map responseBodyMap = response.getBody();
         if (responseBodyMap == null || !responseBodyMap.containsKey("data")) {
             throw new RuntimeException("Old vendor token generation failed: " + responseBodyMap);
         }
@@ -449,13 +450,13 @@ public class RunpaisaPGServiceImpl {
     }
 
     @Transactional
-   // @Override
+    // @Override
     public String handleCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException {
         LocalDateTime requestTime = LocalDateTime.now();
         String clientIp = request.getRemoteAddr();
 
         log.info("---- [Callback] Received callback at: {} from IP: {}", requestTime, clientIp);
-        log.info("---- [Callback] Raw Payload: {}", payload);
+        log.info("RunPaisa Callback Started {}", payload);
 
         String rawCallbackData = extractCallbackData(payload);
 
@@ -465,7 +466,6 @@ public class RunpaisaPGServiceImpl {
             RunPaisaCallback callback = parser.parse(payload);
             processCallback(callback);
 
-//            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
             commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
 
             return "Callback processed successfully";
@@ -476,7 +476,6 @@ public class RunpaisaPGServiceImpl {
         }
 
         try {
-//            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
             commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
 
             log.info("---- [Callback] Successfully logged callback event");
@@ -484,7 +483,6 @@ public class RunpaisaPGServiceImpl {
 
         } catch (Exception e) {
             log.error("---- [Callback] Error while saving callback log: {}", e.getMessage(), e);
-//            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, e.getMessage(), LocalDateTime.now());
             commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp, e.getMessage(), LocalDateTime.now());
 
             throw new RuntimeException("Callback processing failed");
@@ -492,7 +490,7 @@ public class RunpaisaPGServiceImpl {
     }
 
 
-   // @Override
+    // @Override
     public void processCallback(RunPaisaCallback callback) throws JsonProcessingException {
         log.info("---- [Callback] Processing for Order ID: {}, Status: {}", callback.getOrderId(), callback.getStatus());
 
@@ -698,8 +696,6 @@ public class RunpaisaPGServiceImpl {
         return callback;
     }
 
-
-//    @Override
     public CommonResponse<String> validateTransaction(PgTransactionRequestDto request) {
 
         ProductTransactionLimit limit = getLimit(request.getProductId())

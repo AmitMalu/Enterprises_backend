@@ -40,7 +40,7 @@ public class SchemeRate {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "slab_type", columnDefinition = "VARIABLE")
-    private SlabType slabType; // FIXED or VARIABLE
+    private SlabType slabType = SlabType.VARIABLE; // FIXED or VARIABLE
 
     // For Variable slab type
     @Column(name = "slab_start")

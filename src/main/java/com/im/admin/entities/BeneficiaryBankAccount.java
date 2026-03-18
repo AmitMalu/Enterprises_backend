@@ -39,6 +39,12 @@ public class BeneficiaryBankAccount {
     @Column(name = "is_verified")
     private Boolean isVerified = false;
 
+    @Column(name = "email_id")
+    private String emailId;
+
+    @Column(name = "mobile_no")
+    private String mobileNo;
+
     @CreationTimestamp
     @Column(name = "created_on", nullable = false, updatable = false)
     private LocalDateTime createdOn;

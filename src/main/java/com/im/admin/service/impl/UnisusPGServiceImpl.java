@@ -176,6 +176,8 @@ public class UnisusPGServiceImpl implements UnisusPGService {
     private UnisusWebhookResponse handlePgResponse(
             UnisusWebhookRequest request) {
 
+        log.info("UnisusPay Callback Started {}", request.toString());
+
         String trnRefNo =
                 request.getTransaction().getTrnRefNo();
 

@@ -4,17 +4,19 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.FundRequestActionDto;
 import com.im.admin.dto.PrefundRequestDto;
-import com.im.admin.entities.PrefundRequest;
-import com.im.admin.entities.RetailerUser;
+import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.entities.*;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
-import com.im.admin.repositories.PrefundRequestRepository;
-import com.im.admin.repositories.RetailerUserRepository;
+import com.im.admin.entities.product.Products;
+import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.PrefundRequestService;
 import com.im.admin.spec.PrefundRequestSpecification;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.WalletTransactionService;
 import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,6 +61,27 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     @Autowired
     private RetailerUserRepository retailerUserRepository;
 
+    @Autowired
+    private SubProductsRepository subProductsRepository;
+
+    @Autowired
+    private VendorRoutingRepository vendorRoutingRepository;
+
+    @Autowired
+    private VendorCredentialsRepository vendorCredentialsRepository;
+
+    @Autowired
+    private WalletTransactionService walletTransactionService;
+
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
+
+    @Autowired
+    private SchemeRepository schemeRepository;
+
+    @Autowired
+    private TransactionEngineServiceImpl transactionEngineServiceImpl;
+
 
     @Override
     public CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile) throws IOException {
@@ -101,7 +124,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         entity.setPaymentMode(dto.getPaymentMode());
         entity.setNarration(dto.getNarration());
         entity.setIpAddress(dto.getIpAddress());
-        if(dto.getDepositDate() != null && !dto.getDepositDate().isEmpty()){
+        if (dto.getDepositDate() != null && !dto.getDepositDate().isEmpty()) {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             entity.setDepositDate(LocalDate.parse(dto.getDepositDate()));
         }
@@ -114,7 +137,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     }
 
     @Override
-    public Page<PrefundRequest> getAllPrefundRequests(int page, int size, Long id, String requestedBy, String mobileNumber, Double depositAmount, String status, LocalDate depositDate,  LocalDate fromDate,
+    public Page<PrefundRequest> getAllPrefundRequests(int page, int size, Long id, String requestedBy, String mobileNumber, Double depositAmount, String status, LocalDate depositDate, LocalDate fromDate,
                                                       LocalDate toDate, LocalDate createDateTime,
                                                       String bankHolderName, String bankAccountName, String bankAccountNumber,
                                                       String bankTranId, String paymentMode, String narration, String ipAddress,
@@ -132,10 +155,126 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     }
 
 
+//    @Transactional
+//    @Override
+//    public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto) {
+//
+//        String vendorId = null;
+//        String baseTransactionId = commonMethods.generateBaseTransactionId();
+//        LocalDate date = LocalDate.now();
+//        LocalTime time = LocalTime.now();
+//        PrefundRequest fundRequest = repository.findById(actionDto.getFundRequestId())
+//                .orElseThrow(() -> new RuntimeException("Fund Request not found"));
+//
+//        if (fundRequest.getStatus() != Status.PENDING) {
+//            return new CommonResponse<>(400, "Fund Request already processed", null);
+//        }
+//
+//        Status newStatus = actionDto.getStatus();
+//        fundRequest.setStatus(newStatus);
+//        fundRequest.setRemarks(actionDto.getRemarks());
+//        fundRequest.setApproveOrRejectDate(date);
+//        fundRequest.setApproveOrRejectTime(time);
+//
+//        if (newStatus == Status.APPROVED) {
+//            String requesterId = fundRequest.getRequestedBy();
+//            String approverId = actionDto.getApproveOrRejectHierarchyId();
+//            WalletType walletType = WalletType.PREPAID;
+//            BigDecimal amount = BigDecimal.valueOf(fundRequest.getDepositAmount());
+//
+//            AbstractWalletAmountTable approverWallet = commonMethods.getWalletByType(walletType.name(), approverId);
+//            BigDecimal approverBalance = approverWallet.getAvailableBalance();
+//
+//            if (approverBalance.compareTo(amount) < 0) {
+//                return new CommonResponse<>(400, "Insufficient balance in approver's wallet: " + approverId, null);
+//            }
+//
+//            updateWallet(approverWallet, approverId, walletType, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", "Fund Transfer Successfully to" + requesterId + "/ @" + date + " " + time);
+//
+//            String requesterType = commonMethods.extractHierarchyType(requesterId);
+//            String parentHierarchyId = requesterId;
+//
+//            if ("RU".equalsIgnoreCase(requesterType)) {
+//                log.debug("Hierarchy type is RU. Fetching parent Retailer hierarchyId...");
+//
+//                parentHierarchyId = getParentRetailerId(requesterId);
+//                log.debug("Resolved parent Retailer hierarchyId: {}", parentHierarchyId);
+//
+//            }
+//
+//            AbstractWalletAmountTable requesterWallet = commonMethods.getWalletByType(walletType.name(), parentHierarchyId);
+//            updateWallet(requesterWallet, parentHierarchyId, walletType, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", "Fund Transfer Successfully from " + approverId + "/ @" + date + " " + time);
+//        }
+//
+//        repository.save(fundRequest);
+//
+//        SubProducts subProduct = subProductsRepository
+//                .findBySubProductCode(actionDto.getSubProductId())
+//                .orElseThrow(() -> new RuntimeException("SubProduct not found for Bank Verification"));
+//
+//        // Get Product from SubProduct
+//        Products product = subProduct.getProduct();
+//
+//        log.info("---- [Callback] Product fetched successfully | productId={}", product.getId());
+//
+//        // 2. Vendor Routing
+//        VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
+//        Vendors vendor = WalletTransactionService.getVendors(vendorRouting);
+//        // vendorId = vendor.getId();
+//
+//        //basically what we have to do here is we cannot fetch scheme dynamically for SD ,PT , DT so we have to make schemes and directly hardcode in
+//        //in the code so we already know the hierarchy type by requester by from Prefund Request so every hierarchy have scheme we make a Set here
+//        //then  took this scheme name and find scheme code and then pass into below so that we can get proper scheme rate slab
+//        //
+//
+//        Optional<SchemeRate> optSchemeRate = schemeRateRepository.findSchemeRateByCodeAndOperatorAndAmount(actionDto.getSchemeCode(),
+//                fundRequest.getBankAccountName(), fundRequest.getDepositAmount());
+//
+//        SchemeRate schemeRate = optSchemeRate.get();
+//
+//        BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
+//
+//        log.info("Scheme rate fetched successfully | schemeCode={} | rateType={} | slabType={}",
+//                schemeRate.getSchemeCode(), schemeRate.getRateType(), schemeRate.getSlabType());
+//
+//        try {
+//
+//            if (Boolean.TRUE.equals(product.getHasCharges())) {
+//                walletTransactionService.processHierarchyCharges(
+//                        fundRequest.getRequestedBy(),
+//                        product,
+//                        subProduct,
+//                        schemeRate,
+//                        grossAmount,
+//                        baseTransactionId
+//                );
+//            }
+//
+//            if (Boolean.TRUE.equals(product.getIsCommissions())) {
+//
+//                WalletType walletType = "POSTPAID".equalsIgnoreCase(subProduct.getWalletType())
+//                        ? WalletType.POSTPAID
+//                        : WalletType.PREPAID;
+//
+//                TransactionSchemeDetailsRequestDto dto = walletTransactionService.buildTransactionDto(grossAmount, baseTransactionId,
+//                        schemeRate, product, subProduct, fundRequest.getRequestedBy(), walletType);
+//                transactionEngineServiceImpl.processCommission(dto, baseTransactionId, "SUCCESS", dto);
+//
+//            }
+//
+//        } catch (Exception e) {
+//            log.error("**** [processChargesAndCommission] ERROR during processing {} {} ****", product.getHasCharges(), product.getIsCommissions(), e);
+//            throw e;
+//        }
+//
+//        return new CommonResponse<>(200, "Fund request action processed successfully", null);
+//    }
+
     @Transactional
     @Override
     public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto) {
 
+        String baseTransactionId = commonMethods.generateBaseTransactionId();
         LocalDate date = LocalDate.now();
         LocalTime time = LocalTime.now();
         PrefundRequest fundRequest = repository.findById(actionDto.getFundRequestId())
@@ -157,8 +296,6 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
             WalletType walletType = WalletType.PREPAID;
             BigDecimal amount = BigDecimal.valueOf(fundRequest.getDepositAmount());
 
-            String baseTransactionId = commonMethods.generateBaseTransactionId();
-
             AbstractWalletAmountTable approverWallet = commonMethods.getWalletByType(walletType.name(), approverId);
             BigDecimal approverBalance = approverWallet.getAvailableBalance();
 
@@ -176,7 +313,6 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
                 parentHierarchyId = getParentRetailerId(requesterId);
                 log.debug("Resolved parent Retailer hierarchyId: {}", parentHierarchyId);
-
             }
 
             AbstractWalletAmountTable requesterWallet = commonMethods.getWalletByType(walletType.name(), parentHierarchyId);
@@ -184,6 +320,99 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         }
 
         repository.save(fundRequest);
+
+        SubProducts subProduct = subProductsRepository
+                .findBySubProductCode(actionDto.getSubProductId())
+                .orElseThrow(() -> new RuntimeException("SubProduct not found for Bank Verification"));
+
+        // Get Product from SubProduct
+        Products product = subProduct.getProduct();
+
+        log.info("---- [Callback] Product fetched successfully | productId={}", product.getId());
+
+        // ================== NEW LOGIC START ==================
+
+        String requesterId = fundRequest.getRequestedBy();
+        String requesterType = commonMethods.extractHierarchyType(requesterId);
+
+        String schemeCode;
+
+        if ("RT".equalsIgnoreCase(requesterType)) {
+            // For RT → take from request
+            schemeCode = actionDto.getSchemeCode();
+        } else {
+
+            // Handle RU → take parent
+            String hierarchyForScheme = requesterId;
+            if ("RU".equalsIgnoreCase(requesterType)) {
+                hierarchyForScheme = getParentRetailerId(requesterId);
+            }
+
+            // For SD/PT/DT → derive
+            String schemeName = getSchemeNameByHierarchy(hierarchyForScheme);
+
+            Optional<Scheme> scheme = Optional.ofNullable(schemeRepository.findBySchemeName(schemeName)
+                    .orElseThrow(() -> new RuntimeException("Scheme not found for name: " + schemeName)));
+
+            schemeCode = scheme.get().getSchemeCode();
+        }
+
+        // ================== NEW LOGIC END ==================
+
+        Optional<SchemeRate> optSchemeRate = schemeRateRepository
+                .findSchemeRateByCodeAndOperatorAndAmount(
+                        schemeCode,
+                        fundRequest.getBankAccountName(),
+                        fundRequest.getDepositAmount()
+                );
+
+        SchemeRate schemeRate = optSchemeRate.orElseThrow(
+                () -> new RuntimeException("SchemeRate not found for code: " + schemeCode)
+        );
+
+        BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
+
+        log.info("Scheme rate fetched successfully | schemeCode={} | rateType={} | slabType={}",
+                schemeRate.getSchemeCode(), schemeRate.getRateType(), schemeRate.getSlabType());
+
+        try {
+
+            if (Boolean.TRUE.equals(product.getHasCharges())) {
+                walletTransactionService.processHierarchyCharges(
+                        fundRequest.getRequestedBy(),
+                        product,
+                        subProduct,
+                        schemeRate,
+                        grossAmount,
+                        baseTransactionId
+                );
+            }
+
+            if (Boolean.TRUE.equals(product.getIsCommissions())) {
+
+                WalletType walletType = "POSTPAID".equalsIgnoreCase(subProduct.getWalletType())
+                        ? WalletType.POSTPAID
+                        : WalletType.PREPAID;
+
+                TransactionSchemeDetailsRequestDto dto = walletTransactionService.buildTransactionDto(
+                        grossAmount,
+                        baseTransactionId,
+                        schemeRate,
+                        product,
+                        subProduct,
+                        fundRequest.getRequestedBy(),
+                        walletType
+                );
+
+                transactionEngineServiceImpl.processCommission(dto, baseTransactionId, "SUCCESS", dto);
+            }
+
+        } catch (Exception e) {
+            log.error("**** [processChargesAndCommission] ERROR during processing {} {} ****",
+                    product.getHasCharges(), product.getIsCommissions(), e);
+            throw e;
+        }
+
         return new CommonResponse<>(200, "Fund request action processed successfully", null);
     }
 
@@ -208,7 +437,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         } else {
             wallet.setTotalCash(wallet.getTotalCash().subtract(amount));
             wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(amount));
-            actionOnBalance = "Deduct Funds - " +  walletType.name();
+            actionOnBalance = "Deduct Funds - " + walletType.name();
         }
 
         wallet.setLastUpdatedAmount(amount);
@@ -256,12 +485,22 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     @Override
     public CommonResponse<PrefundRequest> getById(Long id) {
         Optional<PrefundRequest> optional = repository.findById(id);
-        if (optional.isPresent()) {
-            return new CommonResponse<>(200, "Prefund request fetched successfully", optional.get());
-        } else {
-            return new CommonResponse<>(404, "Prefund request not found with ID: " + id, null);
-        }
+        return optional.map(prefundRequest ->
+                new CommonResponse<>(200, "Prefund request fetched successfully", prefundRequest))
+                .orElseGet(() ->
+                        new CommonResponse<>(404, "Prefund request not found with ID: " + id, null));
     }
 
+    public String getSchemeNameByHierarchy(String hierarchyId) {
+
+        String type = walletTransactionService.extractHierarchyType(hierarchyId);
+
+        return switch (type.toUpperCase()) {
+            case "SD" -> "Fund_Request_SD_Scheme";
+            case "PT" -> "Fund_Request_PT_Scheme";
+            case "DT" -> "Fund_Request_DT_Scheme";
+            default -> throw new RuntimeException("No scheme defined for hierarchy: " + type);
+        };
+    }
 
 }

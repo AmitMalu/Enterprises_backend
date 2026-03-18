@@ -2,16 +2,16 @@ package com.im.admin.util;
 
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.BillRechargeResponseDTO;
-import com.im.admin.entities.RetailerUser;
-import com.im.admin.entities.SchemeRate;
-import com.im.admin.entities.TransactionSequence;
-import com.im.admin.entities.VendorRouting;
+import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.entities.*;
 import com.im.admin.entities.enums.ServiceType;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.TransactionType;
 import com.im.admin.entities.enums.WalletType;
+import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
+import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.Query;
@@ -29,6 +29,8 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -107,6 +109,9 @@ public class CommonMethods {
 
     @Autowired
     private AdminUserRepository adminUserRepository;
+
+    @Autowired
+    private TransactionEngineServiceImpl transactionEngineServiceImpl;
 
     public String generateNextIdForTables(String tableName, String idColumn) {
         log.debug("Generating next ID for table.");
