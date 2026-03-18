@@ -110,8 +110,10 @@ public class  PrefundRequestController {
     }
 
     @PostMapping("/action")
-    public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto) {
-        CommonResponse<String> response = prefundRequestService.takeActionOnFundRequest(actionDto);
+    public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto,
+                                                                          @RequestHeader("Latitude") Double latitude,
+                                                                          @RequestHeader("Longitude") Double longitude) {
+        CommonResponse<String> response = prefundRequestService.takeActionOnFundRequest(actionDto, latitude, longitude);
         return ResponseEntity.ok(response);
     }
 

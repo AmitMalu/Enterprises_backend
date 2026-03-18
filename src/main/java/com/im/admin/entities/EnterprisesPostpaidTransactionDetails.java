@@ -82,6 +82,12 @@ public class EnterprisesPostpaidTransactionDetails implements CommonSearchTransa
     @Column(name = "narration")
     private String narration;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @Override
     public String getHierarchyId() {
         return enterprisesId;

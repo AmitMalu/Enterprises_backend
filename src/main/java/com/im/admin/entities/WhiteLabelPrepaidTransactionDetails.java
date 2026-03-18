@@ -87,6 +87,12 @@ public class WhiteLabelPrepaidTransactionDetails implements CommonSearchTransact
     @Column(name = "narration")
     private String narration;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @Override
     public String getHierarchyId() {
         return whitelabelId;

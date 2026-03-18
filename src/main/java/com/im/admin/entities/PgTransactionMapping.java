@@ -27,5 +27,11 @@ public class PgTransactionMapping {
     @Column(name = "vendor_session_id")
     private String vendorSessionId;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
 }
 

@@ -16,7 +16,7 @@ public class UnisusInitiator implements PaymentInitiator {
     private final UnisusPGService unisusService;
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command) {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) {
 
         UnisusPayCreateOrderRequest req =
                 new UnisusPayCreateOrderRequest();
@@ -25,7 +25,7 @@ public class UnisusInitiator implements PaymentInitiator {
         req.setAmount(command.getAmount());
         req.setInitiatedBy(command.getInitiatedBy());
 
-        String redirectUrl = unisusService.authenticate(req);
+        String redirectUrl = unisusService.authenticate(req, latitude, longitude);
 
         // if needed fetch from DB by sessionId
 

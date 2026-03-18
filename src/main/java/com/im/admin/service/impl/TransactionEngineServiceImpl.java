@@ -1588,12 +1588,14 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transactionTable, hierarchyId, amount, walletType, tranxId);
 
         String operatorName = request.getOperatorName();
+        Double latitude = request.getLatitude();
+        Double longitude = request.getLongitude();
 
         String sql = "INSERT INTO " + transactionTable +
                 " (hierarchy_id, service, amount, remarks, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, operator_name) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, operator_name, latitude, longitude) " +
                 "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :operatorName)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :operatorName, :latitude, :longitude)";
 
         log.debug("[ADMIN_TXN_INSERT] Generated SQL: {}", sql);
 
@@ -1612,6 +1614,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
                     .setParameter("operatorName", operatorName)
+                    .setParameter("latitude", latitude)
+                    .setParameter("latitude", longitude)
                     .executeUpdate();
 
             log.info("[ADMIN_TXN_INSERT] Successfully inserted transaction for Admin | HierarchyID={} | TranxID={} | Amount={} | Status={}",
@@ -1640,13 +1644,15 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         String hierarchyType = extractHierarchyType(hierarchyId);
         String hierarchyColumnName = transactionHelperService.getHierarchyColumnName(hierarchyType);
 
+        Double latitude = request.getLatitude();
+        Double longitude = request.getLongitude();
         log.debug("[COMM_TXN_INSERT] Detected Hierarchy Type={} | ColumnName={}", hierarchyType, hierarchyColumnName);
 
         String sql = "INSERT INTO " + transactionTable +
                 " (" + hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name,scheme_name) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name,scheme_name, latitude, longitude) " +
                 "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName,:schemeName)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName,:schemeName, :latitude, :longitude)";
 
         log.debug("[COMM_TXN_INSERT] Generated SQL: {}", sql);
 
@@ -1666,6 +1672,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                     .setParameter("tranStatus", tranStatus)
                     .setParameter("subProductName", subProductName)
                     .setParameter("schemeName", request.getSchemeRate().getSchemeCode())
+                    .setParameter("latitude", latitude)
+                    .setParameter("longitude", longitude)
                     .executeUpdate();
 
             log.info("[COMM_TXN_INSERT] Successfully inserted commission transaction | HierarchyID={} | TranxID={} | Amount={} | Status={}",
@@ -1882,6 +1890,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setOperatorName(dto.getOperatorName());
                 transaction.setSubProductName(dto.getSubProductCode());
                 transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());  // new
+                transaction.setLatitude(dto.getLatitude());
+                transaction.setLongitude(dto.getLongitude());
 
                 retailerPrepaidTransactionDetailsRepository.save(transaction);
                 log.info("Prepaid transaction saved successfully | TranxId: {}", tranxId);
@@ -1904,6 +1914,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setOperatorName(dto.getOperatorName());
                 transaction.setSubProductName(dto.getSubProductCode());
                 transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());  // new
+                transaction.setLatitude(dto.getLatitude());
+                transaction.setLongitude(dto.getLongitude());
 
                 retailerPostpaidTransactionDetailsRepository.save(transaction);
                 log.info("Postpaid transaction saved successfully | TranxId: {}", tranxId);

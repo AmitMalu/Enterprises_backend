@@ -6,7 +6,7 @@ import com.im.admin.response.UnisusWebhookResponse;
 
 public interface UnisusPGService {
 
-    String authenticate(UnisusPayCreateOrderRequest request);
+    String authenticate(UnisusPayCreateOrderRequest request, Double latitude, Double longitude);
 
     UnisusWebhookResponse processWebhook(UnisusWebhookRequest request);
 }

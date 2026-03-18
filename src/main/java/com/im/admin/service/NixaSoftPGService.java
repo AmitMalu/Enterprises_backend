@@ -8,7 +8,7 @@ import com.im.admin.request.NixaSoftCreateOrderRequest;
  */
 public interface NixaSoftPGService {
 
-    String createOrder(NixaSoftCreateOrderRequest nixaSoftCreateOrderRequest);
+    String createOrder(NixaSoftCreateOrderRequest nixaSoftCreateOrderRequest, Double latitude, Double longitude);
 
     void processCallback(NixaSoftCallbackRequest request);
 

@@ -41,10 +41,12 @@ public class PaymentGatewayController {
 
     @PostMapping("/create-order")
     public ResponseEntity<CommonResponse<PgUnifiedOrderResponse>> createOrder(
-            @RequestBody PGCreateOrderCommand request) throws JsonProcessingException {
+            @RequestBody PGCreateOrderCommand request,
+            @RequestHeader("Latitude") Double latitude,
+            @RequestHeader("Longitude") Double longitude) throws JsonProcessingException {
         log.info("Received request to create order: {}", request);
         PgUnifiedOrderResponse result =
-                pgOrchestrator.initiate(request);
+                pgOrchestrator.initiate(request, latitude, longitude);
         log.info("Order creation response: {}", result);
         return ResponseEntity.ok(
                 CommonResponse.success(result, "Order created successfully")
