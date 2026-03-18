@@ -1861,8 +1861,8 @@ public class DashboardServiceImpl implements DashboardService {
                         partnerRepository.countByStatus("APPROVED") +
                         superDistributorRepository.countByStatus("APPROVED") +
                         whiteLabelRepository.countByStatus("APPROVED") +
-                        enterprisesRepository.countByStatus("APPROVED") +
-                        adminRepository.countByStatus("APPROVED");
+                        enterprisesRepository.countByStatus("APPROVED") ;
+//                        adminRepository.countByStatus("APPROVED");
 
         long rejected =
                 retailerRepository.countByStatus("REJECTED") +
@@ -1870,8 +1870,8 @@ public class DashboardServiceImpl implements DashboardService {
                         partnerRepository.countByStatus("REJECTED") +
                         superDistributorRepository.countByStatus("REJECTED") +
                         whiteLabelRepository.countByStatus("REJECTED") +
-                        enterprisesRepository.countByStatus("REJECTED") +
-                        adminRepository.countByStatus("REJECTED");
+                        enterprisesRepository.countByStatus("REJECTED") ;
+//                        adminRepository.countByStatus("REJECTED");
 
         long pending =
                 retailerRepository.countByStatus("PENDING") +
@@ -1879,8 +1879,8 @@ public class DashboardServiceImpl implements DashboardService {
                         partnerRepository.countByStatus("PENDING") +
                         superDistributorRepository.countByStatus("PENDING") +
                         whiteLabelRepository.countByStatus("PENDING") +
-                        enterprisesRepository.countByStatus("PENDING") +
-                        adminRepository.countByStatus("PENDING");
+                        enterprisesRepository.countByStatus("PENDING") ;
+//                        adminRepository.countByStatus("PENDING");
 
         return Map.of(
                 "APPROVED", approved,

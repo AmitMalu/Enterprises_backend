@@ -106,7 +106,70 @@ public class DmtOrchestrator {
 
     //  STEP 1: Send OTP
     public CommonResponse<PaysprintSendOtpResponse> sendDmtOtp(SendDmtRequest req) {
-        return null;
+
+        LocalDateTime requestTime = LocalDateTime.now();
+        String requestJson = null;
+        String responseJson = null;
+        String vendorId = null;
+
+        try {
+            VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+            Vendors vendor = CommonMethods.getVendors(routing);
+            vendorId = vendor.getId();
+            VendorCredentials credentials = vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("Vendor credentials not found"));
+
+            // Fetch beneficiary details
+            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(
+                    Long.valueOf(req.getBeneId())
+            );
+
+            if (beneficiary == null) {
+                return CommonResponse.error(400, "Beneficiary not found");
+            }
+
+            //  Fetch retailer details
+            Retailer retailer = retailerRepository.findByRetailerId(req.getRetailerId())
+                    .orElseThrow(() -> new RuntimeException("Retailer not found"));
+
+            //  Set beneficiary data into req
+            req.setDob(beneficiary.getDob());
+            req.setAddress(beneficiary.getAddress());
+            req.setPincode(beneficiary.getPincode());
+            req.setGstState(beneficiary.getGst_state());
+
+            //  Set retailer lat/long into req
+            req.setLat(retailer.getLatitude());
+            req.setLng(retailer.getLongitude());
+
+
+            //  Generate referenceId (20 chars)
+            String refId = generateReferenceId();
+            req.setReferenceId(refId);
+
+            DmtVendorService vendorService = vendorFactory.getVendor(vendor.getVendorName());
+            PaysprintSendOtpResponse otpResponse = vendorService.sendOtp(req, credentials);
+
+            otpResponse.setReferenceId(refId);
+
+
+            return CommonResponse.success(otpResponse, otpResponse.getMessage());
+        } catch (Exception ex) {
+
+            log.error(
+                    "[DMT SEND OTP] Exception | mobile={}, beneId={}",
+                    req.getMobile(),
+                    req.getBeneId(),
+                    ex
+            );
+
+            return CommonResponse.error(
+                    400,
+                    ex.getMessage()
+            );
+        }
+
     }
 
     @Transactional

@@ -44,6 +44,9 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
     private SchemeRateRepository schemeRateRepository;
 
     @Autowired
+    private AepsInstantPayMerchantStatusRepository aepsInstantPayMerchantStatusRepository;
+
+    @Autowired
     private RetailerRepository retailerRepository;
 
     @Autowired
@@ -127,13 +130,14 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             String baseUrl = credentials.getBaseUrlProd();
             String saltKey = credentials.getSaltKey();
 
-            AepsMerchantStatus merchant =
-                    aepsMerchantStatusRepository
+            AepsInstantPayMerchantStatus merchant =
+                    aepsInstantPayMerchantStatusRepository
                             .findByRetailerId(req.getRetailerId())
                             .orElseThrow(() ->
                                     new RuntimeException("Merchant not onboarded"));
 
-            String outletId = merchant.getMerchantLoginId();
+//            String outletId = merchant.getMerchantLoginId();
+            String outletId = merchant.getOutletId();
 
             String encryptedAadhaar =
                     InstantpayEncryptionUtil.encryptAadhaar(
@@ -160,12 +164,12 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             bio.put("dc", req.getBiometricData().getDc());
             bio.put("ci", req.getBiometricData().getCi());
             bio.put("hmac", req.getBiometricData().getHmac());
-            bio.put("dpId", req.getBiometricData().getDpId());
+            bio.put("dpId", req.getBiometricData().getDpID());
             bio.put("mc", req.getBiometricData().getMc());
-            bio.put("pidDataType", req.getBiometricData().getPidDataType());
+            bio.put("pidDataType", req.getBiometricData().getPidDatatype());
             bio.put("sessionKey", req.getBiometricData().getSessionKey());
             bio.put("mi", req.getBiometricData().getMi());
-            bio.put("rdsId", req.getBiometricData().getRdsId());
+            bio.put("rdsId", req.getBiometricData().getRdsID());
             bio.put("errCode", req.getBiometricData().getErrCode());
             bio.put("errInfo", req.getBiometricData().getErrInfo());
             bio.put("fCount", req.getBiometricData().getFCount());
@@ -177,7 +181,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             bio.put("srno", req.getBiometricData().getSrno());
             bio.put("sysid", req.getBiometricData().getSysid());
             bio.put("ts", req.getBiometricData().getTs());
-            bio.put("pidData", req.getBiometricData().getPidData());
+            bio.put("pidData", req.getBiometricData().getPiddata());
             bio.put("qScore", req.getBiometricData().getQScore());
             bio.put("nmPoints", req.getBiometricData().getNmPoints());
             bio.put("rdsVer", req.getBiometricData().getRdsVer());
@@ -195,7 +199,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             headers.set("X-Ipay-Auth-Code", "1");
             headers.set("X-Ipay-Client-Id", credentials.getClientId());
             headers.set("X-Ipay-Client-Secret", credentials.getClientSecret());
-            headers.set("X-Ipay-Endpoint-Ip", "127.0.0.1");
+            headers.set("X-Ipay-Endpoint-Ip", retailer.getCreatedByIPAddress());
             headers.set("X-Ipay-Outlet-Id", outletId);
 
             HttpEntity<String> entity = new HttpEntity<>(requestJson, headers);
@@ -248,14 +252,16 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                     .findSchemeRateByCodeAndOperatorAndAmount(
                             req.getSchemeCode(),
                             req.getTransactionType(),
-                            req.getTransactionAmount().doubleValue())
+                            req.getAmount().doubleValue())
                     .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getTransactionAmount()));
 
             // Build DTO for transaction engine
             TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();  //BE
             dto.setBaseTranxId(baseTxnId);
-            dto.setAmount(req.getTransactionAmount().doubleValue());
-            dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
+//            dto.setAmount(req.getTransactionAmount().doubleValue());
+            dto.setAmount(req.getAmount().doubleValue());
+//            dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
+            dto.setConfirmAmount(req.getAmount().doubleValue());
             dto.setOperatorName("BE");
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);
@@ -344,13 +350,14 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             String baseUrl = credentials.getBaseUrlProd();
             String saltKey = credentials.getSaltKey();
 
-            AepsMerchantStatus merchant =
-                    aepsMerchantStatusRepository
+            AepsInstantPayMerchantStatus merchant =
+                    aepsInstantPayMerchantStatusRepository
                             .findByRetailerId(req.getRetailerId())
                             .orElseThrow(() ->
                                     new RuntimeException("Merchant not onboarded"));
 
-            String outletId = merchant.getMerchantLoginId();
+//            String outletId = merchant.getMerchantLoginId();
+            String outletId = merchant.getOutletId();
 
             String encryptedAadhaar =
                     InstantpayEncryptionUtil.encryptAadhaar(
@@ -377,12 +384,12 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             bio.put("dc", req.getBiometricData().getDc());
             bio.put("ci", req.getBiometricData().getCi());
             bio.put("hmac", req.getBiometricData().getHmac());
-            bio.put("dpId", req.getBiometricData().getDpId());
+            bio.put("dpId", req.getBiometricData().getDpID());
             bio.put("mc", req.getBiometricData().getMc());
-            bio.put("pidDataType", req.getBiometricData().getPidDataType());
+            bio.put("pidDataType", req.getBiometricData().getPidDatatype());
             bio.put("sessionKey", req.getBiometricData().getSessionKey());
             bio.put("mi", req.getBiometricData().getMi());
-            bio.put("rdsId", req.getBiometricData().getRdsId());
+            bio.put("rdsId", req.getBiometricData().getRdsID());
             bio.put("errCode", req.getBiometricData().getErrCode());
             bio.put("errInfo", req.getBiometricData().getErrInfo());
             bio.put("fCount", req.getBiometricData().getFCount());
@@ -394,7 +401,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             bio.put("srno", req.getBiometricData().getSrno());
             bio.put("sysid", req.getBiometricData().getSysid());
             bio.put("ts", req.getBiometricData().getTs());
-            bio.put("pidData", req.getBiometricData().getPidData());
+            bio.put("pidData", req.getBiometricData().getPiddata());
             bio.put("qScore", req.getBiometricData().getQScore());
             bio.put("nmPoints", req.getBiometricData().getNmPoints());
             bio.put("rdsVer", req.getBiometricData().getRdsVer());
@@ -412,7 +419,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             headers.set("X-Ipay-Auth-Code", "1");
             headers.set("X-Ipay-Client-Id", credentials.getClientId());
             headers.set("X-Ipay-Client-Secret", credentials.getClientSecret());
-            headers.set("X-Ipay-Endpoint-Ip", "127.0.0.1");
+            headers.set("X-Ipay-Endpoint-Ip", retailer.getCreatedByIPAddress());
             headers.set("X-Ipay-Outlet-Id", outletId);
 
             HttpEntity<String> entity = new HttpEntity<>(requestJson, headers);
@@ -487,6 +494,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             // Build DTO for transaction engine
             TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();  //BE
             dto.setBaseTranxId(baseTxnId);
+//            dto.setAmount(req.getTransactionAmount().doubleValue());
             dto.setAmount(req.getTransactionAmount().doubleValue());
             dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
             dto.setOperatorName("BE");
@@ -582,13 +590,15 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             String baseUrl = credentials.getBaseUrlProd();
             String saltKey = credentials.getSaltKey();
 
-            AepsMerchantStatus merchant =
-                    aepsMerchantStatusRepository
+            AepsInstantPayMerchantStatus merchant =
+                    aepsInstantPayMerchantStatusRepository
                             .findByRetailerId(req.getRetailerId())
                             .orElseThrow(() ->
                                     new RuntimeException("Merchant not onboarded"));
 
-            String outletId = merchant.getMerchantLoginId();
+
+//            String outletId = merchant.getMerchantLoginId();
+            String outletId = merchant.getOutletId();
 
             String encryptedAadhaar =
                     InstantpayEncryptionUtil.encryptAadhaar(
@@ -615,12 +625,12 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             bio.put("dc", req.getBiometricData().getDc());
             bio.put("ci", req.getBiometricData().getCi());
             bio.put("hmac", req.getBiometricData().getHmac());
-            bio.put("dpId", req.getBiometricData().getDpId());
+            bio.put("dpId", req.getBiometricData().getDpID());
             bio.put("mc", req.getBiometricData().getMc());
-            bio.put("pidDataType", req.getBiometricData().getPidDataType());
+            bio.put("pidDataType", req.getBiometricData().getPidDatatype());
             bio.put("sessionKey", req.getBiometricData().getSessionKey());
             bio.put("mi", req.getBiometricData().getMi());
-            bio.put("rdsId", req.getBiometricData().getRdsId());
+            bio.put("rdsId", req.getBiometricData().getRdsID());
             bio.put("errCode", req.getBiometricData().getErrCode());
             bio.put("errInfo", req.getBiometricData().getErrInfo());
             bio.put("fCount", req.getBiometricData().getFCount());
@@ -632,7 +642,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             bio.put("srno", req.getBiometricData().getSrno());
             bio.put("sysid", req.getBiometricData().getSysid());
             bio.put("ts", req.getBiometricData().getTs());
-            bio.put("pidData", req.getBiometricData().getPidData());
+            bio.put("pidData", req.getBiometricData().getPiddata());
             bio.put("qScore", req.getBiometricData().getQScore());
             bio.put("nmPoints", req.getBiometricData().getNmPoints());
             bio.put("rdsVer", req.getBiometricData().getRdsVer());
@@ -650,7 +660,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             headers.set("X-Ipay-Auth-Code", "1");
             headers.set("X-Ipay-Client-Id", credentials.getClientId());
             headers.set("X-Ipay-Client-Secret", credentials.getClientSecret());
-            headers.set("X-Ipay-Endpoint-Ip", "127.0.0.1");
+            headers.set("X-Ipay-Endpoint-Ip", retailer.getCreatedByIPAddress());
             headers.set("X-Ipay-Outlet-Id", outletId);
 
             HttpEntity<String> entity = new HttpEntity<>(requestJson, headers);

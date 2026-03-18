@@ -1,10 +1,7 @@
 package com.im.admin.service;
 
 import com.im.admin.dto.InstantPayMerchantRequestDto;
-import com.im.admin.request.AepsMerchantRequestDto;
-import com.im.admin.request.Instantpay2FaRequestDto;
-import com.im.admin.request.InstantpayBiometricKycRequestDto;
-import com.im.admin.request.InstantpayKycStatusRequestDto;
+import com.im.admin.request.*;
 import com.im.admin.response.*;
 
 public interface AepsInstantpayService {
@@ -27,4 +24,8 @@ public interface AepsInstantpayService {
 
 
     CommonResponse<InstantpayBankListResponseDto> getBanks(InstantPayMerchantRequestDto req);
+
+
+    CommonResponse<AepsStatusDataDto> checkStatus(AepsCheckStatus aepsCheckStatus);
+
 }

@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
-@Table(name = "aeps_")
+@Table(name = "aeps_outletLogin")
 public class AepsOutletLoginLog {
 
     @Id

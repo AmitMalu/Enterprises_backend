@@ -6,9 +6,7 @@ import com.im.admin.dto.InstantPayMerchantRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
-import com.im.admin.request.Instantpay2FaRequestDto;
-import com.im.admin.request.InstantpayBiometricKycRequestDto;
-import com.im.admin.request.InstantpayKycStatusRequestDto;
+import com.im.admin.request.*;
 import com.im.admin.response.*;
 import com.im.admin.service.AepsInstantpayService;
 import com.im.admin.service.AepsMerchantService;
@@ -34,6 +32,9 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
 
     @Autowired
     private AepsMerchantStatusRepository aepsMerchantStatusRepository;
+
+    @Autowired
+    private AepsInstantPayMerchantStatusRepository aepsInstantPayMerchantStatusRepository;
 
     @Autowired
     private VendorCredentialsRepository vendorCredentialsRepository;
@@ -166,15 +167,24 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             );
 
             //  CHECK EXISTING MERCHANT =====
-            Optional<AepsMerchantStatus> existing =
-                    aepsMerchantStatusRepository.findByRetailerId(r.getRetailerId());
+//            Optional<AepsMerchantStatus> existing =
+//                    aepsMerchantStatusRepository.findByRetailerId(r.getRetailerId());
+            Optional<AepsInstantPayMerchantStatus> existing =
+                    aepsInstantPayMerchantStatusRepository
+                            .findByRetailerId(req.getRetailerId());
 
             if (existing.isPresent()) {
 
-                AepsMerchantStatus status = existing.get();
+                AepsInstantPayMerchantStatus status = existing.get();
+
+//                if (vendorRes.getData() != null) {
+//                    status.setMerchantLoginId(
+//                            String.valueOf(vendorRes.getData().getOutletId())
+//                    );
+//                }
 
                 if (vendorRes.getData() != null) {
-                    status.setMerchantLoginId(
+                    status.setOutletId(
                             String.valueOf(vendorRes.getData().getOutletId())
                     );
                 }
@@ -183,7 +193,7 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
                 status.setOnboarded(true);
                 status.setVendor(vendor);
 
-                aepsMerchantStatusRepository.save(status);
+                aepsInstantPayMerchantStatusRepository.save(status);
 
                 return new CommonResponse<>(
                         200,
@@ -196,12 +206,16 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             if (vendorRes != null &&
                     "TXN".equalsIgnoreCase(vendorRes.getStatuscode())) {
 
-                AepsMerchantStatus status = new AepsMerchantStatus();
+                AepsInstantPayMerchantStatus status = new AepsInstantPayMerchantStatus();
 
                 status.setRetailerId(r.getRetailerId());
 
-                status.setMerchantLoginId(
+//                status.setMerchantLoginId(
+//                        String.valueOf(vendorRes.getData().getOutletId())
+
+                status.setOutletId(
                         String.valueOf(vendorRes.getData().getOutletId())
+
                 );
 
                 status.setOnboarded(true);
@@ -212,7 +226,7 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
                 status.setCreatedAt(LocalDateTime.now());
                 status.setVendor(vendor);
 
-                aepsMerchantStatusRepository.save(status);
+                aepsInstantPayMerchantStatusRepository.save(status);
 
                 return new CommonResponse<>(
                         200,
@@ -268,14 +282,28 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             String clientId = credentials.getClientId();
             String clientSecret = credentials.getClientSecret();
 
+            // ===== STEP 3 : GET RETAILER =====
+            Optional<Retailer> opts = retailerRepository.findById(req.getRetailerId());
+
+            if (opts.isEmpty()) {
+                return CommonResponse.error(
+                        400,
+                        "Invalid retailerId: Retailer not found"
+                );
+            }
+
+            Retailer r = opts.get();
+
+
             //  GET MERCHANT =====
-            AepsMerchantStatus merchant =
-                    aepsMerchantStatusRepository
+            AepsInstantPayMerchantStatus merchant =
+                    aepsInstantPayMerchantStatusRepository
                             .findByRetailerId(req.getRetailerId())
                             .orElseThrow(() ->
                                     new RuntimeException("Merchant not onboarded"));
 
-            String outletId = merchant.getMerchantLoginId();
+//            String outletId = merchant.getMerchantLoginId();
+            String outletId = merchant.getOutletId();
 
             String url = baseUrl + "/user/outlet/signup/biometricKycStatus";
 
@@ -295,7 +323,7 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             headers.set("X-Ipay-Auth-Code", "1");
             headers.set("X-Ipay-Client-Id", clientId);
             headers.set("X-Ipay-Client-Secret", clientSecret);
-            headers.set("X-Ipay-Endpoint-Ip", "127.0.0.1");
+            headers.set("X-Ipay-Endpoint-Ip", r.getCreatedByIPAddress());
             headers.set("X-Ipay-Outlet-Id", outletId);
 
             HttpEntity<String> entity =
@@ -335,25 +363,30 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             merchant.setReferenceKey(referenceKey);
             merchant.setUpdatedAt(LocalDateTime.now());
 
-            aepsMerchantStatusRepository.save(merchant);
+            aepsInstantPayMerchantStatusRepository.save(merchant);
 
             //  IF NO ACTION REQUIRED
             if ("NO-ACTION-REQUIRED".equalsIgnoreCase(action)) {
 
-                Optional<AepsMerchantStatus> opt =
-                        aepsMerchantStatusRepository
+//                Optional<AepsMerchantStatus> opt =
+//                        aepsMerchantStatusRepository
+//                                .findByRetailerId(req.getRetailerId());
+
+                Optional<AepsInstantPayMerchantStatus> opt =
+                        aepsInstantPayMerchantStatusRepository
                                 .findByRetailerId(req.getRetailerId());
+
 
                 if (opt.isPresent()) {
 
-                    AepsMerchantStatus status = opt.get();
+                    AepsInstantPayMerchantStatus status = opt.get();
 
                     status.setEkycVerified(true);
                     status.setBiometricVerified(true);
                     status.setUpdatedAt(LocalDateTime.now());
                     status.setStatus("ACTIVE");
 
-                    aepsMerchantStatusRepository.save(status);
+                    aepsInstantPayMerchantStatusRepository.save(status);
                 }
 
                 return new CommonResponse<>(
@@ -423,18 +456,20 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             String externalRef = "AEPS-" + req.getRetailerId() + "-" + System.currentTimeMillis();
 
             // GET MERCHANT
-            AepsMerchantStatus merchant =
-                    aepsMerchantStatusRepository
+            AepsInstantPayMerchantStatus merchant =
+                    aepsInstantPayMerchantStatusRepository
                             .findByRetailerId(req.getRetailerId())
                             .orElseThrow(() ->
                                     new RuntimeException("Merchant not onboarded"));
 
-            String outletId = merchant.getMerchantLoginId();
+//            String outletId = merchant.getMerchantLoginId();
+            String outletId = merchant.getOutletId();
             String referenceKey = merchant.getReferenceKey();
 
             String encryptedAadhaar =
                     InstantpayEncryptionUtil.encryptAadhaar(
-                            req.getAadhaarNumber(),
+//                            req.getAadhaarNumber(),
+                            retailer.getAadhaarNumber(),
                             saltKey
                     );
 
@@ -455,10 +490,10 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             bio.put("dc", req.getBiometricData().getDc());
             bio.put("ci", req.getBiometricData().getCi());
             bio.put("hmac", req.getBiometricData().getHmac());
-            bio.put("dpId", req.getBiometricData().getDpId());
+            bio.put("dpId", req.getBiometricData().getDpID());
             bio.put("mc", req.getBiometricData().getMc());
-            bio.put("pidDataType", req.getBiometricData().getPidDataType());
-            bio.put("rdsId", req.getBiometricData().getRdsId());
+            bio.put("pidDataType", req.getBiometricData().getPidDatatype());
+            bio.put("rdsId", req.getBiometricData().getRdsID());
             bio.put("sessionKey", req.getBiometricData().getSessionKey());
             bio.put("mi", req.getBiometricData().getMi());
             bio.put("errCode", req.getBiometricData().getErrCode());
@@ -472,7 +507,7 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             bio.put("srno", req.getBiometricData().getSrno());
             bio.put("sysid", req.getBiometricData().getSysid());
             bio.put("ts", req.getBiometricData().getTs());
-            bio.put("pidData", req.getBiometricData().getPidData());
+            bio.put("pidData", req.getBiometricData().getPiddata());
             bio.put("qScore", req.getBiometricData().getQScore());
             bio.put("nmPoints", req.getBiometricData().getNmPoints());
             bio.put("rdsVer", req.getBiometricData().getRdsVer());
@@ -491,7 +526,7 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             headers.set("X-Ipay-Auth-Code", "1");
             headers.set("X-Ipay-Client-Id", clientId);
             headers.set("X-Ipay-Client-Secret", clientSecret);
-            headers.set("X-Ipay-Endpoint-Ip", "127.0.0.1");
+            headers.set("X-Ipay-Endpoint-Ip", retailer.getCreatedByIPAddress());
             headers.set("X-Ipay-Outlet-Id", outletId);
 
             HttpEntity<String> entity = new HttpEntity<>(requestJson, headers);
@@ -521,6 +556,25 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
 
             if (vendorRes == null) {
                 return CommonResponse.error(400, "Invalid vendor response");
+            }
+
+            if ("TXN".equalsIgnoreCase(vendorRes.getStatuscode())) {
+
+                Optional<AepsInstantPayMerchantStatus> opt =
+                        aepsInstantPayMerchantStatusRepository
+                                .findByRetailerIdAndVendor(req.getRetailerId(), vendor);
+
+                if (opt.isPresent()) {
+
+                    AepsInstantPayMerchantStatus status = opt.get();
+
+                    status.setEkycVerified(true);
+                    status.setBiometricVerified(true);
+                    status.setStatus("ACTIVE");
+                    status.setUpdatedAt(LocalDateTime.now());
+
+                    aepsInstantPayMerchantStatusRepository.save(status);
+                }
             }
 
             return new CommonResponse<>(
@@ -563,13 +617,14 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
 
             String baseUrl = credentials.getBaseUrlProd();
 
-            AepsMerchantStatus merchant =
-                    aepsMerchantStatusRepository
+            AepsInstantPayMerchantStatus merchant =
+                    aepsInstantPayMerchantStatusRepository
                             .findByRetailerId(req.getRetailerId())
                             .orElseThrow(() ->
                                     new RuntimeException("Merchant not onboarded"));
 
-            String outletId = merchant.getMerchantLoginId();
+//            String outletId = merchant.getMerchantLoginId();
+            String outletId = merchant.getOutletId();
 
             String url = baseUrl + "/fi/aeps/outletLoginStatus";
 
@@ -587,7 +642,7 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             headers.set("X-Ipay-Auth-Code", "1");
             headers.set("X-Ipay-Client-Id", credentials.getClientId());
             headers.set("X-Ipay-Client-Secret", credentials.getClientSecret());
-            headers.set("X-Ipay-Endpoint-Ip", "127.0.0.1");
+            headers.set("X-Ipay-Endpoint-Ip", retailer.getCreatedByIPAddress());
             headers.set("X-Ipay-Outlet-Id", outletId);
 
             HttpEntity<String> entity = new HttpEntity<>(requestJson, headers);
@@ -647,13 +702,14 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             String baseUrl = credentials.getBaseUrlProd();
             String saltKey = credentials.getSaltKey();
 
-            AepsMerchantStatus merchant =
-                    aepsMerchantStatusRepository
+            AepsInstantPayMerchantStatus merchant =
+                    aepsInstantPayMerchantStatusRepository
                             .findByRetailerId(req.getRetailerId())
                             .orElseThrow(() ->
                                     new RuntimeException("Merchant not onboarded"));
 
-            String outletId = merchant.getMerchantLoginId();
+//            String outletId = merchant.getMerchantLoginId();
+            String outletId = merchant.getOutletId();
 
             String encryptedAadhaar =
                     InstantpayEncryptionUtil.encryptAadhaar(
@@ -680,12 +736,12 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             bio.put("dc", req.getBiometricData().getDc());
             bio.put("ci", req.getBiometricData().getCi());
             bio.put("hmac", req.getBiometricData().getHmac());
-            bio.put("dpId", req.getBiometricData().getDpId());
+            bio.put("dpId", req.getBiometricData().getDpID());
             bio.put("mc", req.getBiometricData().getMc());
-            bio.put("pidDataType", req.getBiometricData().getPidDataType());
+            bio.put("pidDataType", req.getBiometricData().getPidDatatype());
             bio.put("sessionKey", req.getBiometricData().getSessionKey());
             bio.put("mi", req.getBiometricData().getMi());
-            bio.put("rdsId", req.getBiometricData().getRdsId());
+            bio.put("rdsId", req.getBiometricData().getRdsID());
             bio.put("errCode", req.getBiometricData().getErrCode());
             bio.put("errInfo", req.getBiometricData().getErrInfo());
             bio.put("fCount", req.getBiometricData().getFCount());
@@ -697,7 +753,7 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             bio.put("srno", req.getBiometricData().getSrno());
             bio.put("sysid", req.getBiometricData().getSysid());
             bio.put("ts", req.getBiometricData().getTs());
-            bio.put("pidData", req.getBiometricData().getPidData());
+            bio.put("pidData", req.getBiometricData().getPiddata());
             bio.put("qScore", req.getBiometricData().getQScore());
             bio.put("nmPoints", req.getBiometricData().getNmPoints());
             bio.put("rdsVer", req.getBiometricData().getRdsVer());
@@ -715,7 +771,7 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             headers.set("X-Ipay-Auth-Code", "1");
             headers.set("X-Ipay-Client-Id", credentials.getClientId());
             headers.set("X-Ipay-Client-Secret", credentials.getClientSecret());
-            headers.set("X-Ipay-Endpoint-Ip", "127.0.0.1");
+            headers.set("X-Ipay-Endpoint-Ip", retailer.getCreatedByIPAddress());
             headers.set("X-Ipay-Outlet-Id", outletId);
 
             HttpEntity<String> entity = new HttpEntity<>(requestJson, headers);
@@ -735,23 +791,42 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             // ==============================
             // SAVE BUSINESS LOG IN DB
             // ==============================
+            if (vendorRes != null
+                    && "TXN".equalsIgnoreCase(vendorRes.getStatuscode())) {
 
-            AepsOutletLoginLog log = new AepsOutletLoginLog();
+                Optional<AepsOutletLoginLog> existingOpt =
+                        aepsOutletLoginLogRepository
+                                .findByRetailerIdAndVendorId(req.getRetailerId(), vendor.getId());
 
-            log.setRetailerId(req.getRetailerId());
-            log.setVendorId(vendor.getId());
-            log.setOutletId(outletId);
-            log.setExternalRef(externalRef);
+                AepsOutletLoginLog log;
 
-            if (vendorRes != null) {
-                log.setStatuscode(vendorRes.getStatuscode());
-                log.setActcode(vendorRes.getActcode());
-                log.setMessage(vendorRes.getStatus());
+                if (existingOpt.isPresent()) {
+
+                    log = existingOpt.get();
+
+                    log.setOutletId(outletId);
+                    log.setExternalRef(externalRef);
+                    log.setStatuscode(vendorRes.getStatuscode());
+                    log.setActcode(vendorRes.getActcode());
+                    log.setMessage(vendorRes.getStatus());
+//                    log.setUpdatedAt(LocalDateTime.now());
+
+                } else {
+
+                    log = new AepsOutletLoginLog();
+
+                    log.setRetailerId(req.getRetailerId());
+                    log.setVendorId(vendor.getId());
+                    log.setOutletId(outletId);
+                    log.setExternalRef(externalRef);
+                    log.setStatuscode(vendorRes.getStatuscode());
+                    log.setActcode(vendorRes.getActcode());
+                    log.setMessage(vendorRes.getStatus());
+                    log.setCreatedAt(LocalDateTime.now());
+                }
+
+                aepsOutletLoginLogRepository.save(log);
             }
-
-            log.setCreatedAt(LocalDateTime.now());
-
-            aepsOutletLoginLogRepository.save(log);
 
             // ==============================
             // SAVE VENDOR LOGS
@@ -786,6 +861,10 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
 
         try {
 
+            Retailer retailer = retailerRepository
+                    .findById(req.getRetailerId())
+                    .orElseThrow(() -> new RuntimeException("Retailer not found"));
+
             // GET VENDOR ROUTING
             VendorRouting vendorRouting =
                     vendorRoutingRepository.findBySubProductId(req.getSubProductId());
@@ -802,13 +881,13 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
                                     new RuntimeException("Vendor credentials not found"));
 
             // GET MERCHANT
-            AepsMerchantStatus merchant =
-                    aepsMerchantStatusRepository
+            AepsInstantPayMerchantStatus merchant =
+                    aepsInstantPayMerchantStatusRepository
                             .findByRetailerId(req.getRetailerId())
                             .orElseThrow(() ->
                                     new RuntimeException("Merchant not onboarded"));
-
-            String outletId = merchant.getMerchantLoginId();
+//            String outletId = merchant.getMerchantLoginId();
+            String outletId = merchant.getOutletId();
 
             String url = credentials.getBaseUrlProd() + "/fi/aeps/banks";
 
@@ -820,7 +899,7 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             headers.set("X-Ipay-Auth-Code", "1");
             headers.set("X-Ipay-Client-Id", credentials.getClientId());
             headers.set("X-Ipay-Client-Secret", credentials.getClientSecret());
-            headers.set("X-Ipay-Endpoint-Ip", "127.0.0.1");
+            headers.set("X-Ipay-Endpoint-Ip", retailer.getCreatedByIPAddress());
             headers.set("X-Ipay-Outlet-Id", outletId);
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
@@ -851,6 +930,40 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
                     null
             );
         }
+    }
+
+    @Override
+    public CommonResponse<AepsStatusDataDto> checkStatus(AepsCheckStatus req) {
+
+        VendorRouting vendorRouting =
+                vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+
+        Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+        CommonResponse<AepsStatusDataDto> resp = new CommonResponse<>();
+        AepsStatusDataDto data = new AepsStatusDataDto();
+
+        Optional<AepsInstantPayMerchantStatus> opt =
+                aepsInstantPayMerchantStatusRepository
+                        .findByRetailerIdAndVendor(req.getRetailerId(), vendor);
+
+        // CASE 1: Not onboarded
+        if (opt.isEmpty() || !Boolean.TRUE.equals(opt.get().getOnboarded())) {
+            data.setOnboardStatus(0);
+
+            resp.setStatusCode(200);
+            resp.setMessage("Merchant onboarding not done");
+            resp.setData(data);
+            return resp;
+        }
+
+        // CASE 2: Onboarded
+        data.setOnboardStatus(1);
+
+        resp.setStatusCode(200);
+        resp.setMessage("Merchant onboarding done");
+        resp.setData(data);
+        return resp;
     }
 
 }
