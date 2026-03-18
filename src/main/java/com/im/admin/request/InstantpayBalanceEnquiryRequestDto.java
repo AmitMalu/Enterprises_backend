@@ -1,5 +1,6 @@
 package com.im.admin.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import org.bouncycastle.asn1.x509.qualified.BiometricData;
 
@@ -21,35 +22,84 @@ public class InstantpayBalanceEnquiryRequestDto {
     @Data
     public class BiometricData {
 
+        @JsonProperty("dc")
         private String dc;
-        private String ci;
-        private String hmac;
-        private String dpId;
-        private String mc;
-        private String pidDataType;
-        private String sessionKey;
-        private String mi;
-        private String rdsId;
 
+        @JsonProperty("ci")
+        private String ci;
+
+        @JsonProperty("hmac")
+        private String hmac;
+
+//        @JsonProperty("dpId")
+//        private String dpId;
+
+        @JsonProperty("dpID")
+        private String dpID;
+
+        @JsonProperty("mc")
+        private String mc;
+
+//        @JsonProperty("pidDataType")
+//        private String pidDataType;
+
+        @JsonProperty("PidDatatype")
+        private String PidDatatype;
+
+
+
+        @JsonProperty("rdsID")
+        private String rdsID;
+
+        @JsonProperty("sessionKey")
+        private String sessionKey;
+
+        @JsonProperty("mi")
+        private String mi;
+
+        @JsonProperty("errCode")
         private String errCode;
+
+        @JsonProperty("errInfo")
         private String errInfo;
 
+        @JsonProperty("fCount")
         private String fCount;
+
+        @JsonProperty("fType")
         private String fType;
 
+        @JsonProperty("iCount")
         private String iCount;
+
+        @JsonProperty("iType")
         private String iType;
 
+        @JsonProperty("pCount")
         private String pCount;
+
+        @JsonProperty("pType")
         private String pType;
 
+        @JsonProperty("srno")
         private String srno;
-        private String sysid;
-        private String ts;
-        private String pidData;
 
+        @JsonProperty("sysid")
+        private String sysid;
+
+        @JsonProperty("ts")
+        private String ts;
+
+        @JsonProperty("Piddata")
+        private String Piddata;
+
+        @JsonProperty("qScore")
         private String qScore;
+
+        @JsonProperty("nmPoints")
         private String nmPoints;
+
+        @JsonProperty("rdsVer")
         private String rdsVer;
     }
 }

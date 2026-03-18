@@ -53,4 +53,7 @@ public class AepsMerchantStatus {
 
     @Column(name = "reference_key", columnDefinition = "TEXT")
     private String referenceKey;
+
+    @Column(name = "outlet_id")
+    private String outletId;
 }

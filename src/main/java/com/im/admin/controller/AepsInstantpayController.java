@@ -2,10 +2,7 @@ package com.im.admin.controller;
 
 
 import com.im.admin.dto.InstantPayMerchantRequestDto;
-import com.im.admin.request.AepsMerchantRequestDto;
-import com.im.admin.request.Instantpay2FaRequestDto;
-import com.im.admin.request.InstantpayBiometricKycRequestDto;
-import com.im.admin.request.InstantpayKycStatusRequestDto;
+import com.im.admin.request.*;
 import com.im.admin.response.*;
 import com.im.admin.service.AepsInstantpayService;
 import com.im.admin.util.InstantpayEncryptionUtil;
@@ -58,7 +55,7 @@ public class AepsInstantpayController {
         return aepsInstantpayService.outletLogin(request);
     }
 
-    @GetMapping("/banks")
+    @PostMapping("/banks")
     public CommonResponse<InstantpayBankListResponseDto> getBanks(
             @RequestBody InstantPayMerchantRequestDto req) {
 
@@ -78,5 +75,10 @@ public class AepsInstantpayController {
         response.put("encryptedAadhaar", encrypted);
 
         return response;
+    }
+
+    @PostMapping("/check-status")
+    public CommonResponse<AepsStatusDataDto> checkStatus(@RequestBody AepsCheckStatus req) {
+        return aepsInstantpayService.checkStatus(req);
     }
 }
