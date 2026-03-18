@@ -484,7 +484,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
 @Transactional
     @Override
-    public Object doBillPayment(BillPaymentRequest request) throws Exception {
+    public Object doBillPayment(BillPaymentRequest request, Double latitude, Double longitude) throws Exception {
 
         String orderId = "TXN" + commonMethods.generateBaseTransactionId();
         log.info("[PROCESS BILL PAYMENT] Starting transaction | orderId={}", orderId);
@@ -567,7 +567,9 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                     subProducts.getSubProductTitle(),
                     "Bill Avenue BillPay",
                     "Bill payment initiated",
-                    ""
+                    "",
+                    latitude,
+                    longitude
             );
 
             bbpsRelatedTransactions.processCharges(bbpsDto, walletAmountTable);

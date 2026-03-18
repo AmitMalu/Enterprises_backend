@@ -2,7 +2,7 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.BeneficiaryVerifyRequestDto;
 import com.im.admin.dto.BeneficiaryVerifyResponseDto;
-import com.im.admin.orchestrator.PayoutOrchestratorV0;
+import com.im.admin.orchestrator.PayoutOrchestrator;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
@@ -11,10 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
@@ -24,14 +21,14 @@ import java.time.LocalDateTime;
 public class PayoutController {
 
     @Autowired
-    private PayoutOrchestratorV0 payoutOrchestratorV0;
+    private PayoutOrchestrator payoutOrchestratorV0;
 
     @PostMapping("/send-payout")
-    public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest) {
+    public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest, @RequestHeader Double latitude, @RequestHeader Double longitude) {
         log.info("======= Calling payoutService.sendPayoutRequest =======");
 
         try {
-            CommonResponse<PayoutResponseDto> response = payoutOrchestratorV0.processPayout(sendPayoutRequest);
+            CommonResponse<PayoutResponseDto> response = payoutOrchestratorV0.processPayout(sendPayoutRequest, latitude, latitude);
             log.info("======= sendPayoutRequest completed at {} =======", LocalDateTime.now());
             return ResponseEntity.status(response.getStatusCode()).body(response);
         } catch (Exception e) {

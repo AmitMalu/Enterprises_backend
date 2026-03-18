@@ -173,7 +173,7 @@ public class DmtOrchestrator {
     }
 
     @Transactional
-    public CommonResponse<DmtResponseDto> processDmt(SendDmtRequest req) {
+    public CommonResponse<DmtResponseDto> processDmt(SendDmtRequest req, Double latitude, Double longitude) {
 
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = null;
@@ -223,7 +223,6 @@ public class DmtOrchestrator {
             // 5️ Wallet Debit (PENDING)
             AbstractWalletAmountTable walletAmountTable =
                     commonMethods.getWalletByType(walletType.name(), req.getRetailerId());
-//            String baseTxnId = orderId.substring(3);
             String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
 
             SchemeRate selectedScheme = schemeRateRepository
@@ -234,7 +233,6 @@ public class DmtOrchestrator {
                     .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
 
             String schemeCode = selectedScheme.getSchemeCode();
-
 
             commonMethods.updateWallet(
                     walletAmountTable,
@@ -248,7 +246,9 @@ public class DmtOrchestrator {
                     subProducts.getSubProductTitle(),
                     req.getBeneficiaryName() + " #" + req.getAccountNumber(),
                     "Fund Transferred #" + req.getAccountNumber(),
-                    schemeCode   //new
+                    schemeCode,
+                    latitude,
+                    longitude
             );
 
             log.debug("[PROCESS DMT] Wallet debited (PENDING) for retailer={}, amount={}",
@@ -283,9 +283,8 @@ public class DmtOrchestrator {
             req.setLat(retailer.getLatitude());
             req.setLng(retailer.getLongitude());
 
-
             // 6. Call vendor-specific implementation (must return PayoutResponseDto)
-            RemitterTransactionResponse remitterTransactionResponse = vendorService.processDmt(req, credentials, orderId, subProducts, walletType);
+            RemitterTransactionResponse remitterTransactionResponse = vendorService.processDmt(req, credentials, orderId, subProducts, walletType, latitude, longitude);
 
             // ================== VENDOR SUCCESS LOG ==================
             responseJson = objectMapper.writeValueAsString(remitterTransactionResponse);

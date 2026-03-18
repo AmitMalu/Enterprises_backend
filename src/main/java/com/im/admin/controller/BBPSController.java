@@ -58,9 +58,9 @@ public class BBPSController {
 
     @PostMapping("/transaction")
     public ResponseEntity<CommonResponse<?>> recharge(
-            @RequestBody BillRechargeRequestDTO request) {
+            @RequestBody BillRechargeRequestDTO request, @RequestHeader Double latitude, @RequestHeader Double longitude) {
         log.info("Received recharge request: {}", request);
-        CommonResponse<?> response = bbpsService.processRecharge(request);
+        CommonResponse<?> response = bbpsService.processRecharge(request, latitude, longitude);
         log.info("Recharge response: {}", response);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }

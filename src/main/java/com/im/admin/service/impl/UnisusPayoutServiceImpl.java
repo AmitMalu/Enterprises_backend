@@ -85,7 +85,9 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
             VendorCredentials creds,
             String orderId,
             SubProducts subProducts,
-            WalletType walletType
+            WalletType walletType,
+            Double latitude,
+            Double longitude
     ) {
 
         try {

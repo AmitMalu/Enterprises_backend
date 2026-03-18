@@ -65,7 +65,9 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             VendorCredentials creds,
             String orderId,
             SubProducts subProducts,
-            WalletType walletType) {
+            WalletType walletType,
+            Double latitude,
+            Double longitude) {
 
         log.info("Starting NixaSoft payout for orderId={}, amount={}", orderId, req.getAmount());
 

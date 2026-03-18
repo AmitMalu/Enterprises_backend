@@ -81,7 +81,9 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                                         VendorCredentials creds,
                                         String orderId,
                                         SubProducts subProduct,
-                                        WalletType walletType) {
+                                        WalletType walletType,
+                                        Double latitude,
+                                        Double longitude) {
         log.info("[RUNPAISA] Starting payout for orderId={}", orderId);
 
         LocalDateTime requestTime = LocalDateTime.now();
@@ -150,7 +152,6 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             body.add("paymentMode", req.getPaymentMode()); // IMPS / NEFT
             body.add("callbackurl", creds.getCallbackUrl());
 
-
             // Convert request to JSON for logging
             requestJson = objectMapper.writeValueAsString(body);
 
@@ -184,17 +185,12 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                         .build();
             }
 
-//            Map<String, Object> data = (Map<String, Object>) vendorResp.get("data");
-//            String vendorStatus = ((String) vendorResp.get("status")).toUpperCase();
-
-
             String vendorCodeResp = (String) vendorResp.get("code");
             String vendorStatus = (String) vendorResp.get("status");
             String vendorMessage = (String) vendorResp.get("message");
 
             boolean accepted = "RP000".equals(vendorCodeResp)
                     && "SUCCESS".equalsIgnoreCase(vendorStatus);
-
 
             if (!accepted) {
                 return PayoutResponseDto.builder()
@@ -220,25 +216,13 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             pending.setIfscCode(req.getIfscCode());
             pending.setAccountNumber(req.getAccountNumber());
             pending.setBeneficiaryName(req.getBeneficiaryName());
+            pending.setLatitude(latitude);
+            pending.setLongitude(longitude);
             payoutPendingTransactionRepository.save(pending);
 
             log.info("[RUNPAISA] Transaction saved | TxnID={} | Status={}", orderId, vendorStatus);
 
-            // =========================================================
             // Adapt Vendor → Unified DTO
-            // =========================================================
-//            return PayoutResponseDto.builder()
-//                    .orderId((String) data.get("order_id"))
-//                    .vendorCode(getVendorCode())
-//                    .status(vendorStatus)
-//                    .message((String) vendorResp.get("message"))
-//                    .amount(new BigDecimal(data.get("amount").toString()))
-//                    .beneficiaryName((String) data.get("beneficiary_name"))
-//                    .accountNumber((String) data.get("account_number"))
-//                    .ifscCode((String) data.get("ifsc_code"))
-//                    .build();
-
-
             return PayoutResponseDto.builder()
                     .orderId(orderId)              // USE YOUR ORDER ID
                     .vendorCode(getVendorCode())
@@ -249,7 +233,6 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                     .accountNumber(req.getAccountNumber())
                     .ifscCode(req.getIfscCode())
                     .build();
-
 
         } catch (Exception e) {
             log.error("[RUNPAISA] Exception during payout: {}", e.getMessage(), e);

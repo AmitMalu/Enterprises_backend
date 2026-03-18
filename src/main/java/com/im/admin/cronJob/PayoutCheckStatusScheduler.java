@@ -1,7 +1,6 @@
 package com.im.admin.cronJob;
 
 import com.im.admin.orchestrator.PayoutOrchestrator;
-import com.im.admin.orchestrator.PayoutOrchestratorV0;
 import com.im.admin.service.PayoutCheckStatusSchedulerService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +18,7 @@ public class PayoutCheckStatusScheduler {
     private PayoutCheckStatusSchedulerService payoutCheckStatusSchedulerService;
 
     @Autowired
-    private PayoutOrchestratorV0 payoutOrchestrator;
+    private PayoutOrchestrator payoutOrchestrator;
 
     @Scheduled(cron = "0 */59 * * * *")  // every 10 minutes
     @Transactional

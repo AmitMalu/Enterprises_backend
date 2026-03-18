@@ -45,9 +45,9 @@ public class BillAvenueController {
 
 
     @PostMapping("/bill-payment")
-    public CommonResponse<Object> billPayment(@RequestBody BillPaymentRequest request) throws Exception {
+    public CommonResponse<Object> billPayment(@RequestBody BillPaymentRequest request, @RequestHeader Double latitude, @RequestHeader Double longitude) throws Exception {
 
-        return (CommonResponse<Object>) billAvenueService.doBillPayment(request);
+        return (CommonResponse<Object>) billAvenueService.doBillPayment(request, latitude, longitude);
     }
 
     @PostMapping("/transaction-status")
