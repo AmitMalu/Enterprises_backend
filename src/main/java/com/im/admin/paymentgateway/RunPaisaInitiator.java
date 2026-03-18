@@ -28,7 +28,7 @@ public class RunPaisaInitiator implements PaymentInitiator {
     }
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException {
 
         log.info("RUNPAISA initiate called. merchantRef={}, subProductId={}, amount={}",
                 command.getMerchantRef(),
@@ -52,7 +52,7 @@ public class RunPaisaInitiator implements PaymentInitiator {
                     command.getMerchantRef());
 
             ResponseEntity<CommonResponse<String>> response =
-                    runPaisaServiceImpl.createOrder(req);
+                    runPaisaServiceImpl.createOrder(req, latitude, longitude);
 
             log.debug("RunPaisa createOrder API response received for merchantRef={}",
                     command.getMerchantRef());

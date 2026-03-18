@@ -148,7 +148,7 @@ public class RunpaisaPGServiceImpl {
     }
 
     @Transactional
-    public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req) {
+    public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req, Double latitude, Double longitude) {
         log.info("Received createOrder request: {}", req);
         String orderId = "ORD" + commonMethods.generateBaseTransactionId();
 
@@ -175,6 +175,8 @@ public class RunpaisaPGServiceImpl {
             txnMap.setVendorName(vendor.getVendorName());
             txnMap.setSubProductId(req.getSubProductId());
             txnMap.setCardBinNo(req.getCardBinNo()); //new
+            txnMap.setLatitude(latitude);
+            txnMap.setLongitude(longitude);
             pgTransactionMappingRepository.save(txnMap);
 
             log.info("subProductId {} ", req.getSubProductId());
@@ -626,6 +628,8 @@ public class RunpaisaPGServiceImpl {
         dto.setSubProductCode(subProduct.getSubProductCode());
         dto.setIsCommission(product.getIsCommissions());
         dto.setHasCharge(product.getHasCharges());
+        dto.setLatitude(pgTransactionMapping.getLatitude());
+        dto.setLongitude(pgTransactionMapping.getLongitude());
 
         log.debug("---- [Callback] DTO prepared: {}", dto);
         log.info("---- [Callback] DTO prepared: {}", dto);

@@ -272,7 +272,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
     @Transactional
     @Override
-    public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto) {
+    public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto, Double latitude, Double longitude) {
 
         String baseTransactionId = commonMethods.generateBaseTransactionId();
         LocalDate date = LocalDate.now();

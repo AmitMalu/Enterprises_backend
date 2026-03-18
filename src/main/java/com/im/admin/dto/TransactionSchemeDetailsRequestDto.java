@@ -33,5 +33,7 @@ public class TransactionSchemeDetailsRequestDto {
     private String transactionType;        //credit, debit
     private String baseTranxId;              //25041815234800204
     private String callbackUrl;
+    private Double latitude;
+    private Double longitude;
 
 }

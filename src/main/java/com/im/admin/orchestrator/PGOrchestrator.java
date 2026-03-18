@@ -24,7 +24,7 @@ public class PGOrchestrator {
     private final PaymentInitiatorFactory factory;
 
     // CREATE ORDER
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException {
 
         log.info("PG Initiate request received. subProductId={}, amount={}, initiatedBy={}",
                 command.getSubProductId(),
@@ -60,7 +60,7 @@ public class PGOrchestrator {
             log.debug("PaymentInitiator resolved for vendorName={}", vendorName);
 
             PgUnifiedOrderResponse response =
-                    initiator.initiate(command);
+                    initiator.initiate(command, latitude, longitude);
 
             log.info("PG initiate completed successfully for vendorName={}, subProductId={}",
                     vendorName,

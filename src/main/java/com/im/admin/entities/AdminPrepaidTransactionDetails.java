@@ -84,4 +84,10 @@ public class AdminPrepaidTransactionDetails implements CommonSearchTransactionDe
     @Column(name = "narration")
     private String narration;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
 }

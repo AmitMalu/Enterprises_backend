@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/pg/callback")
 @RequiredArgsConstructor
 @Slf4j
-public class CallbackPGController {
+public class PGCallbackController {
 
     private final RunpaisaPGServiceImpl paymentGatewayService;
     private final UnisusPGService unisusPGService;
