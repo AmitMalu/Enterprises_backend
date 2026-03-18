@@ -488,15 +488,15 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                     .findSchemeRateByCodeAndOperatorAndAmount(
                             req.getSchemeCode(),
                             req.getTransactionType(),
-                            req.getTransactionAmount().doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getTransactionAmount()));
+                            req.getAmount().doubleValue())
+                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
 
             // Build DTO for transaction engine
             TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();  //BE
             dto.setBaseTranxId(baseTxnId);
 //            dto.setAmount(req.getTransactionAmount().doubleValue());
-            dto.setAmount(req.getTransactionAmount().doubleValue());
-            dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
+            dto.setAmount(req.getAmount().doubleValue());
+            dto.setConfirmAmount(req.getAmount().doubleValue());
             dto.setOperatorName("BE");
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);
@@ -722,14 +722,14 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                     .findSchemeRateByCodeAndOperatorAndAmount(
                             req.getSchemeCode(),
                             req.getTransactionType(),
-                            req.getTransactionAmount().doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getTransactionAmount()));
+                            req.getAmount().doubleValue())
+                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
 
             // Build DTO for transaction engine
             TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();  //BE
             dto.setBaseTranxId(baseTxnId);
-            dto.setAmount(req.getTransactionAmount().doubleValue());
-            dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
+            dto.setAmount(req.getAmount().doubleValue());
+            dto.setConfirmAmount(req.getAmount().doubleValue());
             dto.setOperatorName("BE");
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);

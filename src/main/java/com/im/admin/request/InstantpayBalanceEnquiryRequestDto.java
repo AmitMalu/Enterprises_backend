@@ -18,7 +18,7 @@ public class InstantpayBalanceEnquiryRequestDto {
     private BiometricData biometricData;
     private String schemeCode;
     private String transactionType;
-    private BigDecimal transactionAmount;
+    private BigDecimal amount;
     @Data
     public class BiometricData {
 

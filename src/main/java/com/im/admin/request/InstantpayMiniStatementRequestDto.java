@@ -16,7 +16,7 @@ public class InstantpayMiniStatementRequestDto {
     private String mobile;
     private String schemeCode;
     private String transactionType;
-    private BigDecimal transactionAmount;
+    private BigDecimal amount;
 
     private InstantpayBiometricDataDto biometricData;
 
