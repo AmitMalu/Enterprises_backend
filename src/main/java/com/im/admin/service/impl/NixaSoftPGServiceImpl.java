@@ -61,7 +61,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
 
     @Override
-    public String createOrder(NixaSoftCreateOrderRequest req) {
+    public String createOrder(NixaSoftCreateOrderRequest req, Double latitude, Double longitude) {
 
         log.info("Starting NixaSoft Create Order for subProductId={}, initiatedBy={}, amount={}",
                 req.getSubProductId(), req.getInitiatedBy(), req.getAmount());
@@ -130,6 +130,8 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             transaction.setVendorName("NixaSoft Payment Gateway");
             transaction.setVendorSessionId(body.getOrderId());
             transaction.setCardBinNo(req.getCardBinNo());
+            transaction.setLatitude(latitude);
+            transaction.setLongitude(longitude);
 
             pgTransactionMappingRepository.save(transaction);
 

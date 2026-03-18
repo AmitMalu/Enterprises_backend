@@ -125,6 +125,12 @@ public class RetailerPostpaidTransactionDetails implements AbstractRetailerTrans
     @Column(name = "request_domain_name")
     private String requestDomainName;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @Override
     public String getOperatorCode() {
         return "";

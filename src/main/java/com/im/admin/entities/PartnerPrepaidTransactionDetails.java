@@ -84,6 +84,12 @@ public class PartnerPrepaidTransactionDetails implements CommonSearchTransaction
     @Column(name = "narration")
     private String narration;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @Override
     public String getHierarchyId() {
         return partnerId;

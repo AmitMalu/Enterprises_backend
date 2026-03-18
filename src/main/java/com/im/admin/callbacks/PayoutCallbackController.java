@@ -1,7 +1,6 @@
-package com.im.admin.controller;
+package com.im.admin.callbacks;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.im.admin.orchestrator.PayoutOrchestrator;
 import com.im.admin.orchestrator.PayoutOrchestratorV0;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -19,34 +18,26 @@ import java.util.Map;
 @RequestMapping("/api/payout")
 @RequiredArgsConstructor
 @Slf4j
-public class CallbackPayoutController {
-
-    // payout v1
-//    @Autowired
-//    private PayoutOrchestrator orchestrator; // for fallback or shared logic
+public class PayoutCallbackController {
 
     @Autowired
     private PayoutOrchestratorV0 payoutOrchestratorV0;
-
 
     @PostMapping("/callback")
     public ResponseEntity<String> payoutCallback(@RequestBody Map<String, String> payload,
                                                  HttpServletRequest request) throws JsonProcessingException {
         log.info("<---------------- Received callback request with payload: {} --------------------->", payload);
-//        String response = orchestrator.processPayoutCallback("Runpaisa Payout", payload, request);
         String response = payoutOrchestratorV0.processPayoutCallback("Runpaisa Payout old", payload, request);
-        log.info("Callback response: {}", response);
+        log.info("Callback response from runpaisa: {}", response);
         return ResponseEntity.ok(response);
     }
-
 
     @PostMapping("/unisus-callback")
     public ResponseEntity<String> unisusPayCallback(@RequestBody Map<String, String> payload,
                                                  HttpServletRequest request) throws JsonProcessingException {
         log.info("<---------------- UnisusPay callback request with payload: {} --------------------->", payload);
-//        String response = orchestrator.processPayoutCallback("Runpaisa Payout", payload, request);
         String response = payoutOrchestratorV0.unisusPayoutCallback(payload, request);
-        log.info("Callback response: {}", response);
+        log.info("Callback response from unisus: {}", response);
         return ResponseEntity.ok(response);
     }
 

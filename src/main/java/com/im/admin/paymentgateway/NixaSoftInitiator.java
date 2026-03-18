@@ -21,7 +21,7 @@ public class NixaSoftInitiator implements PaymentInitiator {
     private final NixaSoftPGService nixaSoftPGService;
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException {
 
         NixaSoftCreateOrderRequest request = new NixaSoftCreateOrderRequest();
 
@@ -36,7 +36,7 @@ public class NixaSoftInitiator implements PaymentInitiator {
         request.setInitiatedBy(command.getInitiatedBy());
 
 
-        String paymentLink = nixaSoftPGService.createOrder(request);
+        String paymentLink = nixaSoftPGService.createOrder(request, latitude, longitude);
 
         return PgUnifiedOrderResponse.builder()
                 .vendor("NixaSoft")

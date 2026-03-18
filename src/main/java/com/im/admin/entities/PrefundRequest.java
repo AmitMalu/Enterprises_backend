@@ -78,10 +78,6 @@ public class PrefundRequest {
 
     @Column(name = "ip_address")
     @NotBlank(message = "IP address is required")
-//    @Pattern(
-//            regexp = "^((25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$",
-//            message = "Invalid IP address format"
-//    )
     private String ipAddress;
 
     @Column(name = "approve_or_reject_date")
@@ -95,5 +91,15 @@ public class PrefundRequest {
 
     @Column(name = "deposit_type")
     private String depositType;
+
+    // Relationship with SubProducts
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subProduct_id")
+    private SubProducts subProducts;
+
+    // Relationship with Scheme
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "scheme_id")
+    private Scheme scheme;
 }
 

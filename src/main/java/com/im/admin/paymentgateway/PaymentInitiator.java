@@ -10,7 +10,7 @@ import java.util.Map;
 
 public interface PaymentInitiator {
 
-    PgUnifiedOrderResponse initiate(PGCreateOrderCommand command) throws JsonProcessingException;
+    PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException;
 
     String getVendorName();
 

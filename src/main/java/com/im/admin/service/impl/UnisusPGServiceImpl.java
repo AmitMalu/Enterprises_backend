@@ -34,7 +34,7 @@ public class UnisusPGServiceImpl implements UnisusPGService {
     private final UnisusCallbackAsyncProcessor asyncProcessor;
 
     @Override
-    public String authenticate(UnisusPayCreateOrderRequest req) {
+    public String authenticate(UnisusPayCreateOrderRequest req, Double latitude, Double longitude) {
 
         log.info("Starting Unisus authentication for subProductId={}, initiatedBy={}, amount={}",
                 req.getSubProductId(), req.getInitiatedBy(), req.getAmount());
@@ -111,6 +111,8 @@ public class UnisusPGServiceImpl implements UnisusPGService {
             entity.setVendorSessionId(response.getSessionId());
             entity.setCardBinNo(req.getCardBinNo());
             entity.setVendorName("UnisusPay Payment Gateway");
+            entity.setLatitude(latitude);
+            entity.setLongitude(longitude);
 
             pgTransactionMappingRepository.save(entity);
 
