@@ -82,8 +82,6 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
     private AepsMerchantStatusRepository aepsMerchantStatusRepository;
 
 
-
-
     @Override
     public CommonResponse<InstantpayCashWithdrawalResponseDto> cashWithdrawal(InstantPayCashWithdrawalRequestDto req) {
         try {
@@ -223,8 +221,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             // SAVE TRANSACTION LOG
             // ===============================
 
-            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())
-                    && vendorResp.getData() != null) {
+            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())) {
 
                 AepsCashWithdrawalLog logEntry = new AepsCashWithdrawalLog();
 
@@ -277,6 +274,8 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
+            dto.setLatitude(Double.valueOf(retailer.getLatitude()));
+            dto.setLongitude(Double.valueOf(retailer.getLongitude()));
 
             String vendorStatus = InstantpayResponseMapper.map(
                     vendorResp.getStatuscode(),
