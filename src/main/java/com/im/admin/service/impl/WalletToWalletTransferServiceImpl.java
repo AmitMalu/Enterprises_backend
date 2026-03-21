@@ -74,7 +74,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
     @Transactional
     @Override
-    public void transferAmountWalletToWallet(WalletToWalletTransferDto request) throws JsonProcessingException {
+    public void transferAmountWalletToWallet(WalletToWalletTransferDto request, Double latitude, Double longitude) throws JsonProcessingException {
 
         LocalDateTime requestDateTime = LocalDateTime.now();
         String requestJson = null;
@@ -154,7 +154,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             log.info("Generated base transaction ID: {}", baseTransactionId);
 
             AbstractWalletAmountTable fromWalletTable = commonMethods.getWalletByType(fromWallet.name(), hierarchyId);
-            updateWallet(fromWalletTable, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+            updateWallet(fromWalletTable, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
 
             String currentId = hierarchyId;
 
@@ -173,10 +173,10 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     whiteLabelRepository.findById(parentId).ifPresent(wl -> {
                         log.info("Processing WL level transfer for WL ID: {}", wl.getWhiteLabelId());
                         AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), wl.getWhiteLabelId());
-                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
+                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
 
                         AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), wl.getWhiteLabelId());
-                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
                     });
                     break;
                 }
@@ -185,10 +185,10 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     adminRepository.findById(parentId).ifPresent(ad -> {
                         log.info("Processing {} level transfer for Admin ID: {}", parentType, ad.getId());
                         AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), ad.getId());
-                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
+                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
 
                         AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), ad.getId());
-                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT");
+                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
                     });
                     break;
                 }
@@ -197,7 +197,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             }
 
             AbstractWalletAmountTable toWalletTable = commonMethods.getWalletByType(toWallet.name(), hierarchyId);
-            updateWallet(toWalletTable, hierarchyId, toWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT");
+            updateWallet(toWalletTable, hierarchyId, toWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
 
             TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
 
@@ -247,7 +247,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
 
     private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-                                                                    String tranxType, String baseTransactionId, String tranStatus, String service) {
+                                                                    String tranxType, String baseTransactionId, String tranStatus, String service, Double latitude, Double longitude) {
 
         log.debug("Updating wallet: {} | Type: {} | Amount: {} | TranxType: {}", hierarchyId, walletType, amount, tranxType);
 
@@ -271,12 +271,12 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
         log.debug("Wallet updated. Before: {} | After: {}", balanceBefore, wallet.getAvailableBalance());
 
         insertTransaction(walletType.name(), hierarchyId, tranStatus, amount, balanceBefore,
-                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service);
+                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service, latitude, longitude);
     }
 
 
     private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount, BigDecimal beforeBalance,
-                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service) {
+                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service, Double latitude, Double longitude) {
 
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
@@ -287,9 +287,9 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
         String sql = "INSERT INTO " + transactionTableName +
                 " (" + columnName + "  ,service, amount, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, latitude, longitude) " +
                 "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :latitude, :longitude)";
 
         entityManager.createNativeQuery(sql)
                 .setParameter("hierarchyId", hierarchyId)
@@ -303,6 +303,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                 .setParameter("finalBalance", afterBalance)
                 .setParameter("tranxId", tranxId)
                 .setParameter("tranStatus", tranStatus)
+                .setParameter("latitude", latitude)
+                .setParameter("longitude", longitude)
                 .executeUpdate();
     }
 

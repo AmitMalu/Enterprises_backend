@@ -5,6 +5,6 @@ import com.im.admin.dto.WalletToWalletTransferDto;
 
 public interface WalletToWalletTransferService {
 
-    void transferAmountWalletToWallet(WalletToWalletTransferDto request) throws JsonProcessingException;
+    void transferAmountWalletToWallet(WalletToWalletTransferDto request, Double latitude, Double longitude) throws JsonProcessingException;
 
 }

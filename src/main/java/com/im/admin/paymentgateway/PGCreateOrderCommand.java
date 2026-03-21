@@ -19,6 +19,8 @@ public class PGCreateOrderCommand {
     private Double amount;
     private String merchantRef;
     private String cardBinNo;
+    private String cardType;
+    private String paymentMethod;
 
     private String username;
     private String callbackUrl;

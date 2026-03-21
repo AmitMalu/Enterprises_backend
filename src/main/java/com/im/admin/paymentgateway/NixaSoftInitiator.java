@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.PgTransactionRequestDto;
 import com.im.admin.request.NixaSoftCreateOrderRequest;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
 import com.im.admin.service.NixaSoftPGService;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
-public class NixaSoftInitiator implements PaymentInitiator {
+public class NixaSoftInitiator implements PaymentGatewayInitiator {
 
     private final NixaSoftPGService nixaSoftPGService;
 
@@ -54,7 +55,7 @@ public class NixaSoftInitiator implements PaymentInitiator {
     }
 
     @Override
-    public ResponseEntity<?> checkStatus(String orderId) {
+    public PgStatusResponse checkStatus(String orderId) {
 
         nixaSoftPGService.checkStatus(orderId);
         return null;

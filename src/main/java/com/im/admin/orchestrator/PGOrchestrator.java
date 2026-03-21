@@ -4,15 +4,19 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.entities.PgTransactionMapping;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.paymentgateway.PGCreateOrderCommand;
-import com.im.admin.paymentgateway.PaymentInitiator;
+import com.im.admin.paymentgateway.PaymentGatewayInitiator;
 import com.im.admin.paymentgateway.PaymentInitiatorFactory;
 import com.im.admin.repositories.PgTransactionMappingRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
+import com.im.admin.response.PayoutStatusResponse;
+import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -54,7 +58,7 @@ public class PGOrchestrator {
                     command.getSubProductId(),
                     vendorName);
 
-            PaymentInitiator initiator =
+            PaymentGatewayInitiator initiator =
                     factory.get(vendorName);
 
             log.debug("PaymentInitiator resolved for vendorName={}", vendorName);
@@ -76,18 +80,27 @@ public class PGOrchestrator {
         }
     }
 
-    // STATUS
-    public ResponseEntity<?> checkStatus(String orderId) {
+    @Transactional
+    public void checkStatusForPendingTransactions() {
 
-        PgTransactionMapping txn =
-                pgTransactionMappingRepository
-                        .findByOrderId(orderId)
-                        .orElseThrow(() -> new RuntimeException("Order not found"));
+        List<PgTransactionMapping> pendingList = pgTransactionMappingRepository.findByStatus("PENDING");
+        log.info("[ORCH_SCHEDULER] Found {} pending transactions", pendingList.size());
 
-        PaymentInitiator initiator =
-                factory.get(txn.getVendorName());
+        for (PgTransactionMapping txn : pendingList) {
+            String orderId = txn.getOrderId();
+            log.info("[1] Checking status for pending ORDER_ID={}", orderId);
 
-        return initiator.checkStatus(orderId);
+            try {
+
+                PaymentGatewayInitiator initiator =
+                        factory.get(txn.getVendorName());
+
+                PgStatusResponse vendorResponse = initiator.checkStatus(orderId);
+
+            } catch (Exception e) {
+                log.error("[ORCH_SCHEDULER] Error while checking status for ORDER_ID={} | {}",
+                        orderId, e.getMessage(), e);
+            }
+        }
     }
-
 }
