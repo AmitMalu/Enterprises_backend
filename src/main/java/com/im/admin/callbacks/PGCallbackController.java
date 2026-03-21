@@ -5,6 +5,7 @@ import com.im.admin.request.NixaSoftCallbackRequest;
 import com.im.admin.request.UnisusWebhookRequest;
 import com.im.admin.response.UnisusWebhookResponse;
 import com.im.admin.service.NixaSoftPGService;
+import com.im.admin.service.SlpePGService;
 import com.im.admin.service.UnisusPGService;
 import com.im.admin.service.impl.RunpaisaPGServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -29,6 +31,7 @@ public class PGCallbackController {
     private final RunpaisaPGServiceImpl paymentGatewayService;
     private final UnisusPGService unisusPGService;
     private final NixaSoftPGService nixaSoftPGService;
+    private final SlpePGService slpePGService;
 
 
     // RUNPAISA CALLBACK
@@ -76,4 +79,18 @@ public class PGCallbackController {
         return ResponseEntity.ok("Callback Processed");
     }
 
+    @PostMapping("/slpe")
+    public ResponseEntity<Map<String, Object>> handleWebhook(
+            @RequestBody Map<String, Object> payload) {
+
+        log.info("Received SLPE webhook: {}", payload);
+
+        slpePGService.processCallback(payload);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", true);
+        response.put("message", "Webhook received");
+
+        return ResponseEntity.ok(response);
+    }
 }

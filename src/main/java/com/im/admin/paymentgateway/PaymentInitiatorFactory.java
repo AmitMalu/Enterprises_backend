@@ -10,18 +10,18 @@ import java.util.stream.Collectors;
 @Component
 public class PaymentInitiatorFactory {
 
-    private final Map<String, PaymentInitiator> initiatorMap;
+    private final Map<String, PaymentGatewayInitiator> initiatorMap;
 
-    public PaymentInitiatorFactory(List<PaymentInitiator> initiators) {
+    public PaymentInitiatorFactory(List<PaymentGatewayInitiator> initiators) {
         this.initiatorMap = initiators.stream()
                 .collect(Collectors.toMap(
-                        PaymentInitiator::getVendorName,
+                        PaymentGatewayInitiator::getVendorName,
                         Function.identity()
                 ));
     }
 
-    public PaymentInitiator get(String vendorName) {
-        PaymentInitiator initiator = initiatorMap.get(vendorName);
+    public PaymentGatewayInitiator get(String vendorName) {
+        PaymentGatewayInitiator initiator = initiatorMap.get(vendorName);
 
         if (initiator == null) {
             throw new RuntimeException("Vendor not supported: " + vendorName);

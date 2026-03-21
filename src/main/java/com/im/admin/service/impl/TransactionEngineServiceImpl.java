@@ -1615,7 +1615,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                     .setParameter("tranStatus", tranStatus)
                     .setParameter("operatorName", operatorName)
                     .setParameter("latitude", latitude)
-                    .setParameter("latitude", longitude)
+                    .setParameter("longitude", longitude)
                     .executeUpdate();
 
             log.info("[ADMIN_TXN_INSERT] Successfully inserted transaction for Admin | HierarchyID={} | TranxID={} | Amount={} | Status={}",

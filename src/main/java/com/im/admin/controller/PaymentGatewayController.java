@@ -53,14 +53,14 @@ public class PaymentGatewayController {
         );
     }
 
-    @PostMapping("/order-status")
-    @Transactional
-    public ResponseEntity<?> orderStatus(@RequestParam("orderId") String orderId) {
-        log.info("Received request for order status, orderId: {}", orderId);
-        ResponseEntity<?> response = pgOrchestrator.checkStatus(orderId);
-        log.info("Order status response: {}", response);
-        return response;
-    }
+//    @PostMapping("/order-status")
+//    @Transactional
+//    public ResponseEntity<?> orderStatus(@RequestParam("orderId") String orderId) {
+//        log.info("Received request for order status, orderId: {}", orderId);
+//        ResponseEntity<?> response = pgOrchestrator.checkStatus(orderId);
+//        log.info("Order status response: {}", response);
+//        return response;
+//    }
 
     @PostMapping("/fetch/card-bin-no")
     public ResponseEntity<CommonResponse<RetailerCommissionResponseDTO>> fetchCardBinNo(

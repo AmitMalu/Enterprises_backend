@@ -1,9 +1,11 @@
 package com.im.admin.repositories;
 
+import com.im.admin.entities.PayoutPendingTransactions;
 import com.im.admin.entities.PgTransactionMapping;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -14,6 +16,9 @@ public interface PgTransactionMappingRepository extends JpaRepository<PgTransact
     Optional<PgTransactionMapping> findByTxnId(String txnId);
 
     Optional<PgTransactionMapping> findByVendorSessionId(String vendorSessionId);
+
+    List<PgTransactionMapping> findByStatus(String status);
+
 
 }
 
