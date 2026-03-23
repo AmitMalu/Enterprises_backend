@@ -41,4 +41,13 @@ public class PayoutCallbackController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/slpe-callback")
+    public ResponseEntity<String> slpePayCallback(@RequestBody Map<String, String> payload,
+                                                    HttpServletRequest request) throws JsonProcessingException {
+        log.info("<---------------- SLPE callback request with payload: {} --------------------->", payload);
+        String response = payoutOrchestratorV0.slpePayoutCallback(payload, request);
+        log.info("Callback response from slpe: {}", response);
+        return ResponseEntity.ok(response);
+    }
+
 }

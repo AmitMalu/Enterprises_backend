@@ -290,7 +290,6 @@ public class PayoutOrchestrator {
     public String unisusPayoutCallback(Map<String, String> payload, HttpServletRequest request)
             throws JsonProcessingException {
 
-
         String clientRefNo = payload.get("ClientRefNo");
         String status = payload.get("Status");
         String statusMsg = payload.get("StatusMsg");
@@ -581,5 +580,71 @@ public class PayoutOrchestrator {
         }
     }
 
+    @Transactional
+    public String slpePayoutCallback(Map<String, String> payload, HttpServletRequest request)
+            throws JsonProcessingException {
+
+        String orderId = payload.get("order_id");
+        String slpeStatus = payload.get("status");   // paid / failed / pending
+        String txnId = payload.get("txn_id");
+
+        log.info("[1] Fetching pending transaction for ORDER_ID: {}", txnId);
+        PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository.findByTransactionId(txnId)
+                .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + txnId));
+
+        Optional<Scheme> scheme = schemeRepository.findBySchemeCode(pendingTxn.getSchemeCode());
+
+        // Parse scheme combination hash code
+        String[] hashParts = scheme.get().getSchemeCombinationHashCode().split("-");
+        if (hashParts.length < 2) {
+            throw new RuntimeException("Invalid schemeCombinationHashCode format: " + scheme.get().getSchemeCombinationHashCode());
+        }
+
+        String vendorId = hashParts[2];
+
+        Optional<Vendors> vendor = vendorRepository.findById(vendorId);
+        String vendorCode = vendor.get().getVendorCode();
+
+        LocalDateTime receivedAt = LocalDateTime.now();
+        String clientIp = request.getRemoteAddr();
+        log.info("[ORCH_CALLBACK] Received callback from vendor={} IP={} Payload={}", vendorCode, clientIp, payload);
+
+        try {
+            Object vendorService = vendorFactory.getVendor(vendorCode);
+            if (!(vendorService instanceof PayoutCallbackHandler handler)) {
+                log.error("[ORCH_CALLBACK] No callback handler implemented for vendor={}", vendorCode);
+                return "Vendor callback handler not found";
+            }
+
+            String vendorResponse = handler.handleCallback(payload, request);
+
+            // Log callback event for auditing
+            commonFunctions.saveCallbackEventLog(
+//                    payload.toString(),
+                    payload,
+                    receivedAt,
+                    clientIp,
+                    "Callback processed for vendor = " + vendorCode,
+                    LocalDateTime.now()
+            );
+
+            log.info("[ORCH_CALLBACK] Successfully processed callback for vendor={}", vendorCode);
+            return vendorResponse;
+
+        } catch (Exception e) {
+            log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
+
+            commonFunctions.saveCallbackEventLog(
+//                    payload.toString(),
+                    payload,
+                    receivedAt,
+                    clientIp,
+                    "Error: " + e.getMessage(),
+                    LocalDateTime.now()
+            );
+
+            return "Callback processing failed: " + e.getMessage();
+        }
+    }
 
 }
