@@ -126,7 +126,6 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             String status = switch (body.getStatuscode()) {
                 case "TXN" -> "SUCCESS";
                 case "TXP" -> "PENDING";
-                case "TXF" -> "FAILED";
                 default -> "FAILED";
             };
 
