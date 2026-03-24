@@ -18,6 +18,7 @@ import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.WalletToWalletTransferService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.WalletTransactionService;
 import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,6 +72,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
     @Autowired
     private OperatorsRepository operatorsRepository;
 
+    @Autowired
+    private WalletTransactionService walletTransactionService;
 
     @Transactional
     @Override
@@ -119,7 +122,40 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             log.info("---- [Callback] Product fetched successfully | productId={}", product.getId());
 
             // Fetch Scheme
-            SchemeRate schemeRate = getExactSchemeRate(request.getSchemeCode(), request.getConfirmAmount().doubleValue());
+            String hierarchyType = walletTransactionService.extractHierarchyType(hierarchyId);
+
+            String schemeCode;
+
+            if ("RU".equalsIgnoreCase(hierarchyType) || "RET".equalsIgnoreCase(hierarchyType)) {
+
+                // Retailer → use request scheme
+                schemeCode = request.getSchemeCode();
+
+                if (schemeCode == null || schemeCode.isBlank()) {
+                    throw new RuntimeException("Scheme code is required for Retailer/RU");
+                }
+
+            } else {
+
+                // Other hierarchy → use mapped scheme
+                String schemeName = getSchemeNameByHierarchy(hierarchyId);
+
+                Optional<Scheme> scheme = schemeRepository.findBySchemeName(schemeName);
+
+                if (scheme.isEmpty()) {
+                    throw new RuntimeException("Scheme not found for name: " + schemeName);
+                }
+
+                schemeCode = scheme.get().getSchemeCode();
+
+                log.info("Scheme resolved from hierarchy | type={} | schemeCode={}", hierarchyType, schemeCode);
+            }
+
+            // FINAL COMMON CALL
+            SchemeRate schemeRate = getExactSchemeRate(
+                    schemeCode,
+                    request.getConfirmAmount().doubleValue()
+            );
 
             Operators operator = operatorsRepository
                     .findByOperatorCode(schemeRate.getOperatorCode())
@@ -330,5 +366,17 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
         }
 
         throw new RuntimeException("No slab found for amount: " + txnAmount);
+    }
+
+    public String getSchemeNameByHierarchy(String hierarchyId) {
+
+        String type = walletTransactionService.extractHierarchyType(hierarchyId);
+
+        return switch (type.toUpperCase()) {
+            case "SD" -> "wallet_to_wallet_SD_Scheme";
+            case "PT" -> "wallet_to_wallet_PT_Scheme";
+            case "DT" -> "wallet_to_wallet_DT_Scheme";
+            default -> throw new RuntimeException("No scheme defined for hierarchy: " + type);
+        };
     }
 }
