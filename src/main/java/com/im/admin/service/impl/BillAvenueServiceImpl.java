@@ -552,7 +552,11 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                             "PENDING",
                             baseTransactionId,
                             selectedScheme.getOperatorName(),
-                            subProducts.getSubProductTitle()
+                            subProducts.getSubProductTitle(),
+                            latitude,
+                            longitude,
+                            "Bill Avenue",
+                            "Not Yet"
                     );
 
             commonMethods.updateWallet(

@@ -273,7 +273,7 @@ public class BBPSServiceImpl implements BBPSService {
             String gstValue = String.valueOf(product.getSgst());
             String tdsValue = String.valueOf(product.getTds());
 
-            BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "PENDING", baseTransactionId, operator, subProducts.get().getSubProductTitle());
+            BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "PENDING", baseTransactionId, operator, subProducts.get().getSubProductTitle(), latitude, longitude, "A2Z", "Not Yet");
 
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
             commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.get().getSubProductTitle(), "Tx Amount for A2Z Billpay For " + operator +"#"+ bbpsProviderRecord.getSubOperator() ,"A2Z Billpay Transaction from " + walletType.name(),schemeRate.getSchemeCode(), latitude, longitude);

@@ -250,6 +250,8 @@ public class SlpePGServiceImpl implements SlpePGService {
             dto.setHasCharge(product.getHasCharges());
             dto.setLatitude(pgTransactionMapping.getLatitude());
             dto.setLongitude(pgTransactionMapping.getLongitude());
+            dto.setVendorName("SLPE PG");
+            dto.setVendorTxnId(txnId);
 
             log.debug("---- [Callback] DTO prepared: {}", dto);
             log.info("---- [Callback] DTO prepared: {}", dto);

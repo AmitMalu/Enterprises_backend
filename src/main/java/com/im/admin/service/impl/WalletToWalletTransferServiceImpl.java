@@ -216,6 +216,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             dto.setSubProductCode(subProduct.getSubProductCode());
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
+            dto.setLatitude(latitude);
+            dto.setLongitude(longitude);
 
             log.debug("---- [Callback] DTO prepared: {}", dto);
 

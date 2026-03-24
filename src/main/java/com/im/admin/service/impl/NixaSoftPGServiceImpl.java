@@ -275,6 +275,8 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         dto.setSubProductCode(subProduct.getSubProductCode());
         dto.setIsCommission(product.getIsCommissions());
         dto.setHasCharge(product.getHasCharges());
+        dto.setVendorTxnId(request.getRequestId());
+        dto.setVendorName("NixaSoft PG");
 
         log.debug("---- [Callback] DTO prepared: {}", dto);
         log.info("---- [Callback] DTO prepared: {}", dto);

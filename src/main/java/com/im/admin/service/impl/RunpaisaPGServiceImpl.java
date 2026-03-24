@@ -676,6 +676,8 @@ public class RunpaisaPGServiceImpl {
         dto.setHasCharge(product.getHasCharges());
         dto.setLatitude(pgTransactionMapping.getLatitude());
         dto.setLongitude(pgTransactionMapping.getLongitude());
+        dto.setVendorName("Runpaisa PG");
+        dto.setVendorTxnId(callback.getBankTxnId());
 
         log.debug("---- [Callback] DTO prepared: {}", dto);
         log.info("---- [Callback] DTO prepared: {}", dto);
