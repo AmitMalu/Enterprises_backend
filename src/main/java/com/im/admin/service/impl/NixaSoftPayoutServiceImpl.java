@@ -123,13 +123,13 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
 
             // ===== 3. Map Status =====
 
-            String status = switch (body.getStatuscode()) {
-                case "TXN" -> "SUCCESS";
-                case "TXP" -> "PENDING";
-                default -> "FAILED";
-            };
+                String status = switch (body.getStatuscode()) {
+                    case "TXN" -> "SUCCESS";
+                    case "TXP" -> "PENDING";
+                    default -> "FAILED";
+                };
 
-            // ===== 4. Build Response DTO =====
+                // ===== 4. Build Response DTO =====
 
             PayoutResponseDto payoutResponse = new PayoutResponseDto();
 
@@ -250,6 +250,8 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         dto.setIsCommission(product.getIsCommissions());
         dto.setHasCharge(product.getHasCharges());
         dto.setHierarchyId(pendingTxn.getRetailerId());
+        dto.setVendorName("Nixasoft Payout");
+        dto.setVendorTxnId(utr);
 
         log.info("[6] DTO ready for transaction processing: {}", dto);
 

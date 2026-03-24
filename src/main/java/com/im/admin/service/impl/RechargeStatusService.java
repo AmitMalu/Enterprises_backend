@@ -68,7 +68,11 @@ public class RechargeStatusService {
                         resp.getMessage(),
                         txn.getTransactionId(),
                         txn.getOperatorName(),
-                        txn.getSubProductName()
+                        txn.getSubProductName(),
+                        0.0,
+                        0.0,
+                        "-",
+                        "Not Yet"
                 );
 
                 if ("SUCCESS".equalsIgnoreCase(resp.getMessage()) || (resp.getStatus() != null && resp.getStatus() == 43)) {

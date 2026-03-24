@@ -491,6 +491,8 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
         dto.setIsCommission(product.getIsCommissions());
         dto.setHasCharge(product.getHasCharges());
         dto.setHierarchyId(pendingTxn.getRetailerId());
+        dto.setVendorName("UnisusPay Payout");
+        dto.setVendorTxnId(bankRefNo);
 
         log.info("[6] DTO ready for transaction processing: {}", dto);
 

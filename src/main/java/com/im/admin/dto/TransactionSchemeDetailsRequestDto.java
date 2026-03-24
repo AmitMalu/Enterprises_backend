@@ -35,5 +35,7 @@ public class TransactionSchemeDetailsRequestDto {
     private String callbackUrl;
     private Double latitude;
     private Double longitude;
+    private String vendorName;
+    private String vendorTxnId;
 
 }

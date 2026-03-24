@@ -25,5 +25,9 @@ public class BbpsTranactionRequestDto {
     private String transactionId;
     private String operatorName;
     private String subProductName;
+    private Double latitude;
+    private Double longitude;
+    private String vendorName;
+    private String vendorTxnId;
 
 }

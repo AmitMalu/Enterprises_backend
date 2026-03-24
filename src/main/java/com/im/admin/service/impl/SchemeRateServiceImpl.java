@@ -332,6 +332,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
             schemeRate.setRateType(slab.getRateType());
             schemeRate.setSlabStart(slab.getSlabStart());
             schemeRate.setSlabEnd(slab.getSlabEnd());
+            schemeRate.setSlabType(SlabType.VARIABLE);
 
             log.debug("Processing slab #{}: start={}, end={}, rateType={}", i + 1, slab.getSlabStart(), slab.getSlabEnd(), slab.getRateType());
 

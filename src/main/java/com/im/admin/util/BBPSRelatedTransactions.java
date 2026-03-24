@@ -231,6 +231,10 @@ public class BBPSRelatedTransactions {
             transaction.setRetailerId(((RetailerPrepaidAmount) wallet).getRetailerId().getRetailerId());
             transaction.setOperatorName(dto.getOperatorName());
             transaction.setSubProductName(dto.getSubProductName());
+            transaction.setVendorName(dto.getVendorName());
+            transaction.setVendorTransactionId(dto.getVendorTxnId());
+            transaction.setLatitude(dto.getLatitude());
+            transaction.setLongitude(dto.getLongitude());
             retailerPrepaidTransactionDetailsRepository.save(transaction);
         } else if (wallet instanceof RetailerPostpaidAmount) {
             RetailerPostpaidTransactionDetails transaction = new RetailerPostpaidTransactionDetails();
@@ -247,6 +251,10 @@ public class BBPSRelatedTransactions {
             transaction.setRetailerId(((RetailerPostpaidAmount) wallet).getRetailerId().getRetailerId());
             transaction.setOperatorName(dto.getOperatorName());
             transaction.setSubProductName(dto.getSubProductName());
+            transaction.setVendorName(dto.getVendorName());
+            transaction.setVendorTransactionId(dto.getVendorTxnId());
+            transaction.setLatitude(dto.getLatitude());
+            transaction.setLongitude(dto.getLongitude());
             retailerPostpaidTransactionDetailsRepository.save(transaction);
         }
     }

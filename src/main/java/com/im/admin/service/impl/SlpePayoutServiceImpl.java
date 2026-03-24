@@ -290,6 +290,8 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(pendingTxn.getRetailerId());
+            dto.setVendorName("SLPE Payout");
+            dto.setVendorTxnId(txnId);
 
             log.info("[6] DTO ready for transaction processing: {}", dto);
 

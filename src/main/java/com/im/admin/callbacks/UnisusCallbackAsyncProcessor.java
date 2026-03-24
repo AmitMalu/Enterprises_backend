@@ -177,6 +177,8 @@ public class UnisusCallbackAsyncProcessor {
             dto.setSubProductCode(subProduct.getSubProductCode());
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
+            dto.setVendorName("UnisusPay PG");
+            dto.setVendorTxnId(request.getTransaction().getTransactionID());
 
             log.debug("---- [Callback] DTO prepared: {}", dto);
             log.info("---- [Callback] DTO prepared: {}", dto);

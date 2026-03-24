@@ -567,6 +567,8 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(pendingTxn.getRetailerId());
+            dto.setVendorName("Runpaisa PG");
+            dto.setVendorTxnId(callback.getBankTxnId());
 
             log.info("[6] DTO ready for transaction processing: {}", dto);
 

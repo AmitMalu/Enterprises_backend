@@ -9,10 +9,7 @@ import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
-import com.im.admin.repositories.SchemeRateRepository;
-import com.im.admin.repositories.SubProductsRepository;
-import com.im.admin.repositories.VendorCredentialsRepository;
-import com.im.admin.repositories.VendorRoutingRepository;
+import com.im.admin.repositories.*;
 import com.im.admin.response.BankVerificationResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.VerificationService;
@@ -60,6 +57,9 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Autowired
     private SchemeRateRepository schemeRateRepository;
+
+    @Autowired
+    private SchemeRepository schemeRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -553,16 +553,41 @@ public class VerificationServiceImpl implements VerificationService {
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-            // 4. Fetch Scheme Rate
-            List<SchemeRate> schemeRates = schemeRateRepository.findBySchemeCode(request.getSchemeCode());
+            String schemeCode;
+
+            String hierarchyType = walletTransactionService.extractHierarchyType(hierarchyId);
+
+            if ("RU".equalsIgnoreCase(hierarchyType) || "RET".equalsIgnoreCase(hierarchyType)) {
+
+                // Retailer / RU → use request scheme
+                schemeCode = request.getSchemeCode();
+
+                if (schemeCode == null || schemeCode.isBlank()) {
+                    throw new RuntimeException("Scheme code is required for Retailer/RU");
+                }
+
+            } else {
+
+                // Other hierarchy → derive scheme
+                String schemeName = getSchemeNameByHierarchy(hierarchyId);
+
+                Optional<Scheme> scheme = Optional.ofNullable(schemeRepository.findBySchemeName(schemeName).orElseThrow(() -> new RuntimeException("No Scheme Found")));
+
+                schemeCode = scheme.get().getSchemeCode();
+
+                log.info("Scheme resolved from hierarchy | type={} | schemeCode={}", hierarchyType, schemeCode);
+            }
+
+            // Fetch Scheme Rate (COMMON for all)
+            List<SchemeRate> schemeRates = schemeRateRepository.findBySchemeCode(schemeCode);
 
             if (schemeRates == null || schemeRates.isEmpty()) {
                 throw new RuntimeException("Scheme rate not found. Contact admin.");
             }
 
             if (schemeRates.size() > 1) {
-                log.error("Multiple scheme slabs found for schemeCode: {}", request.getSchemeCode());
-                throw new RuntimeException("Multiple scheme slabs found. Contact admin. Issue related to scheme.");
+                log.error("Multiple scheme slabs found for schemeCode: {}", schemeCode);
+                throw new RuntimeException("Multiple scheme slabs found. Contact admin.");
             }
 
             SchemeRate schemeRate = schemeRates.get(0);
@@ -739,4 +764,17 @@ public class VerificationServiceImpl implements VerificationService {
         return "WL".equals(type) || "IM".equals(type) || "AD".equals(type);
     }
 
+    public String getSchemeNameByHierarchy(String hierarchyId) {
+
+        String type = walletTransactionService.extractHierarchyType(hierarchyId);
+
+        return switch (type.toUpperCase()) {
+            case "ET" -> "Bank_Verification_ET_Scheme";
+            case "WL" -> "Bank_Verification_WL_Scheme";
+            case "SD" -> "Bank_Verification_SD_Scheme";
+            case "PT" -> "Bank_Verification_PT_Scheme";
+            case "DT" -> "Bank_Verification_DT_Scheme";
+            default -> throw new RuntimeException("No scheme defined for hierarchy: " + type);
+        };
+    }
 }
