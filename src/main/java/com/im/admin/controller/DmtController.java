@@ -51,8 +51,8 @@ public class DmtController {
     }
 
     @PostMapping("/transaction")
-    public CommonResponse<DmtResponseDto> processDmt(@RequestBody SendDmtRequest request) {
-        return dmtOrchestrator.processDmt(request);
+    public CommonResponse<DmtResponseDto> processDmt(@RequestBody SendDmtRequest request, @RequestHeader Double latitude, @RequestHeader Double longitude) {
+        return dmtOrchestrator.processDmt(request, latitude, longitude);
     }
 
     @GetMapping("/paysprint/token")

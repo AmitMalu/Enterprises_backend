@@ -1615,7 +1615,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                     .setParameter("tranStatus", tranStatus)
                     .setParameter("operatorName", operatorName)
                     .setParameter("latitude", latitude)
-                    .setParameter("latitude", longitude)
+                    .setParameter("longitude", longitude)
                     .executeUpdate();
 
             log.info("[ADMIN_TXN_INSERT] Successfully inserted transaction for Admin | HierarchyID={} | TranxID={} | Amount={} | Status={}",
@@ -1892,6 +1892,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());  // new
                 transaction.setLatitude(dto.getLatitude());
                 transaction.setLongitude(dto.getLongitude());
+                transaction.setVendorName(dto.getVendorName());
+                transaction.setVendorTransactionId(dto.getVendorTxnId());
 
                 retailerPrepaidTransactionDetailsRepository.save(transaction);
                 log.info("Prepaid transaction saved successfully | TranxId: {}", tranxId);
@@ -1916,6 +1918,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());  // new
                 transaction.setLatitude(dto.getLatitude());
                 transaction.setLongitude(dto.getLongitude());
+                transaction.setVendorName(dto.getVendorName());
+                transaction.setVendorTransactionId(dto.getVendorTxnId());
 
                 retailerPostpaidTransactionDetailsRepository.save(transaction);
                 log.info("Postpaid transaction saved successfully | TranxId: {}", tranxId);

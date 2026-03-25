@@ -72,7 +72,7 @@ public class FingpayDmtServiceImpl implements DmtVendorService {
     }
 
     @Override
-    public RemitterTransactionResponse processDmt(SendDmtRequest request, VendorCredentials credentials, String orderId, SubProducts subProducts, WalletType walletType) {
+    public RemitterTransactionResponse processDmt(SendDmtRequest request, VendorCredentials credentials, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude) {
         return null;
     }
 

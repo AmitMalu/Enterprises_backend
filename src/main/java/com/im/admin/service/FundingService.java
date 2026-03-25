@@ -14,11 +14,11 @@ import java.util.List;
 
 public interface FundingService {
 
-    String fundsCreditDebit(FundCreditDebitDto dto);
+    String fundsCreditDebit(FundCreditDebitDto dto, Double latitude, Double longitude);
 
     void downloadSampleFile(HttpServletResponse response) throws IOException;
 
-    List<BulkFundResponse> processBulkFile(MultipartFile file);
+    List<BulkFundResponse> processBulkFile(MultipartFile file, Double latitude, Double longitude);
 
     Page<RetailerTransactionResponseDto> getSettlementPendingTransactions(SettlementPendingRequestDto request, int page, int size);
 

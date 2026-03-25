@@ -118,7 +118,11 @@ public class BillAvenueStatusService {
                 "SUCCESS",
                 txn.getTransactionId().replace("TXN", ""),
                 txn.getOperatorName(),
-                txn.getSubProductName()
+                txn.getSubProductName(),
+                0.0,
+                0.0,
+                "-",
+                "Not Yet"
         );
     }
 }

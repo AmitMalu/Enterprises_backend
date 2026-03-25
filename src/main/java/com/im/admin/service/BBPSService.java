@@ -12,7 +12,7 @@ public interface BBPSService {
 
     FetchBillDetailsResponseDTO fetchBillDetails(FetchBillDetailsRequestDTO requestDTO);
 
-    CommonResponse<?> processRecharge(BillRechargeRequestDTO request);
+    CommonResponse<?> processRecharge(BillRechargeRequestDTO request,Double latitude, Double longitude);
 
     CommonResponse<FetchReceiptResponseDto> fetchReceipt(String  txnId);
 

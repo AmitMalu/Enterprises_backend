@@ -7,10 +7,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.response.RechargeResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/recharge")
@@ -21,10 +18,10 @@ public class RechargeController {
 
     @PostMapping
     public ResponseEntity<CommonResponse<RechargeResponse>> recharge(
-            @RequestBody RechargeRequest request) {
+            @RequestBody RechargeRequest request, @RequestHeader Double latitude, @RequestHeader Double longitude) {
 
         RechargeResponse response =
-                rechargeOrchestrator.recharge(request);
+                rechargeOrchestrator.recharge(request, latitude, longitude);
 
         return ResponseEntity.ok(
                 CommonResponse.success(response, "Recharge request submitted")

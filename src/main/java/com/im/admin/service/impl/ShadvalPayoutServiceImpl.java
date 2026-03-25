@@ -55,7 +55,9 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
                                         VendorCredentials creds,
                                         String orderId,
                                         SubProducts subProducts,
-                                        WalletType walletType) {
+                                        WalletType walletType,
+                                        Double latitude,
+                                        Double longitude) {
         try {
             log.info("[SHADVAL] Initiating payout orderId={} retailer={} amount={}",
                     orderId, req.getRetailerId(), req.getAmount());
@@ -178,6 +180,8 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
             dto.setIsCommission(subProducts.getProduct().getIsCommissions());
             dto.setHasCharge(subProducts.getProduct().getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
+            dto.setLatitude(latitude);
+            dto.setLongitude(longitude);
 
             log.info("[6] DTO ready for transaction processing: {}", dto);
 

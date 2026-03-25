@@ -56,7 +56,7 @@ public class MoveToBankServiceImpl implements MoveToBankService {
 
     @Override
     @Transactional
-    public CommonResponse<PayoutResponseDto> sendPayoutRequest(SendPayoutRequest sendPayoutRequest) {
+    public CommonResponse<PayoutResponseDto> sendPayoutRequest(SendPayoutRequest sendPayoutRequest, Double latitude, Double longitude) {
         try {
 
             String baseTransactionId = commonMethods.generateBaseTransactionId();
@@ -117,7 +117,7 @@ public class MoveToBankServiceImpl implements MoveToBankService {
             } else {
 
                 AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), sendPayoutRequest.getRetailerId());
-                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR_PENDING", "DEBIT", "Move To Bank", sendPayoutRequest.getBeneficiaryName() + "#" + sendPayoutRequest.getAccountNumber(), "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber(),"");
+                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR_PENDING", "DEBIT", "Move To Bank", sendPayoutRequest.getBeneficiaryName() + "#" + sendPayoutRequest.getAccountNumber(), "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber(),"", latitude, longitude);
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);

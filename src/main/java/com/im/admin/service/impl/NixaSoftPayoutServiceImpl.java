@@ -65,7 +65,9 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             VendorCredentials creds,
             String orderId,
             SubProducts subProducts,
-            WalletType walletType) {
+            WalletType walletType,
+            Double latitude,
+            Double longitude) {
 
         log.info("Starting NixaSoft payout for orderId={}, amount={}", orderId, req.getAmount());
 
@@ -121,14 +123,13 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
 
             // ===== 3. Map Status =====
 
-            String status = switch (body.getStatuscode()) {
-                case "TXN" -> "SUCCESS";
-                case "TXP" -> "PENDING";
-                case "TXF" -> "FAILED";
-                default -> "FAILED";
-            };
+                String status = switch (body.getStatuscode()) {
+                    case "TXN" -> "SUCCESS";
+                    case "TXP" -> "PENDING";
+                    default -> "FAILED";
+                };
 
-            // ===== 4. Build Response DTO =====
+                // ===== 4. Build Response DTO =====
 
             PayoutResponseDto payoutResponse = new PayoutResponseDto();
 
@@ -249,6 +250,8 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         dto.setIsCommission(product.getIsCommissions());
         dto.setHasCharge(product.getHasCharges());
         dto.setHierarchyId(pendingTxn.getRetailerId());
+        dto.setVendorName("Nixasoft Payout");
+        dto.setVendorTxnId(utr);
 
         log.info("[6] DTO ready for transaction processing: {}", dto);
 

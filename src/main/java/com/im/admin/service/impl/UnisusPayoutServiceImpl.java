@@ -30,6 +30,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -85,26 +86,83 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
             VendorCredentials creds,
             String orderId,
             SubProducts subProducts,
-            WalletType walletType
+            WalletType walletType,
+            Double latitude,
+            Double longitude
     ) {
+
+        log.info("Starting payout | orderId={}, amount={}", orderId, req.getAmount());
+
+        // ===== 1. SAVE INITIATED =====
+        PayoutPendingTransactions pending = new PayoutPendingTransactions();
+
+        pending.setTransactionId(orderId);
+        pending.setSchemeCode(req.getSchemeCode());
+        pending.setRetailerId(req.getRetailerId());
+        pending.setAmount(req.getAmount());
+        pending.setTransactionType(req.getPaymentMode());
+        pending.setCreatedAt(LocalDateTime.now());
+        pending.setIfscCode(req.getIfscCode());
+        pending.setAccountNumber(req.getAccountNumber());
+        pending.setBeneficiaryName(req.getBeneficiaryName());
+        pending.setLatitude(latitude);
+        pending.setLongitude(longitude);
+        pending.setStatus("INITIATED");
+
+        payoutPendingTransactionRepository.save(pending);
 
         try {
 
+            // ===== 2. BUILD REQUEST =====
             String ntdReq = buildNTDRequest(req, orderId, creds);
-
             String soapRequest = buildSoapRequest(ntdReq, creds);
 
             log.info("UNISUS REQUEST {}", soapRequest);
 
+            // ===== 3. CALL API =====
             String response = callApi(soapRequest, creds);
 
             log.info("UNISUS RESPONSE {}", response);
 
-            return parseResponse(response, orderId);
+            // ===== 4. PARSE RESPONSE =====
+            Map<String, Object> vendorMap = parseUnisusResponse(response);
+
+            String vendorTxnId = vendorMap.get("TRNID") != null
+                    ? vendorMap.get("TRNID").toString()
+                    : null;
+
+            String trnStatus = vendorMap.get("TRNSTATUS") != null
+                    ? vendorMap.get("TRNSTATUS").toString()
+                    : "1";
+
+            String statusMsg = vendorMap.get("STATUSMSG") != null
+                    ? vendorMap.get("STATUSMSG").toString()
+                    : "Unknown";
+
+            // IMPORTANT: DO NOT MARK SUCCESS HERE
+            if ("0".equals(trnStatus)) {
+                pending.setStatus("PENDING");   // request accepted
+            } else {
+                pending.setStatus("FAILED");
+            }
+
+            payoutPendingTransactionRepository.save(pending);
+
+            return PayoutResponseDto.builder()
+                    .orderId(orderId)
+                    .status(pending.getStatus())
+                    .message(statusMsg)
+                    .amount(req.getAmount())
+                    .build();
 
         } catch (Exception e) {
 
-            log.error("Unisus payout failed", e);
+            log.error("Payout API failed", e);
+
+            // ===== 6. UPDATE FAILED =====
+            pending.setStatus("FAILED");
+
+            payoutPendingTransactionRepository.save(pending);
 
             return PayoutResponseDto.builder()
                     .orderId(orderId)
@@ -112,6 +170,26 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
                     .message(e.getMessage())
                     .build();
         }
+    }
+
+    private Map<String, Object> parseUnisusResponse(String soapResponse)
+            throws JsonProcessingException {
+
+        // ===== Extract JSON from SOAP =====
+        int start = soapResponse.indexOf("{");
+        int end = soapResponse.lastIndexOf("}");
+
+        if (start == -1 || end == -1) {
+            throw new RuntimeException("Invalid SOAP response");
+        }
+
+        String json = soapResponse.substring(start, end + 1);
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        Map root = mapper.readValue(json, Map.class);
+
+        return (Map<String, Object>) root.get("NTDRESP");
     }
 
     @Override
@@ -186,7 +264,7 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
         }
     }
 
-    private String buildNTDRequest(SendPayoutRequest req, String refNo, VendorCredentials creds) {
+    private String buildNTDRequest(SendPayoutRequest req, String orderId, VendorCredentials creds) {
 
         NetworkBankMaster bank = bankMasterRepository
                 .findByUnisusMIfcsCodeIgnoreCase(req.getIfscCode().trim())
@@ -194,7 +272,7 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
 
         return "<NTDREQ>" +
                 "<REQTYPE>SM</REQTYPE>" +
-                "<REFNO>" + refNo + "</REFNO>" +
+                "<REFNO>" + orderId + "</REFNO>" +
                 "<CSTNO>" + creds.getUsername() + "</CSTNO>" +
                 "<CSTNM>" + req.getBeneficiaryName() + "</CSTNM>" +
                 "<BANKID>" + bank.getUnisusBankId() + "</BANKID>" +
@@ -413,6 +491,8 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
         dto.setIsCommission(product.getIsCommissions());
         dto.setHasCharge(product.getHasCharges());
         dto.setHierarchyId(pendingTxn.getRetailerId());
+        dto.setVendorName("UnisusPay Payout");
+        dto.setVendorTxnId(bankRefNo);
 
         log.info("[6] DTO ready for transaction processing: {}", dto);
 

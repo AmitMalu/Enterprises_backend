@@ -6,6 +6,6 @@ import com.im.admin.response.CommonResponse;
 
 public interface MoveToBankService {
 
-    CommonResponse<PayoutResponseDto> sendPayoutRequest(SendPayoutRequest sendPayoutRequest);
+    CommonResponse<PayoutResponseDto> sendPayoutRequest(SendPayoutRequest sendPayoutRequest, Double latitude, Double longitude);
 
 }

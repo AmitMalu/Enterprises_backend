@@ -24,6 +24,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -86,7 +87,7 @@ public class FundingServiceImpl implements FundingService {
 
     @Override
     @Transactional
-    public String fundsCreditDebit(FundCreditDebitDto dto) {
+    public String fundsCreditDebit(FundCreditDebitDto dto, Double latitude, Double longitude) {
         log.info("Starting funds {} operation for userAccountId: {}, WalletType: {}, Amount: {}",
                 dto.getFundingType(), dto.getUserAccountId(), dto.getWalletType(), dto.getAmount());
 
@@ -131,7 +132,10 @@ public class FundingServiceImpl implements FundingService {
                     adminTxnId,
                     dto.getRemarks(),
                     "Fund Credit (Admin Debit)",
-                    dto.getNarrationType()
+                    dto.getNarrationType(),
+                    latitude,
+                    longitude
+
             );
 
             // Credit to user
@@ -144,7 +148,9 @@ public class FundingServiceImpl implements FundingService {
                     userTxnId,
                     dto.getRemarks(),
                     "Fund Credit (User Credit)",
-                    dto.getNarrationType()
+                    dto.getNarrationType(),
+                    latitude,
+                    longitude
             );
 
         } else if (transactionType == TransactionType.DEBIT) {
@@ -161,7 +167,9 @@ public class FundingServiceImpl implements FundingService {
                     userTxnId,
                     dto.getRemarks(),
                     "Fund Debit (User Debit)",
-                    dto.getNarrationType()
+                    dto.getNarrationType(),
+                    latitude,
+                    longitude
             );
 
             // Credit to admin
@@ -174,7 +182,9 @@ public class FundingServiceImpl implements FundingService {
                     adminTxnId,
                     dto.getRemarks(),
                     "Fund Debit (Admin Credit)",
-                    dto.getNarrationType()
+                    dto.getNarrationType(),
+                    latitude,
+                    longitude
             );
         }
 
@@ -230,7 +240,7 @@ public class FundingServiceImpl implements FundingService {
     }
 
     @Override
-    public List<BulkFundResponse> processBulkFile(MultipartFile file) {
+    public List<BulkFundResponse> processBulkFile(MultipartFile file, Double latitude, Double longitude) {
         List<BulkFundResponse> responses = new ArrayList<>();
 
         // create a thread pool based on CPU cores
@@ -261,7 +271,7 @@ public class FundingServiceImpl implements FundingService {
 
                 // Submit async task
                 CompletableFuture<BulkFundResponse> future =
-                        CompletableFuture.supplyAsync(() -> processSingleRow(dto, rowNum), executorService)
+                        CompletableFuture.supplyAsync(() -> processSingleRow(dto, rowNum, latitude, longitude), executorService)
                                 .exceptionally(ex -> {
                                     BulkFundResponse failed = new BulkFundResponse();
                                     failed.setStatus("FAILED");
@@ -288,7 +298,7 @@ public class FundingServiceImpl implements FundingService {
     /**
      * Process a single Excel row into a transaction safely.
      */
-    private BulkFundResponse processSingleRow(FundCreditDebitDto dto, int rowNum) {
+    private BulkFundResponse processSingleRow(FundCreditDebitDto dto, int rowNum, Double latitude, Double longitude) {
         BulkFundResponse response = new BulkFundResponse();
         response.setUserAccountId(dto.getUserAccountId());
         response.setConfirmAmount(BigDecimal.valueOf(dto.getConfirmAmount()));
@@ -299,7 +309,7 @@ public class FundingServiceImpl implements FundingService {
         try {
             TransactionTemplate template = new TransactionTemplate(transactionManager);
             template.execute(status -> {
-                String result = fundsCreditDebit(dto); // now runs inside a TX
+                String result = fundsCreditDebit(dto, latitude, longitude); // now runs inside a TX
                 response.setStatus("SUCCESS");
                 response.setMessage(result);
                 return null;

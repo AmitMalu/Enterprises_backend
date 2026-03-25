@@ -9,10 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/wallet-to-wallet")
@@ -25,11 +22,13 @@ public class WalletToWalletTransferController {
     private WalletToWalletTransferService walletTransferService;
 
     @PostMapping("/transfer")
-    public ResponseEntity<CommonResponse<String>> transferAmount(@RequestBody WalletToWalletTransferDto request) {
+    public ResponseEntity<CommonResponse<String>> transferAmount(@RequestBody WalletToWalletTransferDto request,
+                                                                 @RequestHeader Double latitude,
+                                                                 @RequestHeader Double longitude) {
         log.info("Received wallet-to-wallet transfer request: {}", request);
 
         try {
-            walletTransferService.transferAmountWalletToWallet(request);
+            walletTransferService.transferAmountWalletToWallet(request, latitude, longitude);
             log.info("Transfer successful from wallet {} to wallet {} for amount {}",
                     request.getWalletTypeFrom(), request.getWalletTypeTo(), request.getTransferAmount());
 

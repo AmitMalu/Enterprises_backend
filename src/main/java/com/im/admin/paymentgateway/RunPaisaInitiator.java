@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.dto.PgTransactionRequestDto;
 import com.im.admin.request.CreateOrderRequest;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
 import com.im.admin.service.impl.RunpaisaPGServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class RunPaisaInitiator implements PaymentInitiator {
+public class RunPaisaInitiator implements PaymentGatewayInitiator {
 
     private final RunpaisaPGServiceImpl runPaisaServiceImpl;
 
@@ -87,17 +88,17 @@ public class RunPaisaInitiator implements PaymentInitiator {
     }
 
     @Override
-    public ResponseEntity<?> checkStatus(String orderId) {
+    public PgStatusResponse checkStatus(String orderId) {
 
         log.info("RUNPAISA checkStatus called. orderId={}", orderId);
 
         try {
-            ResponseEntity<?> response =
+            PgStatusResponse response =
                     runPaisaServiceImpl.orderStatus(orderId);
 
             log.info("RUNPAISA checkStatus completed. orderId={}, httpStatus={}",
                     orderId,
-                    response.getStatusCode());
+                    response.getStatus());
 
             return response;
 

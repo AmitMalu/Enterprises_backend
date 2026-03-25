@@ -180,7 +180,7 @@ public class BBPSServiceImpl implements BBPSService {
 
     @Override
     @Transactional
-    public CommonResponse<?> processRecharge(BillRechargeRequestDTO request) {
+    public CommonResponse<?> processRecharge(BillRechargeRequestDTO request, Double latitude, Double longitude) {
         log.info("Starting bill recharge process for retailerId: {}, subProductId: {}, amount: {}",
                 request.getRetailerId(), request.getSubProductId(), request.getAmount());
         try {
@@ -273,10 +273,10 @@ public class BBPSServiceImpl implements BBPSService {
             String gstValue = String.valueOf(product.getSgst());
             String tdsValue = String.valueOf(product.getTds());
 
-            BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "PENDING", baseTransactionId, operator, subProducts.get().getSubProductTitle());
+            BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "PENDING", baseTransactionId, operator, subProducts.get().getSubProductTitle(), latitude, longitude, "A2Z", "Not Yet");
 
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
-            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.get().getSubProductTitle(), "Tx Amount for A2Z Billpay For " + operator +"#"+ bbpsProviderRecord.getSubOperator() ,"A2Z Billpay Transaction from " + walletType.name(),schemeRate.getSchemeCode());
+            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.get().getSubProductTitle(), "Tx Amount for A2Z Billpay For " + operator +"#"+ bbpsProviderRecord.getSubOperator() ,"A2Z Billpay Transaction from " + walletType.name(),schemeRate.getSchemeCode(), latitude, longitude);
             bbpsRelatedTransactions.processCharges(bbpsTranactionRequestDto, walletAmountTable);
 
             log.info("Wallet updated and charges processed for transactionId: {}", baseTransactionId);

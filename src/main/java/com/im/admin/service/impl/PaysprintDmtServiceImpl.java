@@ -225,7 +225,8 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
             VendorCredentials credentials,
             String orderId,
             SubProducts subProducts,
-            WalletType walletType) {
+            WalletType walletType,
+            Double latitude, Double longitude) {
 
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = null;

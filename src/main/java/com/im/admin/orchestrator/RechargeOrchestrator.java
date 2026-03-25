@@ -61,7 +61,7 @@ public class RechargeOrchestrator {
     private RechargeVendorFactory vendorFactory;
 
     @Transactional
-    public RechargeResponse recharge(RechargeRequest request) {
+    public RechargeResponse recharge(RechargeRequest request, Double latitude, Double longitude) {
 
         String loggedInHierarchyId = tokenUtil.extractHierarchyId();
         request.setRetailerId(loggedInHierarchyId);
@@ -121,12 +121,12 @@ public class RechargeOrchestrator {
                 subProducts.getSubProductCode(),
                 request.getCustomerNumber(),
                 "Recharge for " + request.getCustomerNumber(),
-                ""
+                "",
+                latitude,
+                longitude
         );
 
-        RechargeResponse recharge = vendorService.recharge(request,orderId, credentials);
-
-        return recharge;
+        return vendorService.recharge(request,orderId, credentials);
 
     }
 

@@ -29,9 +29,9 @@ public class FundingController {
     private FundingService fundingService;
 
     @PostMapping("/credit-debit")
-    public ResponseEntity<CommonResponse<String>> fundsCreditDebit(@RequestBody FundCreditDebitDto dto) {
+    public ResponseEntity<CommonResponse<String>> fundsCreditDebit(@RequestBody FundCreditDebitDto dto, @RequestHeader Double latitude, @RequestHeader Double longitude) {
         log.info("API Call: fundsCreditDebit with data: {}", dto);
-        String result = fundingService.fundsCreditDebit(dto);
+        String result = fundingService.fundsCreditDebit(dto, latitude, latitude);
         log.info("Transaction processed successfully: {}", result);
         return ResponseEntity.ok(CommonResponse.success(result, "Transaction processed successfully"));
     }
@@ -45,7 +45,7 @@ public class FundingController {
 
     @PostMapping("/upload")
     public ResponseEntity<CommonResponse<List<BulkFundResponse>>> uploadBulkFile(
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file, @RequestHeader Double latitude, @RequestHeader Double longitude) {
 
         log.info("API Call: uploadBulkFile");
 
@@ -57,7 +57,7 @@ public class FundingController {
         }
 
         try {
-            List<BulkFundResponse> responses = fundingService.processBulkFile(file);
+            List<BulkFundResponse> responses = fundingService.processBulkFile(file, latitude, longitude);
             log.info("Bulk file processed successfully. Number of responses: {}", responses.size());
             return ResponseEntity.ok(
                     new CommonResponse<>(200, "Bulk file processed successfully", responses)

@@ -14,6 +14,7 @@ import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
 import com.im.admin.request.CreateOrderRequest;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.RunPaisaCallback;
 import com.im.admin.service.VendorCallbackParser;
 import com.im.admin.util.CommonMethods;
@@ -416,38 +417,83 @@ public class RunpaisaPGServiceImpl {
     }
 
 
-    public ResponseEntity<?> orderStatus(String orderId) {
+    //@Override
+    public PgStatusResponse orderStatus(String orderId) {
+
         log.info("Initiating order status check for orderId: {}", orderId);
 
         try {
-            // Step 1: Generate Token
+            // ===== 1. Generate Token =====
             String token = generateToken();
 
-            // Step 2: Build Multipart Request
+            // ===== 2. Headers =====
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("client_id", clientId);
             headers.set("token", token);
 
-            // Step 3: Build request body
+            // ===== 3. Body =====
             Map<String, String> body = new HashMap<>();
             body.put("order_id", orderId);
 
-            HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
+            HttpEntity<Map<String, String>> requestEntity =
+                    new HttpEntity<>(body, headers);
 
             log.info("Request body: {}", body);
-            log.info("Headers: {}", headers);
-            // Step 4: Send request using RestTemplate
-            ResponseEntity<String> response = restTemplate.postForEntity(orderStatusUrl, requestEntity, String.class);
 
-            log.info("Order status response: {}", response.getBody());
-            return ResponseEntity.ok(response.getBody());
+            // ===== 4. API Call =====
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    orderStatusUrl,
+                    HttpMethod.POST,
+                    requestEntity,
+                    Map.class
+            );
+
+            Map<String, Object> responseBody = response.getBody();
+
+            log.info("Order status response: {}", responseBody);
+
+            // ===== 5. Parse Response =====
+            String vendorStatus = responseBody.get("status") != null
+                    ? responseBody.get("status").toString()
+                    : "PENDING";
+
+            String txnId = responseBody.get("transaction_id") != null
+                    ? responseBody.get("transaction_id").toString()
+                    : null;
+
+            Double amount = responseBody.get("amount") != null
+                    ? Double.valueOf(responseBody.get("amount").toString())
+                    : 0.0;
+
+            // ===== 6. Map Status =====
+            String status;
+            if ("SUCCESS".equalsIgnoreCase(vendorStatus)
+                    || "paid".equalsIgnoreCase(vendorStatus)) {
+                status = "SUCCESS";
+            } else if ("FAILED".equalsIgnoreCase(vendorStatus)) {
+                status = "FAILED";
+            } else {
+                status = "PENDING";
+            }
+
+            // ===== 7. Return Common DTO =====
+            return PgStatusResponse.builder()
+                    .orderId(orderId)
+                    .status(status)
+                    .vendorTxnId(txnId)
+                    .amount(amount)
+                    .message("Order status fetched successfully")
+                    .build();
 
         } catch (Exception e) {
-            log.error("Error while fetching order status: ", e);
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Order status failed: " + e.getMessage());
+            log.error("Error while fetching order status", e);
+
+            return PgStatusResponse.builder()
+                    .orderId(orderId)
+                    .status("FAILED")
+                    .message("Error: " + e.getMessage())
+                    .build();
         }
     }
 
@@ -630,6 +676,8 @@ public class RunpaisaPGServiceImpl {
         dto.setHasCharge(product.getHasCharges());
         dto.setLatitude(pgTransactionMapping.getLatitude());
         dto.setLongitude(pgTransactionMapping.getLongitude());
+        dto.setVendorName("Runpaisa PG");
+        dto.setVendorTxnId(callback.getBankTxnId());
 
         log.debug("---- [Callback] DTO prepared: {}", dto);
         log.info("---- [Callback] DTO prepared: {}", dto);

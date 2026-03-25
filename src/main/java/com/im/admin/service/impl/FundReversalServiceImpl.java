@@ -128,7 +128,7 @@ public class FundReversalServiceImpl implements FundReversalService {
 
     @Override
     @Transactional
-    public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request) {
+    public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, Double latitude, Double longitude) {
 
         try {
             CheckBalanceRequestDto balanceRequest = new CheckBalanceRequestDto();
@@ -197,7 +197,7 @@ public class FundReversalServiceImpl implements FundReversalService {
 
         String baseTransactionId = commonMethods.generateBaseTransactionId();
 
-        processWalletTransfer(request, reverseAmount, walletType, baseTransactionId);
+        processWalletTransfer(request, reverseAmount, walletType, baseTransactionId, latitude, longitude);
 
         fundReversal.setStatus(Status.APPROVED);
         fundReversal.setOtpVerified(true);
@@ -243,7 +243,8 @@ public class FundReversalServiceImpl implements FundReversalService {
             FundReversalRequestDto request,
             BigDecimal amount,
             WalletType walletType,
-            String baseTransactionId) {
+            String baseTransactionId,
+            Double latitude, Double longitude) {
 
         AbstractWalletAmountTable fromWallet =
                 commonMethods.getWalletByType(
@@ -262,7 +263,9 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "Fund Reversal",
                 "Payment",
                 "Fund Reverse to " + request.getParentHierarchyId(),
-                ""
+                "",
+                latitude,
+                longitude
         );
 
         AbstractWalletAmountTable toWallet =
@@ -282,7 +285,9 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "Fund Reversal",
                 "Payment",
                 "Fund Reversed By " + request.getChildHierarchyId(),
-                ""
+                "",
+                latitude,
+                longitude
         );
     }
 

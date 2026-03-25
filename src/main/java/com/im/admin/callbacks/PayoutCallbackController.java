@@ -1,7 +1,7 @@
 package com.im.admin.callbacks;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.im.admin.orchestrator.PayoutOrchestratorV0;
+import com.im.admin.orchestrator.PayoutOrchestrator;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ import java.util.Map;
 public class PayoutCallbackController {
 
     @Autowired
-    private PayoutOrchestratorV0 payoutOrchestratorV0;
+    private PayoutOrchestrator payoutOrchestratorV0;
 
     @PostMapping("/callback")
     public ResponseEntity<String> payoutCallback(@RequestBody Map<String, String> payload,
@@ -38,6 +38,15 @@ public class PayoutCallbackController {
         log.info("<---------------- UnisusPay callback request with payload: {} --------------------->", payload);
         String response = payoutOrchestratorV0.unisusPayoutCallback(payload, request);
         log.info("Callback response from unisus: {}", response);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/slpe-callback")
+    public ResponseEntity<String> slpePayCallback(@RequestBody Map<String, String> payload,
+                                                    HttpServletRequest request) throws JsonProcessingException {
+        log.info("<---------------- SLPE callback request with payload: {} --------------------->", payload);
+        String response = payoutOrchestratorV0.slpePayoutCallback(payload, request);
+        log.info("Callback response from slpe: {}", response);
         return ResponseEntity.ok(response);
     }
 

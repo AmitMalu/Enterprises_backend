@@ -80,7 +80,9 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
                                         VendorCredentials creds,
                                         String orderId,
                                         SubProducts subProduct,
-                                        WalletType walletType) {
+                                        WalletType walletType,
+                                        Double latitude,
+                                        Double longitude) {
         log.info("[RUNPAISA] Starting payout for orderId={}", orderId);
 
         LocalDateTime requestTime = LocalDateTime.now();

@@ -14,7 +14,7 @@ public interface BillAvenueService {
 
     Object fetchBill(BillFetchRequest request)throws Exception;
 
-    Object doBillPayment(BillPaymentRequest request) throws Exception;
+    Object doBillPayment(BillPaymentRequest request, Double latitude, Double longitude) throws Exception;
 
     Object fetchTransactionStatus(TransactionStatusRequest request)throws Exception ;
 }

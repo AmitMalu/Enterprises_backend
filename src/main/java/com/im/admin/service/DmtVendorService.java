@@ -20,7 +20,7 @@ public interface DmtVendorService {
 
     String getVendorCode();
 
-    RemitterTransactionResponse processDmt(SendDmtRequest request, VendorCredentials credentials, String orderId, SubProducts subProducts, WalletType walletType);
+    RemitterTransactionResponse processDmt(SendDmtRequest request, VendorCredentials credentials, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude);
 
     PaysprintSendOtpResponse sendOtp(SendDmtRequest request, VendorCredentials credentials) throws JsonProcessingException;
 

@@ -3,6 +3,7 @@ package com.im.admin.paymentgateway;
 import com.im.admin.dto.PgTransactionRequestDto;
 import com.im.admin.request.UnisusPayCreateOrderRequest;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
 import com.im.admin.service.UnisusPGService;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class UnisusInitiator implements PaymentInitiator {
+public class UnisusInitiator implements PaymentGatewayInitiator {
 
     private final UnisusPGService unisusService;
 
@@ -38,22 +39,6 @@ public class UnisusInitiator implements PaymentInitiator {
                 .build();
     }
 
-    @Override
-    public ResponseEntity<?> checkStatus(String orderId) {
-        return ResponseEntity.ok("Unisus status not implemented");
-    }
-
-//    @Override
-//    public String handleCallback(Map<String, String> payload,
-//                                 HttpServletRequest request) {
-//        throw new UnsupportedOperationException("Use direct webhook");
-//    }
-
-//    public UnisusWebhookResponse processWebhookDirect(
-//            UnisusWebhookRequest request) {
-//
-//        return unisusService.processWebhook(request);
-//    }
 
     @Override
     public CommonResponse<String> validate(PgTransactionRequestDto request) {
@@ -63,5 +48,10 @@ public class UnisusInitiator implements PaymentInitiator {
     @Override
     public String getVendorName() {
         return "UnisusPay Payment Gateway";
+    }
+
+    @Override
+    public PgStatusResponse checkStatus(String orderId) {
+        return null;
     }
 }
