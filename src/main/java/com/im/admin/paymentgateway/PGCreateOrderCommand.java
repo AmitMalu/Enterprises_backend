@@ -27,6 +27,7 @@ public class PGCreateOrderCommand {
     private String cardHolderName;
     private String cardHolderMobile;
     private String emailId;
+    private String narration;
 
     private TransactionSchemeDetailsRequestDto schemeDetails;
 }
