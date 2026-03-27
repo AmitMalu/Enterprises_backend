@@ -27,8 +27,9 @@ public class AESFilter extends OncePerRequestFilter {
 
 	private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/images/","/webjars/**", "cache",
 			"/api/aes/generate-token", "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password","/auth/forgot-password",
-			"/api/aes/validate-token", "/api/pg/generate-token", "/api/pg/payment/callback","/auth/forget-verify-otp", "/api/payout/callback",
-			"/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials", "/api/pg/callback/unisus");
+			"/api/aes/validate-token", "/api/pg/generate-token", "/auth/forget-verify-otp", "/api/payout/callback",
+			"/api/pg/callback/runpaisa", "/api/pg/callback/nixasoft", "/api/pg/callback/slpe", "/api/pg/callback/unisus",
+			"/api/pg/callback/razorpay", "/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials");
 
 	@Value("${app.security.base-secret}")
 	private String baseSecret;
@@ -39,19 +40,19 @@ public class AESFilter extends OncePerRequestFilter {
 	@Value("${app.security.pbkdf2-keylength}")
 	private int keyLength;
 
-	private static final Map<String, String> HIERARCHY_SALTS = Map.of(
-			"RT", "nP4jXs9mQwU2dT8v",        // Retailer
-			"DT", "fG9kRz1bYpV8jQwT",        // Distributor
-			"PT", "hD1fL9zWjT4gM7pR",        // Partner
-			"SD", "sZ7dEx2kLwV3tQrM",        // SuperDistributor
-			"WL", "kL7tF1yXsQp3vJbW",        // Whitelabel
-			"ET", "dP5mSzR2xTgWq4Bv",        // Enterprise
-			"AD", "j5vR6fTpCq9LzH2b",        // Admin
-			"SA", "xC8mV2r9LpW6qTjZ"         // SuperAdmin
-	);
+//	private static final Map<String, String> HIERARCHY_SALTS = Map.of(
+//			"RT", "nP4jXs9mQwU2dT8v",        // Retailer
+//			"DT", "fG9kRz1bYpV8jQwT",        // Distributor
+//			"PT", "hD1fL9zWjT4gM7pR",        // Partner
+//			"SD", "sZ7dEx2kLwV3tQrM",        // SuperDistributor
+//			"WL", "kL7tF1yXsQp3vJbW",        // Whitelabel
+//			"ET", "dP5mSzR2xTgWq4Bv",        // Enterprise
+//			"AD", "j5vR6fTpCq9LzH2b",        // Admin
+//			"SA", "xC8mV2r9LpW6qTjZ"         // SuperAdmin
+//	);
 
-	@Autowired
-	private AESKeyService aesKeyService;
+//	@Autowired
+//	private AESKeyService aesKeyService;
 
 	@Autowired
 	private AESEncryptionUtil aesEncryptionUtil;

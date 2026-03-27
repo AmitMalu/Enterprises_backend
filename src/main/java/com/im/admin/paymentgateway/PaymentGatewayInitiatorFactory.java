@@ -8,11 +8,11 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
-public class PaymentInitiatorFactory {
+public class PaymentGatewayInitiatorFactory {
 
     private final Map<String, PaymentGatewayInitiator> initiatorMap;
 
-    public PaymentInitiatorFactory(List<PaymentGatewayInitiator> initiators) {
+    public PaymentGatewayInitiatorFactory(List<PaymentGatewayInitiator> initiators) {
         this.initiatorMap = initiators.stream()
                 .collect(Collectors.toMap(
                         PaymentGatewayInitiator::getVendorName,
