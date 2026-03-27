@@ -8,11 +8,13 @@ import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
 import com.im.admin.request.CellmobeyRechargeCallback;
+import com.im.admin.request.MobileLookupRequest;
+import com.im.admin.request.RechargePlanRequest;
 import com.im.admin.request.RechargeRequest;
-import com.im.admin.response.RechargeCallbackData;
-import com.im.admin.response.RechargeResponse;
+import com.im.admin.response.*;
 import com.im.admin.service.RechargeCallbackHandler;
 import com.im.admin.service.RechargeVendorService;
+import com.im.admin.util.CommonMethods;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,8 @@ import java.util.UUID;
 @Slf4j
 @Service("Cellmoney Recharge")
 public class CellmoneyRechargeServiceImpl implements RechargeVendorService, RechargeCallbackHandler {
+
+
     @Autowired
     private SchemeRepository schemeRepository;
 
@@ -56,6 +60,10 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
     @Autowired
     private CommonFunctions commonFunctions;
 
+
+    @Autowired
+    private CommonMethods commonMethods;
+
     ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -73,10 +81,14 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
         //  Generate transaction reference
-        String transactionRef = UUID.randomUUID()
-                .toString()
-                .replace("-", "")
-                .substring(0, 12);
+//        String transactionRef = UUID.randomUUID()
+//                .toString()
+//                .replace("-", "")
+//                .substring(0, 12);
+
+//        String transactionRef = commonMethods.generateBaseTransactionId();
+
+//        String transactionRef = "TXN" + commonMethods.generateBaseTransactionId();
 
         //  Build Message
         String message = request.getOperatorCode() + "$"
@@ -84,7 +96,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
                 + request.getAmount() + "$"
                 + SMS_PIN + "$"
                 + request.getRechargeType() + "$"
-                + transactionRef;
+                + orderId;
 
         // Build URL
         String url = UriComponentsBuilder
@@ -103,7 +115,8 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
                 .schemeCode(request.getSchemeCode())
                 .transactionId(orderId)
                 .schemeCode(request.getSchemeCode())
-                .transactionRef(transactionRef)
+//                .transactionRef(transactionRef)
+                .transactionRef(orderId)
                 .operatorCode(request.getOperatorCode())
                 .customerNumber(request.getCustomerNumber())
                 .amount(request.getAmount())
@@ -135,7 +148,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
             rechargeTransactionRepository.save(transaction);
 
             return RechargeResponse.builder()
-                    .transactionRef(transactionRef)
+                    .transactionRef(orderId)
                     .status("FAILED")
                     .message(statusMessage)
                     .build();
@@ -146,7 +159,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
         rechargeTransactionRepository.save(transaction);
 
         return RechargeResponse.builder()
-                .transactionRef(transactionRef)
+                .transactionRef(orderId)
                 .status("PENDING")
                 .message(statusMessage)   // show vendor message
                 .build();
@@ -309,7 +322,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
                     txn.getId(), txn.getTransactionType(), txn.getAmount());
 
 
-            // ⃣ Convert vendor status → internal status
+            // Convert vendor status → internal status
             String internalStatus;
 
             if ("1".equals(callback.getStatus())) {
@@ -436,6 +449,67 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
         }
 
         log.info("========== [RECHARGE CALLBACK PROCESS END] ==========");
+    }
+
+
+    @Override
+    public MobileLookupResponse mobileLookup(MobileLookupRequest request,
+                                             VendorCredentials credentials) {
+
+        String url = UriComponentsBuilder
+                .fromHttpUrl("https://roundpay.net/PlanServices/v1/MobileLookup")
+                .queryParam("accountNo", request.getMobileNumber())
+                .queryParam("spkey", "8201")
+                .queryParam("userid", "18022")
+                .queryParam("token", credentials.getTokenUrlUat())
+                .toUriString();
+
+        String response = restTemplate.getForObject(url, String.class);
+
+        try {
+            return objectMapper.readValue(response, MobileLookupResponse.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse lookup response");
+        }
+    }
+
+    @Override
+    public OperatorResponse getOperatorCodes(VendorCredentials credentials) {
+
+        String url = UriComponentsBuilder
+                .fromHttpUrl("https://roundpay.net/PlanServices/v1/GetOperatorCodes")
+                .queryParam("userid", "18022")
+                .queryParam("token", credentials.getTokenUrlUat())
+                .toUriString();
+
+        String response = restTemplate.getForObject(url, String.class);
+
+        try {
+            return objectMapper.readValue(response, OperatorResponse.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse operator response");
+        }
+    }
+
+    @Override
+    public RechargePlanResponse getRechargePlans(RechargePlanRequest request,
+                                                 VendorCredentials credentials) {
+
+        String url = UriComponentsBuilder
+                .fromHttpUrl("https://roundpay.net/PlanServices/v1/RechargePlan")
+                .queryParam("spkey", request.getSpkey())
+                .queryParam("circleId", request.getCircleId())
+                .queryParam("userid", "18022")
+                .queryParam("token", credentials.getTokenUrlUat())
+                .toUriString();
+
+        String response = restTemplate.getForObject(url, String.class);
+
+        try {
+            return objectMapper.readValue(response, RechargePlanResponse.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse recharge plans response");
+        }
     }
 }
 

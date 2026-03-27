@@ -117,7 +117,8 @@ public class CommonMethods {
         log.debug("Generating next ID for table.");
 
         try {
-            String query = "SELECT MAX(" + idColumn + ") FROM " + tableName;
+//            String query = "SELECT MAX(" + idColumn + ") FROM " + tableName;
+            String query = "SELECT MAX(CAST(" + idColumn + " AS UNSIGNED)) FROM " + tableName;
             log.trace("Executing query to fetch max ID."); // Avoid logging actual query in production
 
             String maxId = jdbcTemplate.queryForObject(query, String.class);
@@ -129,10 +130,10 @@ public class CommonMethods {
 
             int nextId = Integer.parseInt(maxId) + 1;
 
-            if (nextId > 99) {
-                log.error("ID generation failed: limit exceeded.");
-                throw new IllegalStateException("ID limit reached.");
-            }
+//            if (nextId > 99) {
+//                log.error("ID generation failed: limit exceeded.");
+//                throw new IllegalStateException("ID limit reached.");
+//            }
 
             String formattedId = String.format("%02d", nextId);
             log.debug("Generated next ID successfully.");

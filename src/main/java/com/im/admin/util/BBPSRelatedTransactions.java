@@ -56,13 +56,13 @@ public class BBPSRelatedTransactions {
         if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
             BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross())
                     .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP); // convert to fraction
-            grossAmount = BigDecimal.valueOf(dto.getTxnAmount())
+            grossAmount = new BigDecimal(String.valueOf(dto.getTxnAmount()))
                     .multiply(percentage)
                     .setScale(4, RoundingMode.HALF_UP);
             log.debug("---- [Charges] Gross calculated as percentage | RateType: {} | Percentage: {} | GrossAmount: {}",
                     dto.getSchemeRate().getRateType(), percentage, grossAmount);
         } else {
-            grossAmount = BigDecimal.valueOf(dto.getTxnAmount());;
+            grossAmount = new BigDecimal(String.valueOf(dto.getTxnAmount()));;
             log.debug("---- [Charges] Gross taken as fixed | GrossAmountInput: {}", grossAmount);
         }
 
@@ -71,7 +71,7 @@ public class BBPSRelatedTransactions {
                 .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
         BigDecimal divisor = BigDecimal.ONE.add(gstRate);
         BigDecimal baseAmount = grossAmount.divide(divisor, 10, RoundingMode.HALF_UP);
-        BigDecimal gstAmount = grossAmount.subtract(baseAmount).setScale(4, RoundingMode.HALF_UP);
+        BigDecimal gstAmount = grossAmount.subtract(baseAmount).setScale(2, RoundingMode.HALF_UP);
 
         // Check balance before deducting base amount
         if (wallet.getAvailableBalance().compareTo(baseAmount) < 0) {
@@ -365,8 +365,8 @@ public class BBPSRelatedTransactions {
 
     public void processCommission(BbpsTranactionRequestDto bbpsTranactionRequestDto) {
 
-        BbpsTranactionRequestDto request = new BbpsTranactionRequestDto();
-        request.setVendorResponse("SUCCESS");
+//        BbpsTranactionRequestDto request = new BbpsTranactionRequestDto();
+//        request.setVendorResponse("SUCCESS");
         // 1. Commission to Retailer
         if (bbpsTranactionRequestDto.getSchemeRate().getRetailer() > 0) {
             BigDecimal retailerCommission = commonMethods.calculateCommissionAmount(
@@ -538,11 +538,11 @@ public class BBPSRelatedTransactions {
         // TDS deduction (if applicable)
         BigDecimal tdsAmount = commissionAmount
                 .multiply(tdsRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))
-                .setScale(2, RoundingMode.HALF_UP);
+                .setScale(4, RoundingMode.HALF_UP);
 
         if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal afterTdsBalance = afterCreditBalance.subtract(tdsAmount);
-            String tdsTxnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
+            String tdsTxnId = buildTransactionId("TDS", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
 
             insertTransactionForHierarchy(transactionTable, "DEBIT", tdsAmount,
                     "TDS Deduction", hierarchyId, walletType,

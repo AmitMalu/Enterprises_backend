@@ -29,5 +29,10 @@ public class LedgerReportDto {
         private String narration;
         private String sourceTable;
 
+        private String vendorName;
+        private String vendorTransactionId;
+        private Double latitude;
+        private Double longitude;
+
 }
 

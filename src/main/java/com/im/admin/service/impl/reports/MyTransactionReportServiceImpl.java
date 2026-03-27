@@ -330,6 +330,11 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             dto.setNarration((String) row[12]);
             dto.setHierarchyId((String) row[13]);
 
+            dto.setVendorName((String) row[14]);
+            dto.setVendorTransactionId((String) row[15]);
+            dto.setLatitude((Double) row[16]);
+            dto.setLongitude((Double) row[17]);
+
 
             // wallet type
             dto.setWalletType(walletType);

@@ -201,6 +201,14 @@ public class AsyncSearchServiceImpl implements AsyncSearchService {
         dto.setStatus(txn.getTranStatus());
         dto.setDate(txn.getDateOfTransaction());
         dto.setTime(txn.getTimeOfTransaction());
+
+        dto.setLatitude(txn.getLatitude());
+        dto.setLongitude(txn.getLongitude());
+
+        dto.setVendorName(txn.getVendorName());
+        dto.setVendorTransactionId(txn.getVendorTransactionId());
+
+
         return dto;
     }
 

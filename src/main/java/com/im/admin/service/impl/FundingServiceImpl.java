@@ -473,7 +473,10 @@ public class FundingServiceImpl implements FundingService {
                             txn.getDateOfTransaction(),
                             txn.getTimeOfTransaction(),
                             txn.getUpdatedDateOfTransaction(),
-                            txn.getUpdatedTimeOfTransaction()
+                            txn.getUpdatedTimeOfTransaction(),
+                            txn.getVendorTransactionId(),
+                            txn.getLatitude(),
+                            txn.getLongitude()
                     );
 
             dto.setWalletType("PREPAID"); //  request
@@ -538,7 +541,10 @@ public class FundingServiceImpl implements FundingService {
                             txn.getDateOfTransaction(),
                             txn.getTimeOfTransaction(),
                             txn.getUpdatedDateOfTransaction(),
-                            txn.getUpdatedTimeOfTransaction()
+                            txn.getUpdatedTimeOfTransaction(),
+                            txn.getVendorTransactionId(),
+                            txn.getLatitude(),
+                            txn.getLongitude()
                     );
 
             dto.setWalletType("POSTPAID");
@@ -660,7 +666,10 @@ public class FundingServiceImpl implements FundingService {
                             txn.getDateOfTransaction(),
                             txn.getTimeOfTransaction(),
                             txn.getUpdatedDateOfTransaction(),
-                            txn.getUpdatedTimeOfTransaction()
+                            txn.getUpdatedTimeOfTransaction(),
+                            txn.getVendorTransactionId(),
+                            txn.getLatitude(),
+                            txn.getLongitude()
                     );
 
             dto.setWalletType("PREPAID");
@@ -727,7 +736,10 @@ public class FundingServiceImpl implements FundingService {
                             txn.getDateOfTransaction(),
                             txn.getTimeOfTransaction(),
                             txn.getUpdatedDateOfTransaction(),
-                            txn.getUpdatedTimeOfTransaction()
+                            txn.getUpdatedTimeOfTransaction(),
+                            txn.getVendorTransactionId(),
+                            txn.getLatitude(),
+                            txn.getLongitude()
                     );
 
             dto.setWalletType("POSTPAID");
@@ -876,7 +888,10 @@ public class FundingServiceImpl implements FundingService {
                             txn.getDateOfTransaction(),
                             txn.getTimeOfTransaction(),
                             txn.getUpdatedDateOfTransaction(),
-                            txn.getUpdatedTimeOfTransaction()
+                            txn.getUpdatedTimeOfTransaction(),
+                            txn.getVendorTransactionId(),
+                            txn.getLatitude(),
+                            txn.getLongitude()
                     );
 
             dto.setWalletType("PREPAID");
@@ -942,7 +957,10 @@ public class FundingServiceImpl implements FundingService {
                             txn.getDateOfTransaction(),
                             txn.getTimeOfTransaction(),
                             txn.getUpdatedDateOfTransaction(),
-                            txn.getUpdatedTimeOfTransaction()
+                            txn.getUpdatedTimeOfTransaction(),
+                            txn.getVendorTransactionId(),
+                            txn.getLatitude(),
+                            txn.getLongitude()
                     );
 
             dto.setWalletType("POSTPAID");

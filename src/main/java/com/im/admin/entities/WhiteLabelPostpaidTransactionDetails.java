@@ -98,4 +98,14 @@ public class WhiteLabelPostpaidTransactionDetails implements CommonSearchTransac
         return whitelabelId;
     }
 
+    @Override
+    public String getVendorName() {
+        return "";
+    }
+
+    @Override
+    public String getVendorTransactionId() {
+        return "";
+    }
+
 }

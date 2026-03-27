@@ -66,4 +66,17 @@ public class LedgerReport {
 
     @Column(name = "source_table")
     private String sourceTable;
+
+
+    @Column(name = "vendor_name")
+    private String vendorName;
+
+    @Column(name = "vendor_transaction_id")
+    private String vendorTransactionId;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
 }

@@ -94,4 +94,14 @@ public class DistributorPrepaidTransactionDetails implements CommonSearchTransac
     public String getHierarchyId() {
         return distributorId;
     }
+
+    @Override
+    public String getVendorName() {
+        return "";
+    }
+
+    @Override
+    public String getVendorTransactionId() {
+        return "";
+    }
 }

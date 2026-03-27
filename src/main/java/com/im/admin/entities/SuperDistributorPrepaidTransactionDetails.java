@@ -92,4 +92,14 @@ public class SuperDistributorPrepaidTransactionDetails implements CommonSearchTr
         return superDistributorId;
     }
 
+    @Override
+    public String getVendorName() {
+        return "";
+    }
+
+    @Override
+    public String getVendorTransactionId() {
+        return "";
+    }
+
 }

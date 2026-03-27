@@ -36,6 +36,10 @@ public class RetailerTransactionResponseDto {
     private String walletType;
     private String productName;
 
+    private String vendorTransactionId;
+    private Double latitude;
+    private Double longitude;
+
     //  Constructor exactly matching service usage
     public RetailerTransactionResponseDto(
             Integer id,
@@ -54,7 +58,11 @@ public class RetailerTransactionResponseDto {
             LocalDate dateOfTransaction,
             LocalTime timeOfTransaction,
             LocalDate updatedDateOfTransaction,
-            LocalTime updatedTimeOfTransaction
+            LocalTime updatedTimeOfTransaction,
+
+               String vendorTransactionId,
+            Double latitude,
+            Double longitude
     ) {
         this.id = id;
         this.updatedAt = updatedAt;
@@ -73,5 +81,9 @@ public class RetailerTransactionResponseDto {
         this.timeOfTransaction = timeOfTransaction;
         this.updatedDateOfTransaction = updatedDateOfTransaction;
         this.updatedTimeOfTransaction = updatedTimeOfTransaction;
+
+        this.vendorTransactionId = vendorTransactionId;
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 }

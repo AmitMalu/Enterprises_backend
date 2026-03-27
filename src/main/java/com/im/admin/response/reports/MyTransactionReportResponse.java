@@ -33,6 +33,11 @@ public class MyTransactionReportResponse {
     private WalletType walletType;
     private String hierarchyId;
 
+    private String vendorName;
+    private String vendorTransactionId;
+    private Double latitude;
+    private Double longitude;
+
 
 
 }
