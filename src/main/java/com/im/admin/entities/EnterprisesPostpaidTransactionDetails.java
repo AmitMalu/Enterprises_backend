@@ -92,4 +92,14 @@ public class EnterprisesPostpaidTransactionDetails implements CommonSearchTransa
     public String getHierarchyId() {
         return enterprisesId;
     }
+
+    @Override
+    public String getVendorName() {
+        return "";
+    }
+
+    @Override
+    public String getVendorTransactionId() {
+        return "";
+    }
 }

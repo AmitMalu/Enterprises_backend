@@ -95,4 +95,14 @@ public class PartnerPrepaidTransactionDetails implements CommonSearchTransaction
         return partnerId;
     }
 
+    @Override
+    public String getVendorName() {
+        return "";
+    }
+
+    @Override
+    public String getVendorTransactionId() {
+        return "";
+    }
+
 }

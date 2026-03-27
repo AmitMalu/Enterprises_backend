@@ -6,9 +6,10 @@ import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
+import com.im.admin.request.MobileLookupRequest;
+import com.im.admin.request.RechargePlanRequest;
 import com.im.admin.request.RechargeRequest;
-import com.im.admin.response.PaysprintSendOtpResponse;
-import com.im.admin.response.RechargeResponse;
+import com.im.admin.response.*;
 import com.im.admin.service.DmtVendorService;
 import com.im.admin.service.RechargeCallbackHandler;
 import com.im.admin.service.RechargeVendorService;
@@ -43,6 +44,9 @@ public class RechargeOrchestrator {
     @Autowired
     private CommonFunctions commonFunctions;
 
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
+
 
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
@@ -62,6 +66,8 @@ public class RechargeOrchestrator {
 
     @Transactional
     public RechargeResponse recharge(RechargeRequest request, Double latitude, Double longitude) {
+
+
 
         String loggedInHierarchyId = tokenUtil.extractHierarchyId();
         request.setRetailerId(loggedInHierarchyId);
@@ -107,7 +113,19 @@ public class RechargeOrchestrator {
         AbstractWalletAmountTable wallet =
                 commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
 
-        String txnRef = commonMethods.generateBaseTransactionId();
+//        String txnRef = commonMethods.generateBaseTransactionId();
+        String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+
+        String transactionType =
+                request.getOperatorName() + "(" + request.getOperatorCode() + ")";
+
+        SchemeRate selectedScheme = schemeRateRepository
+                .findSchemeRateByCodeAndOperatorAndAmount(
+                        request.getSchemeCode(),
+                        transactionType,
+                        request.getAmount().doubleValue())
+                .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + request.getAmount()));
+
 
         commonMethods.updateWallet(
                 wallet,
@@ -115,7 +133,7 @@ public class RechargeOrchestrator {
                 walletType,
                 request.getAmount(),
                 "Debit",
-                txnRef,
+                baseTxnId,
                 "PENDING",
                 "DEBIT",
                 subProducts.getSubProductCode(),
@@ -222,5 +240,68 @@ public class RechargeOrchestrator {
             log.error("Recharge callback error {}", e.getMessage(), e);
             return "ERROR";
         }
+    }
+
+    public MobileLookupResponse mobileLookup(MobileLookupRequest request) {
+
+        VendorRouting routing =
+                vendorRoutingRepository.findBySubProductId(request.getSubProductId()); // or config-based
+
+        Vendors vendor = CommonMethods.getVendors(routing);
+
+        VendorCredentials credentials =
+                vendorCredentialsRepository
+                        .findByVendorIdAndProductId(
+                                vendor.getId(),
+                                vendor.getProduct().getId())
+                        .orElseThrow(() ->
+                                new RuntimeException("Vendor credentials not found"));
+
+        RechargeVendorService vendorService =
+                vendorFactory.getVendor(vendor.getVendorName());
+
+        return vendorService.mobileLookup(request, credentials);
+    }
+
+    public OperatorResponse getOperatorCodes(MobileLookupRequest request) {
+
+        VendorRouting routing =
+                vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+
+        Vendors vendor = CommonMethods.getVendors(routing);
+
+        VendorCredentials credentials =
+                vendorCredentialsRepository
+                        .findByVendorIdAndProductId(
+                                vendor.getId(),
+                                vendor.getProduct().getId())
+                        .orElseThrow(() ->
+                                new RuntimeException("Vendor credentials not found"));
+
+        RechargeVendorService vendorService =
+                vendorFactory.getVendor(vendor.getVendorName());
+
+        return vendorService.getOperatorCodes(credentials);
+    }
+
+    public RechargePlanResponse getRechargePlans(RechargePlanRequest request) {
+
+        VendorRouting routing =
+                vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+
+        Vendors vendor = CommonMethods.getVendors(routing);
+
+        VendorCredentials credentials =
+                vendorCredentialsRepository
+                        .findByVendorIdAndProductId(
+                                vendor.getId(),
+                                vendor.getProduct().getId())
+                        .orElseThrow(() ->
+                                new RuntimeException("Vendor credentials not found"));
+
+        RechargeVendorService vendorService =
+                vendorFactory.getVendor(vendor.getVendorName());
+
+        return vendorService.getRechargePlans(request, credentials);
     }
 }

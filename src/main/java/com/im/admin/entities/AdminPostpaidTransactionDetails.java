@@ -90,4 +90,13 @@ public class AdminPostpaidTransactionDetails implements CommonSearchTransactionD
     @Column(name = "longitude")
     private Double longitude;
 
+    @Override
+    public String getVendorName() {
+        return "";
+    }
+
+    @Override
+    public String getVendorTransactionId() {
+        return "";
+    }
 }

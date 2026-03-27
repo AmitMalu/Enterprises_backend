@@ -91,4 +91,14 @@ public class SuperDistributorPostpaidTransactionDetails implements CommonSearchT
     public String getHierarchyId() {
         return superDistributorId;
     }
+
+    @Override
+    public String getVendorName() {
+        return "";
+    }
+
+    @Override
+    public String getVendorTransactionId() {
+        return "";
+    }
 }

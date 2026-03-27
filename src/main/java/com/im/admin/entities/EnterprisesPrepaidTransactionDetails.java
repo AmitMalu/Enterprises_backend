@@ -92,4 +92,14 @@ public class EnterprisesPrepaidTransactionDetails implements CommonSearchTransac
         return enterprisesId;
     }
 
+    @Override
+    public String getVendorName() {
+        return "";
+    }
+
+    @Override
+    public String getVendorTransactionId() {
+        return "";
+    }
+
 }

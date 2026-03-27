@@ -16,11 +16,10 @@ public class RechargeOperators extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private String name;          // Airtel
     private String code;          // A
     private String type;          // MOBILE / DTH / POSTPAID
-
     private Boolean active;
-
+    @Column(name = "spkey")
+    private String spKey;
 }

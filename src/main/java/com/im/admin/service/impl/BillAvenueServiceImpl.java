@@ -742,6 +742,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                         baseTransactionId
                 );
 
+                bbpsDto.setVendorResponse("SUCCESS");
                 bbpsRelatedTransactions.processCommission(bbpsDto);
 
                 return CommonResponse.success(

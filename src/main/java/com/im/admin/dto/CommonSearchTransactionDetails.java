@@ -26,4 +26,9 @@ public interface CommonSearchTransactionDetails {
     LocalDate getDateOfTransaction();
 
     LocalTime getTimeOfTransaction();
+
+    String getVendorName();
+    String getVendorTransactionId();
+    Double getLatitude();
+    Double getLongitude();
 }

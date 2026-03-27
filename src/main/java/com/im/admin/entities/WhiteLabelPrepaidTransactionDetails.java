@@ -98,5 +98,15 @@ public class WhiteLabelPrepaidTransactionDetails implements CommonSearchTransact
         return whitelabelId;
     }
 
+    @Override
+    public String getVendorName() {
+        return "";
+    }
+
+    @Override
+    public String getVendorTransactionId() {
+        return "";
+    }
+
 
 }

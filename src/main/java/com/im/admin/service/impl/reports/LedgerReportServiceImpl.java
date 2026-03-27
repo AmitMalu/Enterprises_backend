@@ -43,6 +43,7 @@ public class LedgerReportServiceImpl implements LedgerReportService {
             String subProductName,
             String remarks,
             String narration,
+
             String sourceTable,
             Pageable pageable
     ) {
@@ -77,6 +78,11 @@ public class LedgerReportServiceImpl implements LedgerReportService {
                 .remarks(e.getRemarks())
                 .narration(e.getNarration())
                 .sourceTable(e.getSourceTable())
+
+                .vendorName(e.getVendorName())
+                .vendorTransactionId(e.getVendorTransactionId())
+                .latitude(e.getLatitude())
+                .longitude(e.getLongitude())
                 .build();
     }
 

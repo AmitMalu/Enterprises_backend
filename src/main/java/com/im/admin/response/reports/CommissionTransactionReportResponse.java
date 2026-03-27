@@ -29,6 +29,11 @@ public class CommissionTransactionReportResponse {
     private String narration;
     private String hierarchyId;
 
+    private String vendorName;
+    private String vendorTransactionId;
+    private Double latitude;
+    private Double longitude;
+
 
 
 

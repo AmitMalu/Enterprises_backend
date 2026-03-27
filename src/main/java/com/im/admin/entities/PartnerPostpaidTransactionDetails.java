@@ -95,4 +95,14 @@ public class PartnerPostpaidTransactionDetails implements CommonSearchTransactio
         return partnerId;
     }
 
+    @Override
+    public String getVendorName() {
+        return "";
+    }
+
+    @Override
+    public String getVendorTransactionId() {
+        return "";
+    }
+
 }

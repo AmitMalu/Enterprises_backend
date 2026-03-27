@@ -273,6 +273,11 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
             dto.setHierarchyId(row[11] != null ? row[11].toString() : null);
 
+            dto.setVendorName((String) row[12]);
+            dto.setVendorTransactionId((String) row[13]);
+            dto.setLatitude(row[14] != null ? ((Number) row[14]).doubleValue() : null);
+            dto.setLongitude(row[15] != null ? ((Number) row[15]).doubleValue() : null);
+
             dto.setWalletType(walletType.name());
 
             results.add(dto);

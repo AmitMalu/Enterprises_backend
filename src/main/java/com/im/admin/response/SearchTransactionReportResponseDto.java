@@ -25,4 +25,10 @@ public class SearchTransactionReportResponseDto {
     private LocalDate date;
     private LocalTime time;
 
+
+    private String vendorName;
+    private String vendorTransactionId;
+    private Double latitude;
+    private Double longitude;
+
 }
