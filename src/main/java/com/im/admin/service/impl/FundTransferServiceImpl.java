@@ -87,7 +87,7 @@ public class FundTransferServiceImpl implements FundTransferService {
             LocalDate date, LocalTime time) {
 
         BigDecimal beforeBalance = wallet.getAvailableBalance();
-        BigDecimal afterBalance;
+        //BigDecimal afterBalance;
 
         if (type == TransactionType.CREDIT) {
             wallet.setTotalCash(wallet.getTotalCash().add(amount));
