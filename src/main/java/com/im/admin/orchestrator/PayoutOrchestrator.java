@@ -145,7 +145,7 @@ public class PayoutOrchestrator {
                 // defensive fallback
                 vendorResp = PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorCode(vendor.getVendorCode())
+                        .vendorName(vendor.getVendorName())
                         .status("FAILED")
                         .message("Empty response from vendor")
                         .amount(req.getAmount())

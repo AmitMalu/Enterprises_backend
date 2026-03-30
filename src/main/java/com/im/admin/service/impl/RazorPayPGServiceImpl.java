@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.commons.LoggableVendor;
 import com.im.admin.entities.PgTransactionMapping;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.VendorRouting;
@@ -7,6 +8,7 @@ import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.PgTransactionMappingRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
+import com.im.admin.request.NixaSoftCallbackRequest;
 import com.im.admin.request.RazorPayCreateOrderRequest;
 import com.im.admin.service.RazorPayPGService;
 import com.im.admin.util.CommonMethods;
@@ -26,6 +28,7 @@ import java.time.Instant;
 
 @Service
 @Slf4j
+@LoggableVendor
 public class RazorPayPGServiceImpl implements RazorPayPGService {
 
     @Autowired
@@ -144,6 +147,11 @@ public class RazorPayPGServiceImpl implements RazorPayPGService {
             log.error("Razorpay API error", e);
             throw new RuntimeException("Razorpay API Failed");
         }
+    }
+
+    @Override
+    public void processCallback(NixaSoftCallbackRequest request) {
+
     }
 
 }

@@ -5,6 +5,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.commons.LoggableVendor;
+import com.im.admin.commons.VendorContext;
 import com.im.admin.controller.AESController;
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
@@ -40,6 +42,7 @@ import java.util.stream.Stream;
 
 @Service
 @Slf4j
+@LoggableVendor
 public class RunpaisaPGServiceImpl {
 
     @Autowired
@@ -160,6 +163,8 @@ public class RunpaisaPGServiceImpl {
             // ====== Vendor Routing & Credentials ======
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            VendorContext.setVendorId(vendor.getVendorName());
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())

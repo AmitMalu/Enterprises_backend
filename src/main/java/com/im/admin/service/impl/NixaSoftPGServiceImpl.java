@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.commons.LoggableVendor;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
@@ -27,6 +28,7 @@ import java.util.Map;
  */
 @Slf4j
 @Service
+@LoggableVendor
 public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
     @Autowired

@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.commons.LoggableVendor;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
@@ -35,6 +36,7 @@ import java.util.stream.Stream;
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@LoggableVendor
 public class SlpePGServiceImpl implements SlpePGService {
 
     private final VendorRoutingRepository vendorRoutingRepository;

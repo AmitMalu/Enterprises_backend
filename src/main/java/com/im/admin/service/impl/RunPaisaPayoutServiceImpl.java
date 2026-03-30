@@ -69,7 +69,7 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
     ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public String getVendorCode() {
+    public String getVendorName() {
 //        return "Runpaisa";
         return "v1";
     }
@@ -88,7 +88,7 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = null;
         String responseJson = null;
-        String vendorId = getVendorCode(); // or creds.getVendorId()
+        String vendorId = creds.getVendor().getId(); // or creds.getVendorId()
 
 
         try {
@@ -126,7 +126,7 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
                 // Return immediately for AES, since callback will confirm later
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorCode(getVendorCode())
+                        .vendorName(getVendorName())
                         .status("PENDING")
                         .message("AES Payout initiated. Awaiting callback confirmation.")
                         .amount(req.getAmount())
@@ -168,14 +168,14 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
             // =========================================================
             // Parse Vendor Response
             // =========================================================
-            Map<String, Object> vendorResp = response.getBody();
+            Map vendorResp = response.getBody();
             log.info("[RUNPAISA] Raw response: {}", vendorResp);
 
             if (vendorResp == null || vendorResp.get("data") == null) {
                 log.warn("[RUNPAISA] Empty or invalid response from vendor");
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorCode(getVendorCode())
+                        .vendorName(getVendorName())
                         .status("FAILED")
                         .message("Empty or invalid response from vendor")
                         .amount(req.getAmount())
@@ -205,7 +205,7 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
             // =========================================================
             return PayoutResponseDto.builder()
                     .orderId((String) data.get("order_id"))
-                    .vendorCode(getVendorCode())
+                    .vendorName(getVendorName())
                     .status(vendorStatus)
                     .message((String) vendorResp.get("message"))
                     .amount(new BigDecimal(data.get("amount").toString()))
@@ -218,7 +218,7 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
             log.error("[RUNPAISA] Exception during payout: {}", e.getMessage(), e);
             return PayoutResponseDto.builder()
                     .orderId(orderId)
-                    .vendorCode(getVendorCode())
+                    .vendorName(getVendorName())
                     .status("FAILED")
                     .message("RunPaisa error: " + e.getMessage())
                     .amount(req.getAmount())
@@ -261,7 +261,7 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
         HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
 
         ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlUat(), requestEntity, Map.class);
-        Map<String, Object> responseBodyMap = response.getBody();
+        Map responseBodyMap = response.getBody();
         if (responseBodyMap == null || responseBodyMap.get("token") == null) {
             throw new RuntimeException("AES token generation failed: " + responseBodyMap);
         }
@@ -582,7 +582,7 @@ public class RunPaisaPayoutServiceImpl implements PayoutVendorService, PayoutCal
 
             responseJson = objectMapper.writeValueAsString(response.getBody());
 
-            Map<String, Object> body = response.getBody();
+            Map body = response.getBody();
             log.info("[RUNPAISA] Raw status response: {}", body);
 
             return new PayoutStatusResponse(

@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.commons.LoggableVendor;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.entities.vendor.Vendors;
@@ -28,6 +29,7 @@ import java.util.Objects;
  */
 @Service
 @Slf4j
+@LoggableVendor
 public class ShadvalPGServiceImpl implements ShadvalPGService {
 
     @Autowired

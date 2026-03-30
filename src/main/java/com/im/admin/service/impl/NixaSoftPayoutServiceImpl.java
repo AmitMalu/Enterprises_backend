@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.im.admin.commons.LoggableVendor;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
@@ -28,8 +29,10 @@ import java.util.Map;
 
 /**
  * @author SHUBHAM KHOPADE
- */                 @Service
+ */
+@Service
 @Slf4j
+@LoggableVendor
 public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCallbackHandler, VendorStatusChecker {
 
      @Autowired
@@ -55,7 +58,7 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
 
 
     @Override
-    public String getVendorCode() {
+    public String getVendorName() {
         return "NixaSoft Payout";
     }
 
