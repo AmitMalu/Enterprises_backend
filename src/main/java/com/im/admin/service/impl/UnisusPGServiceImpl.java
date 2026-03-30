@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.callbacks.UnisusCallbackAsyncProcessor;
+import com.im.admin.commons.LoggableVendor;
 import com.im.admin.entities.PgTransactionMapping;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.VendorRouting;
@@ -24,6 +25,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@LoggableVendor
 public class UnisusPGServiceImpl implements UnisusPGService {
 
     private final VendorRoutingRepository vendorRoutingRepository;

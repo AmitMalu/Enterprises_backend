@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "vendor_logs")
 public class VendorLogs {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "sr_no")
@@ -33,7 +34,5 @@ public class VendorLogs {
 
     @Column(name = "response_date_time")
     private LocalDateTime responseDateTime;
-
-
 
 }

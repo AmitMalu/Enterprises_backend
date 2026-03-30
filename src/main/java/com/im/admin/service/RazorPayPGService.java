@@ -12,5 +12,4 @@ public interface RazorPayPGService {
 
     void processCallback(NixaSoftCallbackRequest request);
 
-
 }

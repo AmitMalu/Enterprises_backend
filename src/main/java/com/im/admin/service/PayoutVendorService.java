@@ -8,7 +8,7 @@ import com.im.admin.request.SendPayoutRequest;
 
 public interface PayoutVendorService {
 
-    String getVendorCode();
+    String getVendorName();
 
     PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude);
 

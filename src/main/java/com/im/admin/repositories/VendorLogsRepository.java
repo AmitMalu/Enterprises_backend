@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface VendorReqResRepository extends JpaRepository<VendorLogs, Integer> {
+public interface VendorLogsRepository extends JpaRepository<VendorLogs, Integer> {
 
     @Query(value = "CALL vendor_logs_report(:startDate, :endDate)", nativeQuery = true)
     List<Object[]> getVendorLogsBetweenDates(@Param("startDate") LocalDateTime startDate,

@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.LoggableVendor;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
@@ -28,9 +29,10 @@ import java.util.Objects;
 
 @Service
 @Slf4j
+@LoggableVendor
 public class ShadvalPayoutServiceImpl implements PayoutVendorService {
 
-    private static final String VENDOR_CODE = "Shadval";
+    private static final String VENDOR_NAME = "Shadval Payout";
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -46,8 +48,8 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
     ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public String getVendorCode() {
-        return VENDOR_CODE;
+    public String getVendorName() {
+        return VENDOR_NAME;
     }
 
     @Override
@@ -125,7 +127,7 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
                 // vendor returned top-level status + message but no data
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorCode(VENDOR_CODE)
+                        .vendorName(VENDOR_NAME)
                         .status(mappedStatus)
                         .message(message)
                         .amount(req.getAmount())
@@ -192,7 +194,7 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
 
             return PayoutResponseDto.builder()
                     .orderId(referenceId)
-                    .vendorCode(VENDOR_CODE)
+                    .vendorName(VENDOR_NAME)
                     .status(mappedStatus)
                     .message(message)
                     .amount(amount)
@@ -214,7 +216,7 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
     private PayoutResponseDto failureDto(String orderId, String status, String message, BigDecimal amount) {
         return PayoutResponseDto.builder()
                 .orderId(orderId)
-                .vendorCode(VENDOR_CODE)
+                .vendorName(VENDOR_NAME)
                 .status(status)
                 .message(message)
                 .amount(amount)

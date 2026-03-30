@@ -51,7 +51,7 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
     private ProductsRepository productsRepository;
 
     @Override
-    public String getVendorCode() {
+    public String getVendorName() {
         return "SLPE Payout";
     }
 
@@ -155,7 +155,7 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 // ===== 5. Build Response DTO =====
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorCode(getVendorCode())
+                        .vendorName(getVendorName())
                         .status(mappedStatus)
                         .message("Payout initiated successfully")
                         .amount(req.getAmount())
@@ -169,7 +169,7 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorCode(getVendorCode())
+                        .vendorName(getVendorName())
                         .status("FAILED")
                         .message("Payout failed")
                         .amount(req.getAmount())
@@ -181,7 +181,7 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
             return PayoutResponseDto.builder()
                     .orderId(orderId)
-                    .vendorCode(getVendorCode())
+                    .vendorName(getVendorName())
                     .status("FAILED")
                     .message("Exception: " + e.getMessage())
                     .amount(req.getAmount())

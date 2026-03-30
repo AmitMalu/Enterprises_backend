@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.commons.LoggableApi;
 import com.im.admin.dto.BeneficiaryVerifyRequestDto;
 import com.im.admin.dto.BeneficiaryVerifyResponseDto;
 import com.im.admin.orchestrator.PayoutOrchestrator;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
+@LoggableApi
 @RequestMapping("/api")
 @Slf4j
 @RestController
