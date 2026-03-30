@@ -1,7 +1,7 @@
 package com.im.admin.service.impl.reports;
 
 import com.im.admin.dto.VendorLogsResponseDTO;
-import com.im.admin.repositories.VendorReqResRepository;
+import com.im.admin.repositories.VendorLogsRepository;
 import com.im.admin.service.reports.VendorLogsReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 public class VendorLogsReportServiceImpl implements VendorLogsReportService {
 
     @Autowired
-    private VendorReqResRepository vendorLogsRepo;
+    private VendorLogsRepository vendorLogsRepo;
 
     @Override
     public Page<VendorLogsResponseDTO> getFilteredVendorLogs(LocalDate start, LocalDate end,

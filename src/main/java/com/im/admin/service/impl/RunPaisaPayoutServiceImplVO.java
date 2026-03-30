@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.callbacks.RunpaisaPayoutCallback;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.commons.LoggableVendor;
 import com.im.admin.controller.AESController;
 import com.im.admin.dto.EncryptDecryptCredentialsDto;
 import com.im.admin.dto.PayoutTokenResponseDTO;
@@ -40,6 +41,7 @@ import java.util.Map;
 
 @Service("Runpaisa Payout old")
 @Slf4j
+@LoggableVendor
 public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutCallbackRegistrar, PayoutCallbackHandler, VendorStatusChecker {
 
     private final RestTemplate restTemplate = new RestTemplate();
@@ -71,7 +73,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
     ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public String getVendorCode() {
+    public String getVendorName() {
         return "Runpaisa";
     }
 
@@ -89,8 +91,6 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = null;
         String responseJson = null;
-        String vendorId = getVendorCode(); // or creds.getVendorId()
-
 
         try {
             // =========================================================
@@ -127,7 +127,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                 // Return immediately for AES, since callback will confirm later
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorCode(getVendorCode())
+                        .vendorName(getVendorName())
                         .status("PENDING")
                         .message("AES Payout initiated. Awaiting callback confirmation.")
                         .amount(req.getAmount())
@@ -178,7 +178,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                 log.warn("[RUNPAISA] Empty or invalid response from vendor");
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorCode(getVendorCode())
+                        .vendorName(getVendorName())
                         .status("FAILED")
                         .message("Empty or invalid response from vendor")
                         .amount(req.getAmount())
@@ -195,7 +195,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             if (!accepted) {
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorCode(getVendorCode())
+                        .vendorName(getVendorName())
                         .status("FAILED")
                         .message(vendorMessage)
                         .amount(req.getAmount())
@@ -225,7 +225,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             // Adapt Vendor → Unified DTO
             return PayoutResponseDto.builder()
                     .orderId(orderId)              // USE YOUR ORDER ID
-                    .vendorCode(getVendorCode())
+                    .vendorName(getVendorName())
                     .status(accepted ? "PENDING" : "FAILED")
                     .message(vendorMessage)
                     .amount(req.getAmount())
@@ -238,7 +238,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             log.error("[RUNPAISA] Exception during payout: {}", e.getMessage(), e);
             return PayoutResponseDto.builder()
                     .orderId(orderId)
-                    .vendorCode(getVendorCode())
+                    .vendorName(getVendorName())
                     .status("FAILED")
                     .message("RunPaisa error: " + e.getMessage())
                     .amount(req.getAmount())

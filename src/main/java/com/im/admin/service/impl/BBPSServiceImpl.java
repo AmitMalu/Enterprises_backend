@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
-import com.im.admin.entities.enums.SlabType;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
@@ -14,6 +13,8 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.service.BBPSService;
 import com.im.admin.util.BBPSRelatedTransactions;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TransactionHelperService;
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
@@ -26,6 +27,10 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.sql.Time;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -64,6 +69,15 @@ public class BBPSServiceImpl implements BBPSService {
 
     @Autowired
     private BBPSPendingTransactionsRepository bbpsPendingTransactionsRepository;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelRepository;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Autowired
+    private TransactionHelperService transactionHelperService;
 
     @Override
     public CommonResponse<List<ProviderListResponseDTO.ProviderDTO>> getProviderList(ProviderListRequestDTO requestDTO) {
@@ -302,7 +316,12 @@ public class BBPSServiceImpl implements BBPSService {
 
             if (billRechargeResponse.getStatusId() == 1 || "SUCCESS".equalsIgnoreCase(billRechargeResponse.getStatus())) {
                 bbpsRelatedTransactions.updateTransactionStatus(retailerId, walletType.name(), baseTransactionId);
+
+                mirrorTransactionToAdminOrWhitelabel(retailerId, request.getAmount(),
+                        walletType.name(), "TXN" + baseTransactionId, bbpsTranactionRequestDto);
+
                 bbpsRelatedTransactions.processCommission(bbpsTranactionRequestDto);
+
                 return CommonResponse.success(billRechargeResponse, "Transaction Successful");
 
             } else if (billRechargeResponse.getStatusId() == 2 || "FAILURE".equalsIgnoreCase(billRechargeResponse.getStatus())) {
@@ -509,6 +528,199 @@ public class BBPSServiceImpl implements BBPSService {
         dto.setConsumerNumber(transaction.getConsumerNumber());
         dto.setRefNo(null); // Or any other reference you want
         return dto;
+    }
+
+    private void mirrorTransactionToAdminOrWhitelabel(String hierarchyId, BigDecimal amount, String walletType,
+                                                      String txnId, BbpsTranactionRequestDto request) {
+
+        log.info("=== [mirrorTransactionToAdminOrWhitelabel] START ===");
+        log.info("Starting mirror chain from HierarchyID: {} | TxnType: {} | Amount: {} | WalletType: {} | TxnId: {}",
+                hierarchyId, "debit", amount, walletType, txnId);
+
+        String currentId = hierarchyId;
+        boolean mirrorDone = false;
+
+        while (true) {
+            Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
+            if (parentOpt.isEmpty()) {
+                log.warn("No parent found for hierarchy ID: {} — stopping mirror chain", currentId);
+                break;
+            }
+
+            String parentId = parentOpt.get();
+            String parentType = commonMethods.extractHierarchyType(parentId);
+
+            log.info("Found Parent | Current: {} | Parent: {} | ParentType: {}", currentId, parentId, parentType);
+
+            if ("WL".equalsIgnoreCase(parentType)) {
+                Optional<WhiteLabels> wlOpt = whiteLabelRepository.findById(parentId);
+                if (wlOpt.isPresent() && Boolean.TRUE.equals(wlOpt.get().getIsAdmin())) {
+                    log.info("Detected WhiteLabel Admin [{}]. Proceeding with mirror transaction.", parentId);
+                    mirrorTransactionToHierarchy(parentId, hierarchyId, "debit", amount, walletType, txnId, "Credit", "SUCCESS", request);
+                    mirrorDone = true;
+                    break;
+                } else {
+                    log.debug("Parent [{}] is WhiteLabel but not Admin — continuing search.", parentId);
+                }
+            }
+
+            if ("IM".equalsIgnoreCase(parentType) || "AD".equalsIgnoreCase(parentType)) {
+                log.info("Detected Admin Hierarchy [{} - {}]. Proceeding with mirror transaction.", parentId, parentType);
+                mirrorTransactionToHierarchy(parentId, hierarchyId, "debit", amount, walletType, txnId, "Credit", "SUCCESS", request);
+                mirrorDone = true;
+                break;
+            }
+
+            currentId = parentId;
+        }
+
+        if (!mirrorDone) {
+            log.warn("Mirror transaction not executed for hierarchy [{}]. No eligible parent found.", hierarchyId);
+        }
+
+        log.info("=== [mirrorTransactionToAdminOrWhitelabel] END ===");
+    }
+
+    @Transactional
+    private void mirrorTransactionToHierarchy(String targetHierarchyId, String sourceHierarchyId, String originalTxnType,
+                                              BigDecimal amount, String walletType, String txnId, String action, String tranStatus,
+                                              BbpsTranactionRequestDto request) {
+
+        log.info("=== [mirrorTransactionToHierarchy] START ===");
+        log.info("Mirroring Transaction | From: {} | To: {} | OriginalTxnType: {} | WalletType: {} | Amount: {} | TxnId: {} | Status: {}",
+                sourceHierarchyId, targetHierarchyId, originalTxnType, walletType, amount, txnId, tranStatus);
+
+        String targetType = commonMethods.extractHierarchyType(targetHierarchyId);
+        String mirrorTxnType = originalTxnType.equalsIgnoreCase("CREDIT") ? "DEBIT" : "CREDIT";
+
+        log.debug("Derived Mirror Transaction Type: {} for TargetType: {}", mirrorTxnType, targetType);
+
+        BigDecimal currentBalance = commonMethods.getCurrentBalance(targetHierarchyId, walletType);
+        log.debug("Current Balance for Target [{} - {}]: {}", targetHierarchyId, walletType, currentBalance);
+
+        if ("DEBIT".equalsIgnoreCase(mirrorTxnType) && currentBalance.compareTo(amount) < 0) {
+            log.error("{} ({}) has insufficient balance to mirror DEBIT transaction. Required: {}, Available: {}",
+                    targetType, targetHierarchyId, amount, currentBalance);
+            throw new RuntimeException(targetType + " wallet has insufficient balance to mirror transaction.");
+        }
+
+        BigDecimal afterBalance = mirrorTxnType.equalsIgnoreCase("CREDIT")
+                ? currentBalance.add(amount)
+                : currentBalance.subtract(amount);
+
+        String actionOnBalanceAmount = mirrorTxnType.equalsIgnoreCase("DEBIT")
+                ? "Debit Funds " + action + " - " + walletType.toUpperCase()
+                : "Add Funds " + action + " - " + walletType.toUpperCase();
+
+        log.info("Mirror Transaction Prepared | TargetType: {} | MirrorTxnType: {} | BeforeBalance: {} | AfterBalance: {} | Action: {}",
+                targetType, mirrorTxnType, currentBalance, afterBalance, actionOnBalanceAmount);
+
+        try {
+            insertTransactionForAdminHierarchy(
+                    commonMethods.getTransactionTable(targetType, walletType),
+                    mirrorTxnType,
+                    amount,
+                    "Mirror Transaction for " + originalTxnType,
+                    sourceHierarchyId,
+                    walletType,
+                    currentBalance,
+                    afterBalance,
+                    actionOnBalanceAmount,
+                    txnId, tranStatus, request
+            );
+            log.info("Mirror transaction inserted successfully for target [{} - {}]", targetHierarchyId, targetType);
+        } catch (Exception e) {
+            log.error("Failed to insert mirror transaction for [{} - {}]: {}", targetHierarchyId, targetType, e.getMessage(), e);
+            throw e;
+        }
+
+        try {
+            updateAmountTable(targetType, targetHierarchyId, commonMethods.getAmountTable(targetType, walletType), currentBalance.subtract(afterBalance));
+            log.info("Updated amount table successfully for target [{} - {}]", targetHierarchyId, targetType);
+        } catch (Exception e) {
+            log.error("Failed to update amount table for [{} - {}]: {}", targetHierarchyId, targetType, e.getMessage(), e);
+            throw e;
+        }
+
+        log.info("=== [mirrorTransactionToHierarchy] END ===");
+    }
+
+    @Transactional
+    private void insertTransactionForAdminHierarchy(
+            String transactionTable, String service, BigDecimal amount, String remarks, String hierarchyId,
+            String walletType, BigDecimal beforeBalance, BigDecimal afterBalance,
+            String actionOnBalanceAmount, String tranxId, String tranStatus, BbpsTranactionRequestDto request) {
+
+        log.info("[ADMIN_TXN_INSERT] Starting insert for Admin Hierarchy | Table={} | HierarchyID={} | Amount={} | WalletType={} | TranxID={}",
+                transactionTable, hierarchyId, amount, walletType, tranxId);
+
+        String operatorName = request.getOperatorName();
+        Double latitude = request.getLatitude();
+        Double longitude = request.getLongitude();
+
+        String sql = "INSERT INTO " + transactionTable +
+                " (hierarchy_id, service, amount, remarks, date_of_transaction, time_of_transaction, " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, operator_name, latitude, longitude) " +
+                "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :operatorName, :latitude, :longitude)";
+
+        log.debug("[ADMIN_TXN_INSERT] Generated SQL: {}", sql);
+
+        try {
+            entityManager.createNativeQuery(sql)
+                    .setParameter("hierarchyId", hierarchyId)
+                    .setParameter("service", service)
+                    .setParameter("amount", amount)
+                    .setParameter("remarks", remarks)
+                    .setParameter("dateOfTransaction", java.sql.Date.valueOf(LocalDate.now()))
+                    .setParameter("timeOfTransaction", java.sql.Time.valueOf(LocalTime.now()))
+                    .setParameter("beforeTransactionBalance", beforeBalance)
+                    .setParameter("afterTransactionBalance", afterBalance)
+                    .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
+                    .setParameter("finalBalance", afterBalance)
+                    .setParameter("tranxId", tranxId)
+                    .setParameter("tranStatus", tranStatus)
+                    .setParameter("operatorName", operatorName)
+                    .setParameter("latitude", latitude)
+                    .setParameter("longitude", longitude)
+                    .executeUpdate();
+
+            log.info("[ADMIN_TXN_INSERT] Successfully inserted transaction for Admin | HierarchyID={} | TranxID={} | Amount={} | Status={}",
+                    hierarchyId, tranxId, amount, tranStatus);
+
+        } catch (Exception e) {
+            log.error("[ADMIN_TXN_INSERT] Failed to insert transaction for Admin | HierarchyID={} | TranxID={} | Error={}",
+                    hierarchyId, tranxId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public void updateAmountTable(String hierarchyType, String hierarchyId, String amountTable, BigDecimal amount) {
+        log.info("Updating {} | Hierarchy Type: {} | Hierarchy ID: {} | Final Amount to Add: {}",
+                amountTable, hierarchyType, hierarchyId, amount);
+
+        String columnName = transactionHelperService.getHierarchyColumnName(hierarchyType);
+
+        String sql = "UPDATE " + amountTable + " SET " +
+                "available_balance = available_balance + :amount, " +
+                "last_updated_amount = :amount, " +
+                " last_updated_date = :date, " +
+                " last_updated_time = :time " +
+                "WHERE " + columnName + " = :hierarchyId";
+
+        int updated = entityManager.createNativeQuery(sql)
+                .setParameter("amount", amount)
+                .setParameter("date", new Date())
+                .setParameter("time", new Time(System.currentTimeMillis()))
+                .setParameter("hierarchyId", hierarchyId)
+                .executeUpdate();
+
+        entityManager.flush();
+
+        if (updated == 0) {
+            throw new RuntimeException("Wallet update failed for: " + hierarchyId);
+        }
+
     }
 
 }

@@ -5,6 +5,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.commons.LoggableVendor;
+import com.im.admin.commons.VendorContext;
 import com.im.admin.controller.AESController;
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
@@ -40,6 +42,7 @@ import java.util.stream.Stream;
 
 @Service
 @Slf4j
+@LoggableVendor
 public class RunpaisaPGServiceImpl {
 
     @Autowired
@@ -160,6 +163,8 @@ public class RunpaisaPGServiceImpl {
             // ====== Vendor Routing & Credentials ======
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            VendorContext.setVendorId(vendor.getVendorName());
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
@@ -557,8 +562,6 @@ public class RunpaisaPGServiceImpl {
                             return new RuntimeException("SubProduct not found for subProductId: " + subProductId);
                         });
 
-        log.info("---- [Callback] SubProduct fetched successfully | subProductId={}", subProducts.getId());
-
         log.info("---- [Callback] SubProduct fetched successfully | subProductId={}, subProductCode={}",
                 subProducts.getId(),
                 subProducts.getSubProductCode());
@@ -591,12 +594,12 @@ public class RunpaisaPGServiceImpl {
         );
         log.info("---- [Callback] Using operatorName for DB lookup: {}", callbackOperatorName);
 
-
         List<SchemeRate> matchingSchemes =
                 schemeRateRepository.findBySchemeCodeAndOperatorName(
                         schemeCode,
                         callbackOperatorName
                 );
+
         if (matchingSchemes == null || matchingSchemes.isEmpty()) {
             log.error("---- [Callback] No matching scheme found for schemeCode={} and operatorName={}",
                     schemeCode, callbackOperatorName);
@@ -637,7 +640,6 @@ public class RunpaisaPGServiceImpl {
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
         SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
                 .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
-
 
         String orderId = callback.getOrderId();
         String baseTranxId = orderId.startsWith("ORD") ? orderId.substring(3) : orderId;

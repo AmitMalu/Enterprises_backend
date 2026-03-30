@@ -4,7 +4,6 @@ import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -18,7 +17,7 @@ public class CommonFunctions {
     private ImLogsRepository imLogsRepository;
 
     @Autowired
-    private VendorReqResRepository vendorReqResRepository;
+    private VendorLogsRepository vendorReqResRepository;
 
     @Autowired
     private HierarchyLogsRepository hierarchyLogsRepository;

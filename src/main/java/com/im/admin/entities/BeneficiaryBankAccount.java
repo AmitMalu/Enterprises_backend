@@ -52,4 +52,10 @@ public class BeneficiaryBankAccount {
     @Column(name = "created_by", nullable = false, updatable = false)
     private String createdBy;
 
+    @Column(name = "razorpay_fund_account_id")
+    private String razorpayFundAccountId;
+
+    @Column(name = "razorpay_contact_id")
+    private String razorpayContactId;
+
 }

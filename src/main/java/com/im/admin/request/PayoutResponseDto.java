@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 public class PayoutResponseDto {
 
     private String orderId;
-    private String vendorCode;
+    private String vendorName;
     private String status;
     private String message;
     private BigDecimal amount;

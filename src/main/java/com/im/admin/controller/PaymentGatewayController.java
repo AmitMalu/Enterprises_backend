@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.im.admin.commons.LoggableApi;
 import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
 import com.im.admin.dto.PgTransactionRequestDto;
 import com.im.admin.dto.RetailerCommissionResponseDTO;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@LoggableApi
 @RestController
 @RequestMapping("/api/pg")
 @RequiredArgsConstructor

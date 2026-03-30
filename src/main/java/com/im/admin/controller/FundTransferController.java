@@ -29,8 +29,7 @@ public class FundTransferController {
 
         FundTransferResponseDto response = fundTransferService.transferFunds(requestDto);
 
-        log.info("Fund transfer result from hierarchyId {} to hierarchyId {}: {}",
-                requestDto.getFromHierarchyId(), requestDto.getToHierarchyId());
+        log.info("Fund transfer result from hierarchyId {}: to hierarchyId {}: ", requestDto.getFromHierarchyId(), requestDto.getToHierarchyId());
 
         CommonResponse<FundTransferResponseDto> commonResponse =
                 CommonResponse.success(response,"Fund transfer completed successfully");

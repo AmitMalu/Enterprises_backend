@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.commons.LoggableVendor;
 import com.im.admin.dto.BeneficiaryVerifyRequestDto;
 import com.im.admin.dto.BeneficiaryVerifyResponseDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
@@ -44,6 +45,7 @@ import java.io.StringReader;
 
 @Service
 @Slf4j
+@LoggableVendor
 public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBeneficiaryVerifier, PayoutCallbackHandler, VendorStatusChecker {
 
     @Autowired
@@ -76,7 +78,7 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
 
 
     @Override
-    public String getVendorCode() {
+    public String getVendorName() {
         return "UnisusPay Payout";
     }
 

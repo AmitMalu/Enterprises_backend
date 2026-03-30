@@ -15,7 +15,7 @@ public class PayoutVendorFactory {
 
     @Autowired
     public PayoutVendorFactory(List<PayoutVendorService> vendors) {
-        vendors.forEach(v -> vendorMap.put(v.getVendorCode().toLowerCase(), v));
+        vendors.forEach(v -> vendorMap.put(v.getVendorName().toLowerCase(), v));
     }
 
     public PayoutVendorService getVendor(String vendorName) {

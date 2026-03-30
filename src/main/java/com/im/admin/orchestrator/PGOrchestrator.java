@@ -5,10 +5,9 @@ import com.im.admin.entities.PgTransactionMapping;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.paymentgateway.PaymentGatewayInitiator;
-import com.im.admin.paymentgateway.PaymentInitiatorFactory;
+import com.im.admin.paymentgateway.PaymentGatewayInitiatorFactory;
 import com.im.admin.repositories.PgTransactionMappingRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
-import com.im.admin.response.PayoutStatusResponse;
 import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +24,7 @@ public class PGOrchestrator {
 
     private final VendorRoutingRepository vendorRoutingRepository;
     private final PgTransactionMappingRepository pgTransactionMappingRepository;
-    private final PaymentInitiatorFactory factory;
+    private final PaymentGatewayInitiatorFactory factory;
 
     // CREATE ORDER
     public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException {
