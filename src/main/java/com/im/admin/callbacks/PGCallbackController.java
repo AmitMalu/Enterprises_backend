@@ -6,9 +6,7 @@ import com.im.admin.repositories.PgTransactionMappingRepository;
 import com.im.admin.request.NixaSoftCallbackRequest;
 import com.im.admin.request.UnisusWebhookRequest;
 import com.im.admin.response.UnisusWebhookResponse;
-import com.im.admin.service.NixaSoftPGService;
-import com.im.admin.service.SlpePGService;
-import com.im.admin.service.UnisusPGService;
+import com.im.admin.service.*;
 import com.im.admin.service.impl.RunpaisaPGServiceImpl;
 import com.razorpay.Utils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +33,8 @@ public class PGCallbackController {
     private final UnisusPGService unisusPGService;
     private final NixaSoftPGService nixaSoftPGService;
     private final SlpePGService slpePGService;
+    private final RazorPayPGService razorPayPGService;
+    private final CashfreePGService cashfreePGService;
     private final PgTransactionMappingRepository repository;
 
 
@@ -99,106 +99,19 @@ public class PGCallbackController {
     }
 
     @GetMapping("/razorpay")
-    public ResponseEntity<String> handleCallback(HttpServletRequest request) {
-
-        log.info("Received Razorpay Callback: {}", request);
-
-        try {
-
-            String paymentId = request.getParameter("razorpay_payment_id");
-            String plinkId = request.getParameter("razorpay_payment_link_id");
-            String referenceId = request.getParameter("razorpay_payment_link_reference_id");
-            String status = request.getParameter("razorpay_payment_link_status");
-            String signature = request.getParameter("razorpay_signature");
-
-            log.info("Callback received paymentId={}, plinkId={}, status={}",
-                    paymentId, plinkId, status);
-
-            // ===== VERIFY SIGNATURE =====
-            JSONObject options = new JSONObject();
-            options.put("razorpay_payment_id", paymentId);
-            options.put("payment_link_id", plinkId);
-            options.put("payment_link_reference_id", referenceId);
-            options.put("payment_link_status", status);
-            options.put("razorpay_signature", signature);
-
-            String secret = "rzp_test_SUfGOOZaPcOkb7";
-
-            boolean isValid = Utils.verifyPaymentLink(options, secret);
-
-            if (!isValid) {
-                log.error("Invalid callback signature");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("Invalid signature");
-            }
-
-            // VALID CALLBACK (BUT DON'T TRUST COMPLETELY)
-            log.info("Callback signature verified for orderId={}", referenceId);
-
-            //  DO NOT update DB here (important)
-            // Just show response to user
-
-            return ResponseEntity.ok("Payment Processing...");
-
-        } catch (Exception e) {
-            log.error("Error in callback", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error");
-        }
-    }
-
-    @PostMapping("/webhook")
-    public ResponseEntity<String> handleWebhook(
+    public ResponseEntity<String> handleRazorPayWebhook(
             @RequestBody String payload,
             @RequestHeader("X-Razorpay-Signature") String signature) {
 
         try {
 
-            String webhookSecret = "YOUR_WEBHOOK_SECRET";
-
-            boolean isValid = Utils.verifyWebhookSignature(payload, signature, webhookSecret);
-
-            if (!isValid) {
-                log.error("Invalid webhook signature");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid signature");
-            }
-
-            JSONObject json = new JSONObject(payload);
-            String event = json.getString("event");
-
-            log.info("Webhook received event={}", event);
-
-            if ("payment_link.paid".equals(event)) {
-
-                JSONObject entity = json
-                        .getJSONObject("payload")
-                        .getJSONObject("payment_link")
-                        .getJSONObject("entity");
-
-                String plinkId = entity.getString("id");
-                String status = entity.getString("status");
-
-                String paymentId = entity
-                        .getJSONArray("payments")
-                        .getJSONObject(0)
-                        .getString("payment_id");
-
-                handleSuccess(plinkId, paymentId, status);
-
-            } else if ("payment_link.expired".equals(event)) {
-
-                JSONObject entity = json
-                        .getJSONObject("payload")
-                        .getJSONObject("payment_link")
-                        .getJSONObject("entity");
-
-                String plinkId = entity.getString("id");
-
-                handleFailure(plinkId, "EXPIRED");
-
-            }
+            razorPayPGService.processCallback(payload, signature);
 
             return ResponseEntity.ok("OK");
+
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid webhook", e);
+            return ResponseEntity.badRequest().body("Invalid signature");
 
         } catch (Exception e) {
             log.error("Webhook error", e);
@@ -206,58 +119,139 @@ public class PGCallbackController {
         }
     }
 
+//    @GetMapping("/razorpay")
+//    public ResponseEntity<String> handleCallback(HttpServletRequest request) {
+//
+//        log.info("Received Razorpay Callback: {}", request);
+//
+//        try {
+//
+//            String paymentId = request.getParameter("razorpay_payment_id");
+//            String plinkId = request.getParameter("razorpay_payment_link_id");
+//            String referenceId = request.getParameter("razorpay_payment_link_reference_id");
+//            String status = request.getParameter("razorpay_payment_link_status");
+//            String signature = request.getParameter("razorpay_signature");
+//
+//            log.info("Callback received paymentId={}, plinkId={}, status={}",
+//                    paymentId, plinkId, status);
+//
+//            // ===== VERIFY SIGNATURE =====
+//            JSONObject options = new JSONObject();
+//            options.put("razorpay_payment_id", paymentId);
+//            options.put("payment_link_id", plinkId);
+//            options.put("payment_link_reference_id", referenceId);
+//            options.put("payment_link_status", status);
+//            options.put("razorpay_signature", signature);
+//
+//            String secret = "rzp_test_SUfGOOZaPcOkb7";
+//
+//            boolean isValid = Utils.verifyPaymentLink(options, secret);
+//
+//            if (!isValid) {
+//                log.error("Invalid callback signature");
+//                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+//                        .body("Invalid signature");
+//            }
+//
+//            // VALID CALLBACK (BUT DON'T TRUST COMPLETELY)
+//            log.info("Callback signature verified for orderId={}", referenceId);
+//
+//            //  DO NOT update DB here (important)
+//            // Just show response to user
+//
+//            return ResponseEntity.ok("Payment Processing...");
+//
+//        } catch (Exception e) {
+//            log.error("Error in callback", e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body("Error");
+//        }
+//    }
 
-    private void handleSuccess(String plinkId, String paymentId, String status) {
+//    @PostMapping("/webhook")
+//    public ResponseEntity<String> handleWebhook(
+//            @RequestBody String payload,
+//            @RequestHeader("X-Razorpay-Signature") String signature) {
+//
+//        try {
+//
+//            String webhookSecret = "YOUR_WEBHOOK_SECRET";
+//
+//            boolean isValid = Utils.verifyWebhookSignature(payload, signature, webhookSecret);
+//
+//            if (!isValid) {
+//                log.error("Invalid webhook signature");
+//                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid signature");
+//            }
+//
+//            JSONObject json = new JSONObject(payload);
+//            String event = json.getString("event");
+//
+//            log.info("Webhook received event={}", event);
+//
+//            if ("payment_link.paid".equals(event)) {
+//
+//                JSONObject entity = json
+//                        .getJSONObject("payload")
+//                        .getJSONObject("payment_link")
+//                        .getJSONObject("entity");
+//
+//                String plinkId = entity.getString("id");
+//                String status = entity.getString("status");
+//
+//                String paymentId = entity
+//                        .getJSONArray("payments")
+//                        .getJSONObject(0)
+//                        .getString("payment_id");
+//
+//                handleSuccess(plinkId, paymentId, status);
+//
+//            } else if ("payment_link.expired".equals(event)) {
+//
+//                JSONObject entity = json
+//                        .getJSONObject("payload")
+//                        .getJSONObject("payment_link")
+//                        .getJSONObject("entity");
+//
+//                String plinkId = entity.getString("id");
+//
+//                handleFailure(plinkId, "EXPIRED");
+//
+//            }
+//
+//            return ResponseEntity.ok("OK");
+//
+//        } catch (Exception e) {
+//            log.error("Webhook error", e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("ERROR");
+//        }
+//    }
 
-        Optional<PgTransactionMapping> optTxn =
-                repository.findByVendorSessionId(plinkId);
 
+    @PostMapping("/cashfree")
+    public ResponseEntity<String> cashfreeCallback(
+            HttpServletRequest request,
+            @RequestBody String rawPayload
+    ) {
 
-        if (optTxn.isEmpty()) {
-            log.error("Transaction not found for plinkId={}", plinkId);
-            return;
+        log.info("Received Cashfree webhook");
+
+        try {
+
+            String signature = request.getHeader("x-webhook-signature");
+            String timestamp = request.getHeader("x-webhook-timestamp");
+            String idempotencyKey = request.getHeader("x-idempotency-key");
+
+            log.info("Webhook headers | signature={}, timestamp={}, idempotencyKey={}",
+                    signature, timestamp, idempotencyKey);
+
+            cashfreePGService.processWebhook(rawPayload, signature, timestamp, idempotencyKey);
+
+            return ResponseEntity.ok("OK");
+
+        } catch (Exception e) {
+            log.error("Webhook processing failed", e);
+            return ResponseEntity.status(500).body("FAILED");
         }
-
-        PgTransactionMapping txn = optTxn.get();
-
-        // IDEMPOTENCY CHECK (VERY IMPORTANT)
-        if ("SUCCESS".equalsIgnoreCase(txn.getStatus())) {
-            log.info("Transaction already marked SUCCESS for orderId={}", txn.getOrderId());
-            return;
-        }
-
-        txn.setStatus("SUCCESS");
-        txn.setVendorSessionId(paymentId); // store Razorpay payment_id
-
-        repository.save(txn);
-
-        log.info("Payment SUCCESS updated for orderId={}, paymentId={}",
-                txn.getOrderId(), paymentId);
-    }
-
-    private void handleFailure(String plinkId, String reason) {
-
-
-        Optional<PgTransactionMapping> optTxn =
-                repository.findByVendorSessionId(plinkId);
-
-
-        if (optTxn.isEmpty()) {
-            log.error("Transaction not found for plinkId={}", plinkId);
-            return;
-        }
-
-        PgTransactionMapping txn = optTxn.get();
-
-        if ("SUCCESS".equalsIgnoreCase(txn.getStatus())) {
-            return; // already success, ignore
-        }
-
-        txn.setStatus("FAILED");
-
-        repository.save(txn);
-
-        log.info("Payment FAILED for orderId={}, reason={}",
-                txn.getOrderId(), reason);
     }
 }

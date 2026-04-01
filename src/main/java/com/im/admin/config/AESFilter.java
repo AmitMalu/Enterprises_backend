@@ -29,7 +29,7 @@ public class AESFilter extends OncePerRequestFilter {
 			"/api/aes/generate-token", "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password","/auth/forgot-password",
 			"/api/aes/validate-token", "/api/pg/generate-token", "/auth/forget-verify-otp", "/api/payout/callback",
 			"/api/pg/callback/runpaisa", "/api/pg/callback/nixasoft", "/api/pg/callback/slpe", "/api/pg/callback/unisus",
-			"/api/pg/callback/razorpay", "/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials");
+			"/api/pg/callback/razorpay", "/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials", "/api/pg/callback/cashfree");
 
 	@Value("${app.security.base-secret}")
 	private String baseSecret;

@@ -15,12 +15,14 @@ import com.im.admin.util.CommonMethods;
 import com.razorpay.PaymentLink;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import com.razorpay.Utils;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Optional;
 
 /**
  * @author SHUBHAM KHOPADE
@@ -149,9 +151,112 @@ public class RazorPayPGServiceImpl implements RazorPayPGService {
         }
     }
 
-    @Override
-    public void processCallback(NixaSoftCallbackRequest request) {
 
+
+    @Override
+    public void processCallback(String payload, String signature) throws RazorpayException {
+
+        try {
+
+            String webhookSecret = "YOUR_WEBHOOK_SECRET";
+
+            boolean isValid = Utils.verifyWebhookSignature(payload, signature, webhookSecret);
+
+            if (!isValid) {
+                throw new IllegalArgumentException("Invalid signature");
+            }
+
+            JSONObject json = new JSONObject(payload);
+            String event = json.getString("event");
+
+            log.info("Webhook received event={}", event);
+
+            if ("payment_link.paid".equals(event)) {
+
+                JSONObject entity = json
+                        .getJSONObject("payload")
+                        .getJSONObject("payment_link")
+                        .getJSONObject("entity");
+
+                String plinkId = entity.getString("id");
+                String status = entity.getString("status");
+
+                String paymentId = entity
+                        .getJSONArray("payments")
+                        .getJSONObject(0)
+                        .getString("payment_id");
+
+                handleSuccess(plinkId, paymentId, status);
+
+            } else if ("payment_link.expired".equals(event)) {
+
+                JSONObject entity = json
+                        .getJSONObject("payload")
+                        .getJSONObject("payment_link")
+                        .getJSONObject("entity");
+
+                String plinkId = entity.getString("id");
+
+                handleFailure(plinkId, "EXPIRED");
+            }
+
+        } catch (Exception e) {
+            log.error("Error processing webhook", e);
+            throw e;
+        }
+
+    }
+
+    private void handleSuccess(String plinkId, String paymentId, String status) {
+
+        Optional<PgTransactionMapping> optTxn =
+                pgTransactionMappingRepository.findByVendorSessionId(plinkId);
+
+        if (optTxn.isEmpty()) {
+            log.error("Transaction not found for plinkId={}", plinkId);
+            return;
+        }
+
+        PgTransactionMapping txn = optTxn.get();
+
+        // IDEMPOTENCY CHECK
+        if ("SUCCESS".equalsIgnoreCase(txn.getStatus())) {
+            log.info("Transaction already SUCCESS for orderId={}", txn.getOrderId());
+            return;
+        }
+
+        txn.setStatus("SUCCESS");
+        txn.setVendorSessionId(paymentId);
+
+        pgTransactionMappingRepository.save(txn);
+
+        log.info("Payment SUCCESS orderId={}, paymentId={}",
+                txn.getOrderId(), paymentId);
+    }
+
+
+    private void handleFailure(String plinkId, String reason) {
+
+        Optional<PgTransactionMapping> optTxn =
+                pgTransactionMappingRepository.findByVendorSessionId(plinkId);
+
+        if (optTxn.isEmpty()) {
+            log.error("Transaction not found for plinkId={}", plinkId);
+            return;
+        }
+
+        PgTransactionMapping txn = optTxn.get();
+
+        if ("SUCCESS".equalsIgnoreCase(txn.getStatus())) {
+            return;
+        }
+
+        txn.setStatus("FAILED");
+
+        pgTransactionMappingRepository.save(txn);
+
+        log.info("Payment FAILED orderId={}, reason={}",
+                txn.getOrderId(), reason);
     }
 
 }
