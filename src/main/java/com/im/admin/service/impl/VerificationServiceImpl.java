@@ -557,7 +557,7 @@ public class VerificationServiceImpl implements VerificationService {
 
             String hierarchyType = walletTransactionService.extractHierarchyType(hierarchyId);
 
-            if ("RU".equalsIgnoreCase(hierarchyType) || "RET".equalsIgnoreCase(hierarchyType)) {
+            if ("RU".equalsIgnoreCase(hierarchyType) || "RT".equalsIgnoreCase(hierarchyType)) {
 
                 // Retailer / RU → use request scheme
                 schemeCode = request.getSchemeCode();

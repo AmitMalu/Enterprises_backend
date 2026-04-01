@@ -24,10 +24,13 @@ public class PGCreateOrderCommand {
 
     private String username;
     private String callbackUrl;
+    private String cardNumber;
     private String cardHolderName;
     private String cardHolderMobile;
     private String emailId;
     private String narration;
+    private String upiId;
+    private String bankCode;
 
     private TransactionSchemeDetailsRequestDto schemeDetails;
 }
