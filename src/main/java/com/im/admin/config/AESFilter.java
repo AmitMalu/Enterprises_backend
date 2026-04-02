@@ -40,20 +40,6 @@ public class AESFilter extends OncePerRequestFilter {
 	@Value("${app.security.pbkdf2-keylength}")
 	private int keyLength;
 
-//	private static final Map<String, String> HIERARCHY_SALTS = Map.of(
-//			"RT", "nP4jXs9mQwU2dT8v",        // Retailer
-//			"DT", "fG9kRz1bYpV8jQwT",        // Distributor
-//			"PT", "hD1fL9zWjT4gM7pR",        // Partner
-//			"SD", "sZ7dEx2kLwV3tQrM",        // SuperDistributor
-//			"WL", "kL7tF1yXsQp3vJbW",        // Whitelabel
-//			"ET", "dP5mSzR2xTgWq4Bv",        // Enterprise
-//			"AD", "j5vR6fTpCq9LzH2b",        // Admin
-//			"SA", "xC8mV2r9LpW6qTjZ"         // SuperAdmin
-//	);
-
-//	@Autowired
-//	private AESKeyService aesKeyService;
-
 	@Autowired
 	private AESEncryptionUtil aesEncryptionUtil;
 

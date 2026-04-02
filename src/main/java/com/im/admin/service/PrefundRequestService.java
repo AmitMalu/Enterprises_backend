@@ -23,7 +23,7 @@ public interface PrefundRequestService {
                                                LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks, String depositType);
 
 
-    CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto, Double latitude, Double longitude);
+    CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto);
 
     CommonResponse<PrefundRequest> getById(Long id);
 

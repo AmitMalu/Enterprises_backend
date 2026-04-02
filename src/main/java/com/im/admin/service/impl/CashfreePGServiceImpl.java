@@ -22,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -112,9 +113,15 @@ public class CashfreePGServiceImpl implements CashfreePGService {
                     "send_email", true
             ));
 
+            // ===== META (IMPORTANT) =====
             body.put("link_meta", Map.of(
-                    "return_url", "https://yourdomain.com/success"
+                    "return_url", "https://uat.decipay.in/enterprises/success",
+                    "notify_url", credentials.getCallbackUrl()
             ));
+
+            // ===== EXPIRY (VERY IMPORTANT) =====
+            body.put("link_expiry_time",
+                    ZonedDateTime.now().plusMinutes(15).toString());
 
             // ===== 4. Headers =====
             HttpHeaders headers = new HttpHeaders();

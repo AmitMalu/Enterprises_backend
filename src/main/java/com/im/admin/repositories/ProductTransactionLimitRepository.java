@@ -1,6 +1,8 @@
 package com.im.admin.repositories;
 
 import com.im.admin.entities.ProductTransactionLimit;
+import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.product.Products;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,5 +13,6 @@ public interface ProductTransactionLimitRepository extends JpaRepository<Product
 
     Optional<ProductTransactionLimit> findByProduct_Id(Short productId);
 
+    Optional<ProductTransactionLimit> findByProductAndSubProduct(Products product, SubProducts subProduct);
 
 }

@@ -25,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.crypto.spec.IvParameterSpec;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -98,9 +99,11 @@ public class AuthController {
     @Autowired
     private SchemeRepository schemeRepository;
 
-
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
+
+    @Autowired
+    private ProductTransactionLimitRepository productTransactionLimitRepository;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
@@ -416,9 +419,6 @@ public class AuthController {
         responseMap.put("mobileNumber", user.getMobileNumber());
         responseMap.put("emailId", user.getEmailId());
 
-
-//        responseMap.put("logoUrl","https://www.instantmudra.net/apps/home/media/logos/logo-white.png");
-
         String hierarchyCode = user.getHierarchyCode();
         log.debug("Resolving role for hierarchyCode: {}", hierarchyCode);
 
@@ -521,94 +521,6 @@ public class AuthController {
                     responseMap.put("aadhaarNumber", retailer != null ? retailer.getAadhaarNumber() : "N/A");
                 }
 
-//                 Build product / subProduct list
-//                List<SchemeAllocation> schemes =
-//                        schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
-//
-//                //  FIXED GENERICS
-//                Map<String, List<Map<String, Object>>> productSubMap = new LinkedHashMap<>();
-//                Map<String, String> productIdToName = new HashMap<>();
-//                Map<String, Products> productIdToEntity = new HashMap<>();
-//
-//                for (SchemeAllocation sa : schemes) {
-//
-//                    Optional<Products> productOpt =
-//                            productsRepository.findByProductCode(sa.getProductCode());
-//
-//                    Optional<SubProducts> subProductOpt =
-//                            subProductsRepository.findBySubProductCodeAndIsVisibleTrue(
-//                                    sa.getSubProductCode());
-//
-//                    if (productOpt.isEmpty() || subProductOpt.isEmpty()) {
-//                        log.warn(
-//                                "Skipping scheme due to missing mapping for productCode={} or subProductCode={}",
-//                                sa.getProductCode(),
-//                                sa.getSubProductCode()
-//                        );
-//                        continue;
-//                    }
-//
-//                    Products productEntity = productOpt.get();
-//                    SubProducts subProductEntity = subProductOpt.get();
-//
-//                    String productId = String.valueOf(productEntity.getId());
-//                    String productName = productEntity.getName();
-//                    String subProductId = String.valueOf(subProductEntity.getId());
-//                    String subProductName = subProductEntity.getSubProductTitle();
-//
-//                    VendorRouting routing =
-//                            vendorRoutingRepository.findBySubProduct(subProductEntity);
-//
-//                    String vendorName = "N/A";
-//                    if (routing != null && routing.getRoutingPriority1() != null) {
-//                        vendorName = routing.getRoutingPriority1().getVendorName();
-//                    }
-//
-//                    productIdToName.putIfAbsent(productId, productName);
-//                    productIdToEntity.putIfAbsent(productId, productEntity);
-//
-//                    //  FIXED MAP TYPE
-//                    Map<String, Object> subProductMap = new HashMap<>();
-//                    subProductMap.put("subProductId", subProductId);
-//                    subProductMap.put("subProductName", subProductName);
-//                    subProductMap.put("schemeCode", sa.getSchemeCode());
-//                    subProductMap.put("vendorName", vendorName);
-//
-//                    //  Sub-Product flags
-//                    subProductMap.put("active", subProductEntity.getIsActive());
-//                    subProductMap.put("blocked", subProductEntity.getIsBlocked());
-//                    subProductMap.put("isVisible", subProductEntity.getIsVisible());
-//
-//                    productSubMap
-//                            .computeIfAbsent(productId, k -> new ArrayList<>())
-//                            .add(subProductMap);
-//                }
-//
-//                // Build final product list
-//                List<Map<String, Object>> productList = new ArrayList<>();
-//
-//                //  FIXED GENERICS
-//                for (Map.Entry<String, List<Map<String, Object>>> entry : productSubMap.entrySet()) {
-//
-//                    Map<String, Object> product = new HashMap<>();
-//                    product.put("productId", entry.getKey());
-//                    product.put("productName", productIdToName.get(entry.getKey()));
-//
-//                    Products productEntity = productIdToEntity.get(entry.getKey());
-//                    if (productEntity != null) {
-//                        product.put("active", productEntity.getActive());
-//                        product.put("blocked", productEntity.getBlocked());
-//                        product.put("isVisible", productEntity.getIsVisible());
-//                    }
-//
-//                    product.put("subProducts", entry.getValue());
-//                    productList.add(product);
-//                }
-//
-//                responseMap.put("products", productList);
-//                responseMap.put("role", hierarchyCode);
-//                break;
-
                 // Build product / subProduct list
                 List<SchemeAllocation> schemeAllocationList =
                         schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
@@ -668,6 +580,21 @@ public class AuthController {
                         continue;
                     }
 
+                    Optional<ProductTransactionLimit> limitOpt =
+                            productTransactionLimitRepository.findByProductAndSubProduct(productEntity, subProductEntity);
+
+                    BigDecimal maxAmount = null;
+                    String perDayLimit = null;
+                    String monthlyLimit = null;
+
+                    if (limitOpt.isPresent()) {
+                        ProductTransactionLimit limit = limitOpt.get();
+
+                        maxAmount = limit.getMaxAmount();
+                        perDayLimit = limit.getPerDayTransactionLimit();
+                        monthlyLimit = limit.getMonthlyTransactionLimit();
+                    }
+
                     String productId = String.valueOf(productEntity.getId());
                     String subProductId = String.valueOf(subProductEntity.getId());
                     String subProductName = subProductEntity.getSubProductTitle();
@@ -690,6 +617,10 @@ public class AuthController {
                     subProductMap.put("active", subProductEntity.getIsActive());
                     subProductMap.put("blocked", subProductEntity.getIsBlocked());
                     subProductMap.put("isVisible", subProductEntity.getIsVisible());
+
+                    subProductMap.put("maxAmount", maxAmount);
+                    subProductMap.put("perDayTransactionLimit", perDayLimit);
+                    subProductMap.put("monthlyTransactionLimit", monthlyLimit);
 
                     productSubMap.get(productId).add(subProductMap);
                 }
@@ -717,10 +648,7 @@ public class AuthController {
                 responseMap.put("products", productList);
                 responseMap.put("role", hierarchyCode);
 
-                //also here i want to return a name and addhar card number
                 break;
-
-
 
             case "RU":
                 responseMap.put("role_id", user.getRole_id());

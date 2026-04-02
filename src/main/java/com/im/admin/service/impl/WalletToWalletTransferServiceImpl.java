@@ -126,7 +126,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
             String schemeCode;
 
-            if ("RU".equalsIgnoreCase(hierarchyType) || "RET".equalsIgnoreCase(hierarchyType)) {
+            if ("RU".equalsIgnoreCase(hierarchyType) || "RT".equalsIgnoreCase(hierarchyType)) {
 
                 // Retailer → use request scheme
                 schemeCode = request.getSchemeCode();
