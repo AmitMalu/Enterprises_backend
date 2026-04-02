@@ -68,6 +68,9 @@ public class CashfreePGServiceImpl implements CashfreePGService {
     @Autowired
     private PgTransactionMappingRepository pgTransactionMappingRepository;
 
+    @Autowired
+    private RetailerRepository retailerRepository;
+
 
     @Override
     public String createOrder(CashfreeCreateOrderRequest req, Double latitude, Double longitude) {
@@ -76,6 +79,8 @@ public class CashfreePGServiceImpl implements CashfreePGService {
                 req.getSubProductId(), req.getInitiatedBy(), req.getOrder_amount());
 
         try {
+
+            Optional<Retailer> retailer = retailerRepository.findByRetailerId(req.getInitiatedBy());
 
             // ===== 1. Get Vendor Credentials =====
             VendorRouting vendorRouting =
@@ -103,7 +108,7 @@ public class CashfreePGServiceImpl implements CashfreePGService {
 
             Map<String, Object> customer = new HashMap<>();
             customer.put("customer_name", req.getCustomer_details().getCustomer_name());
-            customer.put("customer_email", req.getCustomer_details().getCustomer_email());
+            customer.put("customer_email", retailer.get().getEmailId());
             customer.put("customer_phone", req.getCustomer_details().getCustomer_phone());
 
             body.put("customer_details", customer);
