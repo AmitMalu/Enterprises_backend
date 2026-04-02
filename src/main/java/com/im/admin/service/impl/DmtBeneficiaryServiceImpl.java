@@ -737,6 +737,7 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
     public DmtBeneficiaryResponseDto mapToDto(DmtBeneficiary ben) {
         DmtBeneficiaryResponseDto dto = new DmtBeneficiaryResponseDto();
         dto.setId(ben.getId());
+//        dto.setBeneId(ben.getBeneId());
         dto.setBeneId(ben.getBeneId());
         dto.setName(ben.getName());
         dto.setBankId(ben.getBankId());

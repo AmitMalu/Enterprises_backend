@@ -5,12 +5,14 @@ package com.im.admin.controller;
 import com.im.admin.dto.DmtResponseDto;
 import com.im.admin.entities.DmtBankList;
 import com.im.admin.orchestrator.DmtOrchestrator;
+import com.im.admin.request.DmtBankListRequest;
 import com.im.admin.request.PennyDropRequest;
 import com.im.admin.request.SendDmtRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PaysprintPennyDropResponse;
 import com.im.admin.response.PaysprintSendOtpResponse;
 import com.im.admin.service.DmtVendorService;
+import com.im.admin.util.DmtVendorFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -30,8 +32,12 @@ public class DmtController {
     @Autowired
     private DmtOrchestrator dmtOrchestrator;
 
+//    @Autowired
+//    private DmtVendorService dmtVendorService;
+
     @Autowired
-    private DmtVendorService dmtVendorService;
+    private DmtVendorFactory vendorFactory;
+
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -55,9 +61,15 @@ public class DmtController {
         return dmtOrchestrator.processDmt(request, latitude, longitude);
     }
 
+//    @GetMapping("/paysprint/token")
+//    public String generateToken() {
+//        return dmtVendorService.generateJwtToken();
+//    }
+
     @GetMapping("/paysprint/token")
     public String generateToken() {
-        return dmtVendorService.generateJwtToken();
+        DmtVendorService vendorService = vendorFactory.getVendor("Paysprint DMT");
+        return vendorService.generateJwtToken();
     }
 
 
@@ -85,25 +97,53 @@ public class DmtController {
     }
 
 
-    @GetMapping("/bank-list")
-    public ResponseEntity<CommonResponse<List<DmtBankList>>> getDmtBankList() {
+//    @GetMapping("/bank-list")
+//    public ResponseEntity<CommonResponse<List<DmtBankList>>> getDmtBankList() {
+//
+//        List<DmtBankList> banks = dmtVendorService.getdmtbanklist();
+//
+//        if (banks.isEmpty()) {
+//            return ResponseEntity
+//                    .status(HttpStatus.NOT_FOUND)
+//                    .body(CommonResponse.failure("Bank list not found"));
+//        }
+//
+//        return ResponseEntity.ok(
+//                CommonResponse.success(banks, "Bank list fetched successfully")
+//        );
+//    }
 
-        List<DmtBankList> banks = dmtVendorService.getdmtbanklist();
+//    @GetMapping("/bank-list")
+//    public ResponseEntity<CommonResponse<List<DmtBankList>>> getDmtBankList() {
+//
+//        DmtVendorService vendorService = vendorFactory.getVendor("Paysprint DMT");
+//
+//        List<DmtBankList> banks = vendorService.getdmtbanklist();
+//
+//        if (banks.isEmpty()) {
+//            return ResponseEntity
+//                    .status(HttpStatus.NOT_FOUND)
+//                    .body(CommonResponse.failure("Bank list not found"));
+//        }
+//
+//        return ResponseEntity.ok(
+//                CommonResponse.success(banks, "Bank list fetched successfully")
+//        );
 
-        if (banks.isEmpty()) {
+        @PostMapping("/bank-list")
+        public ResponseEntity<CommonResponse<List<DmtBankList>>> getDmtBankList(
+                @RequestBody DmtBankListRequest request) {
+
+            CommonResponse<List<DmtBankList>> response =
+                    dmtOrchestrator.getBankList(request);
+
             return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(CommonResponse.failure("Bank list not found"));
+                    .status(response.getStatusCode())
+                    .body(response);
         }
 
-        return ResponseEntity.ok(
-                CommonResponse.success(banks, "Bank list fetched successfully")
-        );
+
     }
 
 
 
-
-
-
-}

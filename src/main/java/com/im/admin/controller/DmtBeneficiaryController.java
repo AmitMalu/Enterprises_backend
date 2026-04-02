@@ -109,7 +109,27 @@ public class DmtBeneficiaryController {
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
+    //instantPayDmt
+    @PostMapping("/verifyBeneficiaryOtp")
+    public ResponseEntity<CommonResponse<Object>> verifyBeneficiaryOtp(
+            @RequestBody VerifyBeneOtpRequest req) throws Exception {
 
+        CommonResponse<Object> response =
+                dmtOrchestrator.verifyBeneficiaryOtp(req);
 
+        return ResponseEntity
+                .status(response.getStatusCode())
+                .body(response);
+    }
+
+    //instantPayDmt
+    @PostMapping("/delete/verify")
+    public ResponseEntity<CommonResponse<Object>> verifyDeleteOtp(
+            @RequestBody VerifyDeleteOtpRequest req) throws Exception {
+
+        return ResponseEntity.ok(
+                dmtOrchestrator.verifyDeleteOtp(req)
+        );
+    }
 
 }

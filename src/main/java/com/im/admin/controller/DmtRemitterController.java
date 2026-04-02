@@ -40,8 +40,9 @@ public class DmtRemitterController {
 
         CommonResponse<RemitterQueryResponse> response =
                 dmtOrchestrator.checkRemitter(
-                        request.getMobile(),
-                        request.getSubProductId()
+//                        request.getMobile(),
+//                        request.getSubProductId()
+                        request
                 );
 
         return ResponseEntity.status(response.getStatusCode()).body(response);

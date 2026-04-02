@@ -35,7 +35,20 @@ import java.time.Instant;
 @Service
 //@RequiredArgsConstructor
 public class PaysprintDmtServiceImpl implements DmtVendorService {
+    @Override
+    public Map verifyDeleteOtp(VerifyDeleteOtpRequest req, VendorCredentials credentials) throws Exception {
+        return Map.of();
+    }
 
+    @Override
+    public Map verifyBeneficiaryOtp(VerifyBeneOtpRequest req, VendorCredentials credentials) throws Exception {
+        return Map.of();
+    }
+
+    @Override
+    public RemitterRegisterResponse verifyRemitterOtp(RemitterEkycRequest request, VendorCredentials credentials) throws Exception {
+        return null;
+    }
 
     @Autowired
     private RestTemplate restTemplate;
@@ -403,16 +416,17 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
     }
 
     @Override
-    public List<DmtBankList> getdmtbanklist() {
+    public List<DmtBankList> getdmtbanklist(DmtBankListRequest request,VendorCredentials credentials) {
         return dmtBankListRepository.findAll();
     }
 
     @Override
     public RemitterQueryResponse checkRemitter(
-            String mobile,
+//            String mobile,
+            RemitterQueryRequest request,
             VendorCredentials credentials) throws Exception {
 
-        Map<String, Object> reqBody = Map.of("mobile", mobile);
+        Map<String, Object> reqBody = Map.of("mobile", request.getMobile());
 
         String token = generateJwtToken();
 
