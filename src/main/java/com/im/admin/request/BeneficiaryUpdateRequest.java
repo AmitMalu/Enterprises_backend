@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class BeneficiaryUpdateRequest {
 
-    private Long beneId;           // existing beneficiary ID (local DB or vendor)
+    private String beneId;           // existing beneficiary ID (local DB or vendor)
     private String name;       // updated name
     private String bankid;         // updated bank ID
     private String bankname;       // updated bank name

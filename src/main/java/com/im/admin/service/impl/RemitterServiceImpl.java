@@ -268,7 +268,7 @@ public class RemitterServiceImpl implements RemitterService {
                 rem.setStatus("PENDING");
                 rem.setCreatedAt(LocalDateTime.now());
                 rem.setName(request.getName());
-                rem.setVendor(vendor);
+//                rem.setVendor(vendor);
                 rem.setAadhaar(request.getAadhaarNumber());
 
                 remitterRepository.save(rem);
@@ -354,7 +354,7 @@ public class RemitterServiceImpl implements RemitterService {
                     .orElse(new DmtRemitter());
 
             rem.setMobile(req.getMobile());
-            rem.setVendor(vendor);
+//            rem.setVendor(vendor);
             rem.setStatus("REGISTERED");
             rem.setEkycId(req.getEkyc_id());
             rem.setStateResp(req.getStateresp());
@@ -420,7 +420,7 @@ public class RemitterServiceImpl implements RemitterService {
             // Already exists → just ensure status
             DmtRemitter rem = existing.get();
             rem.setStatus("REGISTERED");
-            rem.setVendor(vendor);
+//            rem.setVendor(vendor);
             remitterRepository.save(rem);
             return;
         }
@@ -430,7 +430,7 @@ public class RemitterServiceImpl implements RemitterService {
         en.setMobile(mobile);
         en.setStatus("REGISTERED");
         en.setCreatedAt(LocalDateTime.now());
-        en.setVendor(vendor);
+//        en.setVendor(vendor);
         en.setLimitAmount(res.getData().getLimit());
 
         remitterRepository.save(en);

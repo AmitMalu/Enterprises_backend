@@ -17,7 +17,22 @@ import java.util.Map;
 
 public class FingpayDmtServiceImpl implements DmtVendorService {
     @Override
-    public RemitterQueryResponse checkRemitter(String mobile, VendorCredentials credentials) throws Exception {
+    public Map verifyBeneficiaryOtp(VerifyBeneOtpRequest req, VendorCredentials credentials) throws Exception {
+        return Map.of();
+    }
+
+    @Override
+    public Map verifyDeleteOtp(VerifyDeleteOtpRequest req, VendorCredentials credentials) throws Exception {
+        return Map.of();
+    }
+
+    @Override
+    public RemitterRegisterResponse verifyRemitterOtp(RemitterEkycRequest request, VendorCredentials credentials) throws Exception {
+        return null;
+    }
+
+    @Override
+    public RemitterQueryResponse checkRemitter( RemitterQueryRequest request, VendorCredentials credentials) throws Exception {
         return null;
     }
 
@@ -52,7 +67,7 @@ public class FingpayDmtServiceImpl implements DmtVendorService {
     }
 
     @Override
-    public List<DmtBankList> getdmtbanklist() {
+    public List<DmtBankList> getdmtbanklist(DmtBankListRequest request,VendorCredentials credentials) {
         return List.of();
     }
 

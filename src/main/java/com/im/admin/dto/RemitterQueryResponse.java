@@ -14,6 +14,7 @@ public class RemitterQueryResponse {
         private String mobile;
         private String ekyc_id;
         private String stateresp;
+        private String referenceKey;
         private Double limit;
     }
 }
