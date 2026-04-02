@@ -95,23 +95,24 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         String fileExtension = imageFile.getOriginalFilename();
         if (fileExtension == null || !fileExtension.matches("(?i).*\\.(jpg|jpeg|png|pdf)$")) {
-            throw new IllegalArgumentException("Invalid image format. Only JPG, JPEG, or PNG are allowed.");
+            throw new IllegalArgumentException("Invalid image format. Only JPG, JPEG, PNG, PDF allowed.");
         }
 
         Optional<PrefundRequest> approved = repository.findApprovedByBankTranId(dto.getBankTranId());
         if (approved.isPresent()) {
-            throw new IllegalArgumentException("This transaction has already been approved and cannot be re-submitted.");
+            throw new IllegalArgumentException("This transaction already approved.");
         }
 
         LocalDateTime fiveMinutesAgo = LocalDateTime.now().minusMinutes(5);
-        List<PrefundRequest> duplicates = repository.findDuplicatesWithinTime(dto.getBankTranId(), depositAmount, fiveMinutesAgo);
+        List<PrefundRequest> duplicates =
+                repository.findDuplicatesWithinTime(dto.getBankTranId(), depositAmount, fiveMinutesAgo);
+
         if (!duplicates.isEmpty()) {
             throw new IllegalArgumentException("Duplicate request detected within last 5 minutes.");
         }
 
         String fileName = imageUtil.saveImage(imageFile, "Prefund");
 
-        // Save new record
         PrefundRequest entity = new PrefundRequest();
         entity.setRequestedBy(dto.getRequestedBy());
         entity.setMobileNumber(dto.getMobileNumber());
@@ -124,16 +125,52 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         entity.setPaymentMode(dto.getPaymentMode());
         entity.setNarration(dto.getNarration());
         entity.setIpAddress(dto.getIpAddress());
+
         if (dto.getDepositDate() != null && !dto.getDepositDate().isEmpty()) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             entity.setDepositDate(LocalDate.parse(dto.getDepositDate()));
         }
+
         entity.setDepositType(dto.getDepositType());
         entity.setRemarks(dto.getRemarks());
 
+        String requesterId = dto.getRequestedBy();
+        String requesterType = commonMethods.extractHierarchyType(requesterId);
+
+        SubProducts subProduct;
+        Scheme scheme;
+
+        if ("RT".equalsIgnoreCase(requesterType) || "RU".equalsIgnoreCase(requesterType)) {
+
+            // From request
+            subProduct = subProductsRepository
+                    .findBySubProductCode(dto.getSubProductCode())
+                    .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+
+            scheme = schemeRepository.findBySchemeCode(dto.getSchemeCode())
+                    .orElseThrow(() -> new RuntimeException("Scheme not found"));
+
+        } else {
+
+            // From scheme mapping (DT/PT/SD)
+            String schemeName = getSchemeNameByHierarchy(requesterId);
+
+            scheme = schemeRepository.findBySchemeName(schemeName)
+                    .orElseThrow(() -> new RuntimeException("Scheme not found"));
+
+            String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+            String subProductId = hashParts[1];
+
+            subProduct = subProductsRepository.findById(subProductId)
+                    .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+        }
+
+        entity.setSubProducts(subProduct);
+        entity.setScheme(scheme);
+
         PrefundRequest saved = repository.save(entity);
 
-        return new CommonResponse<>(200, "Prefund request submitted successfully : " + dto.getConfirmAmount(), saved);
+        return new CommonResponse<>(200,
+                "Prefund request submitted successfully : " + dto.getConfirmAmount(), saved);
     }
 
     @Override
@@ -156,11 +193,12 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
     @Transactional
     @Override
-    public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto, Double latitude, Double longitude) {
+    public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto) {
 
         String baseTransactionId = commonMethods.generateBaseTransactionId();
         LocalDate date = LocalDate.now();
         LocalTime time = LocalTime.now();
+
         PrefundRequest fundRequest = repository.findById(actionDto.getFundRequestId())
                 .orElseThrow(() -> new RuntimeException("Fund Request not found"));
 
@@ -174,90 +212,65 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         fundRequest.setApproveOrRejectDate(date);
         fundRequest.setApproveOrRejectTime(time);
 
+        // ================= WALLET FLOW =================
         if (newStatus == Status.APPROVED) {
+
             String requesterId = fundRequest.getRequestedBy();
             String approverId = actionDto.getApproveOrRejectHierarchyId();
             WalletType walletType = WalletType.PREPAID;
             BigDecimal amount = BigDecimal.valueOf(fundRequest.getDepositAmount());
 
-            AbstractWalletAmountTable approverWallet = commonMethods.getWalletByType(walletType.name(), approverId);
-            BigDecimal approverBalance = approverWallet.getAvailableBalance();
+            AbstractWalletAmountTable approverWallet =
+                    commonMethods.getWalletByType(walletType.name(), approverId);
 
-            if (approverBalance.compareTo(amount) < 0) {
-                return new CommonResponse<>(400, "Insufficient balance in approver's wallet: " + approverId, null);
+            if (approverWallet.getAvailableBalance().compareTo(amount) < 0) {
+                throw new RuntimeException("Insufficient balance in approver's wallet");
+
             }
 
-            updateWallet(approverWallet, approverId, walletType, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", "Fund Transfer Successfully to" + requesterId + "/ @" + date + " " + time);
+            updateWallet(approverWallet, approverId, walletType, amount,
+                    "Debit", baseTransactionId, "SUCCESS", "DEBIT",
+                    "Fund Transfer to " + requesterId);
 
             String requesterType = commonMethods.extractHierarchyType(requesterId);
             String parentHierarchyId = requesterId;
 
             if ("RU".equalsIgnoreCase(requesterType)) {
-                log.debug("Hierarchy type is RU. Fetching parent Retailer hierarchyId...");
-
                 parentHierarchyId = getParentRetailerId(requesterId);
-                log.debug("Resolved parent Retailer hierarchyId: {}", parentHierarchyId);
             }
 
-            AbstractWalletAmountTable requesterWallet = commonMethods.getWalletByType(walletType.name(), parentHierarchyId);
-            updateWallet(requesterWallet, parentHierarchyId, walletType, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", "Fund Transfer Successfully from " + approverId + "/ @" + date + " " + time);
+            AbstractWalletAmountTable requesterWallet =
+                    commonMethods.getWalletByType(walletType.name(), parentHierarchyId);
+
+            updateWallet(requesterWallet, parentHierarchyId, walletType, amount,
+                    "Credit", baseTransactionId, "SUCCESS", "CREDIT",
+                    "Fund Transfer from " + approverId);
         }
 
         repository.save(fundRequest);
 
-        SubProducts subProduct = subProductsRepository
-                .findBySubProductCode(actionDto.getSubProductId())
-                .orElseThrow(() -> new RuntimeException("SubProduct not found for Bank Verification"));
+        // ================= UNIFIED RESOLUTION =================
 
-        // Get Product from SubProduct
+        SubProducts subProduct = fundRequest.getSubProducts();
+        Scheme scheme = fundRequest.getScheme();
         Products product = subProduct.getProduct();
 
-        log.info("---- [Callback] Product fetched successfully | productId={}", product.getId());
+        String schemeCode = scheme.getSchemeCode();
 
-        // ================== NEW LOGIC START ==================
+        log.info("Resolved from DB | productId={}, subProductId={}, schemeCode={}",
+                product.getId(), subProduct.getId(), schemeCode);
 
-        String requesterId = fundRequest.getRequestedBy();
-        String requesterType = commonMethods.extractHierarchyType(requesterId);
+        // ================= SCHEME RATE =================
 
-        String schemeCode;
-
-        if ("RT".equalsIgnoreCase(requesterType)) {
-            // For RT → take from request
-            schemeCode = actionDto.getSchemeCode();
-        } else {
-
-            // Handle RU → take parent
-            String hierarchyForScheme = requesterId;
-            if ("RU".equalsIgnoreCase(requesterType)) {
-                hierarchyForScheme = getParentRetailerId(requesterId);
-            }
-
-            // For SD/PT/DT → derive
-            String schemeName = getSchemeNameByHierarchy(hierarchyForScheme);
-
-            Optional<Scheme> scheme = Optional.ofNullable(schemeRepository.findBySchemeName(schemeName)
-                    .orElseThrow(() -> new RuntimeException("Scheme not found for name: " + schemeName)));
-
-            schemeCode = scheme.get().getSchemeCode();
-        }
-
-        // ================== NEW LOGIC END ==================
-
-        Optional<SchemeRate> optSchemeRate = schemeRateRepository
+        SchemeRate schemeRate = schemeRateRepository
                 .findSchemeRateByCodeAndOperatorAndAmount(
                         schemeCode,
                         fundRequest.getBankAccountName(),
                         fundRequest.getDepositAmount()
-                );
-
-        SchemeRate schemeRate = optSchemeRate.orElseThrow(
-                () -> new RuntimeException("SchemeRate not found for code: " + schemeCode)
-        );
+                )
+                .orElseThrow(() -> new RuntimeException("SchemeRate not found"));
 
         BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
-
-        log.info("Scheme rate fetched successfully | schemeCode={} | rateType={} | slabType={}",
-                schemeRate.getSchemeCode(), schemeRate.getRateType(), schemeRate.getSlabType());
 
         try {
 
@@ -278,26 +291,28 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                         ? WalletType.POSTPAID
                         : WalletType.PREPAID;
 
-                TransactionSchemeDetailsRequestDto dto = walletTransactionService.buildTransactionDto(
-                        grossAmount,
-                        baseTransactionId,
-                        schemeRate,
-                        product,
-                        subProduct,
-                        fundRequest.getRequestedBy(),
-                        walletType
-                );
+                TransactionSchemeDetailsRequestDto dto =
+                        walletTransactionService.buildTransactionDto(
+                                grossAmount,
+                                baseTransactionId,
+                                schemeRate,
+                                product,
+                                subProduct,
+                                fundRequest.getRequestedBy(),
+                                walletType
+                        );
 
-                transactionEngineServiceImpl.processCommission(dto, baseTransactionId, "SUCCESS", dto);
+                transactionEngineServiceImpl.processCommission(
+                        dto, baseTransactionId, "SUCCESS", dto);
             }
 
         } catch (Exception e) {
-            log.error("**** [processChargesAndCommission] ERROR during processing {} {} ****",
-                    product.getHasCharges(), product.getIsCommissions(), e);
+            log.error("Error in charges/commission", e);
             throw e;
         }
 
-        return new CommonResponse<>(200, "Fund request action processed successfully", null);
+        return new CommonResponse<>(200,
+                "Fund request action processed successfully", null);
     }
 
     public String getParentRetailerId(String retailerUserHierarchyId) {

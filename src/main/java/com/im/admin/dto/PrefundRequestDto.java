@@ -27,5 +27,7 @@ public class PrefundRequestDto {
     private String depositDate;
     private String depositType;
     private String remarks;
+    private String subProductCode;
+    private String schemeCode;
 
 }
