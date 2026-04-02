@@ -40,7 +40,9 @@ public class  PrefundRequestController {
     @PostMapping(value = "/request", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommonResponse<PrefundRequest>> submitWalletLoadRequest(
             @RequestPart("data") @Valid String rawData,
-            @RequestPart("imageFile") MultipartFile imageFile) {
+            @RequestPart("imageFile") MultipartFile imageFile,
+            @RequestHeader("Latitude") Double latitude,
+            @RequestHeader("Longitude") Double longitude) {
         try {
             log.info("Entering Wallet Load Request method with data: {}", rawData);
 
@@ -110,10 +112,11 @@ public class  PrefundRequestController {
     }
 
     @PostMapping("/action")
-    public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto,
-                                                                          @RequestHeader("Latitude") Double latitude,
-                                                                          @RequestHeader("Longitude") Double longitude) {
-        CommonResponse<String> response = prefundRequestService.takeActionOnFundRequest(actionDto, latitude, longitude);
+    public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto
+//                                                                          @RequestHeader("Latitude") Double latitude,
+//                                                                          @RequestHeader("Longitude") Double longitude
+                                                                          ) {
+        CommonResponse<String> response = prefundRequestService.takeActionOnFundRequest(actionDto);
         return ResponseEntity.ok(response);
     }
 
