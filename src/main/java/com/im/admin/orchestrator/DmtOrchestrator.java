@@ -272,6 +272,15 @@ public class DmtOrchestrator {
             // CALL SELECTED VENDOR
             PaysprintSendOtpResponse otpResponse = vendorService.sendOtp(req, credentials);
 
+           //### imp
+          // SAVE SELECTED VENDOR IN BENEFICIARY (VERY IMPORTANT)
+            beneficiary.setVendor(selectedVendor);
+            beneficiary.setUpdatedAt(LocalDateTime.now());
+
+            beneficiaryRepository.save(beneficiary);
+            //### imp
+
+
             otpResponse.setReferenceId(refId);
 
             return CommonResponse.success(otpResponse, otpResponse.getMessage());
@@ -336,14 +345,24 @@ public class DmtOrchestrator {
                 return new CommonResponse<>(400, "Insufficient Balance", null);
             }
 
+            //** imp
             // 3⃣ Resolve Vendor Routing & Credentials
-            VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
-            if (routing == null) {
-                log.error("[PROCESS DMT] Vendor routing not found for subProductId={}", req.getSubProductId());
-                return new CommonResponse<>(404, "Vendor routing not found", null);
+//            VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+//            if (routing == null) {
+//                log.error("[PROCESS DMT] Vendor routing not found for subProductId={}", req.getSubProductId());
+//                return new CommonResponse<>(404, "Vendor routing not found", null);
+//            }
+//
+//            Vendors vendor = CommonMethods.getVendors(routing);
+            //** imp
+            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(req.getBeneId());
+
+            if (beneficiary == null) {
+                return CommonResponse.error(400, "Beneficiary not found");
             }
 
-            Vendors vendor = CommonMethods.getVendors(routing);
+            Vendors vendor = beneficiary.getVendor(); //  MAIN FIX
+
             vendorId = vendor.getId();
             req.setVendorName(vendor.getVendorName());  // used becoz to addusedlimit down on Sucvcess
 
@@ -398,11 +417,11 @@ public class DmtOrchestrator {
 
 
             // Fetch beneficiary details
-            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(
+            DmtBeneficiary afterbeneficiary = beneficiaryRepository.findByBeneId(
                     (req.getBeneId())
             );
 
-            if (beneficiary == null) {
+            if (afterbeneficiary == null) {
                 return CommonResponse.error(400, "Beneficiary not found");
             }
 
@@ -833,13 +852,20 @@ public class DmtOrchestrator {
                     );
 
 //                case 3:
-//                    return CommonResponse.success(
-//                            res,
-//                            "OTP sent. Please register remitter."
-//                    );
+//
+//                    //  DIFFERENT MESSAGE BASED ON VENDOR
+//                    if ("InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
+//
+//                        return CommonResponse.success(
+//                                res,
+//                                "Remitter not found. Please proceed with registration"
+//                        );
                 case 3:
 
-                    //  DIFFERENT MESSAGE BASED ON VENDOR
+                    // SAVE RNF (IMPORTANT)
+                    saveRemitterForRNF(request.getMobile(), res, vendor);
+
+                    // RESPONSE BASED ON VENDOR
                     if ("InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
 
                         return CommonResponse.success(
@@ -913,6 +939,60 @@ public class DmtOrchestrator {
         }
 
         // initialize vendor limits (optional safety)
+        en.setVendor1UsedLimit(0.0);
+        en.setVendor2UsedLimit(0.0);
+        en.setVendor3UsedLimit(0.0);
+
+        remitterRepository.save(en);
+    }
+
+    private void saveRemitterForRNF(String mobile,
+                                    RemitterQueryResponse res,
+                                    Vendors vendor) {
+
+        Optional<DmtRemitter> existing =
+                remitterRepository.findByMobile(mobile);
+
+        String referenceKey = null;
+
+        if (res.getData() != null) {
+            referenceKey = res.getData().getReferenceKey();
+        }
+
+        if (existing.isPresent()) {
+
+            DmtRemitter rem = existing.get();
+
+            //  DO NOT override REGISTERED
+            if ("REGISTERED".equalsIgnoreCase(rem.getStatus())) {
+                return;
+            }
+
+            // Update referenceKey
+            if (referenceKey != null) {
+                rem.setReferenceKey(referenceKey);
+            }
+
+            rem.setStatus("NOT_REGISTERED");
+            rem.setUpdatedAt(LocalDateTime.now());
+
+            remitterRepository.save(rem);
+            return;
+        }
+
+        //  NEW ENTRY
+        DmtRemitter en = new DmtRemitter();
+
+        en.setMobile(mobile);
+        en.setStatus("NOT_REGISTERED");
+        en.setCreatedAt(LocalDateTime.now());
+
+        if (referenceKey != null) {
+            en.setReferenceKey(referenceKey);
+        }
+
+        // default values
+        en.setLimitAmount(0.0);
         en.setVendor1UsedLimit(0.0);
         en.setVendor2UsedLimit(0.0);
         en.setVendor3UsedLimit(0.0);
@@ -1384,6 +1464,29 @@ public class DmtOrchestrator {
                     vendorFactory.getVendor(vendor.getVendorName());
 
 
+            // STEP 0: GET REMITTER
+            DmtRemitter remitter = remitterRepository
+                    .findByMobile(req.getMobile())
+                    .orElseThrow(() -> new RuntimeException("Remitter not found"));
+
+// STEP 0.1: CHECK EXISTING BENEFICIARY BEFORE VENDOR CALL
+            Optional<DmtBeneficiary> existingBefore =
+                    beneficiaryRepository.findByRemitterAndAccountNo(
+                            remitter,
+                            req.getAccno()
+                    );
+
+
+            if (existingBefore.isPresent()) {
+                DmtBeneficiary existingBene = existingBefore.get();
+
+                // BLOCK IF ALREADY REGISTERED
+                if ("REGISTERED".equalsIgnoreCase(existingBene.getStatus())) {
+                    return CommonResponse.success(null, "Beneficiary already exists");
+                }
+            }
+
+
             BeneficiaryRegisterResponse resp =
                     vendorService.registerBeneficiary(req, credentials);
 
@@ -1469,9 +1572,9 @@ public class DmtOrchestrator {
 
             if (resp != null && (resp.getResponse_code() == 1 || resp.getResponse_code() == 2)) {
 
-                DmtRemitter remitter = remitterRepository
-                        .findByMobile(req.getMobile())
-                        .orElseThrow(() -> new RuntimeException("Remitter not found"));
+//                DmtRemitter remitter = remitterRepository
+//                        .findByMobile(req.getMobile())
+//                        .orElseThrow(() -> new RuntimeException("Remitter not found"));
 
                 String beneId = resp.getData() != null
                         ? resp.getData().getBene_id()

@@ -1064,6 +1064,11 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
             VerifyDeleteOtpRequest req,
             VendorCredentials credentials) throws Exception {
 
+        AepsInstantPayMerchantStatus merchant =
+                aepsInstantPayMerchantStatusRepository
+                        .findByRetailerId(req.getRetailerId())
+                        .orElseThrow(() -> new RuntimeException("Merchant not onboarded"));
+
 
         Retailer retailer = retailerRepository
                 .findById(req.getRetailerId())
@@ -1078,7 +1083,7 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
         headers.set("X-Ipay-Auth-Code", "1");
         headers.set("X-Ipay-Client-Id", credentials.getClientId());
         headers.set("X-Ipay-Client-Secret", credentials.getClientSecret());
-        headers.set("X-Ipay-Outlet-Id", req.getOutletId());
+        headers.set("X-Ipay-Outlet-Id",merchant.getOutletId());
         headers.set("X-Ipay-Endpoint-Ip", retailer.getCreatedByIPAddress());
 
         //  BODY

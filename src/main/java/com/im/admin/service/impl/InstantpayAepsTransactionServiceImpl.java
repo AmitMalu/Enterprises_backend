@@ -86,6 +86,9 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
     public CommonResponse<InstantpayCashWithdrawalResponseDto> cashWithdrawal(InstantPayCashWithdrawalRequestDto req) {
         try {
 
+            LocalDateTime requestTime = LocalDateTime.now();
+            String responseJson = null;
+
             String baseTransactionId = commonMethods.generateBaseTransactionId();
             String orderId = "AEPS" + baseTransactionId;
             log.info("[AEPS BE] Start | orderId={}", orderId);
@@ -212,6 +215,18 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
 
 
             InstantpayCashWithdrawalResponseDto vendorResp = response.getBody();
+
+            responseJson = mapper.writeValueAsString(vendorResp);
+
+            // ===== SAVE VENDOR LOG =====
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    requestJson,
+                    vendor.getId(),
+                    LocalDateTime.now(),
+                    responseJson,
+                    null
+            );
 
             if (vendorResp == null || vendorResp.getData() == null) {
                 return CommonResponse.error(500, "Vendor returned empty response");
