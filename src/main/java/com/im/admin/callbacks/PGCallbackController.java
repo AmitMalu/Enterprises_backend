@@ -1,5 +1,6 @@
 package com.im.admin.callbacks;
 
+import com.cashfree.pg.Cashfree;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.entities.PgTransactionMapping;
 import com.im.admin.repositories.PgTransactionMappingRepository;
@@ -8,6 +9,7 @@ import com.im.admin.request.UnisusWebhookRequest;
 import com.im.admin.response.UnisusWebhookResponse;
 import com.im.admin.service.*;
 import com.im.admin.service.impl.RunpaisaPGServiceImpl;
+import com.im.admin.util.IdempotencyServiceUtil;
 import com.razorpay.Utils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +19,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -36,6 +43,7 @@ public class PGCallbackController {
     private final RazorPayPGService razorPayPGService;
     private final CashfreePGService cashfreePGService;
     private final PgTransactionMappingRepository repository;
+    private final IdempotencyServiceUtil idempotencyService;
 
 
     // RUNPAISA CALLBACK
@@ -119,139 +127,75 @@ public class PGCallbackController {
         }
     }
 
-//    @GetMapping("/razorpay")
-//    public ResponseEntity<String> handleCallback(HttpServletRequest request) {
-//
-//        log.info("Received Razorpay Callback: {}", request);
-//
-//        try {
-//
-//            String paymentId = request.getParameter("razorpay_payment_id");
-//            String plinkId = request.getParameter("razorpay_payment_link_id");
-//            String referenceId = request.getParameter("razorpay_payment_link_reference_id");
-//            String status = request.getParameter("razorpay_payment_link_status");
-//            String signature = request.getParameter("razorpay_signature");
-//
-//            log.info("Callback received paymentId={}, plinkId={}, status={}",
-//                    paymentId, plinkId, status);
-//
-//            // ===== VERIFY SIGNATURE =====
-//            JSONObject options = new JSONObject();
-//            options.put("razorpay_payment_id", paymentId);
-//            options.put("payment_link_id", plinkId);
-//            options.put("payment_link_reference_id", referenceId);
-//            options.put("payment_link_status", status);
-//            options.put("razorpay_signature", signature);
-//
-//            String secret = "rzp_test_SUfGOOZaPcOkb7";
-//
-//            boolean isValid = Utils.verifyPaymentLink(options, secret);
-//
-//            if (!isValid) {
-//                log.error("Invalid callback signature");
-//                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-//                        .body("Invalid signature");
-//            }
-//
-//            // VALID CALLBACK (BUT DON'T TRUST COMPLETELY)
-//            log.info("Callback signature verified for orderId={}", referenceId);
-//
-//            //  DO NOT update DB here (important)
-//            // Just show response to user
-//
-//            return ResponseEntity.ok("Payment Processing...");
-//
-//        } catch (Exception e) {
-//            log.error("Error in callback", e);
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body("Error");
-//        }
-//    }
-
-//    @PostMapping("/webhook")
-//    public ResponseEntity<String> handleWebhook(
-//            @RequestBody String payload,
-//            @RequestHeader("X-Razorpay-Signature") String signature) {
-//
-//        try {
-//
-//            String webhookSecret = "YOUR_WEBHOOK_SECRET";
-//
-//            boolean isValid = Utils.verifyWebhookSignature(payload, signature, webhookSecret);
-//
-//            if (!isValid) {
-//                log.error("Invalid webhook signature");
-//                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid signature");
-//            }
-//
-//            JSONObject json = new JSONObject(payload);
-//            String event = json.getString("event");
-//
-//            log.info("Webhook received event={}", event);
-//
-//            if ("payment_link.paid".equals(event)) {
-//
-//                JSONObject entity = json
-//                        .getJSONObject("payload")
-//                        .getJSONObject("payment_link")
-//                        .getJSONObject("entity");
-//
-//                String plinkId = entity.getString("id");
-//                String status = entity.getString("status");
-//
-//                String paymentId = entity
-//                        .getJSONArray("payments")
-//                        .getJSONObject(0)
-//                        .getString("payment_id");
-//
-//                handleSuccess(plinkId, paymentId, status);
-//
-//            } else if ("payment_link.expired".equals(event)) {
-//
-//                JSONObject entity = json
-//                        .getJSONObject("payload")
-//                        .getJSONObject("payment_link")
-//                        .getJSONObject("entity");
-//
-//                String plinkId = entity.getString("id");
-//
-//                handleFailure(plinkId, "EXPIRED");
-//
-//            }
-//
-//            return ResponseEntity.ok("OK");
-//
-//        } catch (Exception e) {
-//            log.error("Webhook error", e);
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("ERROR");
-//        }
-//    }
-
-
     @PostMapping("/cashfree")
     public ResponseEntity<String> cashfreeCallback(
-            HttpServletRequest request,
-            @RequestBody String rawPayload
-    ) {
+            @RequestBody String rawPayload,
+            @RequestHeader("x-webhook-signature") String signature,
+            @RequestHeader("x-webhook-timestamp") String timestamp,
+            @RequestHeader(value = "x-idempotency-key", required = false) String idempotencyKey) {
 
-        log.info("Received Cashfree webhook");
+        log.info("===== CASHFREE WEBHOOK START =====");
 
+        log.info("RAW PAYLOAD >>> {}", rawPayload);
+        log.info("Payload Length >>> {}", rawPayload.length());
+        log.info("Signature >>> {}", signature);
+        log.info("Timestamp >>> {}", timestamp);
+
+
+        // LOCK CHECK
+        boolean acquired = idempotencyService.tryAcquire(idempotencyKey);
+
+        if (!acquired) {
+            log.warn("Duplicate webhook skipped: {}", idempotencyKey);
+            return ResponseEntity.ok("Duplicate ignored");
+        }
+        boolean isValid = verifySignature(rawPayload, signature, timestamp);
+
+        if (!isValid) {
+            log.error("SIGNATURE FAILED");
+            return ResponseEntity.status(400).body("Invalid signature");
+        }
+
+        log.info("SIGNATURE VERIFIED");
+
+        cashfreePGService.processWebhook(rawPayload, idempotencyKey);
+
+        return ResponseEntity.ok("OK");
+    }
+
+    public boolean verifySignature(String rawBody, String signature, String timestamp) {
         try {
 
-            String signature = request.getHeader("x-webhook-signature");
-            String timestamp = request.getHeader("x-webhook-timestamp");
-            String idempotencyKey = request.getHeader("x-idempotency-key");
+            String secretKey = "cfsk_ma_test_c55beaca2b6adbe2630c91be6654e0ed_f9f1de22";
 
-            log.info("Webhook headers | signature={}, timestamp={}, idempotencyKey={}",
-                    signature, timestamp, idempotencyKey);
+            // ===== DATA STRING =====
+            String data = timestamp + rawBody;
 
-            cashfreePGService.processWebhook(rawPayload, signature, timestamp, idempotencyKey);
+            log.info("DATA STRING (timestamp + payload) >>> {}", data);
+            log.info("DATA LENGTH >>> {}", data.length());
 
-            return ResponseEntity.ok("OK");
+            // ===== HMAC =====
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(keySpec);
+
+            byte[] rawHmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            String generatedSignature = Base64.getEncoder().encodeToString(rawHmac);
+
+            // ===== FINAL LOGS =====
+            log.info("Generated Signature >>> {}", generatedSignature);
+            log.info("Received Signature >>> {}", signature);
+
+            boolean match = generatedSignature.equals(signature);
+
+            log.info("Signature Match Result >>> {}", match ? "MATCH" : "MISMATCH");
+
+            return match;
 
         } catch (Exception e) {
-            log.error("Webhook processing failed", e);
-            return ResponseEntity.status(500).body("FAILED");
+            log.error("Signature verification error", e);
+            throw new RuntimeException(e);
         }
     }
+
 }
