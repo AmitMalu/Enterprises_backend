@@ -18,6 +18,7 @@ import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageUtil;
 import com.im.admin.util.WalletTransactionService;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -81,7 +82,6 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
     @Autowired
     private TransactionEngineServiceImpl transactionEngineServiceImpl;
-
 
     @Override
     public CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile) throws IOException {
@@ -365,20 +365,36 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                 "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                 ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :remarks)";
 
-        entityManager.createNativeQuery(sql)
-                .setParameter("hierarchyId", hierarchyId)
-                .setParameter("service", service)
-                .setParameter("amount", amount)
-                .setParameter("dateOfTransaction", new Date())
-                .setParameter("timeOfTransaction", new Time(System.currentTimeMillis()))
-                .setParameter("beforeTransactionBalance", beforeBalance)
-                .setParameter("afterTransactionBalance", afterBalance)
-                .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
-                .setParameter("finalBalance", afterBalance)
-                .setParameter("tranxId", tranxId)
-                .setParameter("tranStatus", tranStatus)
-                .setParameter("remarks", remarks)
-                .executeUpdate();
+        try {
+            entityManager.createNativeQuery(sql)
+                    .setParameter("hierarchyId", hierarchyId)
+                    .setParameter("service", service)
+                    .setParameter("amount", amount)
+                    .setParameter("dateOfTransaction", new Date())
+                    .setParameter("timeOfTransaction", new Time(System.currentTimeMillis()))
+                    .setParameter("beforeTransactionBalance", beforeBalance)
+                    .setParameter("afterTransactionBalance", afterBalance)
+                    .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
+                    .setParameter("finalBalance", afterBalance)
+                    .setParameter("tranxId", tranxId)
+                    .setParameter("tranStatus", tranStatus)
+                    .setParameter("remarks", remarks)
+                    .executeUpdate();
+
+        } catch (PersistenceException ex) {
+
+            // Handle duplicate safely
+            if (ex.getMessage() != null &&
+                    (ex.getMessage().contains("constraint") || ex.getMessage().contains("Duplicate"))) {
+
+                log.warn("Duplicate transaction skipped | TranxID={}", tranxId);
+                return; // skip insert, continue flow
+            }
+
+            log.error("Failed to insert transaction | TranxID={}", tranxId, ex);
+            throw ex; // real error → propagate
+        }
+
     }
 
     @Override

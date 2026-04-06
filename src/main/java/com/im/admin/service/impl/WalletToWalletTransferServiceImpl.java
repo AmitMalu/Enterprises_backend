@@ -20,6 +20,7 @@ import com.im.admin.service.WalletToWalletTransferService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.WalletTransactionService;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -313,8 +314,9 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
     }
 
 
-    private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount, BigDecimal beforeBalance,
-                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service, Double latitude, Double longitude) {
+    private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount,
+                                   BigDecimal beforeBalance, BigDecimal afterBalance, String actionOnBalanceAmount,
+                                   String tranxId, String service, Double latitude, Double longitude) {
 
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
@@ -324,26 +326,43 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                 transactionTableName, service, amount, hierarchyId, beforeBalance, afterBalance);
 
         String sql = "INSERT INTO " + transactionTableName +
-                " (" + columnName + "  ,service, amount, date_of_transaction, time_of_transaction, " +
+                " (" + columnName + ", service, amount, date_of_transaction, time_of_transaction, " +
                 "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, latitude, longitude) " +
                 "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                 ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :latitude, :longitude)";
 
-        entityManager.createNativeQuery(sql)
-                .setParameter("hierarchyId", hierarchyId)
-                .setParameter("service", service)
-                .setParameter("amount", amount)
-                .setParameter("dateOfTransaction", new Date())
-                .setParameter("timeOfTransaction", new Time(System.currentTimeMillis()))
-                .setParameter("beforeTransactionBalance", beforeBalance)
-                .setParameter("afterTransactionBalance", afterBalance)
-                .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
-                .setParameter("finalBalance", afterBalance)
-                .setParameter("tranxId", tranxId)
-                .setParameter("tranStatus", tranStatus)
-                .setParameter("latitude", latitude)
-                .setParameter("longitude", longitude)
-                .executeUpdate();
+        try {
+            entityManager.createNativeQuery(sql)
+                    .setParameter("hierarchyId", hierarchyId)
+                    .setParameter("service", service)
+                    .setParameter("amount", amount)
+                    .setParameter("dateOfTransaction", new Date())
+                    .setParameter("timeOfTransaction", new Time(System.currentTimeMillis()))
+                    .setParameter("beforeTransactionBalance", beforeBalance)
+                    .setParameter("afterTransactionBalance", afterBalance)
+                    .setParameter("actionOnBalanceAmount", actionOnBalanceAmount)
+                    .setParameter("finalBalance", afterBalance)
+                    .setParameter("tranxId", tranxId)
+                    .setParameter("tranStatus", tranStatus)
+                    .setParameter("latitude", latitude)
+                    .setParameter("longitude", longitude)
+                    .executeUpdate();
+
+            log.info("Transaction inserted successfully | TranxID={}", tranxId);
+
+        } catch (PersistenceException ex) {
+
+            // Handle duplicate safely
+            if (ex.getMessage() != null &&
+                    (ex.getMessage().contains("constraint") || ex.getMessage().contains("Duplicate"))) {
+
+                log.warn("Duplicate transaction skipped | TranxID={}", tranxId);
+                return; // skip insert, continue flow
+            }
+
+            log.error("Failed to insert transaction | TranxID={}", tranxId, ex);
+            throw ex; // real error → propagate
+        }
     }
 
     public SchemeRate getExactSchemeRate(String schemeCode, Double txnAmount) {

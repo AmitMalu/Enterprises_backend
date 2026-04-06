@@ -107,22 +107,24 @@ public class PGCallbackController {
     }
 
     @GetMapping("/razorpay")
-    public ResponseEntity<String> handleRazorPayWebhook(
-            @RequestBody String payload,
-            @RequestHeader("X-Razorpay-Signature") String signature) {
+    public ResponseEntity<String> handleRazorpayCallback(
+            @RequestParam("razorpay_payment_id") String paymentId,
+            @RequestParam("razorpay_payment_link_id") String plinkId,
+            @RequestParam("razorpay_payment_link_reference_id") String orderId,
+            @RequestParam("razorpay_payment_link_status") String status,
+            @RequestParam("razorpay_signature") String signature) {
+
+        log.info("Callback received: paymentId={}, plinkId={}, orderId={}, status={}",
+                paymentId, plinkId, orderId, status);
 
         try {
 
-            razorPayPGService.processCallback(payload, signature);
+            razorPayPGService.processCallback(paymentId, plinkId, orderId, status, signature);
 
-            return ResponseEntity.ok("OK");
-
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid webhook", e);
-            return ResponseEntity.badRequest().body("Invalid signature");
+            return ResponseEntity.ok("Payment processed");
 
         } catch (Exception e) {
-            log.error("Webhook error", e);
+            log.error("Callback processing failed", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("ERROR");
         }
     }
@@ -140,7 +142,6 @@ public class PGCallbackController {
         log.info("Payload Length >>> {}", rawPayload.length());
         log.info("Signature >>> {}", signature);
         log.info("Timestamp >>> {}", timestamp);
-
 
         // LOCK CHECK
         boolean acquired = idempotencyService.tryAcquire(idempotencyKey);
