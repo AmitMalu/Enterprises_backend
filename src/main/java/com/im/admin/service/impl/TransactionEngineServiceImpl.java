@@ -14,6 +14,7 @@ import com.im.admin.util.TransactionHelperService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.NoResultException;
+import jakarta.persistence.PersistenceException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -1360,14 +1361,14 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         log.info("[COMMISSION] Start | Type={} | ID={} | Amount={} | Wallet={} | Status={}",
                 hierarchyType, hierarchyId, commissionAmount, walletType, tranStatus);
 
-        // ✅ CASE 1: Skip Mirror/TDS for Admin/IM or Admin Whitelabel
+        // CASE 1: Skip Mirror/TDS for Admin/IM or Admin Whitelabel
         if (shouldSkipMirrorAndTds(hierarchyType, hierarchyId)) {
             creditCommission(hierarchyType, hierarchyId, commissionAmount, walletType,
                     baseTransactionId, tranStatus, request, "Direct Credit - No TDS/Mirror");
             return;
         }
 
-        // ✅ CASE 2: Default flow (Credit + Mirror + TDS)
+        // CASE 2: Default flow (Credit + Mirror + TDS)
         creditCommission(hierarchyType, hierarchyId, commissionAmount, walletType,
                 baseTransactionId, tranStatus, request, "Commission Credit");
 
@@ -1458,45 +1459,6 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         creditCommission("AD", adminId, commissionAmount, walletType,
                 baseTransactionId, tranStatus, request, "Admin Commission credited");
     }
-
-//    private boolean isFinalAdmin(String type, String id) {
-//        if ("IM".equals(type) || "AD".equals(type)) return true;
-//        if ("WL".equals(type)) {
-//            return whiteLabelsRepository.findById(id)
-//                    .map(WhiteLabels::getIsAdmin)
-//                    .orElse(false);
-//        }
-//        return false;
-//    }
-
-//    private void distributeCommissionToAdmin(String hierarchyId, BigDecimal commissionAmount, String walletType,
-//                                             String baseTransactionId, String tranStatus,
-//                                             TransactionSchemeDetailsRequestDto request) {
-//
-//        log.info("[ADMIN_COMMISSION] Start | BaseID={} | StartHierarchy={}", baseTransactionId, hierarchyId);
-//        String currentId = hierarchyId;
-//
-//        while (true) {
-//            Optional<String> parentOpt = findParentHierarchy(currentId);
-//            if (parentOpt.isEmpty()) {
-//                log.warn("[ADMIN_COMMISSION] No parent found for ID={} — Stopping", currentId);
-//                return;
-//            }
-//
-//            String parentId = parentOpt.get();
-//            String parentType = extractHierarchyType(parentId);
-//
-//            if (isFinalAdmin(parentType, parentId)) {
-//                log.info("[ADMIN_COMMISSION] Found Final Admin | Type={} | ID={}", parentType, parentId);
-//                creditCommission("AD", parentId, commissionAmount, walletType,
-//                        baseTransactionId, tranStatus, request, "Admin Commission");
-//                return;
-//            }
-//
-//            log.debug("[ADMIN_COMMISSION] Continuing up hierarchy | ParentID={} | Type={}", parentId, parentType);
-//            currentId = parentId;
-//        }
-//    }
 
     public String extractHierarchyType(String hierarchyId) {
         String[] parts = hierarchyId.split("-");
@@ -1621,7 +1583,13 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
             log.info("[ADMIN_TXN_INSERT] Successfully inserted transaction for Admin | HierarchyID={} | TranxID={} | Amount={} | Status={}",
                     hierarchyId, tranxId, amount, tranStatus);
 
-        } catch (Exception e) {
+        } catch (PersistenceException e) {
+
+            if (e.getMessage().contains("constraint") || e.getMessage().contains("Duplicate")) {
+                log.warn("Duplicate transaction skipped (DB constraint) | TranxID={}", tranxId);
+                return;
+            }
+
             log.error("[ADMIN_TXN_INSERT] Failed to insert transaction for Admin | HierarchyID={} | TranxID={} | Error={}",
                     hierarchyId, tranxId, e.getMessage(), e);
             throw e;
@@ -1679,7 +1647,13 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
             log.info("[COMM_TXN_INSERT] Successfully inserted commission transaction | HierarchyID={} | TranxID={} | Amount={} | Status={}",
                     hierarchyId, tranxId, amount, tranStatus);
 
-        } catch (Exception e) {
+        } catch (PersistenceException e) {
+
+            if (e.getMessage().contains("constraint") || e.getMessage().contains("Duplicate")) {
+                log.warn("Duplicate transaction skipped (DB constraint) | TranxID={}", tranxId);
+                return;
+            }
+
             log.error("[COMM_TXN_INSERT] Failed to insert commission transaction | HierarchyID={} | TranxID={} | Error={}",
                     hierarchyId, tranxId, e.getMessage(), e);
             throw e;
@@ -1868,12 +1842,16 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         log.info("=== [insertTransaction] START ===");
         log.info("Transaction Details | TranxId: {} | Service: {} | Status: {} | Amount: {} | WalletType: {}",
                 tranxId, service, tranStatus, amount, wallet.getClass().getSimpleName());
-        log.debug("Balance Info | Before: {} | After: {} | Action: {} | HierarchyID: {}",
-                balanceBeforeTranx, balanceAfterTranx, actionOnBalance, dto.getHierarchyId());
 
         try {
+
             if (wallet instanceof RetailerPrepaidAmount) {
-                log.info("Detected wallet type: RetailerPrepaidAmount — preparing prepaid transaction entry");
+
+                // Fast duplicate check
+                if (retailerPrepaidTransactionDetailsRepository.existsByTransactionId(tranxId)) {
+                    log.warn("Duplicate prepaid transaction skipped (exists check) | TranxId: {}", tranxId);
+                    return;
+                }
 
                 RetailerPrepaidTransactionDetails transaction = new RetailerPrepaidTransactionDetails();
                 transaction.setTransactionId(tranxId);
@@ -1889,7 +1867,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setRetailerId(((RetailerPrepaidAmount) wallet).getRetailerId().getRetailerId());
                 transaction.setOperatorName(dto.getOperatorName());
                 transaction.setSubProductName(dto.getSubProductCode());
-                transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());  // new
+                transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());
                 transaction.setLatitude(dto.getLatitude());
                 transaction.setLongitude(dto.getLongitude());
                 transaction.setVendorName(dto.getVendorName());
@@ -1899,7 +1877,12 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 log.info("Prepaid transaction saved successfully | TranxId: {}", tranxId);
 
             } else if (wallet instanceof RetailerPostpaidAmount) {
-                log.info("Detected wallet type: RetailerPostpaidAmount — preparing postpaid transaction entry");
+
+                // Fast duplicate check
+                if (retailerPostpaidTransactionDetailsRepository.existsByTransactionId(tranxId)) {
+                    log.warn("Duplicate postpaid transaction skipped (exists check) | TranxId: {}", tranxId);
+                    return;
+                }
 
                 RetailerPostpaidTransactionDetails transaction = new RetailerPostpaidTransactionDetails();
                 transaction.setTransactionId(tranxId);
@@ -1907,15 +1890,15 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setTimeOfTransaction(LocalTime.now());
                 transaction.setService(service);
                 transaction.setBalBeforeTran(balanceBeforeTranx);
-                transaction.setActionOnBalanceAmount(actionOnBalance);
                 transaction.setAmount(amount);
                 transaction.setBalAfterTran(balanceAfterTranx);
+                transaction.setActionOnBalanceAmount(actionOnBalance);
                 transaction.setTranStatus(tranStatus);
                 transaction.setFinalBalance(balanceAfterTranx);
                 transaction.setRetailerId(((RetailerPostpaidAmount) wallet).getRetailerId().getRetailerId());
                 transaction.setOperatorName(dto.getOperatorName());
                 transaction.setSubProductName(dto.getSubProductCode());
-                transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());  // new
+                transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());
                 transaction.setLatitude(dto.getLatitude());
                 transaction.setLongitude(dto.getLongitude());
                 transaction.setVendorName(dto.getVendorName());
@@ -1923,12 +1906,18 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
                 retailerPostpaidTransactionDetailsRepository.save(transaction);
                 log.info("Postpaid transaction saved successfully | TranxId: {}", tranxId);
+
             } else {
                 log.warn("Unsupported wallet type detected: {}", wallet.getClass().getSimpleName());
             }
 
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+
+            // DB-level duplicate protection (race condition safe)
+            log.warn("Duplicate transaction skipped (DB constraint) | TranxId: {}", tranxId);
+
         } catch (Exception e) {
-            log.error(" Failed to insert transaction | TranxId: {} | Error: {}", tranxId, e.getMessage(), e);
+            log.error("Failed to insert transaction | TranxId: {} | Error: {}", tranxId, e.getMessage(), e);
             throw e;
         }
 
@@ -2157,67 +2146,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         log.info("=== [mirrorTransactionToAdminOrWhitelabel] END ===");
     }
 
-//    private void creditGstToAdminOrWhitelabel(String sourceHierarchyId, String walletType, BigDecimal gstAmount,
-//                                              String baseTransactionId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
-//
-//        log.info("=== [GST CREDIT INITIATED] ===");
-//        log.info("Source Hierarchy ID: {}, Wallet Type: {}, GST Amount: {}, Base Txn ID: {}, Status: {}",
-//                sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus);
-//
-//        String currentId = sourceHierarchyId;
-//
-//        while (true) {
-//            log.info("[GST FLOW] Searching parent for hierarchyId: {}", currentId);
-//            Optional<String> parentOpt = findParentHierarchy(currentId);
-//
-//            if (parentOpt.isEmpty()) {
-//                log.warn("[GST FLOW END] No parent found for hierarchyId: {}. GST credit process terminated.", currentId);
-//                return;
-//            }
-//
-//            String parentId = parentOpt.get();
-//            String parentType = extractHierarchyType(parentId);
-//
-//            log.info("[GST FLOW] Found parent: {} (Type: {}) for current hierarchy: {}", parentId, parentType, currentId);
-//
-//            // Case 1: Whitelabel admin found
-//            if ("WL".equalsIgnoreCase(parentType)) {
-//                Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(parentId);
-//                if (wlOpt.isPresent()) {
-//                    WhiteLabels wl = wlOpt.get();
-//                    log.info("[WL FOUND] WL ID: {}, isAdmin: {}", wl.getWhiteLabelId(), wl.getIsAdmin());
-//
-//                    if (Boolean.TRUE.equals(wl.getIsAdmin())) {
-//                        log.info("[GST CREDIT] Crediting GST to Whitelabel Admin (WL ID: {}) from Source: {}", parentId, sourceHierarchyId);
-//                        creditGstToAdmin(parentId, sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus, request);
-//                        log.info("[GST CREDIT SUCCESS] GST credited to Whitelabel Admin: {}", parentId);
-//                        return;
-//                    } else {
-//                        log.info("[GST FLOW] WL {} is not admin. Moving up hierarchy...", parentId);
-//                    }
-//                } else {
-//                    log.warn("[WL NOT FOUND] WL with ID {} not present in DB. Moving up hierarchy...", parentId);
-//                }
-//            }
-//
-//            // Case 2: Admin or IM found
-//            if ("IM".equalsIgnoreCase(parentType) || "AD".equalsIgnoreCase(parentType)) {
-//                log.info("[GST CREDIT] Crediting GST to {} (ID: {}) from Source: {}", parentType, parentId, sourceHierarchyId);
-//                creditGstToAdmin(parentId, sourceHierarchyId, walletType, gstAmount, baseTransactionId, tranStatus, request);
-//                log.info("[GST CREDIT SUCCESS] GST credited to {} successfully: {}", parentType, parentId);
-//                return;
-//            }
-//
-//            // Continue searching upward
-//            log.info("[GST FLOW] Parent {} is not eligible for GST credit. Moving further up...", parentId);
-//            currentId = parentId;
-//        }
-//    }
-
     private boolean isAdminType(String hierarchyType) {
         return "IM".equalsIgnoreCase(hierarchyType) || "AD".equalsIgnoreCase(hierarchyType);
     }
-
 
     private void creditGstToAdminOrWhitelabel(String sourceHierarchyId, String walletType, BigDecimal gstAmount,
                                               String baseTransactionId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
@@ -2354,9 +2285,6 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 newRequest.setWalletType(walletType);
                 newRequest.setAmount(amount.doubleValue());
                 newRequest.setConfirmAmount(amount.doubleValue());
-
-//                Operators operator = operatorsRepository.findByOperatorName(operatorName)
-//                        .orElseThrow(() -> new RuntimeException("Operator not found: " + operatorName));
 
                 SubProducts subProduct = subProductsRepository.findBySubProductTitle(subProductName)
                         .orElseThrow(() -> new RuntimeException("SubProduct not found: " + subProductName));
@@ -2525,7 +2453,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         // Save wallet changes
         saveWallet(walletType, wallet);
-        // 🔥 CLEANUP OLD SETTLEMENT PENDING ENTRY
+        // CLEANUP OLD SETTLEMENT PENDING ENTRY
         deleteOldSettlementPendingEntry("TXN" + baseTransactionId, walletType);
         return "Transaction Successful";
     }
