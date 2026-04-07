@@ -15,4 +15,6 @@ public interface ProductTransactionLimitRepository extends JpaRepository<Product
 
     Optional<ProductTransactionLimit> findByProductAndSubProduct(Products product, SubProducts subProduct);
 
+    Optional<ProductTransactionLimit> findByProduct_IdAndSubProduct_Id(Short productId, String subProductId);
+
 }

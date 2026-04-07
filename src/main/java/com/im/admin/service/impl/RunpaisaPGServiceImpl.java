@@ -752,7 +752,7 @@ public class RunpaisaPGServiceImpl {
 
     public CommonResponse<String> validateTransaction(PgTransactionRequestDto request) {
 
-        ProductTransactionLimit limit = getLimit(request.getProductId())
+        ProductTransactionLimit limit = getLimit(request.getProductId(), request.getSubProductId())
                 .orElseThrow(() -> new RuntimeException("No transaction limits configured"));
 
         StoredProcedureQuery query = entityManager
@@ -787,9 +787,14 @@ public class RunpaisaPGServiceImpl {
                 : CommonResponse.failure(resultMsg);
     }
 
-    public Optional<ProductTransactionLimit> getLimit(Short productId) {
+//    public Optional<ProductTransactionLimit> getLimit(Short productId) {
+//        return productTransactionLimitRepository
+//                .findByProduct_Id(productId);
+//    }
+
+    public Optional<ProductTransactionLimit> getLimit(Short productId, String subProductId) {
         return productTransactionLimitRepository
-                .findByProduct_Id(productId);
+                .findByProduct_IdAndSubProduct_Id(productId, subProductId);
     }
 
 }
