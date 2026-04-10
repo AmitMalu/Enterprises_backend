@@ -110,7 +110,7 @@ public class DmtBeneficiaryController {
     }
 
     //instantPayDmt
-    @PostMapping("/verifyBeneficiaryOtp")
+    @PostMapping("/verify-otp")
     public ResponseEntity<CommonResponse<Object>> verifyBeneficiaryOtp(
             @RequestBody VerifyBeneOtpRequest req) throws Exception {
 
@@ -123,7 +123,7 @@ public class DmtBeneficiaryController {
     }
 
     //instantPayDmt
-    @PostMapping("/delete/verify")
+    @PostMapping("/delete-verify")
     public ResponseEntity<CommonResponse<Object>> verifyDeleteOtp(
             @RequestBody VerifyDeleteOtpRequest req) throws Exception {
 

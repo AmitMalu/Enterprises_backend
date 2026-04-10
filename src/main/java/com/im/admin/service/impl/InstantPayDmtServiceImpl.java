@@ -137,6 +137,8 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
             String status = (String) resp.get("status");
 
             RemitterTransactionResponse finalRes = new RemitterTransactionResponse();
+            String ipay_uuid = (String) resp.get("ipay_uuid");
+            finalRes.setIpay_uuid(ipay_uuid);
 
             // =========================
             //  SUCCESS
@@ -183,6 +185,7 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
                 finalRes.setTxn_status(0);
             }
 
+
             return finalRes;
 
         } catch (HttpStatusCodeException e) {
@@ -204,7 +207,7 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
                     null, null, null, null, null,
                     "Vendor Error",
                     null, null, null, null, null, null, null,
-                    null, null, null
+                    null, null, null,null
             );
 
         } catch (Exception e) {
@@ -224,7 +227,7 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
                     null, null, null, null, null,
                     "Unknown Exception",
                     null, null, null, null, null, null, null,
-                    null, null, null
+                    null, null, null,null
             );
         }
     }
@@ -442,7 +445,7 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
                         bank.setBankName((String) bankMap.get("name"));
 
                         //  ifscAlias (SHORT CODE)
-                        bank.setIfscCode((String) bankMap.get("ifscAlias"));
+                        bank.setIfscCode((String) bankMap.get("ifscGlobal"));
 
                         bankList.add(bank);
                     }
@@ -684,7 +687,7 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
                     : null;
 
             finalRes.setStatus(true);
-            finalRes.setResponse_code(2); // OTP SENT
+            finalRes.setResponse_code(2); // OTP SENT  //3 amaaan
             finalRes.setMessage(status);
 
             RemitterRegisterResponse.DataObj dataObj =
@@ -748,15 +751,15 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
 
         bio.put("ci", request.getBiometricData().getCi());
         bio.put("hmac", request.getBiometricData().getHmac());
-        bio.put("pidData", request.getBiometricData().getPidData());
+        bio.put("pidData", request.getBiometricData().getPiddata());
         bio.put("ts", request.getBiometricData().getTs());
         bio.put("dc", request.getBiometricData().getDc());
         bio.put("mi", request.getBiometricData().getMi());
-        bio.put("dpId", request.getBiometricData().getDpId());
+        bio.put("dpId", request.getBiometricData().getDpID());
         bio.put("mc", request.getBiometricData().getMc());
-        bio.put("rdsId", request.getBiometricData().getRdsId());
+        bio.put("rdsId", request.getBiometricData().getRdsID());
         bio.put("rdsVer", request.getBiometricData().getRdsVer());
-        bio.put("Skey", request.getBiometricData().getSkey());
+        bio.put("Skey", request.getBiometricData().getSessionKey());
         bio.put("srno", request.getBiometricData().getSrno());
 
         body.put("biometricData", bio);
@@ -1045,7 +1048,7 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
 
         // CORRECT BODY
         Map<String, Object> body = new HashMap<>();
-        body.put("remitterMobileNumber", req.getMobile());
+        body.put("remitterMobileNumber", req.getRemitterMobile());
         body.put("otp", req.getOtp());
         body.put("referenceKey", req.getReferenceKey());
         body.put("beneficiaryId", req.getBeneId());
@@ -1089,7 +1092,7 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
         //  BODY
         Map<String, Object> body = new HashMap<>();
         body.put("remitterMobileNumber", req.getMobile());
-        body.put("beneficiaryId", req.getBeneId());
+        body.put("beneficiaryId", req.getBene_id());
         body.put("otp", req.getOtp());
         body.put("referenceKey", req.getReferenceKey());
 

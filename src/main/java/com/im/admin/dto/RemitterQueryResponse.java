@@ -8,6 +8,7 @@ public class RemitterQueryResponse {
     private int response_code;
     private String message;
     private DataObj data;
+    private String vendor_flow;
 
     @Data
     public static class DataObj {

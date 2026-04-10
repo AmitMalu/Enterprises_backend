@@ -27,6 +27,7 @@ public class RemitterTransactionResponse {
     private String txn_amount;
     private Double balance;
     private String referenceid;
+    private String ipay_uuid;
 
 //    // Optional custom constructor
 //    public RemitterTransactionResponse(boolean status, String message, String ackno) {

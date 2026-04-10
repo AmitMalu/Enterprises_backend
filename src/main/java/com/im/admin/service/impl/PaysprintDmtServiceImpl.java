@@ -13,6 +13,7 @@ import com.im.admin.repositories.DmtBankListRepository;
 import com.im.admin.request.*;
 import com.im.admin.response.*;
 import com.im.admin.service.DmtVendorService;
+import com.im.admin.service.NetworkBankService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,8 +54,14 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
     @Autowired
     private RestTemplate restTemplate;
 
+//    @Autowired
+//    private BankService bankService;
+
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private NetworkBankService bankService;
 
     @Autowired
     private CommonFunctions commonFunctions;
@@ -183,6 +190,8 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
                     PaysprintSendOtpResponse.class
             );
 
+            PaysprintSendOtpResponse resp = response.getBody();
+
             String responseJson = objectMapper.writeValueAsString(response.getBody());
 
             commonFunctions.saveVendorLogs(
@@ -194,7 +203,18 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
                     null
             );
 
-            return response.getBody();
+          //old
+//            return response.getBody();
+            //new
+            if (resp != null) {
+
+                if (resp.isStatus()) {
+                    resp.setResponse_code(1);   //  Paysprint SUCCESS
+                } else {
+                    resp.setResponse_code(0);   //  FAILURE
+                }
+            }
+            return resp;
 
         }
         catch (HttpStatusCodeException e) {
@@ -337,7 +357,7 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
                         null, null, null, null, null,
                         "Vendor error parse failed",
                         null, null, null, null, null, null, null,
-                        null, null, null
+                        null, null, null,null
                 );
             }
 
@@ -360,7 +380,7 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
                     null, null, null, null, null,
                     "Unknown exception",
                     null, null, null, null, null, null, null,
-                    null, null, null
+                    null, null, null,null
             );
         }
     }
@@ -415,9 +435,31 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
         return timestamp;
     }
 
+
+
     @Override
-    public List<DmtBankList> getdmtbanklist(DmtBankListRequest request,VendorCredentials credentials) {
-        return dmtBankListRepository.findAll();
+    public List<DmtBankList> getdmtbanklist(DmtBankListRequest request,
+                                            VendorCredentials credentials) {
+
+        // Call your existing service
+        List<NetworkBankMasterResponseDto> networkBanks =
+                bankService.getAllNetworkBanks();
+
+        // Convert to DmtBankList
+        return networkBanks.stream()
+                .map(bank -> {
+                    DmtBankList dmtBank = new DmtBankList();
+
+                    dmtBank.setBankId(
+                            bank.getBankId() != null
+                                    ? Integer.valueOf(bank.getBankId())
+                                    : null
+                    );                    dmtBank.setBankName(bank.getBankName());
+                    dmtBank.setIfscCode(bank.getIfscCode());
+
+                    return dmtBank;
+                })
+                .toList();
     }
 
     @Override
@@ -531,8 +573,25 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
                         entity,
                         BeneficiaryRegisterResponse.class
                 );
+        //old
+//        return response.getBody();
 
-        return response.getBody();
+        // new
+        BeneficiaryRegisterResponse resp = response.getBody();
+
+        if (resp == null) {
+            throw new RuntimeException("Empty response from Paysprint");
+        }
+
+        //  STANDARDIZE RESPONSE
+        if (resp != null && resp.isStatus()) {
+            resp.setResponse_code(1);  // success
+        } else {
+            resp.setResponse_code(0);  // failure
+        }
+
+        return resp;
+
     }
 
     @Override
@@ -561,7 +620,22 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
                         DmtBeneficiaryDeleteResponse.class
                 );
 
-        return response.getBody();
+        DmtBeneficiaryDeleteResponse resp = response.getBody();
+
+        //  IMPORTANT FIX (SET RESPONSE CODE)
+        //  //new.
+        if (resp != null) {
+
+            if (resp.isStatus()) {
+                resp.setResponse_code(1);   // SUCCESS
+            } else {
+                resp.setResponse_code(0);   // FAILURE
+            }
+        }
+
+        return resp;
+        //old
+//        return response.getBody();
     }
 
 

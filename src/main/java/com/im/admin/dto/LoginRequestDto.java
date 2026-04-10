@@ -20,4 +20,11 @@ public class LoginRequestDto {
     private String salt;
     private String iv;
 
+    //for MobileApp
+    private String mpin;
+    private String oldMpin;
+    private String newMpin;
+    private String deviceId;
+    private String confirmMpin;
+
 }

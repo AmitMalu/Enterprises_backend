@@ -16,6 +16,7 @@ import com.im.admin.service.impl.PaysprintDmtServiceImpl;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.DmtVendorFactory;
+import com.im.admin.util.TokenUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +59,9 @@ public class DmtOrchestrator {
 
     @Autowired
     private CommonMethods commonMethods;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Autowired
     private DmtVendorFactory vendorFactory;
@@ -199,13 +203,110 @@ public class DmtOrchestrator {
 
 
 
+//    public CommonResponse<PaysprintSendOtpResponse> sendDmtOtp(SendDmtRequest req) {
+//
+//        try {
+//
+//            VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+//
+//            // Priority vendors
+//            List<Vendors> vendors = List.of(
+//                    routing.getRoutingPriority1(),
+//                    routing.getRoutingPriority2(),
+//                    routing.getRoutingPriority3()
+//            );
+//
+//            Vendors selectedVendor = null;
+//            VendorCredentials credentials = null;
+//            DmtVendorService vendorService = null;
+//
+//            //  LOOP → check limit + pick vendor
+//            for (Vendors v : vendors) {
+//
+//                boolean allowed = checkVendorLimit(
+//                        req.getMobile(),
+//                        v.getVendorName(),   // IMPORTANT mapping
+//                        req.getAmount()
+//                );
+//
+//                if (allowed) {
+//                    selectedVendor = v;
+//
+//                    credentials = vendorCredentialsRepository
+//                            .findByVendorIdAndProductId(v.getId(), v.getProduct().getId())
+//                            .orElseThrow(() -> new RuntimeException("Vendor credentials not found"));
+//
+//                    vendorService = vendorFactory.getVendor(v.getVendorName());
+//
+//                    break;
+//                }
+//            }
+//
+//            // All vendors exhausted
+//            if (selectedVendor == null) {
+//                return CommonResponse.error(400, "All vendors monthly limit exceeded (25K)");
+//            }
+//
+//            //  Fetch beneficiary
+//            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(
+//                    (req.getBeneId())
+//            );
+//
+//            if (beneficiary == null) {
+//                return CommonResponse.error(400, "Beneficiary not found");
+//            }
+//
+//            //  Fetch retailer
+//            Retailer retailer = retailerRepository.findByRetailerId(req.getRetailerId())
+//                    .orElseThrow(() -> new RuntimeException("Retailer not found"));
+//
+//            //  Set data
+//            req.setDob(beneficiary.getDob());
+//            req.setAddress(beneficiary.getAddress());
+//            req.setPincode(beneficiary.getPincode());
+//            req.setGstState(beneficiary.getGst_state());
+//
+//            req.setLat(retailer.getLatitude());
+//            req.setLng(retailer.getLongitude());
+//
+//            //Generate referenceId
+//            String refId = generateReferenceId();
+//            req.setReferenceId(refId);
+//
+//            // CALL SELECTED VENDOR
+//            PaysprintSendOtpResponse otpResponse = vendorService.sendOtp(req, credentials);
+//
+//           //### imp
+//          // SAVE SELECTED VENDOR IN BENEFICIARY (VERY IMPORTANT)
+//            beneficiary.setVendor(selectedVendor);
+//            beneficiary.setUpdatedAt(LocalDateTime.now());
+//
+//            beneficiaryRepository.save(beneficiary);
+//            //### imp
+//
+//
+//            otpResponse.setReferenceId(refId);
+//
+//            return CommonResponse.success(otpResponse, otpResponse.getMessage());
+//
+//        } catch (Exception ex) {
+//
+//            log.error("[DMT SEND OTP] Exception | mobile={}, beneId={}",
+//                    req.getMobile(),
+//                    req.getBeneId(),
+//                    ex
+//            );
+//
+//            return CommonResponse.error(400, ex.getMessage());
+//        }
+//    }
+
     public CommonResponse<PaysprintSendOtpResponse> sendDmtOtp(SendDmtRequest req) {
 
         try {
 
             VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
 
-            // Priority vendors
             List<Vendors> vendors = List.of(
                     routing.getRoutingPriority1(),
                     routing.getRoutingPriority2(),
@@ -216,12 +317,12 @@ public class DmtOrchestrator {
             VendorCredentials credentials = null;
             DmtVendorService vendorService = null;
 
-            //  LOOP → check limit + pick vendor
+            // ===== VENDOR SELECTION =====
             for (Vendors v : vendors) {
 
                 boolean allowed = checkVendorLimit(
                         req.getMobile(),
-                        v.getVendorName(),   // IMPORTANT mapping
+                        v.getVendorName(),
                         req.getAmount()
                 );
 
@@ -234,29 +335,52 @@ public class DmtOrchestrator {
 
                     vendorService = vendorFactory.getVendor(v.getVendorName());
 
+                    // ==========================================
+                    //  IMPORTANT: IF INSTANTPAY → GET REF KEY
+                    // ==========================================
+                    if ("InstantPay DMT".equalsIgnoreCase(v.getVendorName())) {
+
+                        RemitterQueryRequest remReq = new RemitterQueryRequest();
+                        remReq.setMobile(req.getMobile());
+                        remReq.setSubProductId(req.getSubProductId());
+                        remReq.setRetailerId(req.getRetailerId());
+
+                        CommonResponse<RemitterQueryResponse> remRes = checkRemitter(remReq);
+
+                        if (remRes != null &&
+                                remRes.getData() != null &&
+                                remRes.getData().getData() != null) {
+
+                            String referenceKey =
+                                    remRes.getData().getData().getReferenceKey();
+
+                            if (referenceKey != null) {
+                                req.setReferenceKey(referenceKey);
+                            }
+                        }
+                    }
+
                     break;
                 }
             }
 
-            // All vendors exhausted
+            // ===== NO VENDOR =====
             if (selectedVendor == null) {
                 return CommonResponse.error(400, "All vendors monthly limit exceeded (25K)");
             }
 
-            //  Fetch beneficiary
-            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(
-                    (req.getBeneId())
-            );
+            // ===== FETCH BENEFICIARY =====
+            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(req.getBeneId());
 
             if (beneficiary == null) {
                 return CommonResponse.error(400, "Beneficiary not found");
             }
 
-            //  Fetch retailer
+            // ===== FETCH RETAILER =====
             Retailer retailer = retailerRepository.findByRetailerId(req.getRetailerId())
                     .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
-            //  Set data
+            // ===== SET DATA =====
             req.setDob(beneficiary.getDob());
             req.setAddress(beneficiary.getAddress());
             req.setPincode(beneficiary.getPincode());
@@ -265,21 +389,50 @@ public class DmtOrchestrator {
             req.setLat(retailer.getLatitude());
             req.setLng(retailer.getLongitude());
 
-            //Generate referenceId
+            // ===== GENERATE REF ID =====
             String refId = generateReferenceId();
             req.setReferenceId(refId);
 
-            // CALL SELECTED VENDOR
-            PaysprintSendOtpResponse otpResponse = vendorService.sendOtp(req, credentials);
+            // ================================
+            // FIRST ATTEMPT
+            // ================================
+            PaysprintSendOtpResponse otpResponse =
+                    vendorService.sendOtp(req, credentials);
 
-           //### imp
-          // SAVE SELECTED VENDOR IN BENEFICIARY (VERY IMPORTANT)
+            // ================================
+            // HANDLE INVALID REF KEY
+            // ================================
+            if (otpResponse != null &&
+                    otpResponse.getMessage() != null &&
+                    otpResponse.getMessage().equalsIgnoreCase("Invalid or expired referenceKey")) {
+
+                RemitterQueryRequest remReq = new RemitterQueryRequest();
+                remReq.setMobile(req.getMobile());
+                remReq.setSubProductId(req.getSubProductId());
+
+                CommonResponse<RemitterQueryResponse> remRes = checkRemitter(remReq);
+
+                String newReferenceKey = null;
+
+                if (remRes != null &&
+                        remRes.getData() != null &&
+                        remRes.getData().getData() != null) {
+
+                    newReferenceKey = remRes.getData().getData().getReferenceKey();
+                }
+
+                if (newReferenceKey != null) {
+                    req.setReferenceKey(newReferenceKey);
+
+                    //  RETRY
+                    otpResponse = vendorService.sendOtp(req, credentials);
+                }
+            }
+
+            // ===== SAVE SELECTED VENDOR =====
             beneficiary.setVendor(selectedVendor);
             beneficiary.setUpdatedAt(LocalDateTime.now());
-
             beneficiaryRepository.save(beneficiary);
-            //### imp
-
 
             otpResponse.setReferenceId(refId);
 
@@ -435,6 +588,7 @@ public class DmtOrchestrator {
             req.setPincode(beneficiary.getPincode());
             req.setGstState(beneficiary.getGst_state());
             req.setAccountNumber(beneficiary.getAccountNo());
+            req.setIfscCode(afterbeneficiary.getIfscCode());
 
             //  Set retailer lat/long into req
             req.setLat(retailer.getLatitude());
@@ -540,6 +694,7 @@ public class DmtOrchestrator {
                     .beneficiaryName(remitterTransactionResponse.getBenename())
                     .remarks(remitterTransactionResponse.getRemarks())
                     .utr(remitterTransactionResponse.getUtr())
+                    .ipay_uuid(remitterTransactionResponse.getIpay_uuid())
                     .referenceId(remitterTransactionResponse.getReferenceid() != null
                             ? String.valueOf(remitterTransactionResponse.getReferenceid())
                             : null)
@@ -764,6 +919,9 @@ public class DmtOrchestrator {
 
         try {
 
+//            String hierarchyId = tokenUtil.extractHierarchyId();
+//            request.setRetailerId(hierarchyId);
+
             // ===== STEP 1 Vendor Routing =====
             VendorRouting vendorRouting =
                     vendorRoutingRepository.findBySubProductId(request.getSubProductId());
@@ -781,32 +939,48 @@ public class DmtOrchestrator {
                                     new RuntimeException("No credentials found for selected vendor"));
 
             // ===== STEP 2 LOCAL DB CHECK =====
+//            Optional<DmtRemitter> exist =
+//                    remitterRepository.findByMobile(request.getMobile());
+
+
             Optional<DmtRemitter> exist =
-                    remitterRepository.findByMobile(request.getMobile());
+                    remitterRepository.findByMobileAndVendor(request.getMobile(), vendor);
 
-            if (exist.isPresent() &&
-                    "REGISTERED".equals(exist.get().getStatus())) {
+// ✅ ONLY for PAYSPRINT → use DB shortcut
+            if (!"InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
 
-                DmtRemitter remitter = exist.get();
+                if (exist.isPresent() &&
+                        "REGISTERED".equals(exist.get().getStatus())) {
 
-                RemitterQueryResponse res = new RemitterQueryResponse();
-                res.setStatus(true);
-                res.setResponse_code(1);
-                res.setMessage("Remitter account details fetched.!");
+                    DmtRemitter remitter = exist.get();
 
-                RemitterQueryResponse.DataObj data =
-                        new RemitterQueryResponse.DataObj();
+                    RemitterQueryResponse res = new RemitterQueryResponse();
+                    res.setStatus(true);
+                    res.setResponse_code(1);
+                    res.setMessage("Remitter account details fetched.!");
 
-                data.setMobile(remitter.getMobile());
-                data.setLimit(remitter.getLimitAmount() != null
-                        ? remitter.getLimitAmount() : 0.00);
+                    RemitterQueryResponse.DataObj data =
+                            new RemitterQueryResponse.DataObj();
 
-                res.setData(data);
+                    data.setMobile(remitter.getMobile());
 
-                return CommonResponse.success(
-                        res,
-                        "Remitter already registered and active"
-                );
+                    double totalLimit = remitter.getLimitAmount() != null
+                            ? remitter.getLimitAmount()
+                            : 25000.0;
+
+                    double usedLimit = remitter.getUsedLimitForVendor(vendor.getVendorName());
+
+                    double availableLimit = totalLimit - usedLimit;
+
+                    data.setLimit(availableLimit);
+
+                    res.setData(data);
+
+                    return CommonResponse.success(
+                            res,
+                            "Remitter already registered and active"
+                    );
+                }
             }
 
             // ===== STEP 3 CALL VENDOR SERVICE =====
@@ -817,8 +991,12 @@ public class DmtOrchestrator {
             DmtVendorService vendorService =
                     vendorFactory.getVendor(vendor.getVendorName());
 
-            RemitterQueryResponse res =
-                    vendorService.checkRemitter(request, credentials);
+                RemitterQueryResponse res =
+                        vendorService.checkRemitter(request, credentials);
+
+            res.setVendor_flow(vendor.getVendorName());
+
+
 
             responseJson = objectMapper.writeValueAsString(res);
 
@@ -915,6 +1093,7 @@ public class DmtOrchestrator {
         if (existing.isPresent()) {
             // Already exists → just update status
             DmtRemitter rem = existing.get();
+            rem.setLimitAmount(res.getData().getLimit());
             rem.setStatus("REGISTERED");
 
             if (res.getData().getReferenceKey() != null) {
@@ -945,6 +1124,60 @@ public class DmtOrchestrator {
 
         remitterRepository.save(en);
     }
+
+    // new
+//private void saveRemitter(RemitterQueryResponse res, Vendors vendor) {
+//
+//    String mobile = res.getData().getMobile();
+//
+//    Optional<DmtRemitter> existing =
+//            remitterRepository.findByMobile(mobile);
+//
+//    if (existing.isPresent()) {
+//
+//        DmtRemitter rem = existing.get();
+//
+//        //  DO NOT override limit if already present
+//        if (rem.getLimitAmount() == null) {
+//            rem.setLimitAmount(25000.0); // default limit
+//        }
+//
+//        // ✅ Update status
+//        rem.setStatus("REGISTERED");
+//
+//        // ✅ Update referenceKey if present
+//        if (res.getData().getReferenceKey() != null) {
+//            rem.setReferenceKey(res.getData().getReferenceKey());
+//        }
+//
+//        rem.setUpdatedAt(LocalDateTime.now());
+//
+//        remitterRepository.save(rem);
+//        return;
+//    }
+//
+//    // ===== NEW ENTRY =====
+//    DmtRemitter en = new DmtRemitter();
+//
+//    en.setMobile(mobile);
+//    en.setStatus("REGISTERED");
+//    en.setCreatedAt(LocalDateTime.now());
+//
+//    // ✅ FIXED LIMIT (NO VENDOR DEPENDENCY)
+//    en.setLimitAmount(25000.0);
+//
+//    // ✅ Reference Key
+//    if (res.getData().getReferenceKey() != null) {
+//        en.setReferenceKey(res.getData().getReferenceKey());
+//    }
+//
+//    // ✅ Initialize vendor limits
+//    en.setVendor1UsedLimit(0.0);
+//    en.setVendor2UsedLimit(0.0);
+//    en.setVendor3UsedLimit(0.0);
+//
+//    remitterRepository.save(en);
+//}
 
     private void saveRemitterForRNF(String mobile,
                                     RemitterQueryResponse res,
@@ -1088,6 +1321,9 @@ public class DmtOrchestrator {
     public CommonResponse<RemitterRegisterResponse> registerRemitter(
             RemitterRegisterRequest req) {
 
+        String hierarchyId = tokenUtil.extractHierarchyId();
+        req.setRetailerId(hierarchyId);
+
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = null;
         String responseJson = null;
@@ -1140,12 +1376,13 @@ public class DmtOrchestrator {
                         .orElse(new DmtRemitter());
 
                 rem.setMobile(req.getMobile());
-//                rem.setVendor(vendor);
+                rem.setVendor(vendor);
 
                 //  DIFFERENT LOGIC
                 if ("InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
 
                     rem.setStatus("PENDING");   // OTP sent only
+//                    rem.setVendor(vendor);  //new
 
                     // IMPORTANT: store otpReference
                     if (resp.getData() != null) {
@@ -1288,6 +1525,65 @@ public class DmtOrchestrator {
 //        }
 //    }
 
+    public CommonResponse<Object> validateOtp(RemitterEkycRequest request) {
+
+        try {
+
+            String hierarchyId = tokenUtil.extractHierarchyId();
+            request.setRetailerId(hierarchyId);
+
+            VendorRouting routing =
+                    vendorRoutingRepository.findBySubProductId(request.getSubProductId());
+
+            Vendors vendor = CommonMethods.getVendors(routing);
+
+            if (!"InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
+                return CommonResponse.error(400, "OTP validation only for InstantPay");
+            }
+
+            VendorCredentials credentials =
+                    vendorCredentialsRepository
+                            .findByVendorIdAndProductId(
+                                    vendor.getId(),
+                                    vendor.getProduct().getId())
+                            .orElseThrow(() -> new RuntimeException("No credentials found"));
+
+            DmtVendorService vendorService =
+                    vendorFactory.getVendor(vendor.getVendorName());
+
+            // CALL VERIFY OTP ONLY
+            RemitterRegisterResponse otpRes =
+                    vendorService.verifyRemitterOtp(request, credentials);
+
+            if (otpRes == null || otpRes.getResponse_code() != 1) {
+                return CommonResponse.error(
+                        400,
+                        "OTP Verification Failed: " +
+                                (otpRes != null ? otpRes.getMessage() : "No response")
+                );
+            }
+
+            // UPDATE DB STATUS → OTP VERIFIED (optional step)
+            Optional<DmtRemitter> optional =
+                    remitterRepository.findByMobile(request.getMobile());
+
+            if (optional.isPresent()) {
+                DmtRemitter rem = optional.get();
+
+                rem.setStatus("OTP_VERIFIED"); // optional intermediate state
+                rem.setUpdatedAt(LocalDateTime.now());
+                rem.setVendor(vendor);
+
+                remitterRepository.save(rem);
+            }
+
+            return CommonResponse.success(null, "OTP Verified Successfully");
+
+        } catch (Exception ex) {
+            return CommonResponse.error(500, ex.getMessage());
+        }
+    }
+
     public CommonResponse<Object> doEkyc(RemitterEkycRequest request) {
 
         LocalDateTime requestTime = LocalDateTime.now();
@@ -1296,6 +1592,9 @@ public class DmtOrchestrator {
         String vendorId = null;
 
         try {
+
+            String hierarchyId = tokenUtil.extractHierarchyId();
+            request.setRetailerId(hierarchyId);
 
             // STEP 1: Vendor Routing
             VendorRouting vendorRouting =
@@ -1321,20 +1620,20 @@ public class DmtOrchestrator {
 
             //  INSTANTPAY → VERIFY OTP FIRST
 
-            if ("InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
-
-                RemitterRegisterResponse otpRes =
-                        vendorService.verifyRemitterOtp(request, credentials);
-
-                if (otpRes == null || otpRes.getResponse_code() != 1) {
-
-                    return CommonResponse.error(
-                            400,
-                            "OTP Verification Failed: " +
-                                    (otpRes != null ? otpRes.getMessage() : "No response")
-                    );
-                }
-            }
+//            if ("InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
+//
+//                RemitterRegisterResponse otpRes =
+//                        vendorService.verifyRemitterOtp(request, credentials);
+//
+//                if (otpRes == null || otpRes.getResponse_code() != 1) {
+//
+//                    return CommonResponse.error(
+//                            400,
+//                            "OTP Verification Failed: " +
+//                                    (otpRes != null ? otpRes.getMessage() : "No response")
+//                    );
+//                }
+//            }
 
             // ==========================================
             // STEP 3: CALL EKYC (COMMON)
@@ -1385,7 +1684,7 @@ public class DmtOrchestrator {
                     rem.setStatus("PENDING");   // Paysprint logic
                     rem.setCreatedAt(LocalDateTime.now());
                     rem.setName(request.getName());
-//                    rem.setVendor(vendor);
+                    rem.setVendor(vendor);
                     rem.setAadhaar(request.getAadhaarNumber());
 
                     remitterRepository.save(rem);
@@ -1406,6 +1705,7 @@ public class DmtOrchestrator {
 
                         rem.setStatus("REGISTERED");   //FINAL SUCCESS
                         rem.setUpdatedAt(LocalDateTime.now());
+                        rem.setVendor(vendor);
 
                         remitterRepository.save(rem);
                     }
@@ -1441,6 +1741,10 @@ public class DmtOrchestrator {
         String vendorId = null;
 
         try {
+
+            String hierarchyId = tokenUtil.extractHierarchyId();
+            req.setRetailerId(hierarchyId);
+
 
             // STEP 1 Vendor Routing
             VendorRouting vendorRouting =
@@ -1570,83 +1874,64 @@ public class DmtOrchestrator {
 
             //  dmt instant flow DB SAVE (BOTH FLOWS)
 
-            if (resp != null && (resp.getResponse_code() == 1 || resp.getResponse_code() == 2)) {
+            // ===============================
+// SAVE LOGIC (CLEAN & CORRECT)
+// ===============================
+            if (resp != null) {
 
-//                DmtRemitter remitter = remitterRepository
-//                        .findByMobile(req.getMobile())
-//                        .orElseThrow(() -> new RuntimeException("Remitter not found"));
+                // ==========================================
+                // CASE 1: SUCCESS (Paysprint OR InstantPay TXN)
+                // ==========================================
+                if (resp.getResponse_code() == 1) {
 
-                String beneId = resp.getData() != null
-                        ? resp.getData().getBene_id()
-                        : null;
+                    String beneId = resp.getData() != null
+                            ? resp.getData().getBene_id()
+                            : null;
 
-                Optional<DmtBeneficiary> existing =
-                        beneficiaryRepository.findByRemitterAndBeneId(remitter, beneId);
+                    Optional<DmtBeneficiary> existing =
+                            beneficiaryRepository.findByRemitterAndBeneId(remitter, beneId);
 
-                DmtBeneficiary bene;
+                    DmtBeneficiary bene;
 
-                if (existing.isPresent()) {
+                    if (existing.isPresent()) {
 
-                    bene = existing.get();
+                        bene = existing.get();
 
-                    // ===============================
-                    // BLOCK if already REGISTERED
-                    // ===============================
-                    if ("REGISTERED".equalsIgnoreCase(bene.getStatus())) {
-                        return CommonResponse.success(resp, "Beneficiary already exists");
-                    }
-
-                    // ===============================
-                    // IF PENDING → UPDATE SAME RECORD
-                    // ===============================
-                    // (Do NOT create new object)
-
-                } else {
-
-                    // ===============================
-                    // NEW ENTRY
-                    // ===============================
-                    bene = new DmtBeneficiary();
-
-                    bene.setRemitter(remitter);
-                    bene.setVendor(vendor);
-                    bene.setBeneId(beneId);
-                }
-
-                // ===============================
-                // COMMON FIELD UPDATE
-                // ===============================
-                bene.setName(req.getBenename());
-                bene.setBankId(req.getBankid());
-                bene.setBankName(req.getBankName());
-                bene.setAccountNo(req.getAccno());
-                bene.setIfscCode(req.getIfsccode());
-
-                // ===============================
-                // INSTANTPAY
-                // ===============================
-                if ("InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
-
-                    if (resp.getResponse_code() == 2) {
-                        bene.setStatus("PENDING");
-
-                        if (resp.getData() != null) {
-                            bene.setReferenceKey(resp.getData().getReferenceKey());
+                        // BLOCK if already registered
+                        if ("REGISTERED".equalsIgnoreCase(bene.getStatus())) {
+                            return CommonResponse.success(resp, "Beneficiary already exists");
                         }
 
                     } else {
-                        bene.setStatus("REGISTERED");
+
+                        bene = new DmtBeneficiary();
+                        bene.setRemitter(remitter);
+                        bene.setVendor(vendor);
+                        bene.setBeneId(beneId);
                     }
-                }
 
-                // ===============================
-                // PAYSPRINT
-                // ===============================
-                else {
+                    // COMMON FIELDS
+                    bene.setName(req.getBenename());
+                    bene.setBankId(req.getBankid());
+                    bene.setBankName(req.getBankName());
+                    bene.setAccountNo(req.getAccno());
+                    bene.setIfscCode(req.getIfsccode());
+
+                    // FINAL STATUS
                     bene.setStatus("REGISTERED");
+
+                    beneficiaryRepository.save(bene);
                 }
 
-                beneficiaryRepository.save(bene);
+                // ==========================================
+                // CASE 2: INSTANTPAY OTP (DO NOTHING)
+                // ==========================================
+                else if (resp.getResponse_code() == 2) {
+
+                    //  DO NOT INSERT
+                    // Only return response
+                    return CommonResponse.success(resp, resp.getMessage());
+                }
             }
 
             return CommonResponse.success(resp, resp.getMessage());
@@ -1675,6 +1960,9 @@ public class DmtOrchestrator {
         String vendorId = null;
 
         try {
+
+            String hierarchyId = tokenUtil.extractHierarchyId();
+            req.setRetailerId(hierarchyId);
 
             // STEP 1 Vendor Routing
             VendorRouting vendorRouting =
@@ -1729,23 +2017,37 @@ public class DmtOrchestrator {
                 // SUCCESS → delete from DB
                 if (vendorResponse.getResponse_code() == 1) {
 
-                    DmtBeneficiary bene =
-                            beneficiaryRepository.findByBeneId(req.getBene_id());
+//                    DmtBeneficiary bene =
+//                            beneficiaryRepository.findByBeneId(req.getBene_id());
 
-                    if (bene != null) {
-                        beneficiaryRepository.delete(bene);
+                    Optional<DmtBeneficiary> optionalBene =
+                            beneficiaryRepository.findByBeneIdAndRemitter_Mobile(
+                                    req.getBene_id(),
+                                    req.getMobile()
+                            );
+
+                    if (optionalBene.isPresent()) {
+                        beneficiaryRepository.delete(optionalBene.get());
                     }
                 }
 
                 // OTP CASE → store referenceKey
                 else if (vendorResponse.getResponse_code() == 2) {
 
-                    DmtBeneficiary bene =
-                            beneficiaryRepository.findByBeneId(req.getBene_id());
+                    Optional<DmtBeneficiary> optionalBene =
+                            beneficiaryRepository.findByBeneIdAndRemitter_Mobile(
+                                    req.getBene_id(),
+                                    req.getMobile()
+                            );
 
-                    if (bene != null) {
+                    if (optionalBene.isPresent()) {
+
+                        DmtBeneficiary bene = optionalBene.get();
+
                         bene.setReferenceKey(vendorResponse.getReferenceKey());
                         bene.setStatus("DELETE_PENDING");
+                        bene.setUpdatedAt(LocalDateTime.now());
+
                         beneficiaryRepository.save(bene);
                     }
                 }
@@ -2048,16 +2350,17 @@ public class DmtOrchestrator {
         }
     }
 
-    public CommonResponse<Object> verifyBeneficiaryOtp(VerifyBeneOtpRequest req) throws Exception{
+    public CommonResponse<Object> verifyBeneficiaryOtp(VerifyBeneOtpRequest req) throws Exception {
         try {
 
-            DmtBeneficiary bene = beneficiaryRepository.findByBeneId(req.getBeneId());
+            String hierarchyId = tokenUtil.extractHierarchyId();
+            req.setRetailerId(hierarchyId);
 
-            if (bene == null) {
-                throw new RuntimeException("Beneficiary not found");
-            }
+            // ===== GET VENDOR =====
+            VendorRouting vendorRouting =
+                    vendorRoutingRepository.findBySubProductId(req.getSubProductId());
 
-            Vendors vendor = bene.getVendor();
+            Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
             VendorCredentials credentials =
                     vendorCredentialsRepository
@@ -2069,13 +2372,52 @@ public class DmtOrchestrator {
             DmtVendorService vendorService =
                     vendorFactory.getVendor(vendor.getVendorName());
 
+            // ===== CALL VENDOR =====
             Map resp = vendorService.verifyBeneficiaryOtp(req, credentials);
 
             String statusCode = (String) resp.get("statuscode");
 
-            //  SUCCESS
+            // ===== SUCCESS =====
             if ("TXN".equalsIgnoreCase(statusCode)) {
 
+                // ===== FETCH REMITTER =====
+                DmtRemitter remitter = remitterRepository
+                        .findByMobile(req.getRemitterMobile())
+                        .orElseThrow(() -> new RuntimeException("Remitter not found"));
+
+                // ===== CHECK EXISTING =====
+                Optional<DmtBeneficiary> existing =
+                        beneficiaryRepository.findByRemitterAndBeneId(remitter, req.getBeneId());
+
+                DmtBeneficiary bene;
+
+                if (existing.isPresent()) {
+                    bene = existing.get();
+                } else {
+                    // ✅ INSERT ONLY AFTER OTP SUCCESS
+                    bene = new DmtBeneficiary();
+                    bene.setRemitter(remitter);
+                    bene.setVendor(vendor);
+                    bene.setBeneId(req.getBeneId());
+                    bene.setCreatedAt(LocalDateTime.now()); // optional
+                }
+
+                // ===== SET ALL FIELDS (IMPORTANT) =====
+                bene.setName(req.getBenename());
+                bene.setBankId(req.getBankid());
+                bene.setBankName(req.getBankName());
+                bene.setAccountNo(req.getAccno());
+                bene.setIfscCode(req.getIfsccode());
+
+                bene.setVerified(req.getVerified());
+                bene.setDob(req.getDob());
+                bene.setAddress(req.getAddress());
+                bene.setPincode(req.getPincode());
+                bene.setGst_state(req.getGst_state());
+                bene.setReferenceKey(req.getReferenceKey());
+
+
+                // ===== FINAL STATUS =====
                 bene.setStatus("REGISTERED");
                 bene.setUpdatedAt(LocalDateTime.now());
 
@@ -2084,7 +2426,7 @@ public class DmtOrchestrator {
                 return CommonResponse.success(resp, "Beneficiary Registered Successfully");
             }
 
-            //  FAILURE
+            // ===== FAILURE =====
             return CommonResponse.error(
                     400,
                     (String) resp.get("status")
@@ -2095,15 +2437,25 @@ public class DmtOrchestrator {
         }
     }
 
-    public CommonResponse<Object> verifyDeleteOtp(VerifyDeleteOtpRequest req)throws Exception {
+    public CommonResponse<Object> verifyDeleteOtp(VerifyDeleteOtpRequest req) throws Exception {
 
-        DmtBeneficiary bene = beneficiaryRepository
-                .findByBeneId(req.getBeneId());
+        String hierarchyId = tokenUtil.extractHierarchyId();
+        req.setRetailerId(hierarchyId);
 
-        if (bene == null) {
+        // FETCH BENEFICIARY (SAFE WAY)
+        Optional<DmtBeneficiary> optionalBene =
+                beneficiaryRepository.findByBeneIdAndRemitter_Mobile(
+                        req.getBene_id(),
+                        req.getMobile()
+                );
+
+        if (optionalBene.isEmpty()) {
             throw new RuntimeException("Beneficiary not found");
         }
 
+        DmtBeneficiary bene = optionalBene.get();
+
+        // GET VENDOR
         Vendors vendor = bene.getVendor();
 
         VendorCredentials credentials =
@@ -2116,6 +2468,7 @@ public class DmtOrchestrator {
         DmtVendorService vendorService =
                 vendorFactory.getVendor(vendor.getVendorName());
 
+        // CALL VENDOR
         Map resp = vendorService.verifyDeleteOtp(req, credentials);
 
         if (resp == null) {
@@ -2124,7 +2477,9 @@ public class DmtOrchestrator {
 
         String statusCode = (String) resp.get("statuscode");
 
-        // SUCCESS
+        // ===============================
+        //  SUCCESS → DELETE FROM DB
+        // ===============================
         if ("TXN".equalsIgnoreCase(statusCode)) {
 
             beneficiaryRepository.delete(bene);
@@ -2132,7 +2487,9 @@ public class DmtOrchestrator {
             return CommonResponse.success(resp, "Beneficiary Deleted Successfully");
         }
 
-        //  FAILURE
+        // ===============================
+        // FAILURE
+        // ===============================
         return CommonResponse.error(
                 400,
                 resp.get("status") != null
@@ -2152,6 +2509,9 @@ public class DmtOrchestrator {
         String vendorId = null;
 
         try {
+
+            String hierarchyId = tokenUtil.extractHierarchyId();
+            request.setRetailerId(hierarchyId);
 
             // ===== STEP 1: Vendor Routing =====
             VendorRouting routing =

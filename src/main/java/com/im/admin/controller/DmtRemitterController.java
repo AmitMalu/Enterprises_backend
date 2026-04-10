@@ -102,6 +102,15 @@ public class DmtRemitterController {
         return remitterService.resendOtp(request.getMobile());
     }
 
+    @PostMapping("/validate-otp")
+    public ResponseEntity<CommonResponse<Object>> validateOtp(
+            @RequestBody RemitterEkycRequest request) throws Exception {
+
+        return ResponseEntity.ok(
+                dmtOrchestrator.validateOtp(request)
+        );
+    }
+
 
 
 
