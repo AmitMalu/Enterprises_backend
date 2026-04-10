@@ -117,9 +117,22 @@
 		</dependency>
 
 		<dependency>
+			<groupId>com.cashfree.pg.java</groupId>
+			<artifactId>cashfree_pg</artifactId>
+			<version>5.0.1</version>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.poi</groupId>
 			<artifactId>poi-ooxml</artifactId>
 			<version>5.2.3</version> <!-- Or latest stable -->
+		</dependency>
+
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>okhttp</artifactId>
+			<version>4.10.0</version>
 		</dependency>
 
 		<dependency>

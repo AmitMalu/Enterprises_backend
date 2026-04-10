@@ -421,4 +421,7 @@ WHERE (:id IS NULL OR r.id = :id)
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate
     );
+
+    boolean existsByTransactionId(String transactionId);
+
 }
