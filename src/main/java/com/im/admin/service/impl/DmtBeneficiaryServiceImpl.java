@@ -702,7 +702,7 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
     public CommonResponse<DmtBeneficiaryResponseDto> updateBeneficiary(BeneficiaryUpdateRequest req) {
         try {
 
-            // ===== Load vendor credentials =====
+            // ===== Vendor Routing =====
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
@@ -710,19 +710,27 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
 
-            // ===== Update local DB =====
-            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(req.getBeneId());
-            if (beneficiary == null) {
-                return CommonResponse.handleErrors("Beneficiary not found with ID: " + req.getBeneId());
+            // ===== Secure Fetch (IMPORTANT) =====
+            Optional<DmtBeneficiary> optionalBene =
+                    beneficiaryRepository.findByBeneIdAndRemitter_Mobile(
+                            req.getBeneId(),
+                            req.getMobileNumber()
+                    );
+
+            if (optionalBene.isEmpty()) {
+                return CommonResponse.handleErrors("Beneficiary not found for this remitter");
             }
 
+            DmtBeneficiary beneficiary = optionalBene.get();
+
+            // ===== UPDATE =====
             beneficiary.setName(req.getName());
             beneficiary.setBankName(req.getBankname());
             beneficiary.setVerified(req.getVerified());
+            beneficiary.setUpdatedAt(LocalDateTime.now());
 
             DmtBeneficiary updated = beneficiaryRepository.save(beneficiary);
 
-            // Convert entity to DTO
             DmtBeneficiaryResponseDto dto = mapToDto(updated);
 
             return CommonResponse.success(dto, "Beneficiary updated successfully");

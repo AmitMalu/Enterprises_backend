@@ -9,7 +9,7 @@ public class VerifyDeleteOtpRequest {
     private String mobile;
 
     // Beneficiary ID (InstantPay gives String, not Long)
-    private String beneId;
+    private String bene_id;
 
     // OTP received on mobile
     private String otp;

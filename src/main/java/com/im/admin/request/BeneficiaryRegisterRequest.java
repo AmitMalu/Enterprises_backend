@@ -17,9 +17,8 @@ public class BeneficiaryRegisterRequest {
     private String pincode;      // Beneficiary pincode
     private String subProductId;
     private String bankName;
-    private String RetailerId;
+    private String retailerId;
 
     private String otp;              // used in verify API
     private String referenceKey;
-    private String retailerId;
 }

@@ -25,4 +25,6 @@ public interface BeneficiaryRepository extends JpaRepository<DmtBeneficiary, Lon
             String accountNo
     );
 
+    Optional<DmtBeneficiary> findByBeneIdAndRemitter_Mobile(String beneId, String mobile);
+
 }

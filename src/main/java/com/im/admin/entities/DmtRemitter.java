@@ -42,9 +42,9 @@ public class DmtRemitter {
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "vendor_id", nullable = false)
-//    private Vendors vendor;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendor_id", nullable = false)
+    private Vendors vendor;
 
     @Column(name = "vendor1_used_limit")
     private Double vendor1UsedLimit = 0.0;
@@ -72,7 +72,7 @@ public class DmtRemitter {
         } else if ("FingPay".equalsIgnoreCase(vendorId)) {
             return vendor2UsedLimit != null ? vendor2UsedLimit : 0.0;
 
-        } else if ("Airtel".equalsIgnoreCase(vendorId)) {
+        } else if ("Paysprint DMT".equalsIgnoreCase(vendorId)) {
             return vendor3UsedLimit != null ? vendor3UsedLimit : 0.0;
         }
 
@@ -87,7 +87,7 @@ public class DmtRemitter {
         } else if ("FingPay".equalsIgnoreCase(vendorId)) {
             this.vendor2UsedLimit = (this.vendor2UsedLimit == null ? 0.0 : this.vendor2UsedLimit) + amount;
 
-        } else if ("Airtel".equalsIgnoreCase(vendorId)) {
+        } else if ("Paysprint DMT".equalsIgnoreCase(vendorId)) {
             this.vendor3UsedLimit = (this.vendor3UsedLimit == null ? 0.0 : this.vendor3UsedLimit) + amount;
         }
     }

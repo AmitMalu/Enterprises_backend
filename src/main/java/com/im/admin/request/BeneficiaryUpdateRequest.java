@@ -13,5 +13,5 @@ public class BeneficiaryUpdateRequest {
     private String ifsccode;       // updated IFSC code
     private String verified;       // updated verification status
     private String subProductId;     // to fetch vendor credentials dynamically
-    private String mobile;
+    private String mobileNumber;
 }

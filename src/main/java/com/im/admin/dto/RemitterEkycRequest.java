@@ -44,18 +44,45 @@ public class RemitterEkycRequest {
     @Data
     public static class BiometricData {
 
+        @JsonProperty("ci")
         private String ci;
+
+        @JsonProperty("hmac")
         private String hmac;
-        private String pidData;
+
+        @JsonProperty("Piddata")
+        private String Piddata;
+
+        @JsonProperty("ts")
         private String ts;
+
+        @JsonProperty("dc")
         private String dc;
+
+        @JsonProperty("mi")
         private String mi;
-        private String dpId;
+
+        @JsonProperty("dpID")
+        private String dpID;
+
+        @JsonProperty("mc")
         private String mc;
-        private String rdsId;
+
+        @JsonProperty("rdsID")
+        private String rdsID;
+
+        @JsonProperty("rdsVer")
         private String rdsVer;
-        private String Skey;
+
+//        @JsonProperty("Skey")   // IMPORTANT (case-sensitive)
+//        private String Skey;
+
+        @JsonProperty("sessionKey")   // IMPORTANT (case-sensitive)
+        private String sessionKey;
+
+        @JsonProperty("srno")
         private String srno;
+
     }
 
 
