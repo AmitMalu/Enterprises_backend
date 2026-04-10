@@ -425,6 +425,9 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate
     );
+
+    boolean existsByTransactionId(String transactionId);
+
 }
 
 

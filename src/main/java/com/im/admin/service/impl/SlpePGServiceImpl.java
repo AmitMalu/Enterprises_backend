@@ -23,10 +23,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -49,6 +46,7 @@ public class SlpePGServiceImpl implements SlpePGService {
     private final SchemeRateRepository schemeRateRepository;
     private final ProductsRepository productsRepository;
     private final SchemeRepository schemeRepository;
+    private final RetailerRepository retailerRepository;
 
     @Override
     public String createOrder(SlpePgCreateOrderRequest req, Double latitude, Double longitude) {
@@ -58,6 +56,9 @@ public class SlpePGServiceImpl implements SlpePGService {
         try {
 
             // ====== 1. Get Vendor & Credentials ======
+
+            Optional<Retailer> retailer = retailerRepository.findByRetailerId(req.getInitiatedBy());
+
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
 
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
@@ -94,7 +95,7 @@ public class SlpePGServiceImpl implements SlpePGService {
             // customer
             Map<String, Object> customer = new HashMap<>();
             customer.put("name", req.getCustomerName());
-            customer.put("email", req.getCustomerEmail());
+            customer.put("email", retailer.get().getEmailId());
             customer.put("phone", req.getCustomerMobile());
 
             body.put("customer", customer);

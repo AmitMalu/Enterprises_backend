@@ -17,5 +17,6 @@ public class PgTransactionRequestDto {
     private BigDecimal amount;
     private String walletType; // optional: PREPAID/POSTPAID
     private Short productId;
+    private String subProductId;
 }
 
