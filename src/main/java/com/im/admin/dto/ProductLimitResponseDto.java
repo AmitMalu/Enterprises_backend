@@ -20,6 +20,7 @@ public class ProductLimitResponseDto {
     private Boolean isAllowMonthlyCardLimit;
     private Boolean checkAmountPattern;
     private BigDecimal maxAmount;
+    private BigDecimal minAmount;
     private String perDayTransactionLimit;
     private String monthlyTransactionLimit;
 

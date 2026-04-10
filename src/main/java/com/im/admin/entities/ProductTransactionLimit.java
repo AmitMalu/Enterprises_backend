@@ -59,6 +59,9 @@ public class ProductTransactionLimit {
     @Column(name = "max_amount")
     private BigDecimal maxAmount;
 
+    @Column(name = "min_amount")
+    private BigDecimal minAmount;
+
     @Column(name = "blocked")
     private Boolean blocked;
 
