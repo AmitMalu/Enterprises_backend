@@ -11,6 +11,7 @@ import com.im.admin.service.CashfreePGService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 /**
@@ -66,15 +67,15 @@ public class CashfreeInitiator implements PaymentGatewayInitiator {
         // ===== 3. Create Payment Link =====
         log.info("Calling Cashfree Payment Link API...");
 
-        String paymentUrl = cashfreePGService.createOrder(createOrderRequest, latitude, longitude);
+        PgUnifiedOrderResponse apiResponse = cashfreePGService.createOrder(createOrderRequest, latitude, longitude);
 
-        log.info("Payment Link generated successfully | paymentUrl={}", paymentUrl);
+        log.info("Payment Link generated successfully | paymentUrl={}", apiResponse.getPaymentLink());
 
         // ===== 4. Build Response =====
         PgUnifiedOrderResponse response = PgUnifiedOrderResponse.builder()
                 .vendor("Cashfree PG")
                 .orderId(null) // optional: fetch from DB if needed
-                .paymentLink(paymentUrl)
+                .paymentLink(apiResponse.getPaymentLink())
                 .orderToken(null)
                 .status("INITIATED")
                 .build();

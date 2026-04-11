@@ -130,8 +130,7 @@ public class AESFilter extends OncePerRequestFilter {
 		IvParameterSpec ivSpec = new IvParameterSpec(Base64.getDecoder().decode(ivBase64));
 
 		// decrypt payload
-		String decryptedPayload = aesEncryptionUtil.decrypt(encryptedToken, derivedKey, ivSpec);
-		return decryptedPayload;
+        return aesEncryptionUtil.decrypt(encryptedToken, derivedKey, ivSpec);
 	}
 
 
