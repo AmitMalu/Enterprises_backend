@@ -268,19 +268,19 @@ public class DistributorServiceImpl implements DistributorService {
             // Optional image updates
             String folder = "Distributor";
             if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-                distributor.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
+                existingDistributor.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
             }
             if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-                distributor.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
+                existingDistributor.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
             }
             if (panCardImage != null && !panCardImage.isEmpty()) {
-                distributor.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
+                existingDistributor.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
             }
             if (shopImage != null && !shopImage.isEmpty()) {
-                distributor.setShopImage(imageUtil.saveImage(shopImage, folder));
+                existingDistributor.setShopImage(imageUtil.saveImage(shopImage, folder));
             }
             if (businessProofImage != null && !businessProofImage.isEmpty()) {
-                distributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
+                existingDistributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
             }
 
             // Save updated distributor
@@ -422,7 +422,11 @@ public class DistributorServiceImpl implements DistributorService {
         dto.setBusinessNumber(distributor.getBusinessNumber());
         dto.setCreatedBy(distributor.getCreatedBy());
         dto.setCreatedOn(distributor.getCreatedOn());
-
+        dto.setAadhaarCardFrontImage(distributor.getAadhaarCardFrontImage());
+        dto.setAadhaarCardBackImage(distributor.getAadhaarCardBackImage());
+        dto.setPanCardImage(distributor.getPanCardImage());
+        dto.setShopImage(distributor.getShopImage());
+        dto.setBusinessProofImage(distributor.getBusinessProofImage());
         return dto;
     }
 
