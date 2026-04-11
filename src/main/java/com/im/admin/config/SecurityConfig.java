@@ -14,6 +14,22 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.Set;
 
+import java.util.List;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.io.IOException;
+
 @Configuration
 public class SecurityConfig {
 
@@ -24,13 +40,64 @@ public class SecurityConfig {
             "/api/payout/callback", "/auth/forget-verify-otp", "/api/aes/encrypt-credentials",
             "/api/aes/decrypt-credentials", "/api/pg/callback/razorpay", "/api/pg/callback/cashfree");
 
+//    @Bean
+//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+//        http
+//                .csrf(csrf -> csrf.disable())
+//                .cors(Customizer.withDefaults())  // Enable CORS here
+//                .authorizeHttpRequests(auth -> auth
+//
+//                       // IMPORTANT: Allow SockJS handshake endpoints
+//                        .requestMatchers("/ws/**").permitAll()
+//                        .requestMatchers("/ws/info/**").permitAll()
+//                        .requestMatchers("/sockjs/**").permitAll()
+//
+//                        .requestMatchers(PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.toArray(new String[0])).permitAll()
+//                        .anyRequest().permitAll()
+//
+//                );
+//
+//        return http.build();
+//    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(Customizer.withDefaults())  // Enable CORS here
+                .cors(Customizer.withDefaults())
+
+                // 🔥 DEBUG FILTER
+                .addFilterBefore(new OncePerRequestFilter() {
+                    @Override
+                    protected void doFilterInternal(HttpServletRequest request,
+                                                    HttpServletResponse response,
+                                                    FilterChain filterChain)
+                            throws ServletException, IOException {
+
+                        System.out.println("==== REQUEST START ====");
+                        System.out.println("URI      : " + request.getRequestURI());
+                        System.out.println("METHOD   : " + request.getMethod());
+                        System.out.println("AUTH HDR : " + request.getHeader("Authorization"));
+
+                        filterChain.doFilter(request, response);
+
+                        System.out.println("STATUS   : " + response.getStatus());
+                        System.out.println("==== REQUEST END ====\n");
+                    }
+                }, UsernamePasswordAuthenticationFilter.class)
+
                 .authorizeHttpRequests(auth -> auth
+
+                        //  WebSocket allow
+                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/ws/info/**").permitAll()
+                        .requestMatchers("/sockjs/**").permitAll()
+
+                        //  Public APIs
                         .requestMatchers(PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.toArray(new String[0])).permitAll()
+
+                        //  Others
                         .anyRequest().permitAll()
                 );
 
@@ -50,6 +117,21 @@ public class SecurityConfig {
         mapper.configure(DeserializationFeature.READ_ENUMS_USING_TO_STRING, true);
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return mapper;
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(List.of("http://localhost:5173")); //  exact origin
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true); //  IMPORTANT
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
     }
 
 }
