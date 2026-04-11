@@ -15,28 +15,52 @@ public class DmtVendorFactory {
 
     @Autowired
     public DmtVendorFactory(List<DmtVendorService> vendors) {
-        vendors.forEach(v -> vendorMap.put(v.getVendorCode().toLowerCase(), v));
+
+        //  Store normalized keys
+        vendors.forEach(v ->
+                vendorMap.put(normalize(v.getVendorCode()), v)
+        );
+
+        // DEBUG (optional - remove later)
+        System.out.println("VENDOR MAP KEYS: " + vendorMap.keySet());
     }
 
     public DmtVendorService getVendor(String vendorName) {
+
         if (vendorName == null || vendorName.trim().isEmpty()) {
             return null;
         }
 
-        String normalizedCode = vendorName.trim().toLowerCase();
+        String normalizedCode = normalize(vendorName);
 
-        // Exact match (case-insensitive)
+        // DEBUG (optional - remove later)
+        System.out.println("SEARCH KEY: " + normalizedCode);
+
+        //  Direct match
         if (vendorMap.containsKey(normalizedCode)) {
             return vendorMap.get(normalizedCode);
         }
 
-        // Partial match
+        //  Safe fallback (ignore spaces completely)
         for (Map.Entry<String, DmtVendorService> entry : vendorMap.entrySet()) {
-            if (entry.getKey().contains(normalizedCode)) {
+
+            String mapKey = entry.getKey().replaceAll("\\s+", "");
+            String inputKey = normalizedCode.replaceAll("\\s+", "");
+
+            if (mapKey.equals(inputKey)) {
                 return entry.getValue();
             }
         }
 
         return null;
     }
+
+    //  COMMON NORMALIZATION METHOD
+    private String normalize(String value) {
+        return value
+                .trim()                    // remove start/end spaces
+                .replaceAll("\\s+", " ")  // remove extra spaces
+                .toLowerCase();           // lowercase
+    }
+
 }

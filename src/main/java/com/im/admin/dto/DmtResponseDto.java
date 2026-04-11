@@ -23,6 +23,7 @@ public class DmtResponseDto {
     private String utr;             // bank UTR number
     private String referenceId;     // vendor reference ID
     private BigDecimal balance;     // remaining wallet balance
+    private String ipay_uuid;
 
     // Convenience constructor for direct mapping
     public DmtResponseDto(RemitterTransactionResponse resp, String orderId, BigDecimal amount, String status) {

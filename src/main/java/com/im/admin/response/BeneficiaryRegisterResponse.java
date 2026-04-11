@@ -15,7 +15,7 @@ public class BeneficiaryRegisterResponse {
     @Getter
     @Setter
     public static class Data {
-        private Long bene_id;
+        private String bene_id;
         private String bankid;
         private String bankname;
         private String name;
@@ -23,5 +23,11 @@ public class BeneficiaryRegisterResponse {
         private String ifsc;
         private String verified;
         private int status;
+
+        private String beneficiaryId;
+        private String referenceKey;
+        private String validity;
     }
+
+
 }

@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class BeneficiaryUpdateRequest {
 
-    private Long beneId;           // existing beneficiary ID (local DB or vendor)
+    private String beneId;           // existing beneficiary ID (local DB or vendor)
     private String name;       // updated name
     private String bankid;         // updated bank ID
     private String bankname;       // updated bank name
@@ -13,5 +13,5 @@ public class BeneficiaryUpdateRequest {
     private String ifsccode;       // updated IFSC code
     private String verified;       // updated verification status
     private String subProductId;     // to fetch vendor credentials dynamically
-    private String mobile;
+    private String mobileNumber;
 }

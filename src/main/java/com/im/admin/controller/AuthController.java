@@ -6,6 +6,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.SMSGatewayAPI;
 import com.im.admin.dto.ChangePasswordRequestDto;
 import com.im.admin.dto.LoginRequestDto;
+import com.im.admin.dto.RsaTestRequest;
 import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
@@ -16,6 +17,7 @@ import com.im.admin.service.AuthService;
 import com.im.admin.util.AESEncryptionUtil;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.OtpUtil;
+import com.im.admin.util.RsaUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,11 +32,36 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+
+import javax.crypto.Cipher;
+
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Base64;
+
+import javax.crypto.Cipher;
 
 @RestController
 @RequestMapping("/auth")
 @Slf4j
 public class AuthController {
+
+    private boolean isValidMpin(String mpin) {
+        return mpin != null && mpin.matches("\\d{6}");
+    }
 
     @Value("${app.security.base-secret}")
     private String baseSecret;
@@ -50,6 +77,9 @@ public class AuthController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private UserDeviceRepository userDeviceRepository;
 
     @Autowired
     private UserDetailsRepository userDetailsRepository;
@@ -102,8 +132,15 @@ public class AuthController {
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
 
+
+    @Autowired
+    private RsaUtil rsaUtil;
+
     @Autowired
     private ProductTransactionLimitRepository productTransactionLimitRepository;
+
+    private static final String PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvzdGcn8O9vXAK70kddTdL4/so1jbezuXfWfOjkW9T4Ws1ndag544TgvoG/ATn/6LQ51jgzBdB+qnYUMjjpV7Yx5DosUqM89DUc3pEsyj2HOwM8qrMjv2NKhEynaFnGVbR1ELPyRUV2dHHs5viGXkzZCPQLLXPWD7/5NxSBKL/FU0/5sMztMrYqHznau07eoVHCveLJKzW4YZHcAX1r4619vW3w2UpkCJPowy8cNtE3UYDVnz53Z2j+97dwy3OKS3RK5nZYVXxADfO6J8vKJBBwBe23RkGICZ/M5qYyAsZU0E2Wr4pj7wzPbe9pNX+ZvkMTp5mfRl9KZ4J4ygKLwPRwIDAQAB";
+    private static final String PRIVATE_KEY = "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC/N0Zyfw729cArvSR11N0vj+yjWNt7O5d9Z86ORb1PhazWd1qDnjhOC+gb8BOf/otDnWODMF0H6qdhQyOOlXtjHkOixSozz0NRzekSzKPYc7AzyqsyO/Y0qETKdoWcZVtHUQs/JFRXZ0cezm+IZeTNkI9Astc9YPv/k3FIEov8VTT/mwzO0ytiofOdq7Tt6hUcK94skrNbhhkdwBfWvjrX29bfDZSmQIk+jDLxw20TdRgNWfPndnaP73t3DLc4pLdErmdlhVfEAN87ony8okEHAF7bdGQYgJn8zmpjICxlTQTZavimPvDM9t72k1f5m+QxOnmZ9GX0pngnjKAovA9HAgMBAAECggEAPQdyV5bP+uhiplMe8PC4i7ae61+v5XwWlLLuDSCbFGdwy56aaAm2pMpOEaSlTtpaLoFsQnHML3uoYnWgQqDZGcCOC8Rr/M85CEH1Esf3v1zlLxKPY2AZ66KNGiWL7We4I2HtegCpXqAa5e0zUdBbn3R1FExAQFnU9DRl4n/w597o6NzdMI7AIQenaPsQHyi1wUp+cYoVlSEaBvGSNfE2lKdG81WhWhACnIrN++KKYJm9o1WoAS+5c+HFbOc0SWBoqENve0W2w6qRhR+dfDSJT94tn/CooRJADHvIvwNv/zw2qaAR52JwzUNAa475h7lHZUmvKSgY33AAQEsRPJDoYQKBgQDcUmWXwX2ONFzeHmL77PFoEdA9xg3q+qMQhJ3r5DvRjATr+88PiBEuHabioWqkD9FiZIUIX/A0RqRNoQREbVxYnPyB9/g63XvFc5yZKZhudSQhzOXlHn6z8JRXptjwKMkpWWGgc5xjqYNlbpCIvieelX07zct3KEsTvCuOFr5KUQKBgQDeLkUu+sGv1d8OODUQ2f4isUfQq4oRg+TRjBqhcjqWXH+S3uFM7uCdfjY+J7tdrYNlaI/aIK9JuFijVT+FWnG5cmTCAyTvc/XRdzuSxpNuCPA0znIxXHIqA2q7Zsmj3eG36Vrl0ffj+gvgczl92PuVSd9h3gmmYv6KOL5ALbLCFwKBgQDXVGCedSl1NpAdNq2fcvBtuhtAhLVNlzCQEE0YI7SjFKoqyayRjXbdD3XvwbssJZmLBJtQmBN3xCMJC/nTtt6ubKANloExZw506I2A1Dp6mlp5/nwh9i/3RYZ2NEeKURJqK0VTQCr07NPS6sCwJMksIQaI0JWvG95kp2AaOvg4QQKBgQCJi6OQ3fQiYwjfyLQxZoMJ/y4yZL/o7/osL8wcvpa+lyzzQ7++3PN5DLWP7RD1gYGiugS0SR+7R8C3/QKCD+fvon32DfRDuUopDuN2jjCfIjFyv4u6Oz0B/XOJ6KxUIfym2nRHaqFIJXhMz4h7/GRjm4QLFmZq90YVU+OT37aWqQKBgACNPtks6epfWzIMWt8WLyAm7KFT6BUlYNBer4qQ4EjIxQNWuKxlCBSV0tTL/KSMj7PHp6pUIaN06PRSqz3iNveKraGacfIOUmiyXvEYZTA71D5MBIFzH4K3nTXUmjzqkLZyGktVqXyA68+wwYFsY7dL9qWVbjP9qxBtlB5yPRW1";
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
@@ -718,6 +755,37 @@ public class AuthController {
                 break;
         }
 
+        // ============================
+// DEVICE CHECK BY USER + DEVICE ID
+// ============================
+        List<Map<String, Object>> deviceList = new ArrayList<>();
+
+        if (loginRequestDto.getDeviceId() != null && !loginRequestDto.getDeviceId().isEmpty()) {
+
+            Optional<UserDevice> optionalDevice =
+                    userDeviceRepository.findByUserIdAndDeviceId(
+                            user.getHierarchyId(),
+                            loginRequestDto.getDeviceId()
+                    );
+
+            Map<String, Object> deviceMap = new HashMap<>();
+
+            deviceMap.put("deviceId", loginRequestDto.getDeviceId());
+
+            if (optionalDevice.isPresent()) {
+                //  Correct device for this user
+                UserDevice d = optionalDevice.get();
+                deviceMap.put("trusted", d.getIsTrusted());
+            } else {
+                //  Not found → default false
+                deviceMap.put("trusted", false);
+            }
+
+            deviceList.add(deviceMap);
+        }
+
+        responseMap.put("devices", deviceList);
+
         // 9. Log login attempt
         try {
             responseJson = objectMapper.writeValueAsString(
@@ -1062,11 +1130,592 @@ public class AuthController {
         }
     }
 
-
     @PostMapping("/add")
     public String addData(@RequestParam String id) {
 
         return "String";
     }
+
+
+    //MObile App
+
+//    @PostMapping("/login-mpin")
+//    public ResponseEntity<?> loginWithMpin(@RequestBody LoginRequestDto req) {
+//
+//        Optional<UserDetails> optionalUser =
+//                userDetailsRepository.findByMobileNumber(req.getUserName());
+//
+//        if (optionalUser.isEmpty()) {
+//            return ResponseEntity.ok(new CommonResponse<>(404, "User not found", null));
+//        }
+//
+//        UserDetails user = optionalUser.get();
+//
+//        if (!isValidMpin(req.getMpin())) {
+//            return ResponseEntity.ok(new CommonResponse<>(400, "Invalid MPIN format", null));
+//        }
+//
+//        boolean match = passwordEncoder.matches(req.getMpin(), user.getMpin());
+//
+//        if (!match) {
+//            return ResponseEntity.ok(new CommonResponse<>(400, "Invalid MPIN", null));
+//        }
+//
+//        //  Generate token (reuse your verifyOtp logic)
+//        String token = "GENERATE_TOKEN_HERE";
+//
+//        Map<String, Object> response = new HashMap<>();
+//        response.put("token", token);
+//        response.put("hierarchyId", user.getHierarchyId());
+//
+//        return ResponseEntity.ok(new CommonResponse<>(200, "Login successful", response));
+//    }
+
+
+    @PostMapping("/set-mpin")
+    public ResponseEntity<?> setMpin(@RequestBody LoginRequestDto req) {
+
+        Optional<UserDetails> optionalUser =
+                userDetailsRepository.findByMobileNumber(req.getUserName());
+
+        if (optionalUser.isEmpty()) {
+            return ResponseEntity.ok(
+                    new CommonResponse<>(404, "User not found", null)
+            );
+        }
+
+        if (req.getDeviceId() == null || req.getDeviceId().isEmpty()) {
+            return ResponseEntity.ok(
+                    new CommonResponse<>(400, "DeviceId is required", null)
+            );
+        }
+
+        UserDetails user = optionalUser.get();
+
+        // =========================
+        // STEP 1: DECRYPT MPIN
+        // =========================
+        String decryptedMpin;
+
+        try {
+            decryptedMpin = rsaUtil.decrypt(req.getMpin());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(
+                    new CommonResponse<>(500, "MPIN decryption failed", null)
+            );
+        }
+
+        // =========================
+        // STEP 2: VALIDATE MPIN
+        // =========================
+        if (!isValidMpin(decryptedMpin)) {
+            return ResponseEntity.ok(
+                    new CommonResponse<>(400, "MPIN must be 6 digits", null)
+            );
+        }
+
+        // =========================
+        // STEP 3: DEVICE LOGIC
+        // =========================
+        UserDevice device = userDeviceRepository
+                .findByUserIdAndDeviceId(user.getHierarchyId(), req.getDeviceId())
+                .orElse(new UserDevice());
+
+        device.setUserId(user.getHierarchyId());
+        device.setDeviceId(req.getDeviceId());
+
+        device.setMpin(passwordEncoder.encode(decryptedMpin));
+        device.setIsTrusted(true);
+        device.setCreatedAt(LocalDateTime.now());
+
+        userDeviceRepository.save(device);
+
+        return ResponseEntity.ok(
+                new CommonResponse<>(200, "MPIN set successfully", null)
+        );
+    }
+    @PostMapping("/login-mpin")
+    public ResponseEntity<?> loginWithMpin(@RequestBody LoginRequestDto req) {
+
+        try {
+
+            // 1 Validate DeviceId
+            if (req.getDeviceId() == null || req.getDeviceId().isEmpty()) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "DeviceId is required", null));
+            }
+
+//  Get USER FIRST (important)
+            Optional<UserDetails> optionalUser =
+                    userDetailsRepository.findByMobileNumber(req.getUserName());
+
+            if (optionalUser.isEmpty()) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(404, "User not found", null));
+            }
+
+            UserDetails user = optionalUser.get();
+
+      // Get device using USER + DEVICE
+            Optional<UserDevice> optionalDevice =
+                    userDeviceRepository.findByUserIdAndDeviceId(
+                            user.getHierarchyId(),
+                            req.getDeviceId()
+                    );
+
+            if (optionalDevice.isEmpty()) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(401,
+                                "Device not registered. Please login with password + OTP", null));
+            }
+
+            UserDevice device = optionalDevice.get();
+
+            //  CHECK LOCK
+            if (Boolean.TRUE.equals(device.getMpinLocked())) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(403,
+                                "MPIN blocked. Please reset MPIN", null));
+            }
+
+            // 3️ Get user
+//            Optional<UserDetails> optionalUser =
+//                    userDetailsRepository.findByHierarchyId(device.getUserId());
+//
+//            if (optionalUser.isEmpty()) {
+//                return ResponseEntity.ok(
+//                        new CommonResponse<>(404, "User not found", null)
+//                );
+//            }
+//
+//            UserDetails user = optionalUser.get();
+
+            // ============================
+            // 4️ DECRYPT FIRST (IMPORTANT)
+            // ============================
+            String decryptedMpin;
+
+            try {
+                decryptedMpin = rsaUtil.decrypt(req.getMpin());
+            } catch (Exception e) {
+                e.printStackTrace();
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "Invalid encrypted MPIN", null)
+                );
+            }
+
+            // 5️⃣ NOW VALIDATE
+            if (decryptedMpin == null || !decryptedMpin.matches("\\d{6}")) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "Invalid MPIN format", null));
+            }
+
+            // 6️⃣ CHECK PASSWORD
+            boolean match = passwordEncoder.matches(decryptedMpin, device.getMpin());
+
+            if (!match) {
+
+                int attempts = device.getMpinAttempts() == null ? 0 : device.getMpinAttempts();
+                attempts++;
+
+                device.setMpinAttempts(attempts);
+
+                if (attempts >= 5) {
+                    device.setMpinLocked(true);
+                    device.setIsTrusted(false);
+                    userDeviceRepository.save(device);
+
+                    return ResponseEntity.ok(
+                            new CommonResponse<>(403,
+                                    "MPIN blocked after 5 failed attempts. Please reset MPIN", null));
+                }
+
+                userDeviceRepository.save(device);
+
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400,
+                                "Invalid MPIN. Attempt " + attempts + " of 5", null));
+            }
+
+            // RESET ATTEMPTS
+            device.setMpinAttempts(0);
+            device.setMpinLocked(false);
+            userDeviceRepository.save(device);
+
+            // ============================
+            // TOKEN GENERATION (unchanged)
+            // ============================
+
+            String saltBase64 = aesEncryptionUtil.generateRandomSalt();
+            IvParameterSpec ivSpec = aesEncryptionUtil.generateIv();
+            String ivBase64 = Base64.getEncoder().encodeToString(ivSpec.getIV());
+
+            byte[] saltBytes = Base64.getDecoder().decode(saltBase64);
+            byte[] secretKey = aesEncryptionUtil.deriveKey(
+                    baseSecret, saltBytes, iterations, keyLength);
+
+            long now = System.currentTimeMillis();
+            long exp = now + 3600_000L;
+
+            String payload = now + "/" + exp + "/" + user.getMobileNumber();
+
+            String encryptedToken =
+                    aesEncryptionUtil.encrypt(payload, secretKey, ivSpec);
+
+            String fullToken =
+                    user.getHierarchyId() + "|" + saltBase64 + "|" + ivBase64 + "|" + encryptedToken;
+
+            user.setUserLoginStatus(true);
+            userDetailsRepository.save(user);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", fullToken);
+            response.put("hierarchyId", user.getHierarchyId());
+            response.put("mobileNumber", user.getMobileNumber());
+
+            return ResponseEntity.ok(
+                    new CommonResponse<>(200, "Login successful", response)
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Internal server error", null));
+        }
+    }
+
+
+    @PostMapping("/change-mpin")
+    public ResponseEntity<?> changeMpin(@RequestBody LoginRequestDto req) {
+
+        try {
+
+            UserDetails user = userDetailsRepository
+                    .findByMobileNumber(req.getUserName())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            UserDevice device = userDeviceRepository
+                    .findByUserIdAndDeviceId(user.getHierarchyId(), req.getDeviceId())
+                    .orElseThrow(() -> new RuntimeException("Device not found"));
+
+            // ============================
+            // 1️⃣ DECRYPT OLD & NEW MPIN
+            // ============================
+            String oldMpin;
+            String newMpin;
+
+            try {
+                oldMpin = rsaUtil.decrypt(req.getOldMpin());
+                newMpin = rsaUtil.decrypt(req.getNewMpin());
+            } catch (Exception e) {
+                e.printStackTrace();
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "MPIN decryption failed", null)
+                );
+            }
+
+            // ============================
+            // 2️⃣ VALIDATE FORMAT
+            // ============================
+            if (!oldMpin.matches("\\d{6}") || !newMpin.matches("\\d{6}")) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "MPIN must be 6 digits", null)
+                );
+            }
+
+            System.out.println("Decrypted Old MPIN: " + oldMpin);
+            System.out.println("Stored Hash: " + device.getMpin());
+
+            // ============================
+            // 3️⃣ CHECK OLD MPIN
+            // ============================
+            if (!passwordEncoder.matches(oldMpin, device.getMpin())) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "Old MPIN incorrect", null)
+                );
+            }
+
+            // ============================
+            // 4️⃣ UPDATE NEW MPIN
+            // ============================
+            device.setMpin(passwordEncoder.encode(newMpin));
+            device.setMpinAttempts(0);
+            device.setMpinLocked(false);
+
+            userDeviceRepository.save(device);
+
+            return ResponseEntity.ok(
+                    new CommonResponse<>(200, "MPIN changed successfully", null)
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Internal server error", null));
+        }
+    }
+
+    @GetMapping("/generate-rsa-keys")
+    public Map<String, String> generateKeys() throws Exception {
+
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+        keyGen.initialize(2048);
+
+        KeyPair pair = keyGen.generateKeyPair();
+
+        String publicKey = Base64.getEncoder()
+                .encodeToString(pair.getPublic().getEncoded());
+
+        String privateKey = Base64.getEncoder()
+                .encodeToString(pair.getPrivate().getEncoded());
+
+        Map<String, String> response = new HashMap<>();
+        response.put("publicKey", publicKey);
+        response.put("privateKey", privateKey);
+
+        return response;
+    }
+
+
+    @PostMapping("/test")
+    public Map<String, String> test(@RequestBody RsaTestRequest req) throws Exception {
+
+        String encrypted = encrypt(req.getMessage(), PUBLIC_KEY);
+        String decrypted = decrypt(encrypted, PRIVATE_KEY);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("original", req.getMessage());
+        response.put("encrypted", encrypted);
+        response.put("decrypted", decrypted);
+
+        return response;
+    }
+
+    public String decrypt(String encryptedText, String privateKeyStr) throws Exception {
+
+        byte[] privateBytes = Base64.getDecoder().decode(privateKeyStr);
+        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(privateBytes);
+
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        PrivateKey privateKey = keyFactory.generatePrivate(spec);
+
+        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+
+        return new String(
+                cipher.doFinal(Base64.getDecoder().decode(encryptedText))
+        );
+    }
+
+    public String encrypt(String plainText, String publicKeyStr) throws Exception {
+
+        byte[] publicBytes = Base64.getDecoder().decode(publicKeyStr);
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(publicBytes);
+
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        PublicKey publicKey = keyFactory.generatePublic(spec);
+
+        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+
+        return Base64.getEncoder().encodeToString(
+                cipher.doFinal(plainText.getBytes())
+        );
+    }
+
+
+    @PostMapping("/forgot-mpin")
+    public ResponseEntity<?> forgotMpin(@RequestBody LoginRequestDto req) {
+
+        try {
+
+            // ============================
+            // 1️⃣ VALIDATE USER
+            // ============================
+            Optional<UserDetails> optionalUser =
+                    userDetailsRepository.findByMobileNumber(req.getUserName());
+
+            if (optionalUser.isEmpty()) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(404, "User not found", null));
+            }
+
+            UserDetails user = optionalUser.get();
+
+            // ============================
+            // 2️⃣ DEVICE VALIDATION
+            // ============================
+            if (req.getDeviceId() == null || req.getDeviceId().isEmpty()) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "DeviceId required", null));
+            }
+
+            Optional<UserDevice> optionalDevice = userDeviceRepository
+                    .findByUserIdAndDeviceId(user.getHierarchyId(), req.getDeviceId());
+
+            if (optionalDevice.isEmpty()) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(404, "Device not found. Please login first", null)
+                );
+            }
+
+            // ============================
+            // 3️⃣ GENERATE OTP
+            // ============================
+            String otp = generateOtpForUser(user);
+
+            user.setOtp(otp);
+            user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
+            userDetailsRepository.save(user);
+
+            Map<String, String> data = new HashMap<>();
+            data.put("otp", otp);
+
+            return ResponseEntity.ok(
+                    new CommonResponse<>(200, "OTP sent successfully", data));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Internal server error", null));
+        }
+    }
+
+
+    @PostMapping("/verify-forgot-mpin-otp")
+    public ResponseEntity<?> verifyForgotMpinOtp(@RequestBody LoginRequestDto req) {
+
+        try {
+            // ============================
+            //  VALIDATE USER
+            Optional<UserDetails> optionalUser =
+                    userDetailsRepository.findByMobileNumber(req.getUserName());
+
+            if (optionalUser.isEmpty()) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(404, "User not found", null));
+            }
+
+            UserDetails user = optionalUser.get();
+
+            // ============================
+            //  VALIDATE OTP
+            // ============================
+            if (user.getOtp() == null || user.getOtpExpiryTime() == null) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "No OTP generated", null));
+            }
+
+            if (LocalTime.now().isAfter(user.getOtpExpiryTime())) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "OTP expired", null));
+            }
+
+            if (!user.getOtp().equals(req.getOtp())) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "Invalid OTP", null));
+            }
+
+            // ============================
+            // DECRYPT MPINs
+            String newMpin;
+            String confirmMpin;
+
+            try {
+                newMpin = rsaUtil.decrypt(req.getNewMpin()).trim();
+                confirmMpin = rsaUtil.decrypt(req.getConfirmMpin()).trim();
+            } catch (Exception e) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "MPIN decryption failed", null));
+            }
+
+            // ============================
+            // 4️VALIDATE FORMAT
+            // ============================
+            if (!newMpin.matches("\\d{6}")) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "MPIN must be 6 digits", null));
+            }
+
+            // CONFIRM MPIN CHECK
+
+            if (!newMpin.equals(confirmMpin)) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "MPIN and Confirm MPIN do not match", null));
+            }
+
+            // DEVICE VALIDATION
+            if (req.getDeviceId() == null || req.getDeviceId().isEmpty()) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(400, "DeviceId required", null));
+            }
+
+            Optional<UserDevice> optionalDevice = userDeviceRepository
+                    .findByUserIdAndDeviceId(user.getHierarchyId(), req.getDeviceId());
+
+            if (optionalDevice.isEmpty()) {
+                return ResponseEntity.ok(
+                        new CommonResponse<>(404, "Device not found. Please login first", null)
+                );
+            }
+
+            UserDevice device = optionalDevice.get();
+
+            // RESET MPIN
+            device.setMpin(passwordEncoder.encode(newMpin));
+            device.setMpinAttempts(0);
+            device.setMpinLocked(false);
+            device.setIsTrusted(true);
+            device.setCreatedAt(LocalDateTime.now());
+
+            userDeviceRepository.save(device);
+
+            //  CLEAR OTP
+            user.setOtp(null);
+            user.setOtpExpiryTime(null);
+            userDetailsRepository.save(user);
+
+            //TOKEN GENERATION (SAME AS LOGIN)
+            String saltBase64 = aesEncryptionUtil.generateRandomSalt();
+            IvParameterSpec ivSpec = aesEncryptionUtil.generateIv();
+            String ivBase64 = Base64.getEncoder().encodeToString(ivSpec.getIV());
+
+            byte[] saltBytes = Base64.getDecoder().decode(saltBase64);
+            byte[] secretKey = aesEncryptionUtil.deriveKey(
+                    baseSecret, saltBytes, iterations, keyLength);
+
+            long now = System.currentTimeMillis();
+            long exp = now + 3600_000L;
+
+            String payload = now + "/" + exp + "/" + user.getMobileNumber();
+
+            String encryptedToken =
+                    aesEncryptionUtil.encrypt(payload, secretKey, ivSpec);
+
+            String fullToken =
+                    user.getHierarchyId() + "|" + saltBase64 + "|" + ivBase64 + "|" + encryptedToken;
+
+
+            user.setUserLoginStatus(true);
+            userDetailsRepository.save(user);
+
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", fullToken);
+            response.put("hierarchyId", user.getHierarchyId());
+            response.put("mobileNumber", user.getMobileNumber());
+
+            return ResponseEntity.ok(
+                    new CommonResponse<>(200, "MPIN reset successfully", response)
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Internal server error", null));
+        }
+    }
+
 }
 

@@ -10,14 +10,21 @@ import java.util.Optional;
 
 @Repository
 public interface BeneficiaryRepository extends JpaRepository<DmtBeneficiary, Long> {
-    DmtBeneficiary findByBeneId(Long beneId);
+    DmtBeneficiary findByBeneId(String beneId);
     List<DmtBeneficiary> findByRemitter(DmtRemitter remitter);
 
     Optional<DmtBeneficiary> findByRemitterAndBeneId(
             DmtRemitter remitter,
-            Long beneId
+            String beneId
     );
 
     List<DmtBeneficiary> findByRemitterOrderByIdDesc(DmtRemitter remitter);
+
+    Optional<DmtBeneficiary> findByRemitterAndAccountNo(
+            DmtRemitter remitter,
+            String accountNo
+    );
+
+    Optional<DmtBeneficiary> findByBeneIdAndRemitter_Mobile(String beneId, String mobile);
 
 }

@@ -6,7 +6,7 @@ import lombok.Data;
 public class DmtBeneficiaryResponseDto {
 
     private Long id;
-    private Long beneId;
+    private String beneId;
     private String name;
     private String bankId;
     private String bankName;

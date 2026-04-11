@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import com.im.admin.entities.vendor.Vendors;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -21,7 +23,7 @@ public class DmtBeneficiary {
     private DmtRemitter remitter;
 
     @Column(name = "bene_id")
-    private Long beneId;
+    private String beneId;
 
     @Column(name = "name")
     private String name;
@@ -59,6 +61,16 @@ public class DmtBeneficiary {
 
     @Column(name = "gst_state")
     private String gst_state;
+
+    @Column(name = "reference_key")
+    private String referenceKey;
+
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
 
 }

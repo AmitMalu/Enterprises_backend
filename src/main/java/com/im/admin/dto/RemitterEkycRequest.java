@@ -34,4 +34,56 @@ public class RemitterEkycRequest {
 
     @JsonProperty("name")
     private String name;
+
+    private String otp;
+    private String referenceKey;
+    private String retailerId;
+
+    private BiometricData biometricData;
+
+    @Data
+    public static class BiometricData {
+
+        @JsonProperty("ci")
+        private String ci;
+
+        @JsonProperty("hmac")
+        private String hmac;
+
+        @JsonProperty("Piddata")
+        private String Piddata;
+
+        @JsonProperty("ts")
+        private String ts;
+
+        @JsonProperty("dc")
+        private String dc;
+
+        @JsonProperty("mi")
+        private String mi;
+
+        @JsonProperty("dpID")
+        private String dpID;
+
+        @JsonProperty("mc")
+        private String mc;
+
+        @JsonProperty("rdsID")
+        private String rdsID;
+
+        @JsonProperty("rdsVer")
+        private String rdsVer;
+
+//        @JsonProperty("Skey")   // IMPORTANT (case-sensitive)
+//        private String Skey;
+
+        @JsonProperty("sessionKey")   // IMPORTANT (case-sensitive)
+        private String sessionKey;
+
+        @JsonProperty("srno")
+        private String srno;
+
+    }
+
+
 }

@@ -29,5 +29,8 @@ public class SendDmtRequest {
     private String paymentMode;
 //    private String TransactionType;
     private String stateresp;
+    private String referenceKey;
+    private String ifscCode;
+    private String vendorName;
 
 }

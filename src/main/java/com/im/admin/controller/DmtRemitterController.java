@@ -40,8 +40,9 @@ public class DmtRemitterController {
 
         CommonResponse<RemitterQueryResponse> response =
                 dmtOrchestrator.checkRemitter(
-                        request.getMobile(),
-                        request.getSubProductId()
+//                        request.getMobile(),
+//                        request.getSubProductId()
+                        request
                 );
 
         return ResponseEntity.status(response.getStatusCode()).body(response);
@@ -99,6 +100,15 @@ public class DmtRemitterController {
     @PostMapping("/resend-otp")
     public CommonResponse<String> resendOtp(@RequestBody  DmtOtpRequest request) {
         return remitterService.resendOtp(request.getMobile());
+    }
+
+    @PostMapping("/validate-otp")
+    public ResponseEntity<CommonResponse<Object>> validateOtp(
+            @RequestBody RemitterEkycRequest request) throws Exception {
+
+        return ResponseEntity.ok(
+                dmtOrchestrator.validateOtp(request)
+        );
     }
 
 

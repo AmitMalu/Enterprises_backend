@@ -45,4 +45,61 @@ public class DmtRemitter {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendor_id", nullable = false)
     private Vendors vendor;
+
+    @Column(name = "vendor1_used_limit")
+    private Double vendor1UsedLimit = 0.0;
+
+    @Column(name = "vendor2_used_limit")
+    private Double vendor2UsedLimit = 0.0;
+
+    @Column(name = "vendor3_used_limit")
+    private Double vendor3UsedLimit = 0.0;
+
+    @Column(name = "reference_key")
+    private String referenceKey;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "otp_reference")
+    private String otpReference;
+
+    public double getUsedLimitForVendor(String vendorId) {
+
+        if ("InstantPay DMT".equalsIgnoreCase(vendorId)) {
+            return vendor1UsedLimit != null ? vendor1UsedLimit : 0.0;
+
+        } else if ("FingPay".equalsIgnoreCase(vendorId)) {
+            return vendor2UsedLimit != null ? vendor2UsedLimit : 0.0;
+
+        } else if ("Paysprint DMT".equalsIgnoreCase(vendorId)) {
+            return vendor3UsedLimit != null ? vendor3UsedLimit : 0.0;
+        }
+
+        return 0.0;
+    }
+
+    public void addUsedLimit(String vendorId, double amount) {
+
+        if ("InstantPay DMT".equalsIgnoreCase(vendorId)) {
+            this.vendor1UsedLimit = (this.vendor1UsedLimit == null ? 0.0 : this.vendor1UsedLimit) + amount;
+
+        } else if ("FingPay".equalsIgnoreCase(vendorId)) {
+            this.vendor2UsedLimit = (this.vendor2UsedLimit == null ? 0.0 : this.vendor2UsedLimit) + amount;
+
+        } else if ("Paysprint DMT".equalsIgnoreCase(vendorId)) {
+            this.vendor3UsedLimit = (this.vendor3UsedLimit == null ? 0.0 : this.vendor3UsedLimit) + amount;
+        }
+    }
+
+    public void resetMonthlyLimits() {
+
+        this.vendor1UsedLimit = 0.0;
+        this.vendor2UsedLimit = 0.0;
+        this.vendor3UsedLimit = 0.0;
+
+        this.updatedAt = LocalDateTime.now();
+    }
+
+
 }

@@ -28,11 +28,13 @@ public interface DmtVendorService {
 
     String generateJwtToken();
 
-    List<DmtBankList> getdmtbanklist();
+    List<DmtBankList> getdmtbanklist(DmtBankListRequest request,VendorCredentials credentials);
 
     RemitterQueryResponse checkRemitter(
-            String mobile,
-            VendorCredentials credentials) throws Exception;
+//            String mobile,
+            RemitterQueryRequest request,
+            VendorCredentials credentials
+    ) throws Exception;
 
     RemitterRegisterResponse registerRemitter(
             RemitterRegisterRequest request,
@@ -57,4 +59,11 @@ public interface DmtVendorService {
 
     DmtBeneficiaryFetchByBeneIdResponse fetchBeneficiaryByBeneId(
             DmtBeneficiaryFetchByBeneIdRequest request,
-            VendorCredentials credentials) throws Exception;}
+            VendorCredentials credentials) throws Exception;
+
+    RemitterRegisterResponse verifyRemitterOtp(RemitterEkycRequest request, VendorCredentials credentials) throws Exception;
+
+    Map verifyBeneficiaryOtp(VerifyBeneOtpRequest req, VendorCredentials credentials)throws Exception ;
+
+    Map verifyDeleteOtp(VerifyDeleteOtpRequest req, VendorCredentials credentials)throws Exception;
+}

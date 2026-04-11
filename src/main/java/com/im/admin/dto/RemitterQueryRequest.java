@@ -6,4 +6,5 @@ import lombok.Data;
 public class RemitterQueryRequest {
     private String mobile;
     private String subProductId;
+    private String retailerId;
 }
