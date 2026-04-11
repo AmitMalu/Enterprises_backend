@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.LoggableVendor;
+import com.im.admin.controller.AESController;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
@@ -13,11 +14,15 @@ import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
 import com.im.admin.request.CashfreeCreateOrderRequest;
 import com.im.admin.request.CashfreeOrderPayRequest;
+import com.im.admin.request.CreateOrderRequest;
+import com.im.admin.response.CommonResponse;
+import com.im.admin.response.PgUnifiedOrderResponse;
 import com.im.admin.service.CashfreePGService;
 import com.im.admin.util.CommonMethods;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -89,11 +94,14 @@ public class CashfreePGServiceImpl implements CashfreePGService {
     @Autowired
     private WebhookIdempotencyRepository webhookIdempotencyRepository;
 
+    RestTemplate restTemplate = new RestTemplate();
+
     @Override
-    public String createOrder(CashfreeCreateOrderRequest req, Double latitude, Double longitude) {
+    public PgUnifiedOrderResponse createOrder(CashfreeCreateOrderRequest req, Double latitude, Double longitude) {
 
         log.info("Starting Cashfree Payment Link | subProductId={}, initiatedBy={}, amount={}",
                 req.getSubProductId(), req.getInitiatedBy(), req.getOrder_amount());
+        String imResponseBody = null;
 
         try {
 
@@ -114,6 +122,73 @@ public class CashfreePGServiceImpl implements CashfreePGService {
 
             // ===== 2. Generate Link ID =====
             String linkId = "ORD" + commonMethods.generateBaseTransactionId();
+
+            if("AES".equals(credentials.getTokenType())) {
+
+                String token = commonMethods.generateTokenForAES(credentials);
+
+                // Build JSON request for AES admin panel
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("client_id", credentials.getClientId());
+                headers.set("token", token);
+                headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
+                headers.add("Latitude", String.valueOf(latitude));
+                headers.add("Longitude", String.valueOf(longitude));
+
+                CreateOrderRequest jsonBody = new CreateOrderRequest();
+                jsonBody.setOrderId(linkId);
+                jsonBody.setCallbackUrl(credentials.getCallbackUrl());
+                jsonBody.setAmount(req.getOrder_amount());
+                //jsonBody.setMerchantRef(req.getMerchantRef());
+                jsonBody.setUsername(credentials.getUsername());
+
+                // Add transaction scheme placeholder if needed
+                TransactionSchemeDetailsRequestDto scheme = new TransactionSchemeDetailsRequestDto();
+                // TODO: fill required scheme fields
+                jsonBody.setTransactionScheme(scheme);
+
+                HttpEntity<CreateOrderRequest> requestEntity = new HttpEntity<>(jsonBody, headers);
+
+                String url = credentials.getBaseUrlUat() + "/create-order";
+                log.info("AES Admin panel order URL: {}", url);
+
+                ResponseEntity<CommonResponse<PgUnifiedOrderResponse>> response =
+                        restTemplate.exchange(
+                                url,
+                                HttpMethod.POST,
+                                requestEntity,
+                                new ParameterizedTypeReference<CommonResponse<PgUnifiedOrderResponse>>() {}
+                        );
+
+                CommonResponse<PgUnifiedOrderResponse> responseBody = response.getBody();
+
+                PgUnifiedOrderResponse pgResponse = responseBody.getData();
+
+                commonFunctions.saveVendorLogs(
+                        LocalDateTime.now(),
+                        "AES order request",
+                        vendor.getId(),
+                        LocalDateTime.now(),
+                        pgResponse.toString(),
+                        null
+                );
+
+                PgTransactionMapping mapping = new PgTransactionMapping();
+                mapping.setOrderId(linkId);
+                mapping.setAmount(req.getOrder_amount());
+                mapping.setStatus("INITIATED");
+                mapping.setInitiatedBy(req.getInitiatedBy());
+                mapping.setSubProductId(req.getSubProductId());
+                mapping.setVendorName("Cashfree PG");
+                mapping.setLatitude(latitude);
+                mapping.setLongitude(longitude);
+
+                pgTransactionMappingRepository.save(mapping);
+
+                return pgResponse;
+
+            }
 
             // ===== 3. Prepare Request =====
             Map<String, Object> body = new HashMap<>();
@@ -191,7 +266,13 @@ public class CashfreePGServiceImpl implements CashfreePGService {
 
                 pgTransactionMappingRepository.save(mapping);
 
-                return linkUrl;
+                return PgUnifiedOrderResponse.builder()
+                        .vendor("Cashfree PG")
+                        .orderId(linkId)
+                        .paymentLink(linkUrl)
+                        .orderToken(null)
+                        .status("INITIATED")
+                        .build();
 
             } else {
                 log.error("Payment Link creation failed | linkId={}", linkId);

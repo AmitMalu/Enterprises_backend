@@ -1,7 +1,9 @@
 package com.im.admin.util;
 
+import com.im.admin.controller.AESController;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.BillRechargeResponseDTO;
+import com.im.admin.dto.EncryptDecryptCredentialsDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.ServiceType;
@@ -18,8 +20,13 @@ import jakarta.persistence.Query;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -28,16 +35,15 @@ import java.sql.Time;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Component
 @Slf4j
 public class CommonMethods {
+
     @Autowired
     private RetailerUserRepository retailerUserRepository;
+
     @Autowired
     private EnterprisesPostpaidAmountRepository enterprisesPostpaidAmountRepository;
 
@@ -111,7 +117,10 @@ public class CommonMethods {
     private AdminUserRepository adminUserRepository;
 
     @Autowired
-    private TransactionEngineServiceImpl transactionEngineServiceImpl;
+    private AESController aesController;
+
+    RestTemplate restTemplate = new RestTemplate();
+
 
     public String generateNextIdForTables(String tableName, String idColumn) {
         log.debug("Generating next ID for table.");
@@ -903,5 +912,39 @@ public class CommonMethods {
         return prefix + baseId;
     }
 
+    public String generateTokenForAES(VendorCredentials vendorCredentials) {
+        // Call AES encrypt service
+        ResponseEntity<?> responseEntity = aesController.encryptCredentials(
+                new EncryptDecryptCredentialsDto(vendorCredentials.getUsername(), vendorCredentials.getPassword())
+        );
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> encryptedMap = (Map<String, String>) responseEntity.getBody();
+        assert encryptedMap != null;
+        String encUser = encryptedMap.get("cipherUsername");
+        String encPass = encryptedMap.get("cipherPassword");
+        String salt = encryptedMap.get("salt");
+        String iv = encryptedMap.get("iv");
+
+        // Build JSON for token request
+        Map<String, String> jsonBody = new HashMap<>();
+        jsonBody.put("username", encUser);
+        jsonBody.put("password", encPass);
+        jsonBody.put("client_id", vendorCredentials.getClientId());
+        jsonBody.put("salt", salt);
+        jsonBody.put("ivBase64", iv);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlUat(), requestEntity, Map.class);
+        Map responseBodyMap = response.getBody();
+        if (responseBodyMap == null || responseBodyMap.get("token") == null) {
+            throw new RuntimeException("AES token generation failed: " + responseBodyMap);
+        }
+
+        return (String) responseBodyMap.get("token");
+    }
 
 }
