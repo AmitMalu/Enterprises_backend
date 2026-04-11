@@ -919,8 +919,8 @@ public class DmtOrchestrator {
 
         try {
 
-//            String hierarchyId = tokenUtil.extractHierarchyId();
-//            request.setRetailerId(hierarchyId);
+            String hierarchyId = tokenUtil.extractHierarchyId();
+            request.setRetailerId(hierarchyId);
 
             // ===== STEP 1 Vendor Routing =====
             VendorRouting vendorRouting =
@@ -946,7 +946,7 @@ public class DmtOrchestrator {
             Optional<DmtRemitter> exist =
                     remitterRepository.findByMobileAndVendor(request.getMobile(), vendor);
 
-// ✅ ONLY for PAYSPRINT → use DB shortcut
+//  ONLY for PAYSPRINT → use DB shortcut
             if (!"InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
 
                 if (exist.isPresent() &&

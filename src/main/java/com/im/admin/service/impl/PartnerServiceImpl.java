@@ -381,6 +381,11 @@ public class PartnerServiceImpl implements PartnerService {
         dto.setBusinessNumber(partner.getBusinessNumber());
         dto.setCreatedBy(partner.getCreatedBy());
         dto.setCreatedOn(partner.getCreatedOn());
+        dto.setAadhaarCardFrontImage(partner.getAadhaarCardFrontImage());
+        dto.setAadhaarCardBackImage(partner.getAadhaarCardBackImage());
+        dto.setPanCardImage(partner.getPanCardImage());
+        dto.setShopImage(partner.getShopImage());
+        dto.setBusinessProofImage(partner.getBusinessProofImage());
 
         return dto;
     }

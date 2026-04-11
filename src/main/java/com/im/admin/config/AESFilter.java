@@ -47,6 +47,11 @@ public class AESFilter extends OncePerRequestFilter {
 			throws ServletException, IOException {
 
 		String path = request.getRequestURI();
+		System.out.println("Path: " + path);
+		if (path.contains("/ws")) {
+			filterChain.doFilter(request, response);
+			return;
+		}
 		log.info("Request URI: {}", path);
 		if (this.isPathViewableWithoutAuthentication(request)) {
 			log.info("User is authorized to access this resource");
