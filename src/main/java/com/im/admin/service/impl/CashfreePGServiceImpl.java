@@ -137,7 +137,7 @@ public class CashfreePGServiceImpl implements CashfreePGService {
 
             // ===== META (IMPORTANT) =====
             body.put("link_meta", Map.of(
-                    "return_url", "https://uat.decipay.in/enterprises/success",
+                    "return_url", "https://uat.decipay.in/enterprise-portal/transaction-completed",
                     "notify_url", credentials.getCallbackUrl()
             ));
 

@@ -28,6 +28,7 @@ public class ProductTransactionLimitDTO {
     private String monthlyTransactionLimit;
     private Boolean checkAmountPattern;
     private BigDecimal maxAmount;
+    private BigDecimal minAmount;
     private Boolean blocked;
     private LocalDateTime createdOn;
     private String createdBy;

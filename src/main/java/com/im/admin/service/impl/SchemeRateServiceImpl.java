@@ -317,12 +317,18 @@ public class SchemeRateServiceImpl implements SchemeRateService {
     }
 
     @Override
+    @Transactional
     public List<SchemeRate> createSchemeRates(SchemeRateRequestDTO requestDTO) {
+
         log.info("Creating scheme rates for schemeCode: {}", requestDTO.getSchemeCode());
+
+        // VALIDATE SLABS FIRST
+        validateCreateSlabs(requestDTO);
 
         List<SchemeRate> schemeRates = new ArrayList<>();
 
         for (int i = 0; i < requestDTO.getSlabs().size(); i++) {
+
             SchemeRateSlabDTO slab = requestDTO.getSlabs().get(i);
             SchemeRate schemeRate = new SchemeRate();
 
@@ -334,7 +340,10 @@ public class SchemeRateServiceImpl implements SchemeRateService {
             schemeRate.setSlabEnd(slab.getSlabEnd());
             schemeRate.setSlabType(SlabType.VARIABLE);
 
-            log.debug("Processing slab #{}: start={}, end={}, rateType={}", i + 1, slab.getSlabStart(), slab.getSlabEnd(), slab.getRateType());
+            String slabIdentifier = "Slab #" + (i + 1);
+
+            log.debug("Processing {}: start={}, end={}, rateType={}",
+                    slabIdentifier, slab.getSlabStart(), slab.getSlabEnd(), slab.getRateType());
 
             double im = slab.getIm() == null ? 0.0 : slab.getIm();
             double enterprise = slab.getEnterprise() == null ? 0.0 : slab.getEnterprise();
@@ -346,20 +355,23 @@ public class SchemeRateServiceImpl implements SchemeRateService {
 
             double gross = slab.getGross();
 
-            log.debug("Validating gross for slab #{}: gross={}, sum={}, operator={}",
-                    i + 1, gross,
-                    im + enterprise + whitelabel + superDistributor + partner + distributor + retailer,
-                    requestDTO.getOperatorName());
+            log.debug("Validating gross for {}: gross={}, sum={}",
+                    slabIdentifier,
+                    gross,
+                    im + enterprise + whitelabel + superDistributor + partner + distributor + retailer
+            );
 
+            // GROSS VALIDATION
             validateGrossMatch(
                     gross, im, enterprise, whitelabel, superDistributor,
                     partner, distributor, retailer,
                     "Create Scheme Slab",
                     requestDTO.getOperatorName(),
                     requestDTO.getOperatorCode(),
-                    "Slab #" + (i + 1)
+                    slabIdentifier
             );
 
+            // PERCENTAGE HANDLING
             if (slab.getRateType() == RateType.PERCENTAGE) {
                 schemeRate.setGross(roundToThreeDecimalPlaces(gross / 100));
                 schemeRate.setIm(roundToThreeDecimalPlaces(im / 100));
@@ -381,16 +393,144 @@ public class SchemeRateServiceImpl implements SchemeRateService {
             }
 
             schemeRate.setCreatedBy(slab.getCreatedBy());
+
             schemeRates.add(schemeRate);
 
-            log.debug("Added slab #{} for operator {}: {}", i + 1, requestDTO.getOperatorCode(), schemeRate);
+            log.debug("Added {} for operator {}: {}",
+                    slabIdentifier, requestDTO.getOperatorCode(), schemeRate);
         }
 
         List<SchemeRate> savedRates = schemeRateRepository.saveAll(schemeRates);
-        log.info("Successfully saved {} scheme slabs for schemeCode: {}", savedRates.size(), requestDTO.getSchemeCode());
+
+        log.info("Successfully saved {} scheme slabs for schemeCode: {}",
+                savedRates.size(), requestDTO.getSchemeCode());
 
         return savedRates;
     }
+
+    private void validateCreateSlabs(SchemeRateRequestDTO requestDTO) {
+
+        List<SchemeRateSlabDTO> slabs = requestDTO.getSlabs();
+
+        if (slabs == null || slabs.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No slabs provided for operator: " + requestDTO.getOperatorName()
+            );
+        }
+
+        // SORT BY SLAB START
+        slabs.sort(Comparator.comparing(SchemeRateSlabDTO::getSlabStart));
+
+        for (int i = 0; i < slabs.size(); i++) {
+
+            SchemeRateSlabDTO current = slabs.get(i);
+
+            // NULL CHECK
+            if (current.getSlabStart() == null || current.getSlabEnd() == null) {
+                throw new IllegalArgumentException(
+                        "Slab start/end cannot be null for operator: " + requestDTO.getOperatorName()
+                );
+            }
+
+            // RANGE CHECK (MAIN ISSUE FIX)
+            if (current.getSlabStart() > current.getSlabEnd()) {
+                throw new IllegalArgumentException(
+                        "Invalid slab range for operator " + requestDTO.getOperatorName() +
+                                " → Start (" + current.getSlabStart() + ") > End (" + current.getSlabEnd() + ")"
+                );
+            }
+
+            // OVERLAP CHECK
+            if (i > 0) {
+                SchemeRateSlabDTO prev = slabs.get(i - 1);
+
+                if (current.getSlabStart() <= prev.getSlabEnd()) {
+                    throw new IllegalArgumentException(
+                            "Overlapping slabs detected for operator " + requestDTO.getOperatorName() +
+                                    " between [" + prev.getSlabStart() + "-" + prev.getSlabEnd() + "] and [" +
+                                    current.getSlabStart() + "-" + current.getSlabEnd() + "]"
+                    );
+                }
+            }
+        }
+    }
+
+//    @Override
+//    @Transactional
+//    public SchemeDetailResponseDto updateSchemeRates(SchemeSlabUpdateRequestDTO requestDto) {
+//        log.info("Updating scheme slabs for schemeCode: {}", requestDto.getSchemeCode());
+//
+//        for (OperatorWithSlabsDto operator : requestDto.getOperators()) {
+//            log.debug("Processing operator: {} ({})", operator.getOperatorName(), operator.getOperatorCode());
+//
+//            for (SlabRateDto slabDto : operator.getSlabs()) {
+//                SchemeRate slab;
+//                String slabIdentifier = slabDto.getId() != null ? "ID: " + slabDto.getId() : "NEW";
+//
+//                if (slabDto.getId() != null) {
+//                    log.debug("Updating existing slab with ID: {}", slabDto.getId());
+//                    slab = schemeRateRepository.findById(slabDto.getId())
+//                            .orElseThrow(() -> {
+//                                log.error("Slab not found for ID: {}", slabDto.getId());
+//                                return new RuntimeException("Slab not found for ID: " + slabDto.getId());
+//                            });
+//                    slab.setCreatedBy(slabDto.getCreatedBy());
+//                } else {
+//                    log.debug("Creating new slab for schemeCode: {}", requestDto.getSchemeCode());
+//                    slab = new SchemeRate();
+//                    slab.setSchemeCode(requestDto.getSchemeCode());
+//                    slab.setOperatorCode(operator.getOperatorCode());
+//                    slab.setOperatorName(operator.getOperatorName());
+//                    slab.setCreatedBy(slabDto.getCreatedBy());
+//                }
+//
+//                slab.setRateType(slabDto.getRateType());
+//                slab.setSlabType(slabDto.getSlabType());
+//                //slab.setFixedSlabValue(slabDto.getFixedSlabValue());
+//                slab.setSlabStart(slabDto.getSlabStart());
+//                slab.setSlabEnd(slabDto.getSlabEnd());
+//
+//                double gross = safeValue(slabDto.getGross());
+//                double im = safeValue(slabDto.getIm());
+//                double enterprise = safeValue(slabDto.getEnterprise());
+//                double whitelabel = safeValue(slabDto.getWhitelabel());
+//                double superDistributor = safeValue(slabDto.getSuperDistributor());
+//                double partner = safeValue(slabDto.getPartner());
+//                double distributor = safeValue(slabDto.getDistributor());
+//                double retailer = safeValue(slabDto.getRetailer());
+//
+//                log.debug("Validating gross for {}: gross={}, sum={}", slabIdentifier,
+//                        gross, im + enterprise + whitelabel + superDistributor + partner + distributor + retailer);
+//
+//                validateGrossMatch(
+//                        gross, im, enterprise, whitelabel, superDistributor,
+//                        partner, distributor, retailer,
+//                        "Update Scheme Slab",
+//                        operator.getOperatorName(),
+//                        operator.getOperatorCode(),
+//                        slabIdentifier
+//                );
+//
+//                double factor = (slabDto.getRateType() == RateType.PERCENTAGE) ? 0.01 : 1.0;
+//
+//                slab.setGross(gross * factor);
+//                slab.setIm(im * factor);
+//                slab.setEnterprise(enterprise * factor);
+//                slab.setWhitelabel(whitelabel * factor);
+//                slab.setSuperDistributor(superDistributor * factor);
+//                slab.setPartner(partner * factor);
+//                slab.setDistributor(distributor * factor);
+//                slab.setRetailer(retailer * factor);
+//                slab.setEditedBy(slabDto.getEditedBy());
+//
+//                schemeRateRepository.save(slab);
+//                log.debug("Saved slab: {}", slabIdentifier);
+//            }
+//        }
+//
+//        log.info("Successfully updated slabs. Fetching latest scheme detail for: {}", requestDto.getSchemeCode());
+//        return getSchemeDetails(requestDto.getSchemeCode());
+//    }
 
     @Override
     @Transactional
@@ -398,22 +538,31 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         log.info("Updating scheme slabs for schemeCode: {}", requestDto.getSchemeCode());
 
         for (OperatorWithSlabsDto operator : requestDto.getOperators()) {
-            log.debug("Processing operator: {} ({})", operator.getOperatorName(), operator.getOperatorCode());
+
+            log.debug("Validating slabs for operator: {} ({})",
+                    operator.getOperatorName(), operator.getOperatorCode());
+
+            // VALIDATE ALL SLABS BEFORE PROCESSING
+            validateSlabs(operator);
+
+            log.debug("Processing operator: {} ({})",
+                    operator.getOperatorName(), operator.getOperatorCode());
 
             for (SlabRateDto slabDto : operator.getSlabs()) {
-                SchemeRate slab;
-                String slabIdentifier = slabDto.getId() != null ? "ID: " + slabDto.getId() : "NEW";
 
+                SchemeRate slab;
+                String slabIdentifier = slabDto.getId() != null
+                        ? "ID: " + slabDto.getId()
+                        : "NEW";
+
+                // FETCH OR CREATE
                 if (slabDto.getId() != null) {
-                    log.debug("Updating existing slab with ID: {}", slabDto.getId());
                     slab = schemeRateRepository.findById(slabDto.getId())
-                            .orElseThrow(() -> {
-                                log.error("Slab not found for ID: {}", slabDto.getId());
-                                return new RuntimeException("Slab not found for ID: " + slabDto.getId());
-                            });
+                            .orElseThrow(() -> new RuntimeException(
+                                    "Slab not found for ID: " + slabDto.getId()
+                            ));
                     slab.setCreatedBy(slabDto.getCreatedBy());
                 } else {
-                    log.debug("Creating new slab for schemeCode: {}", requestDto.getSchemeCode());
                     slab = new SchemeRate();
                     slab.setSchemeCode(requestDto.getSchemeCode());
                     slab.setOperatorCode(operator.getOperatorCode());
@@ -421,12 +570,13 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                     slab.setCreatedBy(slabDto.getCreatedBy());
                 }
 
+                // BASIC FIELDS
                 slab.setRateType(slabDto.getRateType());
                 slab.setSlabType(slabDto.getSlabType());
-                //slab.setFixedSlabValue(slabDto.getFixedSlabValue());
                 slab.setSlabStart(slabDto.getSlabStart());
                 slab.setSlabEnd(slabDto.getSlabEnd());
 
+                // SAFE VALUES
                 double gross = safeValue(slabDto.getGross());
                 double im = safeValue(slabDto.getIm());
                 double enterprise = safeValue(slabDto.getEnterprise());
@@ -436,9 +586,13 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                 double distributor = safeValue(slabDto.getDistributor());
                 double retailer = safeValue(slabDto.getRetailer());
 
-                log.debug("Validating gross for {}: gross={}, sum={}", slabIdentifier,
-                        gross, im + enterprise + whitelabel + superDistributor + partner + distributor + retailer);
+                log.debug("Validating gross for {}: gross={}, sum={}",
+                        slabIdentifier,
+                        gross,
+                        im + enterprise + whitelabel + superDistributor + partner + distributor + retailer
+                );
 
+                // GROSS VALIDATION
                 validateGrossMatch(
                         gross, im, enterprise, whitelabel, superDistributor,
                         partner, distributor, retailer,
@@ -448,6 +602,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                         slabIdentifier
                 );
 
+                // PERCENTAGE HANDLING
                 double factor = (slabDto.getRateType() == RateType.PERCENTAGE) ? 0.01 : 1.0;
 
                 slab.setGross(gross * factor);
@@ -458,15 +613,66 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                 slab.setPartner(partner * factor);
                 slab.setDistributor(distributor * factor);
                 slab.setRetailer(retailer * factor);
+
                 slab.setEditedBy(slabDto.getEditedBy());
 
                 schemeRateRepository.save(slab);
+
                 log.debug("Saved slab: {}", slabIdentifier);
             }
         }
 
-        log.info("Successfully updated slabs. Fetching latest scheme detail for: {}", requestDto.getSchemeCode());
+        log.info("Successfully updated slabs. Fetching latest scheme detail for: {}",
+                requestDto.getSchemeCode());
+
         return getSchemeDetails(requestDto.getSchemeCode());
+    }
+
+    private void validateSlabs(OperatorWithSlabsDto operator) {
+
+        List<SlabRateDto> slabs = operator.getSlabs();
+
+        if (slabs == null || slabs.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No slabs provided for operator: " + operator.getOperatorName()
+            );
+        }
+
+        // SORT BY SLAB START
+        slabs.sort(Comparator.comparing(SlabRateDto::getSlabStart));
+
+        for (int i = 0; i < slabs.size(); i++) {
+
+            SlabRateDto current = slabs.get(i);
+
+            // NULL CHECK
+            if (current.getSlabStart() == null || current.getSlabEnd() == null) {
+                throw new IllegalArgumentException(
+                        "Slab start/end cannot be null for operator: " + operator.getOperatorName()
+                );
+            }
+
+            // RANGE CHECK (MAIN ISSUE FIX)
+            if (current.getSlabStart() > current.getSlabEnd()) {
+                throw new IllegalArgumentException(
+                        "Invalid slab range for operator " + operator.getOperatorName() +
+                                " → Start (" + current.getSlabStart() + ") > End (" + current.getSlabEnd() + ")"
+                );
+            }
+
+            // OVERLAP CHECK
+            if (i > 0) {
+                SlabRateDto prev = slabs.get(i - 1);
+
+                if (current.getSlabStart() <= prev.getSlabEnd()) {
+                    throw new IllegalArgumentException(
+                            "Overlapping slabs detected for operator " + operator.getOperatorName() +
+                                    " between [" + prev.getSlabStart() + "-" + prev.getSlabEnd() + "] and [" +
+                                    current.getSlabStart() + "-" + current.getSlabEnd() + "]"
+                    );
+                }
+            }
+        }
     }
 
     private double safeValue(Double val) {

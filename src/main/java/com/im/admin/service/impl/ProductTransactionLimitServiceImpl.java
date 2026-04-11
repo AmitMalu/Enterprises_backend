@@ -31,11 +31,24 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
 
     @Autowired
     private ProductsRepository productsRepository;
+
     @Autowired
     private SubProductsRepository subProductsRepository;
 
     @Override
     public CommonResponse<ProductLimitResponseDto> save(ProductTransactionLimitDTO dto) {
+
+        if (dto.getMinAmount() == null || dto.getMaxAmount() == null) {
+            throw new IllegalArgumentException("Min amount and Max amount cannot be null");
+        }
+
+        if (dto.getMinAmount().compareTo(dto.getMaxAmount()) > 0) {
+            throw new IllegalArgumentException(
+                    "Invalid amount range: Min amount (" + dto.getMinAmount() +
+                            ") cannot be greater than Max amount (" + dto.getMaxAmount() + ")"
+            );
+        }
+
         Products product = productsRepository.findById(dto.getProductId())
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
@@ -55,6 +68,7 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
         limit.setMonthlyTransactionLimit(dto.getMonthlyTransactionLimit());
         limit.setCheckAmountPattern(dto.getCheckAmountPattern());
         limit.setMaxAmount(dto.getMaxAmount());
+        limit.setMinAmount(dto.getMinAmount());
         limit.setBlocked(dto.getBlocked());
         limit.setCreatedOn(LocalDateTime.now());
         limit.setCreatedBy(dto.getCreatedBy());
@@ -73,6 +87,7 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
         responseDto.setMonthlyTransactionLimit(saved.getMonthlyTransactionLimit());
         responseDto.setCheckAmountPattern(saved.getCheckAmountPattern());
         responseDto.setMaxAmount(saved.getMaxAmount());
+        responseDto.setMinAmount(saved.getMinAmount());
         responseDto.setBlocked(saved.getBlocked());
         responseDto.setCreatedOn(saved.getCreatedOn());
         responseDto.setCreatedBy(saved.getCreatedBy());
@@ -93,6 +108,18 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
 
     @Override
     public CommonResponse<ProductLimitResponseDto> update(Long id, ProductTransactionLimitDTO dto) {
+
+        if (dto.getMinAmount() == null || dto.getMaxAmount() == null) {
+            throw new IllegalArgumentException("Min amount and Max amount cannot be null");
+        }
+
+        if (dto.getMinAmount().compareTo(dto.getMaxAmount()) > 0) {
+            throw new IllegalArgumentException(
+                    "Invalid amount range: Min amount (" + dto.getMinAmount() +
+                            ") cannot be greater than Max amount (" + dto.getMaxAmount() + ")"
+            );
+        }
+
         ProductTransactionLimit existing = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("ProductTransactionLimit not found with id: " + id));
 
@@ -114,6 +141,7 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
         existing.setMonthlyTransactionLimit(dto.getMonthlyTransactionLimit());
         existing.setCheckAmountPattern(dto.getCheckAmountPattern());
         existing.setMaxAmount(dto.getMaxAmount());
+        existing.setMinAmount(dto.getMinAmount());
         existing.setBlocked(dto.getBlocked());
         existing.setEditedOn(LocalDateTime.now());
         existing.setEditedBy(dto.getEditedBy());
@@ -132,6 +160,7 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
         responseDto.setMonthlyTransactionLimit(updated.getMonthlyTransactionLimit());
         responseDto.setCheckAmountPattern(updated.getCheckAmountPattern());
         responseDto.setMaxAmount(updated.getMaxAmount());
+        responseDto.setMinAmount(updated.getMinAmount());
         responseDto.setBlocked(updated.getBlocked());
         responseDto.setEditedOn(updated.getEditedOn());
         responseDto.setEditedBy(updated.getEditedBy());

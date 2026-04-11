@@ -1,8 +1,6 @@
 package com.im.admin.callbacks;
 
-import com.cashfree.pg.Cashfree;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.im.admin.entities.PgTransactionMapping;
 import com.im.admin.repositories.PgTransactionMappingRepository;
 import com.im.admin.request.NixaSoftCallbackRequest;
 import com.im.admin.request.UnisusWebhookRequest;
@@ -10,25 +8,19 @@ import com.im.admin.response.UnisusWebhookResponse;
 import com.im.admin.service.*;
 import com.im.admin.service.impl.RunpaisaPGServiceImpl;
 import com.im.admin.util.IdempotencyServiceUtil;
-import com.razorpay.Utils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.BufferedReader;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/pg/callback")

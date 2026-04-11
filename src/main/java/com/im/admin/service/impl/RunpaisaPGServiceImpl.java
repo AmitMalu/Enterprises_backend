@@ -76,9 +76,6 @@ public class RunpaisaPGServiceImpl {
     private TransactionEngineServiceImpl transactionServiceImpl;
 
     @Autowired
-    private TransactionSchemeRequestEntityRepository transactionSchemeRequestEntityRepository;
-
-    @Autowired
     private ProductTransactionLimitRepository productTransactionLimitRepository;
 
     @Autowired
@@ -750,51 +747,111 @@ public class RunpaisaPGServiceImpl {
         return callback;
     }
 
+//    public CommonResponse<String> validateTransaction(PgTransactionRequestDto request) {
+//
+//        ProductTransactionLimit limit = getLimit(request.getProductId(), request.getSubProductId())
+//                .orElseThrow(() -> new RuntimeException("No transaction limits configured"));
+//
+//        StoredProcedureQuery query = entityManager
+//                .createStoredProcedureQuery("check_pg_transaction_limit")
+//                .registerStoredProcedureParameter("wallet_type", String.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("in_card_bin_no", String.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("in_card_holder_mobile", String.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("transaction_amount", BigDecimal.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("daily_limit", Integer.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("monthly_transaction_limit", Integer.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("yearly_limit", Integer.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("daily_amt_limit", BigDecimal.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("result_msg", String.class, ParameterMode.OUT)
+//                .registerStoredProcedureParameter("is_valid", Boolean.class, ParameterMode.OUT);
+//
+//        query.setParameter("wallet_type", request.getWalletType());
+//        query.setParameter("in_card_bin_no", request.getCardBinNo());
+//        query.setParameter("in_card_holder_mobile", request.getCardHolderMobileNumber());
+//        query.setParameter("transaction_amount", request.getAmount());
+//        query.setParameter("daily_limit", limit.getMaxAmount());
+//        query.setParameter("monthly_transaction_limit", limit.getMonthlyTransactionLimit());
+//        query.setParameter("yearly_limit", limit.getMaxAmount());
+//        query.setParameter("daily_amt_limit", limit.getMaxAmount());
+//
+//        query.execute();
+//
+//        String resultMsg = (String) query.getOutputParameterValue("result_msg");
+//        Boolean isValid = (Boolean) query.getOutputParameterValue("is_valid");
+//
+//        return isValid
+//                ? CommonResponse.success("ALLOWED", resultMsg)
+//                : CommonResponse.failure(resultMsg);
+//    }
+
     public CommonResponse<String> validateTransaction(PgTransactionRequestDto request) {
 
         ProductTransactionLimit limit = getLimit(request.getProductId(), request.getSubProductId())
                 .orElseThrow(() -> new RuntimeException("No transaction limits configured"));
 
-        StoredProcedureQuery query = entityManager
-                .createStoredProcedureQuery("check_pg_transaction_limit")
-                .registerStoredProcedureParameter("wallet_type", String.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("in_card_bin_no", String.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("in_card_holder_mobile", String.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("transaction_amount", BigDecimal.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("daily_limit", Integer.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("monthly_limit", Integer.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("yearly_limit", Integer.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("daily_amt_limit", BigDecimal.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("result_msg", String.class, ParameterMode.OUT)
-                .registerStoredProcedureParameter("is_valid", Boolean.class, ParameterMode.OUT);
+        if(request.getAmount() == null
+            || limit.getMinAmount() == null
+                || limit.getMaxAmount() == null
+                || request.getAmount().compareTo(limit.getMinAmount()) < 0
+                || request.getAmount().compareTo(limit.getMaxAmount()) > 0) {
 
-        query.setParameter("wallet_type", request.getWalletType());
-        query.setParameter("in_card_bin_no", request.getCardBinNo());
-        query.setParameter("in_card_holder_mobile", request.getCardHolderMobileNumber());
-        query.setParameter("transaction_amount", request.getAmount());
-        query.setParameter("daily_limit", limit.getMaxAmount());
-        query.setParameter("monthly_limit", limit.getMonthlyTransactionLimit());
-        query.setParameter("yearly_limit", limit.getMaxAmount());
-        query.setParameter("daily_amt_limit", limit.getMaxAmount());
+            return CommonResponse.failure(
+                    "Please enter an amount between ₹" + limit.getMinAmount() +
+                            " and ₹" + limit.getMaxAmount()
+            );
+        }
+
+        StoredProcedureQuery query = entityManager
+                .createStoredProcedureQuery("check_pg_transaction_limit");
+
+        // Register parameters by POSITION (VERY IMPORTANT)
+        query.registerStoredProcedureParameter(1, String.class, ParameterMode.IN); // wallet_type
+        query.registerStoredProcedureParameter(2, String.class, ParameterMode.IN); // bin
+        query.registerStoredProcedureParameter(3, String.class, ParameterMode.IN); // mobile
+        query.registerStoredProcedureParameter(4, BigDecimal.class, ParameterMode.IN); // amount
+        query.registerStoredProcedureParameter(5, Integer.class, ParameterMode.IN); // daily_limit
+        query.registerStoredProcedureParameter(6, Integer.class, ParameterMode.IN); // monthly_limit
+        query.registerStoredProcedureParameter(7, Integer.class, ParameterMode.IN); // yearly_limit
+        query.registerStoredProcedureParameter(8, BigDecimal.class, ParameterMode.IN); // daily_amt_limit
+        query.registerStoredProcedureParameter(9, String.class, ParameterMode.OUT); // result_msg
+        query.registerStoredProcedureParameter(10, Boolean.class, ParameterMode.OUT); // is_valid
+
+        // Set values
+        query.setParameter(1, request.getWalletType());
+        query.setParameter(2, request.getCardBinNo());
+        query.setParameter(3, request.getCardHolderMobileNumber());
+        query.setParameter(4, request.getAmount());
+
+        // FIX TYPES
+        query.setParameter(5, safeParseInt(limit.getPerDayTransactionLimit()));
+        query.setParameter(6, safeParseInt(limit.getMonthlyTransactionLimit()));
+        query.setParameter(7, safeParseInt(limit.getMonthlyTransactionLimit()));
+        query.setParameter(8, limit.getMaxAmount());
 
         query.execute();
 
-        String resultMsg = (String) query.getOutputParameterValue("result_msg");
-        Boolean isValid = (Boolean) query.getOutputParameterValue("is_valid");
+        String resultMsg = (String) query.getOutputParameterValue(9);
+        Boolean isValid = (Boolean) query.getOutputParameterValue(10);
 
         return isValid
                 ? CommonResponse.success("ALLOWED", resultMsg)
                 : CommonResponse.failure(resultMsg);
     }
 
-//    public Optional<ProductTransactionLimit> getLimit(Short productId) {
-//        return productTransactionLimitRepository
-//                .findByProduct_Id(productId);
-//    }
-
     public Optional<ProductTransactionLimit> getLimit(Short productId, String subProductId) {
         return productTransactionLimitRepository
                 .findByProduct_IdAndSubProduct_Id(productId, subProductId);
+    }
+
+    private Integer safeParseInt(String value) {
+        if (value == null || value.trim().isEmpty() || value.equals("-")) {
+            return 0; // or null depending on your logic
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return 0; // fallback
+        }
     }
 
 }
