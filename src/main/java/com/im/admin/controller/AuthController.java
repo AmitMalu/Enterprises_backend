@@ -9,9 +9,7 @@ import com.im.admin.dto.LoginRequestDto;
 import com.im.admin.dto.RsaTestRequest;
 import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
-import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
-import com.im.admin.request.TokenGenerationRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.AuthService;
 import com.im.admin.util.AESEncryptionUtil;
@@ -19,6 +17,7 @@ import com.im.admin.util.CommonMethods;
 import com.im.admin.util.OtpUtil;
 import com.im.admin.util.RsaUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.jcajce.provider.asymmetric.rsa.RSAUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -26,33 +25,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
+import java.security.*;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
-import java.security.KeyFactory;
-import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-
-import javax.crypto.Cipher;
-
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.security.KeyFactory;
-import java.security.PrivateKey;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.Base64;
-
-import javax.crypto.Cipher;
 
 @RestController
 @RequestMapping("/auth")
@@ -131,7 +112,6 @@ public class AuthController {
 
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
-
 
     @Autowired
     private RsaUtil rsaUtil;
