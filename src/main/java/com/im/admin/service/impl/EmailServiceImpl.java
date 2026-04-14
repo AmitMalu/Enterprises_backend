@@ -1,7 +1,10 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.entities.EmailLog;
+import com.im.admin.entities.EmailTemplateMaster;
+import com.im.admin.entities.enums.EmailType;
 import com.im.admin.repositories.EmailLogRepository;
+import com.im.admin.repositories.EmailTemplateRepository;
 import com.im.admin.service.EmailService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +14,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Service
 public class EmailServiceImpl implements EmailService {
@@ -21,12 +25,15 @@ public class EmailServiceImpl implements EmailService {
     @Autowired
     private EmailLogRepository emailLogRepository;
 
-    @Value("${spring.mail.username}")
-    private String fromEmail;
+    @Autowired
+    private EmailTemplateRepository emailTemplateRepository;
+
+//    @Value("${spring.mail.username}")
+//    private String fromEmail;
 
     @Override
     @Transactional
-    public void sendSimpleEmail(String toEmail, String subject, String body) {
+    public void sendSimpleEmail(String fromEmail, String toEmail, String subject, String body) {
         LocalDateTime requestTime = LocalDateTime.now();
         String request = "To: " + toEmail + "\nSubject: " + subject + "\nBody: " + body;
         String response = "";
@@ -70,5 +77,21 @@ public class EmailServiceImpl implements EmailService {
                 "Password: " + password + "\n\n" +
                 "For security reasons, we recommend changing your password after your first login.\n\n" +
                 "Best Regards,\nNFT Team";
+    }
+
+    public String buildEmailFromDB(EmailType type, Map<String, String> variables) {
+
+        EmailTemplateMaster template = emailTemplateRepository
+                .findByType(type.name())
+                .orElseThrow(() -> new RuntimeException("Template not found"));
+
+        String body = template.getTemplate();
+
+        // Replace variables
+        for (Map.Entry<String, String> entry : variables.entrySet()) {
+            body = body.replace("{{" + entry.getKey() + "}}", entry.getValue());
+        }
+
+        return body;
     }
 }

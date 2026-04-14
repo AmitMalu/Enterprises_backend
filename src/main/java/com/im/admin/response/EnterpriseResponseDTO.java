@@ -74,5 +74,11 @@ public class EnterpriseResponseDTO {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private LocalDateTime createdOn;
 
+    private String aadhaarCardFrontImage;
+    private String aadhaarCardBackImage;
+    private String panCardImage;
+    private String shopImage;
+    private String businessProofImage;
+
 
 }

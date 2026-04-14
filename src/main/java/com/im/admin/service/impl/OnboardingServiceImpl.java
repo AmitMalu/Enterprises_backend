@@ -4,6 +4,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.OnboardingHierarchyRequestDto;
 import com.im.admin.dto.GenericPendingRecordDto;
 import com.im.admin.entities.*;
+import com.im.admin.entities.enums.EmailType;
 import com.im.admin.exception.NoPendingRecordsFoundException;
 import com.im.admin.repositories.*;
 import com.im.admin.request.ChangeStatusToPendingRequest;
@@ -27,9 +28,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -38,6 +37,9 @@ public class OnboardingServiceImpl implements OnboardingService {
 
     @Autowired
     private UserDetailsRepository userDetailsRepository;
+
+    @Autowired
+    private EmailTemplateRepository emailTemplateRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -180,6 +182,9 @@ public class OnboardingServiceImpl implements OnboardingService {
                 }
                 distributorRepository.save(dt);
             }
+
+
+
             case "PT" -> {
                 Optional<Partner> ptOpt = partnerRepository.findById(hierarchyId);
                 if (ptOpt.isEmpty()) return "Partner not found";
@@ -296,9 +301,18 @@ public class OnboardingServiceImpl implements OnboardingService {
 
         userDetailsRepository.save(user);
 
+        String fromEmail = resolveFromEmail(hierarchyType, hierarchyId);
         //Send email with credentials
-        String emailBody = emailService.buildWelcomeEmail(name, mobileNo, randomPassword);
-        emailService.sendSimpleEmail(email, "Welcome to NFT – Your Login Credentials", emailBody);
+//        String emailBody = emailService.buildWelcomeEmail(name, mobileNo, randomPassword);
+
+        Map<String, String> vars = new HashMap<>();
+        vars.put("name", name);
+        vars.put("mobile", mobileNo);
+        vars.put("password", randomPassword);
+
+        String emailBody = emailService.buildEmailFromDB(EmailType.ONBOARD_USER, vars);
+
+        emailService.sendSimpleEmail(fromEmail,email, "Welcome to NFT – Your Login Credentials", emailBody);
 
         log.info("User created for hierarchy: " + hierarchyType + ", mobile: " + mobileNo);
         log.info("SMS (mock) sent to mobile: " + mobileNo + " with password: " + randomPassword);
@@ -627,6 +641,88 @@ public class OnboardingServiceImpl implements OnboardingService {
 
         return "Moved to pending successfully";
     }
+
+    private String resolveFromEmail(String hierarchyType, String hierarchyId) {
+
+        switch (hierarchyType) {
+
+            case "RT" -> {
+                Retailer rt = retailerRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Retailer not found"));
+
+                String parentId = rt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "DT" -> {
+                Distributor dt = distributorRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Distributor not found"));
+
+                String parentId = dt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "PT" -> {
+                Partner pt = partnerRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Partner not found"));
+
+                String parentId = pt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "SD" -> {
+                SuperDistributor sd = superDistributorRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("SuperDistributor not found"));
+
+                String parentId = sd.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "WL" -> {
+                WhiteLabels wl = whiteLabelsRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("WhiteLabel not found"));
+
+                if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+                    return wl.getEmailId(); //
+                }
+
+                String parentId = wl.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "ET" -> {
+                Enterprises et = enterprisesRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Enterprise not found"));
+
+                String parentId = et.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "AD", "IM" -> {
+                Admin ad = adminRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+                return ad.getEmailId(); //
+            }
+
+            default -> throw new RuntimeException("Invalid hierarchy type: " + hierarchyType);
+        }
+    }
+
+
+
 
 
 }

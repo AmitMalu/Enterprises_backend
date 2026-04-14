@@ -236,20 +236,21 @@ public class PartnerServiceImpl implements PartnerService {
 
             // Optional image updates
             String folder = "Partner";
+
             if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-                partner.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
+                existingPartner.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
             }
             if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-                partner.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
+                existingPartner.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
             }
             if (panCardImage != null && !panCardImage.isEmpty()) {
-                partner.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
+                existingPartner.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
             }
             if (shopImage != null && !shopImage.isEmpty()) {
-                partner.setShopImage(imageUtil.saveImage(shopImage, folder));
+                existingPartner.setShopImage(imageUtil.saveImage(shopImage, folder));
             }
             if (businessProofImage != null && !businessProofImage.isEmpty()) {
-                partner.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
+                existingPartner.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
             }
 
             updatedPartner = partnerRepository.save(existingPartner);

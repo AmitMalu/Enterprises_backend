@@ -254,21 +254,23 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 
             // Handle optional image updates
             String folder = "White Label";
+
             if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-                whiteLabels.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
+                existingWhiteLabels.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
             }
             if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-                whiteLabels.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
+                existingWhiteLabels.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
             }
             if (panCardImage != null && !panCardImage.isEmpty()) {
-                whiteLabels.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
+                existingWhiteLabels.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
             }
             if (shopImage != null && !shopImage.isEmpty()) {
-                whiteLabels.setShopImage(imageUtil.saveImage(shopImage, folder));
+                existingWhiteLabels.setShopImage(imageUtil.saveImage(shopImage, folder));
             }
             if (businessProofImage != null && !businessProofImage.isEmpty()) {
-                whiteLabels.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
+                existingWhiteLabels.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
             }
+
             // Save updated entity
             WhiteLabels updatedWhiteLabel = whiteLabelRepository.save(existingWhiteLabels);
 
@@ -378,6 +380,11 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
         dto.setRemarks(wl.getRemarks());
         dto.setCreatedBy(wl.getCreatedBy());
         dto.setCreatedOn(wl.getCreatedOn());
+        dto.setAadhaarCardFrontImage(wl.getAadhaarCardFrontImage());
+        dto.setAadhaarCardBackImage(wl.getAadhaarCardBackImage());
+        dto.setPanCardImage(wl.getPanCardImage());
+        dto.setShopImage(wl.getShopImage());
+        dto.setBusinessProofImage(wl.getBusinessProofImage());
 
         return dto;
     }

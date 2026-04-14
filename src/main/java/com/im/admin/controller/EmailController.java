@@ -20,7 +20,7 @@ public class EmailController {
             @RequestParam String subject,
             @RequestParam String body) {
 
-        emailService.sendSimpleEmail(to, subject, body);
+        emailService.sendSimpleEmail("",to, subject, body);
         return " Mail sent successfully to: " + to;
 
     }
