@@ -73,6 +73,19 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
         limit.setCreatedOn(LocalDateTime.now());
         limit.setCreatedBy(dto.getCreatedBy());
 
+        Optional<ProductTransactionLimit> existing =
+                repository.findByProduct_IdAndSubProduct_Id(
+                        dto.getProductId(),
+                        dto.getSubProductId()
+                );
+
+        if (existing.isPresent()) {
+            throw new RuntimeException(
+                    "Limit already exists for productId=" + dto.getProductId() +
+                            " and subProductId=" + dto.getSubProductId()
+            );
+        }
+
         ProductTransactionLimit saved = repository.save(limit);
 
         // Map to Response DTO
@@ -146,6 +159,19 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
         existing.setEditedOn(LocalDateTime.now());
         existing.setEditedBy(dto.getEditedBy());
 
+        // Duplicate check
+        Optional<ProductTransactionLimit> existingg =
+                repository.findByProduct_IdAndSubProduct_Id(
+                        dto.getProductId(),
+                        dto.getSubProductId()
+                );
+
+        if (existingg.isPresent()) {
+            throw new RuntimeException(
+                    "Duplicate entry: limit already exists for this product and subProduct"
+            );
+        }
+
         ProductTransactionLimit updated = repository.save(existing);
 
         // Map to Response DTO
@@ -193,6 +219,7 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
         dto.setIsAllowMonthlyCardLimit(limit.getIsAllowMonthlyCardLimit());
         dto.setCheckAmountPattern(limit.getCheckAmountPattern());
         dto.setMaxAmount(limit.getMaxAmount());
+        dto.setMinAmount(limit.getMinAmount());
         dto.setPerDayTransactionLimit(limit.getPerDayTransactionLimit());
         dto.setMonthlyTransactionLimit(limit.getMonthlyTransactionLimit());
         dto.setBlocked(limit.getBlocked());
@@ -227,6 +254,7 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
             Boolean isAllowMonthlyCardLimit,
             Boolean checkAmountPattern,
             BigDecimal maxAmount,
+            BigDecimal minAmount,
             String perDayTransactionLimit,
             String monthlyTransactionLimit,
             Short productId,
@@ -251,6 +279,7 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
                     dto.setIsAllowMonthlyCardLimit(limit.getIsAllowMonthlyCardLimit());
                     dto.setCheckAmountPattern(limit.getCheckAmountPattern());
                     dto.setMaxAmount(limit.getMaxAmount());
+                    dto.setMinAmount(limit.getMinAmount());
                     dto.setPerDayTransactionLimit(limit.getPerDayTransactionLimit());
                     dto.setMonthlyTransactionLimit(limit.getMonthlyTransactionLimit());
                     if (limit.getProduct() != null) {
@@ -276,6 +305,7 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
                 .filter(dto -> isAllowMonthlyCardLimit == null || dto.getIsAllowMonthlyCardLimit().equals(isAllowMonthlyCardLimit))
                 .filter(dto -> checkAmountPattern == null || dto.getCheckAmountPattern().equals(checkAmountPattern))
                 .filter(dto -> maxAmount == null || dto.getMaxAmount().compareTo(maxAmount) == 0)
+                .filter(dto -> minAmount == null || dto.getMinAmount().compareTo(minAmount) == 0)
                 .filter(dto -> perDayTransactionLimit == null || perDayTransactionLimit.isEmpty() || dto.getPerDayTransactionLimit().contains(perDayTransactionLimit))
                 .filter(dto -> monthlyTransactionLimit == null || monthlyTransactionLimit.isEmpty() || dto.getMonthlyTransactionLimit().contains(monthlyTransactionLimit))
                 .filter(dto -> productId == null || dto.getProductId().equals(productId))
