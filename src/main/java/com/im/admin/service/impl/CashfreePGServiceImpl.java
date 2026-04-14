@@ -11,6 +11,7 @@ import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.repositories.*;
 import com.im.admin.request.CashfreeCreateOrderRequest;
 import com.im.admin.request.CashfreeOrderPayRequest;
@@ -136,26 +137,29 @@ public class CashfreePGServiceImpl implements CashfreePGService {
                 headers.add("Latitude", String.valueOf(latitude));
                 headers.add("Longitude", String.valueOf(longitude));
 
-                CreateOrderRequest jsonBody = new CreateOrderRequest();
-                jsonBody.setOrderId(linkId);
-                jsonBody.setCallbackUrl(credentials.getCallbackUrl());
-                jsonBody.setAmount(req.getOrder_amount());
-                //jsonBody.setMerchantRef(req.getMerchantRef());
-                jsonBody.setUsername(credentials.getUsername());
+                PGCreateOrderCommand command = new PGCreateOrderCommand();
+
+                command.setAmount(req.getOrder_amount());
+                command.setInitiatedBy(req.getInitiatedBy());
+                command.setOrderId(linkId);
+                command.setUsername(credentials.getUsername());
 
                 // Add transaction scheme placeholder if needed
                 TransactionSchemeDetailsRequestDto scheme = new TransactionSchemeDetailsRequestDto();
                 // TODO: fill required scheme fields
-                jsonBody.setTransactionScheme(scheme);
+                command.setSchemeDetails(scheme);
 
-                HttpEntity<CreateOrderRequest> requestEntity = new HttpEntity<>(jsonBody, headers);
+                String uatUrl = credentials.getBaseUrlUat() + "/create-order";
+                String prodUrl = credentials.getBaseUrlProd() + "/create-order";
 
-                String url = credentials.getBaseUrlUat() + "/create-order";
-                log.info("AES Admin panel order URL: {}", url);
+                log.info("AES Admin panel order URL: {}", prodUrl);
+
+                HttpEntity<PGCreateOrderCommand> requestEntity =
+                        new HttpEntity<>(command, headers);
 
                 ResponseEntity<CommonResponse<PgUnifiedOrderResponse>> response =
                         restTemplate.exchange(
-                                url,
+                                prodUrl,
                                 HttpMethod.POST,
                                 requestEntity,
                                 new ParameterizedTypeReference<CommonResponse<PgUnifiedOrderResponse>>() {}
@@ -377,6 +381,9 @@ public class CashfreePGServiceImpl implements CashfreePGService {
 
             // ===== 4. UPDATE STATUS =====
             switch (status) {
+
+                case "SUCCESS":
+                    txn.setStatus("SUCCESS");
 
                 case "PAID":
                     txn.setStatus("SUCCESS");

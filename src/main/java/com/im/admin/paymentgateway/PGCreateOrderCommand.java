@@ -21,6 +21,7 @@ public class PGCreateOrderCommand {
     private String cardBinNo;
     private String cardType;
     private String paymentMethod;
+    private String orderId;
 
     private String username;
     private String callbackUrl;
