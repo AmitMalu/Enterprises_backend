@@ -236,20 +236,21 @@ public class RetailerServiceImpl implements RetailerService {
 
         // Optional image updates
         String folder = "Retailer";
+
         if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-            retailer.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
+            existingRetailer.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
         }
         if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-            retailer.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
+            existingRetailer.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
         }
         if (panCardImage != null && !panCardImage.isEmpty()) {
-            retailer.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
+            existingRetailer.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
         }
         if (shopImage != null && !shopImage.isEmpty()) {
-            retailer.setShopImage(imageUtil.saveImage(shopImage, folder));
+            existingRetailer.setShopImage(imageUtil.saveImage(shopImage, folder));
         }
         if (businessProofImage != null && !businessProofImage.isEmpty()) {
-            retailer.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
+            existingRetailer.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
         }
 
         Retailer updatedRetailer = retailerRepository.save(existingRetailer);

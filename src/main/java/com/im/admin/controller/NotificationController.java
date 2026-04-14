@@ -1,67 +1,103 @@
 package com.im.admin.controller;
 
-import com.im.admin.dto.NotificationRequestDto;
-import com.im.admin.entities.Notification;
-import com.im.admin.entities.NotificationMaster;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.DropdownResponseDto;
+import com.im.admin.dto.NotificationRequestDto;
+import com.im.admin.response.NotificationResponseDto;
 import com.im.admin.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/notification")
 public class NotificationController {
+
     @Autowired
     private NotificationService notificationService;
 
-//    @PostMapping("/create")
-//    public ResponseEntity<CommonResponse> createNotification(@RequestBody NotificationRequestDto dto) {
-//        log.info("Received request to create notification: {}", dto);
-//        Notification created = notificationService.createNotification(dto);
-//        log.info("Notification created successfully with ID: {}", created.getId());
-//        return ResponseEntity.ok(new CommonResponse<>(200, "success", created));
-//    }
 
     @PostMapping("/create")
-    public ResponseEntity<?> createNotification(
-            @RequestBody NotificationMaster request) {
+    public ResponseEntity<CommonResponse<NotificationResponseDto>> createNotification(
+            @RequestBody NotificationRequestDto requestDto) {
 
-        NotificationMaster response =
-                notificationService.createNotification(request);
+        NotificationResponseDto response =
+                notificationService.createNotification(requestDto);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                CommonResponse.created(response, "Notification created successfully")
+        );
     }
+
 
     @GetMapping("/alert-types")
-    public ResponseEntity<?> getAlertTypes() {
+    public ResponseEntity<CommonResponse<?>> getAlertTypes() {
+
         return ResponseEntity.ok(
-                notificationService.getAllAlertTypes());
+                CommonResponse.success(
+                        notificationService.getAllAlertTypes(),
+                        "Alert types fetched successfully"
+                )
+        );
     }
+
 
     @GetMapping("/list")
-    public ResponseEntity<?> getAll() {
+    public ResponseEntity<CommonResponse<Page<NotificationResponseDto>>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+
+        Page<NotificationResponseDto> response =
+                notificationService.getAllNotifications(page, size, sortBy, sortDir);
+
         return ResponseEntity.ok(
-                notificationService.getAllNotifications());
+                CommonResponse.success(response, "Notifications fetched successfully")
+        );
     }
+
 
     @GetMapping("/get/{id}")
-    public ResponseEntity<?> getById(@PathVariable Long id) {
+    public ResponseEntity<CommonResponse<NotificationResponseDto>> getById(
+            @PathVariable Long id) {
+
+        NotificationResponseDto response =
+                notificationService.getNotificationById(id);
+
         return ResponseEntity.ok(
-                notificationService.getNotificationById(id));
+                CommonResponse.success(response, "Notification fetched successfully")
+        );
     }
+
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(
+    public ResponseEntity<CommonResponse<NotificationResponseDto>> update(
             @PathVariable Long id,
-            @RequestBody NotificationMaster request) {
+            @RequestBody NotificationRequestDto requestDto) {
+
+        NotificationResponseDto response =
+                notificationService.updateNotification(id, requestDto);
 
         return ResponseEntity.ok(
-                notificationService.updateNotification(id, request));
+                CommonResponse.success(response, "Notification updated successfully")
+        );
     }
 
 
+    @GetMapping("/dropdowns")
+    public ResponseEntity<CommonResponse<DropdownResponseDto>> getDropdowns() {
 
+        DropdownResponseDto response =
+                notificationService.getDropdownData();
+
+        return ResponseEntity.ok(
+                CommonResponse.success(response, "Dropdown data fetched successfully")
+        );
+    }
 }

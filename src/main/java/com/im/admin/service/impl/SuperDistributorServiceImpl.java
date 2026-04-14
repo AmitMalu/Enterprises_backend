@@ -278,6 +278,11 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
         dto.setBusinessNumber(sd.getBusinessNumber());
         dto.setCreatedBy(sd.getCreatedBy());
         dto.setCreatedOn(sd.getCreatedOn());
+        dto.setAadhaarCardFrontImage(sd.getAadhaarCardFrontImage());
+        dto.setAadhaarCardBackImage(sd.getAadhaarCardBackImage());
+        dto.setPanCardImage(sd.getPanCardImage());
+        dto.setShopImage(sd.getShopImage());
+        dto.setBusinessProofImage(sd.getBusinessProofImage());
 
         return dto;
     }
@@ -338,20 +343,21 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 
             // Image updates
             String folder = "Super Distributor";
+
             if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-                superDistributor.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
+                existingSuperDistributor.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
             }
             if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-                superDistributor.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
+                existingSuperDistributor.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
             }
             if (panCardImage != null && !panCardImage.isEmpty()) {
-                superDistributor.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
+                existingSuperDistributor.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
             }
             if (shopImage != null && !shopImage.isEmpty()) {
-                superDistributor.setShopImage(imageUtil.saveImage(shopImage, folder));
+                existingSuperDistributor.setShopImage(imageUtil.saveImage(shopImage, folder));
             }
             if (businessProofImage != null && !businessProofImage.isEmpty()) {
-                superDistributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
+                existingSuperDistributor.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
             }
 
 

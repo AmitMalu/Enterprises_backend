@@ -246,20 +246,21 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
         // ===== Optional Image Uploads =====
         String folder = "Enterprises";
+
         if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
-            enterprises.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
+            existingEnterprises.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, folder));
         }
         if (aadhaarCardBackImage != null && !aadhaarCardBackImage.isEmpty()) {
-            enterprises.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
+            existingEnterprises.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, folder));
         }
         if (panCardImage != null && !panCardImage.isEmpty()) {
-            enterprises.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
+            existingEnterprises.setPanCardImage(imageUtil.saveImage(panCardImage, folder));
         }
         if (shopImage != null && !shopImage.isEmpty()) {
-            enterprises.setShopImage(imageUtil.saveImage(shopImage, folder));
+            existingEnterprises.setShopImage(imageUtil.saveImage(shopImage, folder));
         }
         if (businessProofImage != null && !businessProofImage.isEmpty()) {
-            enterprises.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
+            existingEnterprises.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
         }
         // ===== Save Updated Enterprise =====
         Enterprises updatedEnterprise = enterpriseRepository.save(existingEnterprises);
@@ -375,7 +376,11 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         dto.setAadhaarPanVerified(enterprise.getAadhaarPanVerified());
         dto.setCreatedBy(enterprise.getCreatedBy());
         dto.setCreatedOn(enterprise.getCreatedOn());
-
+        dto.setAadhaarCardFrontImage(enterprise.getAadhaarCardFrontImage());
+        dto.setAadhaarCardBackImage(enterprise.getAadhaarCardBackImage());
+        dto.setPanCardImage(enterprise.getPanCardImage());
+        dto.setShopImage(enterprise.getShopImage());
+        dto.setBusinessProofImage(enterprise.getBusinessProofImage());
         return dto;
     }
 
