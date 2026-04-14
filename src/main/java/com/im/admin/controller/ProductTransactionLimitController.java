@@ -62,6 +62,7 @@ public class ProductTransactionLimitController {
             @RequestParam(required = false) Boolean isAllowMonthlyCardLimit,
             @RequestParam(required = false) Boolean checkAmountPattern,
             @RequestParam(required = false) BigDecimal maxAmount,
+            @RequestParam(required = false) BigDecimal minAmount,
             @RequestParam(required = false) String perDayTransactionLimit,
             @RequestParam(required = false) String monthlyTransactionLimit,
             @RequestParam(required = false) Short productId,
@@ -78,7 +79,7 @@ public class ProductTransactionLimitController {
 
         CommonResponse<Page<ProductLimitResponseDto>> response = service.getAll(
                 id, description, walletType, paymentCurrency, isAllowPerDayCardLimit,
-                isAllowMonthlyCardLimit, checkAmountPattern, maxAmount, perDayTransactionLimit,
+                isAllowMonthlyCardLimit, checkAmountPattern, maxAmount, minAmount, perDayTransactionLimit,
                 monthlyTransactionLimit, productId, productName, subProductId, subProductName,
                 blocked, createdBy, editedBy, pageable
         );
