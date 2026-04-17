@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.SMSGatewayAPI;
+import com.im.admin.commons.ShivSmsService;
 import com.im.admin.dto.ChangePasswordRequestDto;
 import com.im.admin.dto.LoginRequestDto;
 import com.im.admin.dto.RsaTestRequest;
@@ -55,6 +56,10 @@ public class AuthController {
 
     @Autowired
     private AESController aesController;
+
+
+    @Autowired
+    private ShivSmsService shivSmsService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -282,6 +287,8 @@ public class AuthController {
         try {
             //  Send OTP via SMS
 //            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
+
+            String smsResponse = shivSmsService.sendOtpSms(user.getMobileNumber(),user.getLoginUserName(), otp);
 
 //            //Save SMS logs
 //            commonFunctions.saveSmsLogs(

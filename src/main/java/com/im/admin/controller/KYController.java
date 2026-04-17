@@ -155,7 +155,7 @@ public class KYController {
         Object result = kycService.getApprovedDocuments(requestDto.getSearchKeyword(), pageable);
 
         CommonResponse<Object> response = new CommonResponse<>(
-                20, "Approved document(s) fetched successfully", result
+                200, "Approved document(s) fetched successfully", result
         );
 
         return ResponseEntity.ok(response);

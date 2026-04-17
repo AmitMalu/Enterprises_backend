@@ -19,4 +19,5 @@ public class NotificationResponseDto {
     private String sendMode;
     private LocalDateTime scheduleTime;
     private LocalDateTime createdAt;
+    private Boolean isRead;
 }

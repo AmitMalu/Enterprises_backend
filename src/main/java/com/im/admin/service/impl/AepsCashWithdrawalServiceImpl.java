@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -54,7 +55,7 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
     private static final int SUPER_MERCHANT_ID = 1396;
 
     @Override
-    public CommonResponse<AepsCashWithdrawalResponse> cashWithdrawal(AepsCashWithdrawalRequest req) {
+    public CommonResponse<AepsCashWithdrawalResponse> cashWithdrawal(AepsCashWithdrawalRequest req,  Double latitude,  Double longitude) {
 
         String orderId = "AEPS" + commonMethods.generateBaseTransactionId();
         log.info("[AEPS CW] Start | orderId={}", orderId);
@@ -256,6 +257,8 @@ public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService 
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
+            dto.setLatitude(Double.valueOf(latitude));
+            dto.setLongitude(Double.valueOf(longitude));
 
             // GET VENDOR STATUS
 

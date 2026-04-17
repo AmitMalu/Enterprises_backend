@@ -332,7 +332,10 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
       )
     AND (:txStatus IS NULL OR LOWER(r.tranStatus) LIKE LOWER(CONCAT('%', :txStatus, '%')))
     AND (:dateOfTransaction IS NULL OR r.dateOfTransaction = :dateOfTransaction)
-    AND (:timeOfTransaction IS NULL OR r.timeOfTransaction = :timeOfTransaction)
+  AND (
+                  :timeOfTransaction IS NULL OR\s
+                  CAST(r.timeOfTransaction AS string) LIKE CONCAT(:timeOfTransaction, '%')
+              )
     AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
     AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
 """)

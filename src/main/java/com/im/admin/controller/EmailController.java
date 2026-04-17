@@ -14,14 +14,14 @@ public class EmailController {
     @Autowired
     private EmailService emailService;
 
-    @GetMapping("/send")
-    public String sendMail(
-            @RequestParam String to,
-            @RequestParam String subject,
-            @RequestParam String body) {
-
-        emailService.sendSimpleEmail("",to, subject, body);
-        return " Mail sent successfully to: " + to;
-
-    }
+//    @GetMapping("/send")
+//    public String sendMail(
+//            @RequestParam String to,
+//            @RequestParam String subject,
+//            @RequestParam String body) {
+//
+//        emailService.sendSimpleEmail("","",to, subject, body);
+//        return " Mail sent successfully to: " + to;
+//
+//    }
 }

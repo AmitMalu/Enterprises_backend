@@ -657,6 +657,8 @@ public class DmtOrchestrator {
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
+            dto.setLatitude(Double.valueOf(latitude));
+            dto.setLongitude(Double.valueOf(longitude));
 
 
             log.info("[PROCESS PAYOUT ORCH] Saved pending txn: {}, vendorStatus={}", orderId, remitterTransactionResponse.getStatus());

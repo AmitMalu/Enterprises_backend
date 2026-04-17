@@ -50,6 +50,7 @@ public interface WhiteLabelRepository extends JpaRepository<WhiteLabels, String>
 
 
 
+
 }
 
 

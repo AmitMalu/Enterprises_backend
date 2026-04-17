@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.client.RestTemplate;
 import com.im.admin.util.FingpayEncryptionUtil;
 
@@ -80,7 +81,7 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
     private CommonFunctions commonFunctions;
 
     @Override
-    public CommonResponse<AepsBalanceInquiryResponse>  balanceInquiry(AepsBalanceInquiryRequest req) {
+    public CommonResponse<AepsBalanceInquiryResponse>  balanceInquiry(AepsBalanceInquiryRequest req, @RequestHeader Double latitude, @RequestHeader Double longitude) {
 
 
 
@@ -257,6 +258,8 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
+            dto.setLatitude(Double.valueOf(latitude));
+            dto.setLongitude(Double.valueOf(longitude));
 
 
             // ===== MAPPING VENDOR STATUS =====
@@ -312,7 +315,7 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
 
 
     @Override
-    public CommonResponse<AepsMiniStatementResponse> ministatement(AepsMiniStatementRequest req) {
+    public CommonResponse<AepsMiniStatementResponse> ministatement(AepsMiniStatementRequest req, @RequestHeader Double latitude, @RequestHeader Double longitude) {
 
         String baseTransactionId = commonMethods.generateBaseTransactionId();
         String orderId = "AEPS" + baseTransactionId;
@@ -488,6 +491,8 @@ public class AepsBalanceInquiryServiceImpl implements AepsBalanceInquiryService 
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
+            dto.setLatitude(Double.valueOf(latitude));
+            dto.setLongitude(Double.valueOf(longitude));
 
 
             // ===== MAPPING VENDOR STATUS =====

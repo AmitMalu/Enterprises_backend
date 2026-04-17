@@ -786,6 +786,31 @@ public class FundingServiceImpl implements FundingService {
             }
         }
 
+        if (StringUtils.hasText(request.getProductName())) {
+
+            List<SubProducts> subProductsByProductName =
+                    subProductsRepository.findAll().stream()
+                            .filter(sp -> sp.getProduct() != null &&
+                                    sp.getProduct().getName() != null &&
+                                    sp.getProduct().getName().toLowerCase()
+                                            .contains(request.getProductName().toLowerCase())
+                            )
+                            .collect(Collectors.toList());
+
+            List<String> productBasedSubProducts =
+                    subProductsByProductName.stream()
+                            .map(SubProducts::getSubProductTitle)
+                            .collect(Collectors.toList());
+
+            if (filteredSubProducts != null) {
+                filteredSubProducts = filteredSubProducts.stream()
+                        .filter(productBasedSubProducts::contains)
+                        .collect(Collectors.toList());
+            } else {
+                filteredSubProducts = productBasedSubProducts;
+            }
+        }
+
         String vendorName = null;
         if (StringUtils.hasText(request.getVendorId())) {
             vendorName = vendorRepository.findById(request.getVendorId())
@@ -859,7 +884,7 @@ public class FundingServiceImpl implements FundingService {
                 request.getRemarks(),
                 request.getMedium(),
                 request.getTxType(),
-                request.getTxStatus(),
+                request.getTranStatus(),
                 request.getActionOnBalanceAmount(), //  Settlement Pending filter
                 request.getDateOfTransaction(),
                 request.getTimeOfTransaction(),
@@ -929,6 +954,7 @@ public class FundingServiceImpl implements FundingService {
                 request.getRemarks(),
                 request.getMedium(),
                 request.getTxType(),
+                request.getTranStatus(),
                 actionFilter,   //  ONLY THIS FILTER MATTERS
                 request.getDateOfTransaction(),
                 request.getTimeOfTransaction(),
@@ -1065,6 +1091,7 @@ public class FundingServiceImpl implements FundingService {
                 filteredSubProducts = allSubProducts;
             }
         }
+
 
         String vendorName = null;
         if (StringUtils.hasText(request.getVendorId())) {
@@ -1213,6 +1240,7 @@ public class FundingServiceImpl implements FundingService {
                 request.getRemarks(),
                 request.getMedium(),
                 request.getTxType(),
+                request.getTranStatus(),
                 actionFilter,
                 request.getDateOfTransaction(),
                 request.getTimeOfTransaction(),
