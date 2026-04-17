@@ -93,7 +93,9 @@ public class NftCashfreeInitiator implements PaymentGatewayInitiator {
 
     @Override
     public PgStatusResponse checkStatus(String orderId) {
-        return null;
+
+       return cashfreePGService.checkStatus(orderId);
+
     }
 
     @Override

@@ -1,6 +1,5 @@
 package com.im.admin.dto;
 
-import com.im.admin.entities.enums.RateType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

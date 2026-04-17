@@ -109,10 +109,10 @@ public class UnisusPGServiceImpl implements UnisusPGService {
             entity.setAmount(req.getAmount());
             entity.setInitiatedBy(req.getInitiatedBy());
             entity.setSubProductId(req.getSubProductId());
-            entity.setStatus("INITIATED");
+            entity.setStatus("PENDING");
             entity.setVendorSessionId(response.getSessionId());
             entity.setCardBinNo(req.getCardBinNo());
-            entity.setVendorName("UnisusPay Payment Gateway");
+            entity.setVendorName(vendor.getVendorName());
             entity.setLatitude(latitude);
             entity.setLongitude(longitude);
 
