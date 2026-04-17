@@ -17,6 +17,7 @@ import com.im.admin.request.CashfreeCreateOrderRequest;
 import com.im.admin.request.CashfreeOrderPayRequest;
 import com.im.admin.request.CreateOrderRequest;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
 import com.im.admin.service.CashfreePGService;
 import com.im.admin.util.CommonMethods;
@@ -152,14 +153,14 @@ public class CashfreePGServiceImpl implements CashfreePGService {
                 String uatUrl = credentials.getBaseUrlUat() + "/create-order";
                 String prodUrl = credentials.getBaseUrlProd() + "/create-order";
 
-                log.info("AES Admin panel order URL: {}", prodUrl);
+                log.info("AES Admin panel order URL: {}", uatUrl);
 
                 HttpEntity<PGCreateOrderCommand> requestEntity =
                         new HttpEntity<>(command, headers);
 
                 ResponseEntity<CommonResponse<PgUnifiedOrderResponse>> response =
                         restTemplate.exchange(
-                                prodUrl,
+                                uatUrl,
                                 HttpMethod.POST,
                                 requestEntity,
                                 new ParameterizedTypeReference<CommonResponse<PgUnifiedOrderResponse>>() {}
@@ -181,10 +182,10 @@ public class CashfreePGServiceImpl implements CashfreePGService {
                 PgTransactionMapping mapping = new PgTransactionMapping();
                 mapping.setOrderId(linkId);
                 mapping.setAmount(req.getOrder_amount());
-                mapping.setStatus("INITIATED");
+                mapping.setStatus("PENDING");
                 mapping.setInitiatedBy(req.getInitiatedBy());
                 mapping.setSubProductId(req.getSubProductId());
-                mapping.setVendorName("Cashfree PG");
+                mapping.setVendorName(vendor.getVendorName());
                 mapping.setLatitude(latitude);
                 mapping.setLongitude(longitude);
 
@@ -261,10 +262,10 @@ public class CashfreePGServiceImpl implements CashfreePGService {
                 PgTransactionMapping mapping = new PgTransactionMapping();
                 mapping.setOrderId(linkId);
                 mapping.setAmount(req.getOrder_amount());
-                mapping.setStatus("INITIATED");
+                mapping.setStatus("PENDING");
                 mapping.setInitiatedBy(req.getInitiatedBy());
                 mapping.setSubProductId(req.getSubProductId());
-                mapping.setVendorName("Cashfree PG");
+                mapping.setVendorName(vendor.getVendorName());
                 mapping.setLatitude(latitude);
                 mapping.setLongitude(longitude);
 
@@ -480,7 +481,9 @@ public class CashfreePGServiceImpl implements CashfreePGService {
             dto.setSubProductCode(subProduct.getSubProductCode());
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
-            dto.setVendorName("Cashfree PG");
+            dto.setVendorName(txn.getVendorName());
+            dto.setLatitude(txn.getLatitude());
+            dto.setLongitude(txn.getLongitude());
 
             // ===== 11. PROCESS TRANSACTION =====
             transactionServiceImpl.processTransaction(dto, status);
@@ -562,5 +565,17 @@ public class CashfreePGServiceImpl implements CashfreePGService {
         log.info("Final OperatorName={}", operatorName);
 
         return operatorName;
+    }
+
+    @Override
+    public PgStatusResponse checkStatus(String orderId) {
+
+//        HttpResponse<String> response = Unirest.get("https://sandbox.cashfree.com/pg/links/{link_id}/orders")
+//                .header("x-api-version", "2025-01-01")
+//                .header("x-client-id", "TEST109543989fdd3a87c98380c0cfbd89345901")
+//                .header("x-client-secret", "cfsk_ma_test_c55beaca2b6adbe2630c91be6654e0ed_f9f1de22")
+//                .asString();
+
+        return null;
     }
 }

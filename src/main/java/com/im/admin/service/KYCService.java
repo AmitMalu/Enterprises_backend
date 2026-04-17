@@ -18,12 +18,9 @@ public interface KYCService {
 
     String editKyc(KYCEditRequest request, MultipartFile imageFile);
 
-
     void deleteKycDocument(String hierarchyId, String category);
 
     Page<Object> getApprovedDocuments(String searchKeyword, Pageable pageable);
-
-
 
     List<KycDocumentDto> getKycDetailDocumentsByHierarchyId(String hierarchyId);
 

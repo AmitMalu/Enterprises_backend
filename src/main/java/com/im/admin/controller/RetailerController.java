@@ -35,9 +35,6 @@ public class RetailerController {
     @Autowired
     private RetailerService retailerService;
 
-    @Autowired
-    private PhoneNumberValidationService phoneNumberValidationService;
-
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommonResponse<Retailer>> createRetailer(
             @RequestPart("data") String retailerJson,

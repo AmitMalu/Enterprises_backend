@@ -127,10 +127,6 @@ public class KYCServiceImpl implements KYCService {
         return new KYCResponseDto(
                 r.getRetailerId(), r.getName(), r.getMobileNumber(),
                 r.getEmailId()
-//                r.getEmailId(), r.getEmailVerified(),
-//                r.getAadhaarCardFrontImage(), r.getAadhaarCardBackImage(), r.getIsAadhaarVerified(), r.getAadhaarNumber(),
-//                r.getPanCardImage(), r.getPanNumber(), r.getPanVerified(), r.getAadhaarPanVerified(),
-//                r.getShopImage(), r.getShopNumber(), r.getBusinessProofImage(), r.getBusinessNumber(), r.getGstNumberVerified()
         );
     }
 
@@ -138,10 +134,6 @@ public class KYCServiceImpl implements KYCService {
         return new KYCResponseDto(
                 d.getDistributorId(), d.getName(), d.getMobileNumber(),
                 d.getEmailId()
-//                d.getEmailId(), d.getEmailVerified(),
-//                d.getAadhaarCardFrontImage(), d.getAadhaarCardBackImage(), d.getIsAadhaarVerified(), d.getAadhaarNumber(),
-//                d.getPanCardImage(), d.getPanNumber(), d.getPanVerified(), d.getAadhaarPanVerified(),
-//                d.getShopImage(), d.getShopNumber(), d.getBusinessProofImage(), d.getBusinessNumber(), d.getGstNumberVerified()
         );
     }
 
@@ -149,10 +141,6 @@ public class KYCServiceImpl implements KYCService {
         return new KYCResponseDto(
                 p.getPartnerId(), p.getName(), p.getMobileNumber(),
                 p.getEmailId()
-//                p.getEmailId(), p.getEmailVerified(),
-//                p.getAadhaarCardFrontImage(), p.getAadhaarCardBackImage(), p.getIsAadhaarVerified(), p.getAadhaarNumber(),
-//                p.getPanCardImage(), p.getPanNumber(), p.getPanVerified(), p.getAadhaarPanVerified(),
-//                p.getShopImage(), p.getShopNumber(), p.getBusinessProofImage(), p.getBusinessNumber(), p.getGstNumberVerified()
         );
     }
 
@@ -160,10 +148,6 @@ public class KYCServiceImpl implements KYCService {
         return new KYCResponseDto(
                 sd.getSuperDistributorId(), sd.getName(), sd.getMobileNumber(),
                  sd.getEmailId()
-//                sd.getEmailId(), sd.getEmailVerified(),
-//                sd.getAadhaarCardFrontImage(), sd.getAadhaarCardBackImage(), sd.getIsAadhaarVerified(), sd.getAadhaarNumber(),
-//                sd.getPanCardImage(), sd.getPanNumber(), sd.getPanVerified(), sd.getAadhaarPanVerified(),
-//                sd.getShopImage(), sd.getShopNumber(), sd.getBusinessProofImage(), sd.getBusinessNumber(), sd.getGstNumberVerified()
         );
     }
 
@@ -171,10 +155,6 @@ public class KYCServiceImpl implements KYCService {
         return new KYCResponseDto(
                 wl.getWhiteLabelId(), wl.getTitle(), wl.getMobileNumber(),
                  wl.getEmailId()
-//                wl.getEmailId(), wl.getEmailVerified(),
-//                wl.getAadhaarCardFrontImage(), wl.getAadhaarCardBackImage(), wl.getIsAadhaarVerified(), wl.getAadhaarNumber(),
-//                wl.getPanCardImage(), wl.getPanNumber(), wl.getPanVerified(), wl.getAadhaarPanVerified(),
-//                wl.getShopImage(), wl.getShopNumber(), wl.getBusinessProofImage(), wl.getBusinessNumber(), wl.getGstNumberVerified()
         );
     }
 
@@ -182,10 +162,6 @@ public class KYCServiceImpl implements KYCService {
         return new KYCResponseDto(
                 et.getEnterpriseId(), et.getName(), et.getMobileNumber(),
                 et.getEmailId()
-//                et.getEmailId(), et.getEmailVerified(),
-//                et.getAadhaarCardFrontImage(), et.getAadhaarCardBackImage(), et.getIsAadhaarVerified(), et.getAadhaarNumber(),
-//                et.getPanCardImage(), et.getPanNumber(), et.getPanVerified(), et.getAadhaarPanVerified(),
-//                et.getShopImage(), et.getShopNumber(), et.getBusinessProofImage(), et.getBusinessNumber(), et.getGstNumberVerified()
         );
     }
 

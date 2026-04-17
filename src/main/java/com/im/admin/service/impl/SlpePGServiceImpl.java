@@ -137,7 +137,7 @@ public class SlpePGServiceImpl implements SlpePGService {
                 pgTransactionMapping.setAmount(req.getAmount());
                 pgTransactionMapping.setInitiatedBy(req.getInitiatedBy());
                 pgTransactionMapping.setSubProductId(req.getSubProductId());
-                pgTransactionMapping.setStatus("INITIATED");
+                pgTransactionMapping.setStatus("PENDING");
                 pgTransactionMapping.setVendorName("SLPE Payment Gateway");
                 pgTransactionMapping.setLatitude(latitude);
                 pgTransactionMapping.setLongitude(longitude);

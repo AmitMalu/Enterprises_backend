@@ -174,7 +174,7 @@ public class RunpaisaPGServiceImpl {
             txnMap.setOrderId(orderId);
             txnMap.setInitiatedBy(req.getInitiatedBy());  // <-- must come from logged-in user or request
             txnMap.setAmount(req.getAmount());
-            txnMap.setStatus("INITIATED");
+            txnMap.setStatus("PENDING");
             txnMap.setVendorName(vendor.getVendorName());
             txnMap.setSubProductId(req.getSubProductId());
             txnMap.setCardBinNo(req.getCardBinNo()); //new
