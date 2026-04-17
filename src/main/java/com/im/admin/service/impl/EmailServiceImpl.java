@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.entities.EmailCredentialsMaster;
 import com.im.admin.entities.EmailLog;
 import com.im.admin.entities.EmailTemplateMaster;
 import com.im.admin.entities.enums.EmailType;
@@ -11,16 +12,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Properties;
 
 @Service
 public class EmailServiceImpl implements EmailService {
 
-    @Autowired
-    private JavaMailSender mailSender;
+//    @Autowired
+//    private JavaMailSender mailSender;
 
     @Autowired
     private EmailLogRepository emailLogRepository;
@@ -29,23 +32,38 @@ public class EmailServiceImpl implements EmailService {
     private EmailTemplateRepository emailTemplateRepository;
 
 //    @Value("${spring.mail.username}")
-//    private String fromEmail;
+//    private String fromEmails;
 
     @Override
     @Transactional
-    public void sendSimpleEmail(String fromEmail, String toEmail, String subject, String body) {
+    public void sendSimpleEmail(EmailCredentialsMaster credentials,String fromEmail, String fromPassword, String toEmail, String subject, String body) {
+
         LocalDateTime requestTime = LocalDateTime.now();
         String request = "To: " + toEmail + "\nSubject: " + subject + "\nBody: " + body;
         String response = "";
 
         try {
+
+            JavaMailSenderImpl dynamicSender = new JavaMailSenderImpl();
+            dynamicSender.setHost("smtp.gmail.com");
+            dynamicSender.setPort(587);
+            dynamicSender.setUsername(fromEmail);      // email
+            dynamicSender.setPassword(fromPassword);   // password
+//            dynamicSender.setHost(credentials.getSmtpHost());
+//            dynamicSender.setPort(credentials.getSmtpPort());
+
+            Properties props = dynamicSender.getJavaMailProperties();
+            props.put("mail.smtp.auth", "true");
+            props.put("mail.smtp.starttls.enable", "true");
+
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(toEmail);
             message.setSubject(subject);
             message.setText(body);
 
-            mailSender.send(message);
+            dynamicSender.send(message);
+
             response = "Mail sent successfully to " + toEmail;
 
         } catch (Exception e) {
@@ -54,18 +72,18 @@ public class EmailServiceImpl implements EmailService {
 
         LocalDateTime responseTime = LocalDateTime.now();
 
-        // Save email log
+        // Save log
         EmailLog emailLog = new EmailLog();
         emailLog.setRequest(request);
         emailLog.setResponse(response);
         emailLog.setRequestDateTime(requestTime);
         emailLog.setResponseDateTime(responseTime);
-        emailLog.setIpAddress(null); // You can set actual IP if available
+        emailLog.setIpAddress(null);
+
         emailLogRepository.save(emailLog);
 
         System.out.println(response);
     }
-
     @Override
     public String buildWelcomeEmail(String userName, String mobileNo, String password) {
         return "Dear " + userName + ",\n\n" +

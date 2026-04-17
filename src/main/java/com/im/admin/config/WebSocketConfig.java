@@ -23,9 +23,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
 
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(
-                        "http://localhost:*",
-                        "https://*.decipay.in"
+                .setAllowedOrigins(
+                        "http://localhost:5173",
+                        "http://localhost:5174",
+                        "https://uat.decipay.in"
                 )
                 .withSockJS();
     }

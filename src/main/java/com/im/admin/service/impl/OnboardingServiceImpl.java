@@ -80,6 +80,9 @@ public class OnboardingServiceImpl implements OnboardingService {
     @Autowired
     private CommonFunctions commonFunctions;
 
+    @Autowired
+    private EmailCredentialsRepository emailCredentialsRepository;
+
 
     @Override
     @Transactional(readOnly = true)
@@ -301,9 +304,19 @@ public class OnboardingServiceImpl implements OnboardingService {
 
         userDetailsRepository.save(user);
 
-        String fromEmail = resolveFromEmail(hierarchyType, hierarchyId);
-        //Send email with credentials
-//        String emailBody = emailService.buildWelcomeEmail(name, mobileNo, randomPassword);
+        String fromId = resolveFromEmail(hierarchyType, hierarchyId);
+
+
+        EmailCredentialsMaster credentials = emailCredentialsRepository
+                .findByWhitelabelId(fromId)
+                .orElseGet(() -> emailCredentialsRepository
+                        .findByWhitelabelId("IM-AD-001")
+                        .orElseThrow(() -> new RuntimeException("Default email credentials not found")));
+
+
+        String fromEmail = credentials.getEmail();
+        String fromPassword = credentials.getPassword();
+
 
         Map<String, String> vars = new HashMap<>();
         vars.put("name", name);
@@ -312,7 +325,14 @@ public class OnboardingServiceImpl implements OnboardingService {
 
         String emailBody = emailService.buildEmailFromDB(EmailType.ONBOARD_USER, vars);
 
-        emailService.sendSimpleEmail(fromEmail,email, "Welcome to NFT – Your Login Credentials", emailBody);
+        emailService.sendSimpleEmail(
+                credentials,
+                fromEmail,
+                fromPassword,
+                email,
+                "Welcome to NFT – Your Login Credentials",
+                emailBody
+        );
 
         log.info("User created for hierarchy: " + hierarchyType + ", mobile: " + mobileNo);
         log.info("SMS (mock) sent to mobile: " + mobileNo + " with password: " + randomPassword);
@@ -691,7 +711,8 @@ public class OnboardingServiceImpl implements OnboardingService {
                         .orElseThrow(() -> new RuntimeException("WhiteLabel not found"));
 
                 if (Boolean.TRUE.equals(wl.getIsAdmin())) {
-                    return wl.getEmailId(); //
+                    return wl.getWhiteLabelId();
+//                    return wl.getEmailId(); //
                 }
 
                 String parentId = wl.getParentAccount();
@@ -714,7 +735,8 @@ public class OnboardingServiceImpl implements OnboardingService {
                 Admin ad = adminRepository.findById(hierarchyId)
                         .orElseThrow(() -> new RuntimeException("Admin not found"));
 
-                return ad.getEmailId(); //
+                return ad.getId();
+//                return ad.getEmailId(); //
             }
 
             default -> throw new RuntimeException("Invalid hierarchy type: " + hierarchyType);

@@ -11,10 +11,7 @@ import com.im.admin.service.InstantpayAepsTransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/instantpay/aeps")
@@ -26,28 +23,29 @@ public class InstantpayAepsTransactionController {
 
     @PostMapping("/cash-withdrawal")
     public ResponseEntity<CommonResponse<InstantpayCashWithdrawalResponseDto>> cashWithdrawal(
-            @RequestBody InstantPayCashWithdrawalRequestDto request) {
+            @RequestBody InstantPayCashWithdrawalRequestDto request,
+            @RequestHeader Double latitude, @RequestHeader Double longitude) {
 
         CommonResponse<InstantpayCashWithdrawalResponseDto> response =
-                instantpayAepsTransactionService.cashWithdrawal(request);
+                instantpayAepsTransactionService.cashWithdrawal(request,latitude,longitude);
 
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/balance-enquiry")
     public CommonResponse<InstantpayBalanceEnquiryResponseDto> balanceEnquiry(
-            @RequestBody InstantpayBalanceEnquiryRequestDto req) {
+            @RequestBody InstantpayBalanceEnquiryRequestDto req,@RequestHeader Double latitude, @RequestHeader Double longitude) {
 
-        return instantpayAepsTransactionService.balanceEnquiry(req);
+        return instantpayAepsTransactionService.balanceEnquiry(req,latitude,longitude);
 
     }
 
     @PostMapping("/mini-statement")
     public ResponseEntity<CommonResponse<InstantpayMiniStatementResponseDto>> miniStatement(
-            @RequestBody InstantpayMiniStatementRequestDto req) {
+            @RequestBody InstantpayMiniStatementRequestDto req,@RequestHeader Double latitude, @RequestHeader Double longitude) {
 
         CommonResponse<InstantpayMiniStatementResponseDto> response =
-                instantpayAepsTransactionService.miniStatement(req);
+                instantpayAepsTransactionService.miniStatement(req,latitude,longitude);
 
         return ResponseEntity.ok(response);
     }

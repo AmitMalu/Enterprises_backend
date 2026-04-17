@@ -1,24 +1,24 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.NotificationRequestDto;
-import com.im.admin.entities.AlertType;
-import com.im.admin.entities.AudienceType;
-import com.im.admin.entities.Notification;
-import com.im.admin.entities.NotificationMaster;
+import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
 
+import com.im.admin.request.EmailCredentialsRequestDto;
 import com.im.admin.response.DropdownOptionDto;
 import com.im.admin.response.DropdownResponseDto;
 import com.im.admin.response.NotificationResponseDto;
 import com.im.admin.service.NotificationService;
+import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,8 +27,15 @@ import org.springframework.data.domain.Sort;
 @Service
 public class NotificationServiceImpl implements NotificationService {
 
+
     @Autowired
     private NotificationRepository notificationRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private EmailCredentialsRepository emailCredentialsRepository;
 
     @Autowired
     private NotificationMasterRepository notificationMasterRepository;
@@ -45,7 +52,14 @@ public class NotificationServiceImpl implements NotificationService {
     @Autowired
     private WebSocketService webSocketService;
 
+    @Autowired
+    private UserNotificationReadRepository userNotificationReadRepository;
 
+    @Autowired
+    private CommonMethods commonMethods;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelRepository;
 
     @Override
     public NotificationResponseDto createNotification(NotificationRequestDto requestDto) {
@@ -95,25 +109,54 @@ public class NotificationServiceImpl implements NotificationService {
         NotificationMaster saved = notificationMasterRepository.save(entity);
 
         //  PAYLOAD FOR WEBSOCKET
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("id", saved.getId());
-        payload.put("title", saved.getTitle());
-        payload.put("message", saved.getShortMessage());
-        payload.put("type", saved.getAlertType());
-        payload.put("createdAt", saved.getCreatedAt());
+        NotificationResponseDto payload = NotificationResponseDto.builder()
+                .id(saved.getId())
+                .alertType(saved.getAlertType())
+                .product(saved.getProduct())
+                .title(saved.getTitle())
+                .body(saved.getShortMessage())
+                .deliveryChannel(saved.getDeliveryChannel())
+                .audienceType(saved.getAudienceType())
+                .severity(saved.getSeverity())
+                .sendMode(saved.getSendMode())
+                .scheduleTime(saved.getScheduleTime())
+                .createdAt(saved.getCreatedAt())
+                .isRead(false) //  always false for new notification
+                .build();
 
-        // TARGETING LOGIC
-        if ("ALL".equalsIgnoreCase(saved.getAudienceType())) {
+        List<String> channels;
 
-            webSocketService.sendToAll(payload);
+        String deliveryChannel = Optional.ofNullable(saved.getDeliveryChannel())
+                .orElse("WEB")
+                .toUpperCase();
 
-        } else if ("ROLE".equalsIgnoreCase(saved.getAudienceType())) {
+        if ("BOTH".equalsIgnoreCase(deliveryChannel)) {
+            channels = List.of("WEB", "APP");
+        } else {
+            channels = List.of(deliveryChannel);
+        }
 
-            webSocketService.sendToRole(saved.getRole(), payload);
 
-        } else if ("USER".equalsIgnoreCase(saved.getAudienceType())) {
+        for (String channel : channels) {
 
-            webSocketService.sendToUser(saved.getHierarchyId(), payload);
+            if ("ALL".equalsIgnoreCase(saved.getAudienceType())) {
+
+                webSocketService.sendToAll(channel, payload);
+
+            } else if (
+                    "RT".equalsIgnoreCase(saved.getAudienceType()) ||
+                            "DT".equalsIgnoreCase(saved.getAudienceType()) ||
+                            "PT".equalsIgnoreCase(saved.getAudienceType()) ||
+                            "ET".equalsIgnoreCase(saved.getAudienceType()) ||
+                            "WL".equalsIgnoreCase(saved.getAudienceType())
+            ) {
+
+                webSocketService.sendToRole(channel, saved.getAudienceType(), payload);
+
+            } else if ("USER".equalsIgnoreCase(saved.getAudienceType())) {
+
+                webSocketService.sendToUser(channel, saved.getHierarchyId(), payload);
+            }
         }
 
         //  ENTITY → RESPONSE DTO
@@ -192,9 +235,30 @@ public class NotificationServiceImpl implements NotificationService {
         NotificationMaster existing = notificationMasterRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Notification not found"));
 
-        //  UPDATE ONLY REQUIRED FIELDS (DTO based)
+        //  VALIDATION
+        if (requestDto.getAlertType() == null) {
+            throw new RuntimeException("Alert Type required");
+        }
+
+        if (requestDto.getTitle() == null) {
+            throw new RuntimeException("Title required");
+        }
+
+        if (requestDto.getAudienceType() == null) {
+            throw new RuntimeException("Audience Type required");
+        }
+
+        //  UPDATE FIELDS
+
         existing.setAlertType(requestDto.getAlertType());
-        existing.setProduct(requestDto.getProduct());
+
+        //  FIXED PRODUCT (IMPORTANT)
+        Products product = productsRepository.findById(
+                Short.valueOf(requestDto.getProduct())
+        ).orElseThrow(() -> new RuntimeException("Product not found"));
+
+        existing.setProduct(product.getName());
+
         existing.setTitle(requestDto.getTitle());
         existing.setShortMessage(requestDto.getBody());
         existing.setDeliveryChannel(requestDto.getDeliveryChannel());
@@ -209,33 +273,48 @@ public class NotificationServiceImpl implements NotificationService {
                 && requestDto.getScheduleTime() != null) {
 
             existing.setScheduleTime(requestDto.getScheduleTime());
+        } else {
+            existing.setScheduleTime(null);
         }
 
         NotificationMaster updated = notificationMasterRepository.save(existing);
 
-        //  PAYLOAD
+        //  PREPARE PAYLOAD
         Map<String, Object> payload = new HashMap<>();
         payload.put("id", updated.getId());
         payload.put("title", updated.getTitle());
         payload.put("message", updated.getShortMessage());
         payload.put("type", updated.getAlertType());
+        payload.put("createdAt", updated.getCreatedAt());
         payload.put("updatedAt", LocalDateTime.now());
 
-        //  TARGETING
+        // CHANNEL (WEB / APP)
+        String channel = Optional.ofNullable(updated.getDeliveryChannel())
+                .orElse("WEB")
+                .toUpperCase();
+
+        //  TARGETING LOGIC (FIXED)
         if ("ALL".equalsIgnoreCase(updated.getAudienceType())) {
 
-            webSocketService.sendToAll(payload);
+            webSocketService.sendToAll(channel, payload);
 
-        } else if ("ROLE".equalsIgnoreCase(updated.getAudienceType())) {
+        } else if (
+                "RT".equalsIgnoreCase(updated.getAudienceType()) ||
+                        "DT".equalsIgnoreCase(updated.getAudienceType()) ||
+                        "PT".equalsIgnoreCase(updated.getAudienceType()) ||
+                        "ET".equalsIgnoreCase(updated.getAudienceType()) ||
+                        "WL".equalsIgnoreCase(updated.getAudienceType())
+        ) {
 
-            webSocketService.sendToRole(updated.getRole(), payload);
+            //  audienceType itself is role
+            webSocketService.sendToRole(channel, updated.getAudienceType(), payload);
 
         } else if ("USER".equalsIgnoreCase(updated.getAudienceType())) {
 
-            webSocketService.sendToUser(updated.getHierarchyId(), payload);
+            webSocketService.sendToUser(channel, updated.getHierarchyId(), payload);
         }
 
-        //  ENTITY → RESPONSE DTO
+        //  RESPONSE DTO
         return NotificationResponseDto.builder()
                 .id(updated.getId())
                 .alertType(updated.getAlertType())
@@ -289,7 +368,268 @@ public class NotificationServiceImpl implements NotificationService {
                 .build();
     }
 
+    private String getUserId() {
+        return tokenUtil.extractHierarchyId(); //
+    }
 
+
+    @Override
+    public Page<NotificationResponseDto> getUserNotifications(int page, int size) {
+
+        String userId = getUserId();
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Page<NotificationMaster> notifications =
+                notificationMasterRepository.findAll(pageable);
+
+        List<UserNotificationRead> readList =
+                userNotificationReadRepository.findByUserId(userId);
+
+        Set<Long> readIds = readList.stream()
+                .map(UserNotificationRead::getNotificationId)
+                .collect(Collectors.toSet());
+
+        return notifications.map(n -> NotificationResponseDto.builder()
+                .id(n.getId())
+                .title(n.getTitle())
+                .body(n.getShortMessage())
+                .alertType(n.getAlertType())
+                .createdAt(n.getCreatedAt())
+                .isRead(readIds.contains(n.getId()))
+                .build()
+        );
+    }
+
+
+    @Override
+    public long getUnreadCount() {
+
+        String userId = getUserId();
+
+        long total = notificationMasterRepository.count();
+
+        long read = userNotificationReadRepository.findByUserId(userId).size();
+
+        return total - read;
+    }
+
+
+    @Override
+    public void markAsRead(Long notificationId) {
+
+        String userId = getUserId();
+
+        boolean exists = userNotificationReadRepository
+                .existsByUserIdAndNotificationId(userId, notificationId);
+
+        if (!exists) {
+            UserNotificationRead read = new UserNotificationRead();
+            read.setUserId(userId);
+            read.setNotificationId(notificationId);
+            read.setReadAt(LocalDateTime.now());
+
+            userNotificationReadRepository.save(read);
+        }
+    }
+
+    @Override
+    public void markAllAsRead() {
+
+        String userId = getUserId();
+
+        String currentType = commonMethods.extractHierarchyType(userId);
+
+        if (currentType == null || currentType.isBlank()) {
+            currentType = "ALL";
+        }
+
+        List<String> audienceTypes = List.of("ALL", currentType);
+
+        List<NotificationMaster> notifications =
+                notificationMasterRepository.findByAudienceTypeInIgnoreCase(audienceTypes);
+
+        //  Fetch already read IDs in ONE query
+        List<UserNotificationRead> readList =
+                userNotificationReadRepository.findByUserId(userId);
+
+        Set<Long> readIds = readList.stream()
+                .map(UserNotificationRead::getNotificationId)
+                .collect(Collectors.toSet());
+
+        List<UserNotificationRead> newReads = new ArrayList<>();
+
+        for (NotificationMaster n : notifications) {
+            if (!readIds.contains(n.getId())) {
+                UserNotificationRead read = new UserNotificationRead();
+                read.setUserId(userId);
+                read.setNotificationId(n.getId());
+                read.setReadAt(LocalDateTime.now());
+
+                newReads.add(read);
+            }
+        }
+
+        userNotificationReadRepository.saveAll(newReads);
+    }
+
+
+    @Override
+    public Page<NotificationResponseDto> getAllAudienceNotifications(
+            int page,
+            int size,
+            String deliveryChannel) {
+
+        String userId = getUserId();
+
+        //  extract RT / DT / etc
+        String currentType = commonMethods.extractHierarchyType(userId);
+
+        if (currentType == null || currentType.isBlank()) {
+            currentType = "ALL";
+        }
+
+        //  Audience filter
+        List<String> audienceTypes = List.of("ALL", currentType);
+
+        //  Delivery filter
+        List<String> deliveryChannels;
+
+        if ("WEB".equalsIgnoreCase(deliveryChannel)) {
+            deliveryChannels = List.of("WEB", "BOTH");
+        } else if ("APP".equalsIgnoreCase(deliveryChannel)) {
+            deliveryChannels = List.of("APP", "BOTH");
+        } else {
+            deliveryChannels = List.of("WEB", "APP", "BOTH"); // fallback
+        }
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by("createdAt").descending()
+        );
+
+        Page<NotificationMaster> notificationPage =
+                notificationMasterRepository
+                        .findByAudienceTypeInIgnoreCaseAndDeliveryChannelInIgnoreCase(
+                                audienceTypes,
+                                deliveryChannels,
+                                pageable
+                        );
+
+        List<UserNotificationRead> readList =
+                userNotificationReadRepository.findByUserId(userId);
+
+        Set<Long> readIds = readList.stream()
+                .map(UserNotificationRead::getNotificationId)
+                .collect(Collectors.toSet());
+
+        return notificationPage.map(n -> NotificationResponseDto.builder()
+                .id(n.getId())
+                .alertType(n.getAlertType())
+                .product(n.getProduct())
+                .title(n.getTitle())
+                .body(n.getShortMessage())
+                .deliveryChannel(n.getDeliveryChannel())
+                .audienceType(n.getAudienceType())
+                .severity(n.getSeverity())
+                .sendMode(n.getSendMode())
+                .scheduleTime(n.getScheduleTime())
+                .createdAt(n.getCreatedAt())
+                .isRead(readIds.contains(n.getId()))
+                .build()
+        );
+    }
+
+    @Override
+    public String saveEmailCredentials(EmailCredentialsRequestDto dto) {
+
+        String hierarchyId = tokenUtil.extractHierarchyId();
+
+        // WL check
+        if (emailCredentialsRepository.existsByWhitelabelId(dto.getWhitelabelId())) {
+            throw new RuntimeException("Whitelabel already mapped with email credentials");
+        }
+
+        // Email check
+        if (emailCredentialsRepository.existsByEmail(dto.getEmail())) {
+            throw new RuntimeException("Email already exists");
+        }
+
+        EmailCredentialsMaster entity = new EmailCredentialsMaster();
+
+        entity.setEmail(dto.getEmail());
+        entity.setPassword(dto.getPassword());
+        entity.setType(dto.getType());
+        entity.setAdminId(hierarchyId);
+        entity.setWhitelabelId(dto.getWhitelabelId());
+        entity.setSmtpHost(dto.getSmtpHost());
+        entity.setSmtpPort(dto.getSmtpPort());
+
+        emailCredentialsRepository.save(entity);
+
+        return "Email credentials saved successfully";
+    }
+
+    @Override
+    public Page<EmailCredentialsMaster> getAllEmailCredentials(int page, int size) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+
+        return emailCredentialsRepository.findAll(pageable);
+    }
+
+    @Override
+    public String updateEmailCredentials(Long id, EmailCredentialsRequestDto dto) {
+
+        EmailCredentialsMaster entity = emailCredentialsRepository
+                .findById(id)
+                .orElseThrow(() -> new RuntimeException("Email credentials not found"));
+
+        // WL check (exclude current record)
+        if (emailCredentialsRepository.existsByWhitelabelIdAndIdNot(dto.getWhitelabelId(), id)) {
+            throw new RuntimeException("Whitelabel already mapped with email credentials");
+        }
+
+        // Email check (exclude current record)
+        if (emailCredentialsRepository.existsByEmailAndIdNot(dto.getEmail(), id)) {
+            throw new RuntimeException("Email already exists");
+        }
+
+        entity.setEmail(dto.getEmail());
+        entity.setPassword(dto.getPassword());
+        entity.setType(dto.getType());
+        entity.setWhitelabelId(dto.getWhitelabelId());
+        entity.setSmtpHost(dto.getSmtpHost());
+        entity.setSmtpPort(dto.getSmtpPort());
+
+        emailCredentialsRepository.save(entity);
+
+        return "Updated Successfully";
+    }
+
+    @Override
+    public EmailCredentialsMaster getEmailCredentialById(Long id) {
+
+        return emailCredentialsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Email Credential not found with id: " + id));
+    }
+
+    @Override
+    public List<DropdownOptionDto> getWhiteLabelDropdownFromToken() {
+
+        String hierarchyId = tokenUtil.extractHierarchyId();
+
+
+        List<WhiteLabels> list = whiteLabelRepository.findByParentAccount(hierarchyId);
+
+        return list.stream()
+                .map(wl -> new DropdownOptionDto(
+                        wl.getWhiteLabelId(),      // label
+                        wl.getWhiteLabelId()    // value
+                ))
+                .toList();
+    }
 
 //    @Override
 //    public Notification createNotification(NotificationRequestDto dto) {
@@ -304,3 +644,4 @@ public class NotificationServiceImpl implements NotificationService {
 //
 //    }
 }
+

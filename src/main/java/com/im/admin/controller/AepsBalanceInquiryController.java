@@ -10,10 +10,7 @@ import com.im.admin.service.AepsBalanceInquiryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/aeps")
@@ -25,14 +22,16 @@ public class AepsBalanceInquiryController {
 
     @PostMapping("/balance-inquiry")
     public CommonResponse<AepsBalanceInquiryResponse> balanceInquiry(
-            @RequestBody AepsBalanceInquiryRequest req) {
-        return aepsBalanceInquiryService.balanceInquiry(req);
+            @RequestBody AepsBalanceInquiryRequest req,
+            @RequestHeader Double latitude, @RequestHeader Double longitude) {
+        return aepsBalanceInquiryService.balanceInquiry(req,latitude,longitude);
     }
 
     @PostMapping("/mini-statement")
     public CommonResponse<AepsMiniStatementResponse> MiniStatemnet(
-            @RequestBody AepsMiniStatementRequest req) {
-        return aepsBalanceInquiryService.ministatement(req);
+            @RequestBody AepsMiniStatementRequest req,
+            @RequestHeader Double latitude, @RequestHeader Double longitude) {
+        return aepsBalanceInquiryService.ministatement(req,latitude,longitude);
     }
 
 }

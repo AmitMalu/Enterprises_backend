@@ -11,10 +11,10 @@ import com.im.admin.response.InstantpayMiniStatementResponseDto;
 public interface InstantpayAepsTransactionService {
 
     CommonResponse<InstantpayCashWithdrawalResponseDto> cashWithdrawal(
-            InstantPayCashWithdrawalRequestDto request);
+            InstantPayCashWithdrawalRequestDto request,Double latitude,Double longitude);
 
     CommonResponse<InstantpayBalanceEnquiryResponseDto> balanceEnquiry(
-            InstantpayBalanceEnquiryRequestDto req);
+            InstantpayBalanceEnquiryRequestDto req,Double latitude,Double longitude);
 
-    CommonResponse<InstantpayMiniStatementResponseDto> miniStatement(InstantpayMiniStatementRequestDto req);
+    CommonResponse<InstantpayMiniStatementResponseDto> miniStatement(InstantpayMiniStatementRequestDto req,Double latitude,Double longitude);
 }

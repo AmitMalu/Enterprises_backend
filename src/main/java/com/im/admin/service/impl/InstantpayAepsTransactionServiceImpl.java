@@ -83,7 +83,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
 
 
     @Override
-    public CommonResponse<InstantpayCashWithdrawalResponseDto> cashWithdrawal(InstantPayCashWithdrawalRequestDto req) {
+    public CommonResponse<InstantpayCashWithdrawalResponseDto> cashWithdrawal(InstantPayCashWithdrawalRequestDto req,Double latitude,Double longitude) {
         try {
 
             LocalDateTime requestTime = LocalDateTime.now();
@@ -289,8 +289,8 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
-            dto.setLatitude(Double.valueOf(retailer.getLatitude()));
-            dto.setLongitude(Double.valueOf(retailer.getLongitude()));
+            dto.setLatitude(Double.valueOf(latitude));
+            dto.setLongitude(Double.valueOf(longitude));
 
             String vendorStatus = InstantpayResponseMapper.map(
                     vendorResp.getStatuscode(),
@@ -316,7 +316,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
     }
 
     @Override
-    public CommonResponse<InstantpayBalanceEnquiryResponseDto> balanceEnquiry(InstantpayBalanceEnquiryRequestDto req) {
+    public CommonResponse<InstantpayBalanceEnquiryResponseDto> balanceEnquiry(InstantpayBalanceEnquiryRequestDto req,Double latitude,Double longitude) {
 
         try {
             SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
@@ -526,6 +526,8 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
+            dto.setLatitude(Double.valueOf(latitude));
+            dto.setLongitude(Double.valueOf(longitude));
 
             String vendorStatus = InstantpayResponseMapper.map(
                     vendorResp.getStatuscode(),
@@ -553,7 +555,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
 
     @Override
     public CommonResponse<InstantpayMiniStatementResponseDto> miniStatement(
-            InstantpayMiniStatementRequestDto req) {
+            InstantpayMiniStatementRequestDto req,Double latitude,Double longitude) {
 
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = null;
@@ -759,6 +761,8 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
+            dto.setLatitude(Double.valueOf(latitude));
+            dto.setLongitude(Double.valueOf(longitude));
 
             String vendorStatus = InstantpayResponseMapper.map(
                     vendorResp.getStatuscode(),

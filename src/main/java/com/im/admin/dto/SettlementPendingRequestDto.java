@@ -39,5 +39,6 @@ public class SettlementPendingRequestDto {
     private LocalTime updatedTimeOfTransaction;
     private String actionOnBalanceAmount;
     private String hierarchyId;
+    private String productName;
 
 }

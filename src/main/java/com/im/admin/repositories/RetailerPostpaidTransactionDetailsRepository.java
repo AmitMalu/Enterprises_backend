@@ -320,6 +320,8 @@ WHERE (:id IS NULL OR r.id = :id)
   AND (:remarks IS NULL OR r.remarks LIKE %:remarks%)
   AND (:medium IS NULL OR r.medium LIKE %:medium%)
   AND (:txType IS NULL OR r.transactionType LIKE %:txType%)
+    AND (:tranStatus IS NULL OR LOWER(r.tranStatus) LIKE LOWER(CONCAT('%', :tranStatus, '%')))
+            
 
   AND (
         :actionOnBalanceAmount IS NULL
@@ -329,7 +331,10 @@ WHERE (:id IS NULL OR r.id = :id)
     
 
   AND (:dateOfTransaction IS NULL OR r.dateOfTransaction = :dateOfTransaction)
-  AND (:timeOfTransaction IS NULL OR r.timeOfTransaction = :timeOfTransaction)
+            AND (
+                :timeOfTransaction IS NULL OR\s
+                CAST(r.timeOfTransaction AS string) LIKE CONCAT(:timeOfTransaction, '%')
+            )
   AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
   AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
 """)
@@ -348,6 +353,7 @@ WHERE (:id IS NULL OR r.id = :id)
             @Param("remarks") String remarks,
             @Param("medium") String medium,
             @Param("txType") String txType,
+                                                                          @Param("tranStatus") String tranStatus,
             @Param("actionOnBalanceAmount") String actionOnBalanceAmount,
             @Param("dateOfTransaction") LocalDate dateOfTransaction,
             @Param("timeOfTransaction") LocalTime timeOfTransaction,
