@@ -28,8 +28,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -206,7 +204,7 @@ public class FundReversalServiceImpl implements FundReversalService {
 
         fundReversalRepository.save(fundReversal);
 
-        SubProducts subProduct = getSubProduct(request.getSubProductId());
+        SubProducts subProduct = getSubProduct();
         Products product = subProduct.getProduct();
 
         SchemeRate schemeRate =
@@ -305,14 +303,14 @@ public class FundReversalServiceImpl implements FundReversalService {
         return BigDecimal.valueOf(schemeRate.getGross());
     }
 
-    private SubProducts getSubProduct(String subProductId) {
+    private SubProducts getSubProduct() {
 
         return subProductsRepository
-                .findById(subProductId)
+                .findBySubProductTitle("Fund Reversal")
                 .orElseThrow(() ->
                         new RuntimeException(
-                                "SubProduct not found for subProductId: "
-                                        + subProductId));
+                                "SubProduct not found for subProductName: "
+                                        + "Fund Reversal"));
     }
 
     private TransactionSchemeDetailsRequestDto buildTransactionDto(
