@@ -90,7 +90,25 @@ public class PayoutOrchestrator {
 
             // 2. Check Retailer Balance
             BigDecimal availableBalance = commonMethods.getCurrentBalance(req.getRetailerId(), walletType.name());
-            if (availableBalance.compareTo(req.getAmount()) < 0) {
+
+            // Fetch matching SchemeRate
+            log.info("[2] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
+                    req.getSchemeCode(), req.getPaymentMode(), req.getAmount());
+
+            SchemeRate selectedScheme = schemeRateRepository
+                    .findSchemeRateByCodeAndOperatorAndAmount(
+                            req.getSchemeCode(),
+                            req.getPaymentMode(),
+                            req.getAmount().doubleValue())
+                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
+
+            log.info("[2.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
+                    selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
+                    selectedScheme.getGross(), selectedScheme.getRetailer());
+
+            BigDecimal finalDeductAmt = availableBalance.add(BigDecimal.valueOf(selectedScheme.getGross()));
+
+            if (finalDeductAmt.compareTo(req.getAmount()) < 0) {
                 log.warn("[PROCESS PAYOUT ORCH] Insufficient balance for retailer {} (required={}, available={})",
                         req.getRetailerId(), req.getAmount(), availableBalance);
                 return new CommonResponse<>(400, "Insufficient Balance", null);
