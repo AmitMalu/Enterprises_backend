@@ -492,21 +492,30 @@ public class DmtOrchestrator {
 
             // Check Retailer Balance
             BigDecimal availableBalance = commonMethods.getCurrentBalance(req.getRetailerId(), walletType.name());
-            if (availableBalance.compareTo(req.getAmount()) < 0) {
+
+            // Fetch matching SchemeRate
+            log.info("[2] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
+                    req.getSchemeCode(), req.getPaymentMode(), req.getAmount());
+
+            SchemeRate selectedScheme = schemeRateRepository
+                    .findSchemeRateByCodeAndOperatorAndAmount(
+                            req.getSchemeCode(),
+                            req.getTxnType(),
+                            req.getAmount().doubleValue())
+                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
+
+            log.info("[2.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
+                    selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
+                    selectedScheme.getGross(), selectedScheme.getRetailer());
+
+            BigDecimal finalDeductAmt = availableBalance.add(BigDecimal.valueOf(selectedScheme.getGross()));
+
+            if (finalDeductAmt.compareTo(req.getAmount()) < 0) {
                 log.warn("[PROCESS DMT] Insufficient balance for retailer {} (required={}, available={})",
                         req.getRetailerId(), req.getAmount(), availableBalance);
                 return new CommonResponse<>(400, "Insufficient Balance", null);
             }
 
-            //** imp
-            // 3⃣ Resolve Vendor Routing & Credentials
-//            VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
-//            if (routing == null) {
-//                log.error("[PROCESS DMT] Vendor routing not found for subProductId={}", req.getSubProductId());
-//                return new CommonResponse<>(404, "Vendor routing not found", null);
-//            }
-//
-//            Vendors vendor = CommonMethods.getVendors(routing);
             //** imp
             DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(req.getBeneId());
 
@@ -517,7 +526,7 @@ public class DmtOrchestrator {
             Vendors vendor = beneficiary.getVendor(); //  MAIN FIX
 
             vendorId = vendor.getId();
-            req.setVendorName(vendor.getVendorName());  // used becoz to addusedlimit down on Sucvcess
+            req.setVendorName(vendor.getVendorName());  // used becoz to addusedlimit down on Succcess
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
@@ -534,13 +543,6 @@ public class DmtOrchestrator {
             AbstractWalletAmountTable walletAmountTable =
                     commonMethods.getWalletByType(walletType.name(), req.getRetailerId());
             String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
-
-            SchemeRate selectedScheme = schemeRateRepository
-                    .findSchemeRateByCodeAndOperatorAndAmount(
-                            req.getSchemeCode(),
-                            req.getTxnType(),
-                            req.getAmount().doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
 
             String schemeCode = selectedScheme.getSchemeCode();
 
