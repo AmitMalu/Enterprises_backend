@@ -68,6 +68,9 @@ public class AuthController {
     private UserDeviceRepository userDeviceRepository;
 
     @Autowired
+    private SmsCredentialsRepository smsCredentialsRepository;
+
+    @Autowired
     private UserDetailsRepository userDetailsRepository;
 
     @Autowired
@@ -120,6 +123,24 @@ public class AuthController {
 
     @Autowired
     private RsaUtil rsaUtil;
+
+
+
+    @Autowired
+    private DistributorRepository distributorRepository;
+
+    @Autowired
+    private PartnerRepository partnerRepository;
+
+    @Autowired
+    private SuperDistributorRepository superDistributorRepository;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelsRepository;
+
+    @Autowired
+    private EnterprisesRepository enterprisesRepository;
+
 
     @Autowired
     private ProductTransactionLimitRepository productTransactionLimitRepository;
@@ -288,7 +309,29 @@ public class AuthController {
             //  Send OTP via SMS
 //            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
 
-            String smsResponse = shivSmsService.sendOtpSms(user.getMobileNumber(),user.getLoginUserName(), otp);
+
+            String fromId = resolveFromEmail(
+                    user.getHierarchyCode(),
+                    user.getHierarchyId()
+            );
+
+            String companyName = getCompanyName(fromId);
+
+
+            SmsCredentialsMaster smsConfig = getSmsCredentials(
+                    user.getHierarchyCode(),
+                    user.getHierarchyId()
+            );
+
+//            String smsResponse = shivSmsService.sendOtpSms(user.getMobileNumber(),user.getLoginUserName(), otp);
+
+            shivSmsService.sendOtpSms(
+                    smsConfig,
+                    user.getMobileNumber(),
+                    user.getLoginUserName(),
+                    otp,
+                    companyName
+            );
 
 //            //Save SMS logs
 //            commonFunctions.saveSmsLogs(
@@ -306,6 +349,117 @@ public class AuthController {
 
         return otp;
     }
+
+    private String getCompanyName(String fromId) {
+
+        // Check in WhiteLabel first
+        Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(fromId);
+        if (wlOpt.isPresent()) {
+            return wlOpt.get().getName(); //  company name
+        }
+
+        // Else check in Admin
+        Optional<Admin> adOpt = adminRepository.findById(fromId);
+        if (adOpt.isPresent()) {
+            return adOpt.get().getName(); //  company name
+        }
+
+        // fallback
+        return "NFT NETWORK TECHNOLOGIES PRIVATE LIMITED..";
+    }
+
+    private SmsCredentialsMaster getSmsCredentials(String hierarchyType, String hierarchyId) {
+
+        String fromId = resolveFromEmail(hierarchyType, hierarchyId);
+
+        return smsCredentialsRepository
+                .findByWhitelabelId(fromId)
+                .orElseGet(() -> smsCredentialsRepository
+                        .findByWhitelabelId("IM-AD-001")
+                        .orElseThrow(() -> new RuntimeException("Default SMS credentials not found")));
+    }
+
+    private String resolveFromEmail(String hierarchyType, String hierarchyId) {
+
+        switch (hierarchyType) {
+
+            case "RT" -> {
+                Retailer rt = retailerRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Retailer not found"));
+
+                String parentId = rt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "DT" -> {
+                Distributor dt = distributorRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Distributor not found"));
+
+                String parentId = dt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "PT" -> {
+                Partner pt = partnerRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Partner not found"));
+
+                String parentId = pt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "SD" -> {
+                SuperDistributor sd = superDistributorRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("SuperDistributor not found"));
+
+                String parentId = sd.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "WL" -> {
+                WhiteLabels wl = whiteLabelsRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("WhiteLabel not found"));
+
+                if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+                    return wl.getWhiteLabelId();
+//                    return wl.getEmailId(); //
+                }
+
+                String parentId = wl.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "ET" -> {
+                Enterprises et = enterprisesRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Enterprise not found"));
+
+                String parentId = et.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "AD", "IM" -> {
+                Admin ad = adminRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+                return ad.getId();
+//                return ad.getEmailId(); //
+            }
+
+            default -> throw new RuntimeException("Invalid hierarchy type: " + hierarchyType);
+        }
+    }
+
 
 
     public boolean isUrlValidForUserHierarchy(String hierarchyId, String requestUrl) {

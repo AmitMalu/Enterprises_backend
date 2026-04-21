@@ -495,7 +495,7 @@ public class DmtOrchestrator {
 
             // Fetch matching SchemeRate
             log.info("[2] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
-                    req.getSchemeCode(), req.getPaymentMode(), req.getAmount());
+                    req.getSchemeCode(), req.getTxnType(), req.getAmount());
 
             SchemeRate selectedScheme = schemeRateRepository
                     .findSchemeRateByCodeAndOperatorAndAmount(
@@ -508,9 +508,9 @@ public class DmtOrchestrator {
                     selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
                     selectedScheme.getGross(), selectedScheme.getRetailer());
 
-            BigDecimal finalDeductAmt = availableBalance.add(BigDecimal.valueOf(selectedScheme.getGross()));
+            BigDecimal finalDeductAmt = req.getAmount().add(BigDecimal.valueOf(selectedScheme.getGross()));
 
-            if (finalDeductAmt.compareTo(req.getAmount()) < 0) {
+            if (availableBalance.compareTo(finalDeductAmt) < 0) {
                 log.warn("[PROCESS DMT] Insufficient balance for retailer {} (required={}, available={})",
                         req.getRetailerId(), req.getAmount(), availableBalance);
                 return new CommonResponse<>(400, "Insufficient Balance", null);

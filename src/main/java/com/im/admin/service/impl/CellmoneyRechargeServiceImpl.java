@@ -80,17 +80,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
         Retailer retailer = retailerRepository.findById(request.getRetailerId())
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
-        //  Generate transaction reference
-//        String transactionRef = UUID.randomUUID()
-//                .toString()
-//                .replace("-", "")
-//                .substring(0, 12);
-
-//        String transactionRef = commonMethods.generateBaseTransactionId();
-
-//        String transactionRef = "TXN" + commonMethods.generateBaseTransactionId();
-
-        //  Build Message
+        // Build Message
         String message = request.getOperatorCode() + "$"
                 + request.getCustomerNumber() + "$"
                 + request.getAmount() + "$"
@@ -110,12 +100,10 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
         String transactionType =
                 request.getOperatorName() + "(" + request.getOperatorCode() + ")";
 
-        // Save transaction as PENDING before calling vendor
+        // Save transaction as PENDING
         RechargeTransaction transaction = RechargeTransaction.builder()
                 .schemeCode(request.getSchemeCode())
                 .transactionId(orderId)
-                .schemeCode(request.getSchemeCode())
-//                .transactionRef(transactionRef)
                 .transactionRef(orderId)
                 .operatorCode(request.getOperatorCode())
                 .customerNumber(request.getCustomerNumber())
@@ -132,16 +120,13 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
 
         // Call Vendor API
         String vendorResponse = restTemplate.getForObject(url, String.class);
-
         transaction.setVendorResponse(vendorResponse);
 
-// Split response
         String[] parts = vendorResponse.split("=");
-
         int statusCode = Integer.parseInt(parts[0]);
         String statusMessage = parts.length > 1 ? parts[1] : "Unknown Response";
 
-// If vendor rejected request
+        //  Vendor rejected
         if (statusCode != 0) {
 
             transaction.setStatus("FAILED");
@@ -154,14 +139,75 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
                     .build();
         }
 
-// If vendor accepted request
+        // Vendor accepted → PENDING
         transaction.setStatus("PENDING");
         rechargeTransactionRepository.save(transaction);
 
+        //  Immediate status check
+        try {
+
+            String statusResponse = this.checkStatusByTxnRef(orderId, credentials);
+            log.info("[IMMEDIATE_STATUS] Response={}", statusResponse);
+
+            int checkStatusCode = parseStatusCode(statusResponse);
+            String finalStatus = mapStatus(checkStatusCode);
+
+            if (!"PENDING".equalsIgnoreCase(finalStatus)) {
+
+                transaction.setStatus(finalStatus);
+                transaction.setVendorResponse(statusResponse);
+                rechargeTransactionRepository.save(transaction);
+
+
+                SchemeRate schemeRate = schemeRateRepository
+                        .findSchemeRateByCodeAndOperatorAndAmount(
+                                transaction.getSchemeCode(),
+                                transaction.getTransactionType(),
+                                transaction.getAmount().doubleValue())
+                        .orElseThrow(() -> new RuntimeException("SchemeRate not found"));
+
+                Scheme scheme = schemeRepository
+                        .findBySchemeCode(schemeRate.getSchemeCode())
+                        .orElseThrow(() -> new RuntimeException("Scheme not found"));
+
+                String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+
+                if (hashParts.length < 2) {
+                    throw new RuntimeException("Invalid scheme hash");
+                }
+
+                short productId = Short.parseShort(hashParts[0]);
+                String subProductId = hashParts[1];
+
+                Products product = productsRepository.findById(productId)
+                        .orElseThrow(() -> new RuntimeException("Product not found"));
+
+                SubProducts subProduct = subProductsRepository.findById(subProductId)
+                        .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+
+
+                //  ENGINE CALL
+                TransactionSchemeDetailsRequestDto dto =
+                        buildTransactionDTO(transaction, schemeRate, scheme, product, subProduct);
+
+                transactionEngineServiceImpl.processTransaction(dto, finalStatus);
+
+                return RechargeResponse.builder()
+                        .transactionRef(orderId)
+                        .status(finalStatus)
+                        .message("Processed instantly")
+                        .build();
+            }
+
+        } catch (Exception e) {
+            log.error("[IMMEDIATE_STATUS] Error {}", e.getMessage(), e);
+        }
+
+        // Default response
         return RechargeResponse.builder()
                 .transactionRef(orderId)
                 .status("PENDING")
-                .message(statusMessage)   // show vendor message
+                .message(statusMessage)
                 .build();
     }
 
@@ -510,6 +556,56 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse recharge plans response");
         }
+    }
+
+    private int parseStatusCode(String vendorResponse) {
+
+        String[] parts = vendorResponse.split("=");
+
+        return Integer.parseInt(parts[0]);
+    }
+
+    private String mapStatus(int statusCode) {
+
+        return switch (statusCode) {
+
+            case 1 -> "SUCCESS";
+            case 2,3 -> "FAILED";
+            case 4,6 -> "HOLD";
+            case 5 -> "REFUNDED";
+            default -> "PENDING";
+        };
+    }
+
+    private TransactionSchemeDetailsRequestDto buildTransactionDTO(
+            RechargeTransaction txn,
+            SchemeRate schemeRate,
+            Scheme scheme,
+            Products product,
+            SubProducts subProduct) {
+
+        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
+        String txnRef = txn.getTransactionRef();
+        String baseTxnId = txnRef.startsWith("TXN") ? txnRef.substring(3) : txnRef;
+
+        dto.setBaseTranxId(baseTxnId);
+        dto.setAmount(txn.getAmount().doubleValue());
+        dto.setConfirmAmount(txn.getAmount().doubleValue());
+        dto.setOperatorName(txn.getTransactionType());
+        dto.setOperatorCode(schemeRate.getOperatorCode());
+        dto.setSchemeRate(schemeRate);
+        dto.setTransactionType(product.getTransactionType());
+        dto.setWalletType(subProduct.getWalletType());
+        dto.setGstValue(String.valueOf(product.getSgst()));
+        dto.setTdsRate(String.valueOf(product.getTds()));
+        dto.setProductCode(product.getProductCode());
+        dto.setSubProductCode(subProduct.getSubProductCode());
+        dto.setIsCommission(product.getIsCommissions());
+        dto.setHasCharge(product.getHasCharges());
+        dto.setHierarchyId(txn.getRetailerId());
+
+        return dto;
     }
 }
 
