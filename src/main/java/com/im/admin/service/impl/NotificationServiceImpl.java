@@ -2,10 +2,12 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.NotificationRequestDto;
 import com.im.admin.entities.*;
+import com.im.admin.entities.enums.EmailType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
 
 import com.im.admin.request.EmailCredentialsRequestDto;
+import com.im.admin.request.SmsCredentialsRequestDto;
 import com.im.admin.response.DropdownOptionDto;
 import com.im.admin.response.DropdownResponseDto;
 import com.im.admin.response.NotificationResponseDto;
@@ -26,7 +28,6 @@ import org.springframework.data.domain.Sort;
 
 @Service
 public class NotificationServiceImpl implements NotificationService {
-
 
     @Autowired
     private NotificationRepository notificationRepository;
@@ -60,6 +61,9 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Autowired
     private WhiteLabelRepository whiteLabelRepository;
+
+    @Autowired
+    private SmsCredentialsRepository smsCredentialsRepository;
 
     @Override
     public NotificationResponseDto createNotification(NotificationRequestDto requestDto) {
@@ -629,6 +633,118 @@ public class NotificationServiceImpl implements NotificationService {
                         wl.getWhiteLabelId()    // value
                 ))
                 .toList();
+    }
+
+
+    @Override
+    public String saveSmsCredentials(SmsCredentialsRequestDto dto) {
+
+        String adminId = tokenUtil.extractHierarchyId();
+
+        // WL check
+//        if (smsCredentialsRepository.existsByWhitelabelId(dto.getWhitelabelId())) {
+//            throw new RuntimeException("Whitelabel already mapped with SMS credentials");
+//        }
+
+        if (smsCredentialsRepository.existsByWhitelabelIdAndType(
+                dto.getWhitelabelId(),
+                dto.getType()
+        )) {
+            throw new RuntimeException("SMS credentials already exist for this type and whitelabel");
+        }
+
+        // Username check
+//        if (smsCredentialsRepository.existsByUsername(dto.getUsername())) {
+//            throw new RuntimeException("Username already exists");
+//        }
+
+        SmsCredentialsMaster entity = new SmsCredentialsMaster();
+
+        entity.setBaseUrl(dto.getBaseUrl());
+        entity.setUsername(dto.getUsername());
+        entity.setPassword(dto.getPassword());
+        entity.setSenderId(dto.getSenderId());
+        entity.setPeId(dto.getPeId());
+        entity.setDltTemplateId(dto.getDltTemplateId());
+        entity.setRoute(dto.getRoute());
+        entity.setType(dto.getType());
+
+        entity.setAdminId(adminId);
+        entity.setWhitelabelId(dto.getWhitelabelId());
+
+        entity.setCreatedOn(LocalDateTime.now());
+        entity.setCreatedBy(adminId);
+
+        smsCredentialsRepository.save(entity);
+
+        return "SMS credentials saved successfully";
+    }
+
+
+    @Override
+    public Page<SmsCredentialsMaster> getAllSmsCredentials(int page, int size) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+
+        return smsCredentialsRepository.findAll(pageable);
+    }
+
+    @Override
+    public String updateSmsCredentials(Long id, SmsCredentialsRequestDto dto) {
+
+        SmsCredentialsMaster entity = smsCredentialsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("SMS credentials not found"));
+
+//        if (smsCredentialsRepository.existsByWhitelabelIdAndIdNot(dto.getWhitelabelId(), id)) {
+//            throw new RuntimeException("Whitelabel already mapped with SMS credentials");
+//        }
+
+        if (smsCredentialsRepository.existsByWhitelabelIdAndType(
+                dto.getWhitelabelId(),
+                dto.getType()
+        )) {
+            throw new RuntimeException("SMS credentials already exist for this type and whitelabel");
+        }
+
+
+//        if (smsCredentialsRepository.existsByUsernameAndIdNot(dto.getUsername(), id)) {
+//            throw new RuntimeException("Username already exists");
+//        }
+
+        entity.setBaseUrl(dto.getBaseUrl());
+        entity.setUsername(dto.getUsername());
+        entity.setPassword(dto.getPassword());
+        entity.setSenderId(dto.getSenderId());
+        entity.setPeId(dto.getPeId());
+        entity.setDltTemplateId(dto.getDltTemplateId());
+        entity.setRoute(dto.getRoute());
+        entity.setWhitelabelId(dto.getWhitelabelId());
+        entity.setType(dto.getType());
+
+        entity.setEditedOn(LocalDateTime.now());
+        entity.setEditedBy(tokenUtil.extractHierarchyId());
+
+        smsCredentialsRepository.save(entity);
+
+        return "SMS credentials updated successfully";
+    }
+
+    @Override
+    public SmsCredentialsMaster getSmsCredentialById(Long id) {
+
+        return smsCredentialsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("SMS Credential not found with id: " + id));
+    }
+
+    @Override
+    public List<DropdownOptionDto> getSmsTypeDropdown() {
+
+        return Arrays.stream(EmailType.values())
+                .map(type -> new DropdownOptionDto(
+                        type.name(),   // label
+                        type.name()    // value
+                ))
+                .collect(Collectors.toList());
     }
 
 //    @Override

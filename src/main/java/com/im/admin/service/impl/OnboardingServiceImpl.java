@@ -35,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class OnboardingServiceImpl implements OnboardingService {
 
+
     @Autowired
     private UserDetailsRepository userDetailsRepository;
 

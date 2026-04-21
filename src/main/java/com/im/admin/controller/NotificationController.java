@@ -1,7 +1,9 @@
 package com.im.admin.controller;
 
 import com.im.admin.entities.EmailCredentialsMaster;
+import com.im.admin.entities.SmsCredentialsMaster;
 import com.im.admin.request.EmailCredentialsRequestDto;
+import com.im.admin.request.SmsCredentialsRequestDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.DropdownOptionDto;
 import com.im.admin.response.DropdownResponseDto;
@@ -149,9 +151,6 @@ public class NotificationController {
         );
     }
 
-
-
-
     @GetMapping
     public ResponseEntity<CommonResponse<Page<NotificationResponseDto>>> getAllAudienceNotifications(
             @RequestParam(defaultValue = "0") int page,
@@ -204,7 +203,7 @@ public class NotificationController {
     }
 
     @GetMapping("/email/{id}")
-    public ResponseEntity<CommonResponse<EmailCredentialsMaster>> getByIds(@PathVariable Long id) {
+    public ResponseEntity<CommonResponse<EmailCredentialsMaster>> getByIdEmail(@PathVariable Long id) {
 
         EmailCredentialsMaster data = notificationService.getEmailCredentialById(id);
 
@@ -217,7 +216,6 @@ public class NotificationController {
     public ResponseEntity<CommonResponse<List<DropdownOptionDto>>> getWhiteLabelDropdown(
             ) {
 
-
         List<DropdownOptionDto> data =
                 notificationService.getWhiteLabelDropdownFromToken();
 
@@ -226,5 +224,63 @@ public class NotificationController {
         );
     }
 
+
+    @PostMapping("/sms")
+    public ResponseEntity<CommonResponse<String>> saveSmsCredentials(
+            @RequestBody SmsCredentialsRequestDto dto) {
+
+        String response = notificationService.saveSmsCredentials(dto);
+
+        return ResponseEntity.ok(
+                CommonResponse.created(response, "SMS credentials saved successfully")
+        );
+    }
+
+
+    @GetMapping("/sms")
+    public ResponseEntity<CommonResponse<Page<SmsCredentialsMaster>>> getAllSmsCredentials(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Page<SmsCredentialsMaster> response =
+                notificationService.getAllSmsCredentials(page, size);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(response, "SMS credentials fetched successfully")
+        );
+    }
+
+    @PutMapping("/sms/{id}")
+    public ResponseEntity<CommonResponse<String>> updateSmsCredentials(
+            @PathVariable Long id,
+            @RequestBody SmsCredentialsRequestDto dto) {
+
+        String response = notificationService.updateSmsCredentials(id, dto);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(response, "SMS credentials updated successfully")
+        );
+    }
+
+    @GetMapping("/sms/{id}")
+    public ResponseEntity<CommonResponse<SmsCredentialsMaster>> getByIdsms(@PathVariable Long id) {
+
+        SmsCredentialsMaster data = notificationService.getSmsCredentialById(id);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(data, "SMS credential fetched successfully")
+        );
+    }
+
+
+    @GetMapping("/sms/type")
+    public ResponseEntity<CommonResponse<List<DropdownOptionDto>>> getSmsTypes() {
+
+        List<DropdownOptionDto> data = notificationService.getSmsTypeDropdown();
+
+        return ResponseEntity.ok(
+                CommonResponse.success(data, "SMS Type dropdown fetched successfully")
+        );
+    }
 
 }
