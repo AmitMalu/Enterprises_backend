@@ -41,7 +41,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
     private SubProductsRepository subProductsRepository;
 
     @Autowired
-        private OperatorsRepository operatorRepository;
+    private OperatorsRepository operatorRepository;
 
     @Override
     public SchemeDetailResponseDto getSchemeDetails(String schemeCode) {

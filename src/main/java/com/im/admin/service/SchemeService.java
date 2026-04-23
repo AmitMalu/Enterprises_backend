@@ -25,9 +25,7 @@ public interface SchemeService {
 
     OperatorProductResponseDTO getOperatorsAndProduct(String productCode, String subProductCode);
 
-    List<SchemeRate> getSchemeRatesByOperatorCode(String operatorCode);
-
-//    VendorRouting saveVendorRouting(VendorRoutingDto request);
+    List<SchemeRate> getSchemeRatesByOperatorCode(String operatorCode);;
 
     Page<GetAllSchemeResponse> getAllSchemes(
             Long id,
