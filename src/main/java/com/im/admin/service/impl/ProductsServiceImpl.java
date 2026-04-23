@@ -69,16 +69,11 @@ public class ProductsServiceImpl implements ProductsService {
 
         // Field-by-field update
         existingProduct.setName(product.getName());
-//        existingProduct.setProductCode(product.getProductCode());   ******chnage code****
-//        existingProduct.setProductCodeForScheme(product.getProductCodeForScheme());****code change****
         existingProduct.setIsVisible(product.getIsVisible());
-
-//        existingProduct.setTransactionType(product.getTransactionType());
 
         if (StringUtils.hasText(product.getTransactionType())) {
             existingProduct.setTransactionType(product.getTransactionType());
         }
-
 
         existingProduct.setIsCommissions(product.getIsCommissions());
         existingProduct.setSelectIsCommission(product.getSelectIsCommission());
@@ -146,8 +141,6 @@ public class ProductsServiceImpl implements ProductsService {
 
         return productsRepository.findAll(spec, pageable);
     }
-
-
 
 
     @Override
