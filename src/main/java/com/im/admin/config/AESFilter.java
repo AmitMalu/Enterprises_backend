@@ -30,7 +30,8 @@ public class AESFilter extends OncePerRequestFilter {
 			"/auth/verify-forgot-mpin-otp",
 			"/api/aes/validate-token", "/api/pg/generate-token", "/auth/forget-verify-otp", "/api/payout/callback",
 			"/api/pg/callback/runpaisa", "/api/pg/callback/nixasoft", "/api/pg/callback/slpe", "/api/pg/callback/unisus",
-			"/api/pg/callback/razorpay", "/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials", "/api/pg/callback/cashfree");
+			"/api/pg/callback/razorpay", "/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials", "/api/pg/callback/cashfree",
+			"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui", "/swagger-ui/**", "/swagger-ui.html");
 
 	@Value("${app.security.base-secret}")
 	private String baseSecret;

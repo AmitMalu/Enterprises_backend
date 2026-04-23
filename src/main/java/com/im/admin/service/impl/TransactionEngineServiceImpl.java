@@ -500,7 +500,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
             BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
             BigDecimal gross = BigDecimal.valueOf(dto.getAmount())
                     .multiply(percentage)
-                    .setScale(4, RoundingMode.HALF_UP);
+                    .setScale(2, RoundingMode.HALF_UP);
             log.debug("[CHARGES] Gross calculated by percentage | Rate={} | Percentage={} | Gross={}",
                     dto.getSchemeRate().getRateType(), percentage, gross);
             return gross;
