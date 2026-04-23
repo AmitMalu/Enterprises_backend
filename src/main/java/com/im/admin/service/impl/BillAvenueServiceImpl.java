@@ -578,11 +578,6 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
             bbpsRelatedTransactions.processCharges(bbpsDto, walletAmountTable);
 
-
-            // set fields from backend
-            //uat
-//            request.setAgentId("CC01CC01513515340681");
-
             //live
             request.setAgentId("CC01RP98AGTBAK020158");
 
@@ -641,15 +636,11 @@ public class BillAvenueServiceImpl implements BillAvenueService {
             // 5 Encrypt Request
             ObjectMapper mapper = new ObjectMapper();
 
-            //old
-//            String plainJson = mapper.writeValueAsString(request);
-            // new
             String plainJson = mapper.writeValueAsString(vendorRequest);
             requestJson = plainJson;
 
             String encryptedRequest = BillAvenueCryptoUtil.encrypt(plainJson, WORKING_KEY);
 
-//            String requestId = RequestIdUtil.generate();
             String requestId = request.getRequestId();
 
             String finalUrl =
@@ -686,7 +677,6 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                     null
             );
 
-
             BillAvenueBillPayResponse vendorResponse =
                     mapper.readValue(decrypted, BillAvenueBillPayResponse.class);
 
@@ -716,12 +706,13 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                     );
             transaction.setBillerName(config.getProviderName());
 
-//            BigDecimal amt =
-//                    new BigDecimal(vendorResponse.getRespAmount())
-//                            .divide(BigDecimal.valueOf(100));
+            long amt = 0L;
 
-            Long amt = Long.parseLong(vendorResponse.getRespAmount()) / 100;
-
+            if (vendorResponse.getRespAmount() != null && !vendorResponse.getRespAmount().isEmpty()) {
+                amt = Long.parseLong(vendorResponse.getRespAmount()) / 100;
+            } else {
+                log.warn("Vendor response amount is null for txnId={}", baseTransactionId);
+            }
             transaction.setTxnAmount(amt);
             transaction.setCustomerName(vendorResponse.getRespCustomerName());
             transaction.setConsumerNumber(request.getNumber());
@@ -755,14 +746,8 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
             // ================= FAILURE FLOW =================
 
-//// 1⃣ Save failed / pending transaction
-//            if ("001".equals(vendorResponse.getResponseCode())
-//                    || "002".equals(vendorResponse.getResponseCode())
-//                    || "FORWARD".equalsIgnoreCase(vendorResponse.getTxnRespType())) {
                 if ("002".equals(vendorResponse.getResponseCode())
                         || "FORWARD".equalsIgnoreCase(vendorResponse.getTxnRespType())) {
-
-
 
                     savePendingTransaction(
                         baseTransactionId,
@@ -775,9 +760,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                         selectedScheme.getOperatorName(),
                         subProducts,
                         credentials,
-//                        vendorResponse.getResponseReason(),
                         vendorResponse.getVErrorRootVO().getError().get(0).getErrorMessage(),
-//                        vendorResponse.getResponseReason(),
                         vendorResponse.getVErrorRootVO().getError().get(0).getErrorMessage(),
                         vendorResponse.getTxnRefId()
                 );
