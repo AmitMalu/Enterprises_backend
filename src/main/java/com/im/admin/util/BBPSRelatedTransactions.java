@@ -61,7 +61,7 @@ public class BBPSRelatedTransactions {
             log.debug("---- [Charges] Gross calculated as percentage | RateType: {} | Percentage: {} | GrossAmount: {}",
                     dto.getSchemeRate().getRateType(), percentage, grossAmount);
         } else {
-            grossAmount = new BigDecimal(String.valueOf(dto.getTxnAmount()));;
+            grossAmount = new BigDecimal(String.valueOf(dto.getSchemeRate().getGross()));;
             log.debug("---- [Charges] Gross taken as fixed | GrossAmountInput: {}", grossAmount);
         }
 
