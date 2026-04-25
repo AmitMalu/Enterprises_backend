@@ -17,5 +17,8 @@ public interface AbstractRetailerTransactionDetails {
     String getSchemeName();
 
     String getService();
+    Double getLatitude();
+    Double getLongitude();
+
 }
 
