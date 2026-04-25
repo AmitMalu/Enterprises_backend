@@ -23,11 +23,10 @@ public class PrefundRequestDto {
     private String bankTranId;
     private String narration;
     private String paymentMode;
-    private String ipAddress;
     private String depositDate;
     private String depositType;
     private String remarks;
-    private String subProductCode;
     private String schemeCode;
+    private String subProductId;
 
 }

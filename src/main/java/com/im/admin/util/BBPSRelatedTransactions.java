@@ -364,8 +364,6 @@ public class BBPSRelatedTransactions {
 
     public void processCommission(BbpsTranactionRequestDto bbpsTranactionRequestDto) {
 
-//        BbpsTranactionRequestDto request = new BbpsTranactionRequestDto();
-//        request.setVendorResponse("SUCCESS");
         // 1. Commission to Retailer
         if (bbpsTranactionRequestDto.getSchemeRate().getRetailer() > 0) {
             BigDecimal retailerCommission = commonMethods.calculateCommissionAmount(

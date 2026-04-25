@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.dto.FundRequestActionDto;
 import com.im.admin.dto.PrefundRequestDto;
+import com.im.admin.dto.PrefundRequestResponseDTO;
 import com.im.admin.entities.PrefundRequest;
 import com.im.admin.entities.product.Products;
 import com.im.admin.response.CommonResponse;
@@ -42,14 +43,15 @@ public class  PrefundRequestController {
             @RequestPart("data") @Valid String rawData,
             @RequestPart("imageFile") MultipartFile imageFile,
             @RequestHeader("Latitude") Double latitude,
-            @RequestHeader("Longitude") Double longitude) {
+            @RequestHeader("Longitude") Double longitude,
+            @RequestHeader("Ipaddress") String ipAddress) {
         try {
             log.info("Entering Wallet Load Request method with data: {}", rawData);
 
             ObjectMapper mapper = new ObjectMapper();
             PrefundRequestDto dto = mapper.readValue(rawData, PrefundRequestDto.class);
 
-            CommonResponse<PrefundRequest> response = prefundRequestService.saveWalletLoadRequest(dto, imageFile);
+            CommonResponse<PrefundRequest> response = prefundRequestService.saveWalletLoadRequest(dto, imageFile, ipAddress);
             log.info("Wallet Load Request submitted successfully for mobileNumber: {}", dto.getMobileNumber());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
@@ -63,7 +65,7 @@ public class  PrefundRequestController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<CommonResponse<Page<PrefundRequest>>> getAllRequests(
+    public ResponseEntity<CommonResponse<Page<PrefundRequestResponseDTO>>> getAllRequests(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Long id,
@@ -72,16 +74,8 @@ public class  PrefundRequestController {
             @RequestParam(required = false) Double depositAmount,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate depositDate,
-
-            //  NEW
-            @RequestParam(required = false)
-            @DateTimeFormat(pattern = "dd-MM-yyyy")
-            LocalDate fromDate,
-
-            @RequestParam(required = false)
-            @DateTimeFormat(pattern = "dd-MM-yyyy")
-            LocalDate toDate,
-
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy")LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate toDate,
             @RequestParam(required = false) @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate createDateTime,
             @RequestParam(required = false) String bankHolderName,
             @RequestParam(required = false) String bankAccountName,
@@ -96,14 +90,14 @@ public class  PrefundRequestController {
             @RequestParam(required = false) String depositType
     ) {
         log.info("Fetching all Prefund Requests with filters - mobileNumber: {}, status: {}", mobileNumber, status);
-        Page<PrefundRequest> pagedResult = prefundRequestService.getAllPrefundRequests(
+        Page<PrefundRequestResponseDTO> pagedResult = prefundRequestService.getAllPrefundRequests(
                 page, size, id, requestedBy, mobileNumber, depositAmount, status,
                 depositDate,fromDate, toDate, createDateTime, bankHolderName, bankAccountName,
                 bankAccountNumber, bankTranId, paymentMode, narration, ipAddress,
                 approveOrRejectDate, approveOrRejectTime, remarks, depositType
         );
 
-        CommonResponse<Page<PrefundRequest>> response = new CommonResponse<>(
+        CommonResponse<Page<PrefundRequestResponseDTO>> response = new CommonResponse<>(
                 200, "Prefund requests fetched successfully", pagedResult
         );
 
@@ -112,10 +106,7 @@ public class  PrefundRequestController {
     }
 
     @PostMapping("/action")
-    public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto
-//                                                                          @RequestHeader("Latitude") Double latitude,
-//                                                                          @RequestHeader("Longitude") Double longitude
-                                                                          ) {
+    public ResponseEntity<CommonResponse<String>> takeActionOnFundRequest(@RequestBody FundRequestActionDto actionDto) {
         CommonResponse<String> response = prefundRequestService.takeActionOnFundRequest(actionDto);
         return ResponseEntity.ok(response);
     }
@@ -137,10 +128,13 @@ public class  PrefundRequestController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommonResponse<PrefundRequest>> getPrefundRequestById(@PathVariable Long id) {
+    public ResponseEntity<CommonResponse<PrefundRequestResponseDTO>> getPrefundRequestById(@PathVariable Long id) {
+
         log.info("Fetching Prefund Request by ID: {}", id);
-        CommonResponse<PrefundRequest> response = prefundRequestService.getById(id);
-        log.info("Fetched Prefund Request with ID: {}", id);
+
+        CommonResponse<PrefundRequestResponseDTO> response =
+                prefundRequestService.getById(id);
+
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 }
