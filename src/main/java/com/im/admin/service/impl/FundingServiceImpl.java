@@ -359,13 +359,13 @@ public class FundingServiceImpl implements FundingService {
             List<String> allSubProducts = subProductsRepository.findByProduct(product)
                     .stream()
                     .map(SubProducts::getSubProductTitle)
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (StringUtils.hasText(request.getSubProductName())) {
 
                 List<String> requestedSubs = Arrays.stream(request.getSubProductName().split(","))
                         .map(String::trim)
-                        .collect(Collectors.toList());
+                        .toList();
 
                 filteredSubProducts = requestedSubs.stream()
                         .filter(allSubProducts::contains)
@@ -417,27 +417,9 @@ public class FundingServiceImpl implements FundingService {
         Page<RetailerTransactionResponseDto> responsePage;
 
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
-
-            responsePage = fetchPrepaid(
-                    request,
-                    filteredSubProducts,
-                    vendorName,
-                    statusList,
-                    networkIds,
-                    pageable
-            );
-
+            responsePage = fetchPrepaid(request,filteredSubProducts,vendorName,statusList,networkIds,pageable);
         } else if ("POSTPAID".equalsIgnoreCase(request.getWalletType())) {
-
-            responsePage = fetchPostpaid(
-                    request,
-                    filteredSubProducts,
-                    vendorName,
-                    statusList,
-                    networkIds,
-                    pageable
-            );
-
+            responsePage = fetchPostpaid(request, filteredSubProducts, vendorName, statusList, networkIds, pageable);
         } else {
 
             Page<RetailerTransactionResponseDto> prepaid =
@@ -518,7 +500,8 @@ public class FundingServiceImpl implements FundingService {
                             txn.getUpdatedTimeOfTransaction(),
                             txn.getVendorTransactionId(),
                             txn.getLatitude(),
-                            txn.getLongitude()
+                            txn.getLongitude(),
+                            txn.getOperatorName()
                     );
 
             dto.setWalletType("PREPAID"); //  request
@@ -586,7 +569,8 @@ public class FundingServiceImpl implements FundingService {
                             txn.getUpdatedTimeOfTransaction(),
                             txn.getVendorTransactionId(),
                             txn.getLatitude(),
-                            txn.getLongitude()
+                            txn.getLongitude(),
+                            txn.getOperatorName()
                     );
 
             dto.setWalletType("POSTPAID");
@@ -625,7 +609,7 @@ public class FundingServiceImpl implements FundingService {
             if (StringUtils.hasText(request.getSubProductName())) {
                 List<String> requestedSubs = Arrays.stream(request.getSubProductName().split(","))
                         .map(String::trim)
-                        .collect(Collectors.toList());
+                        .toList();
 
                 filteredSubProducts = requestedSubs.stream()
                         .filter(allSubProducts::contains)
@@ -711,7 +695,8 @@ public class FundingServiceImpl implements FundingService {
                             txn.getUpdatedTimeOfTransaction(),
                             txn.getVendorTransactionId(),
                             txn.getLatitude(),
-                            txn.getLongitude()
+                            txn.getLongitude(),
+                            txn.getOperatorName()
                     );
 
             dto.setWalletType("PREPAID");
@@ -781,7 +766,8 @@ public class FundingServiceImpl implements FundingService {
                             txn.getUpdatedTimeOfTransaction(),
                             txn.getVendorTransactionId(),
                             txn.getLatitude(),
-                            txn.getLongitude()
+                            txn.getLongitude(),
+                            txn.getOperatorName()
                     );
 
             dto.setWalletType("POSTPAID");
@@ -818,7 +804,7 @@ public class FundingServiceImpl implements FundingService {
             if (StringUtils.hasText(request.getSubProductName())) {
                 List<String> requestedSubs = Arrays.stream(request.getSubProductName().split(","))
                         .map(String::trim)
-                        .collect(Collectors.toList());
+                        .toList();
 
                 filteredSubProducts = requestedSubs.stream()
                         .filter(allSubProducts::contains)
@@ -837,7 +823,7 @@ public class FundingServiceImpl implements FundingService {
                                     sp.getProduct().getName().toLowerCase()
                                             .contains(request.getProductName().toLowerCase())
                             )
-                            .collect(Collectors.toList());
+                            .toList();
 
             List<String> productBasedSubProducts =
                     subProductsByProductName.stream()
@@ -958,7 +944,8 @@ public class FundingServiceImpl implements FundingService {
                             txn.getUpdatedTimeOfTransaction(),
                             txn.getVendorTransactionId(),
                             txn.getLatitude(),
-                            txn.getLongitude()
+                            txn.getLongitude(),
+                            txn.getOperatorName()
                     );
 
             dto.setWalletType("PREPAID");
@@ -1028,7 +1015,8 @@ public class FundingServiceImpl implements FundingService {
                             txn.getUpdatedTimeOfTransaction(),
                             txn.getVendorTransactionId(),
                             txn.getLatitude(),
-                            txn.getLongitude()
+                            txn.getLongitude(),
+                            txn.getOperatorName()
                     );
 
             dto.setWalletType("POSTPAID");
@@ -1124,7 +1112,7 @@ public class FundingServiceImpl implements FundingService {
             if (StringUtils.hasText(request.getSubProductName())) {
                 List<String> requestedSubs = Arrays.stream(request.getSubProductName().split(","))
                         .map(String::trim)
-                        .collect(Collectors.toList());
+                        .toList();
 
                 filteredSubProducts = requestedSubs.stream()
                         .filter(allSubProducts::contains)

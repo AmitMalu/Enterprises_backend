@@ -1,6 +1,7 @@
 package com.im.admin.service;
 
 import com.im.admin.dto.*;
+import com.im.admin.response.BulkTransactionStatusResponse;
 import com.im.admin.response.CommonResponse;
 
 import java.time.LocalDate;
@@ -16,6 +17,8 @@ public interface TransactionEngineService {
     String processTransaction(TransactionSchemeDetailsRequestDto request, String vendorCallbackStatus);
 
     String updateTransactionStatus(UpdateTransactionStatusRequest request);
+
+    CommonResponse<BulkTransactionStatusResponse> updatePendingTransactionStatus(UpdateTransactionStatusRequest request);
 
     List<Map<String, Object>> getSettlementTransactionsByFilter(
             LocalDate fromDate,

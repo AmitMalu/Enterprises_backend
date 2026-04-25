@@ -3,6 +3,7 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.*;
 import com.im.admin.request.UpdateSettlementStatusRequest;
+import com.im.admin.response.BulkTransactionStatusResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.TransactionEngineService;
 import jakarta.validation.Valid;
@@ -57,6 +58,15 @@ public class TransactionEngineController {
         return ResponseEntity.ok("Bulk transaction status update completed successfully");
     }
 
+    @PostMapping("/update-pending-status/bulk")
+    public ResponseEntity<CommonResponse<BulkTransactionStatusResponse>>
+    updatePendingTransactionStatusBulk(@RequestBody UpdateTransactionStatusRequest request) {
+
+        CommonResponse<BulkTransactionStatusResponse> response =
+                transactionService.updatePendingTransactionStatus(request);
+
+        return ResponseEntity.ok(response);
+    }
 
     @GetMapping("/isSettlement/filter-by")
     public ResponseEntity<CommonResponse<List<Map<String, Object>>>> getIsSettlementTransactions(
