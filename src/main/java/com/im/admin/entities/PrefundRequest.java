@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.im.admin.entities.enums.Status;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class PrefundRequest {
 
     @Id

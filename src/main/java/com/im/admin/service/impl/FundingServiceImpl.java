@@ -330,18 +330,28 @@ public class FundingServiceImpl implements FundingService {
         // ===== NETWORK HIERARCHY LOGIC =====
         String hierarchyId = tokenUtil.extractHierarchyId();
 
-        List<String> networkIds =
-                getRetailersUnderHierarchy(hierarchyId);
-
+        List<String> networkIds = getRetailersUnderHierarchy(hierarchyId);
         log.info("Settlement Network IDs: {}", networkIds);
-
 
         log.info("Fetching transactions for walletType: {}", request.getWalletType());
 
         List<String> filteredSubProducts = null;
 
-        //  productId OPTIONAL
-        if (request.getProductId() != null) {
+        // =========================================================
+        // 1. PRIORITY: subProductId (STRICT FILTER)
+        // =========================================================
+        if (StringUtils.hasText(request.getSubProductId())) {
+
+            SubProducts subProduct = subProductsRepository.findById(request.getSubProductId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid subProductId"));
+
+            filteredSubProducts = List.of(subProduct.getSubProductTitle());
+        }
+
+        // =========================================================
+        // 2. FALLBACK: product + subProductName (OPTIONAL)
+        // =========================================================
+        else if (request.getProductId() != null) {
 
             Products product = productsRepository.findById(request.getProductId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid productId"));
@@ -352,6 +362,7 @@ public class FundingServiceImpl implements FundingService {
                     .collect(Collectors.toList());
 
             if (StringUtils.hasText(request.getSubProductName())) {
+
                 List<String> requestedSubs = Arrays.stream(request.getSubProductName().split(","))
                         .map(String::trim)
                         .collect(Collectors.toList());
@@ -359,15 +370,15 @@ public class FundingServiceImpl implements FundingService {
                 filteredSubProducts = requestedSubs.stream()
                         .filter(allSubProducts::contains)
                         .collect(Collectors.toList());
-            } else {
-                filteredSubProducts = allSubProducts;
             }
+
         }
-        // else → filteredSubProducts = null → ALL RECORDS
 
         log.info("Using subProducts: {}", filteredSubProducts);
 
-        // 🔹 Vendor
+        // =========================================================
+        // Vendor
+        // =========================================================
         String vendorName = null;
         if (StringUtils.hasText(request.getVendorId())) {
             vendorName = vendorRepository.findById(request.getVendorId())
@@ -377,10 +388,19 @@ public class FundingServiceImpl implements FundingService {
             vendorName = request.getVendor();
         }
 
-        Pageable pageable = PageRequest.of(page, size,
-                Sort.by("updatedDateOfTransaction").descending());
+//        Pageable pageable = PageRequest.of(page, size,
+//                Sort.by("updatedDateOfTransaction").descending());
 
-        // 🔹 Status list
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(
+                        Sort.Order.desc("updatedDateOfTransaction"),
+                        Sort.Order.desc("updatedTimeOfTransaction")
+                )
+        );
+
+        // =========================================================
+        // Status list
+        // =========================================================
         List<String> statusList;
         if ("POST SETTLEMENT".equalsIgnoreCase(request.getTranStatus())) {
             statusList = Arrays.asList("SUCCESS", "FAILURE");
@@ -391,18 +411,40 @@ public class FundingServiceImpl implements FundingService {
             statusList = Collections.singletonList(request.getTranStatus());
         }
 
+        // =========================================================
+        // FETCH DATA
+        // =========================================================
         Page<RetailerTransactionResponseDto> responsePage;
 
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
-            responsePage = fetchPrepaid(request, filteredSubProducts, vendorName, statusList, networkIds, pageable);
+
+            responsePage = fetchPrepaid(
+                    request,
+                    filteredSubProducts,
+                    vendorName,
+                    statusList,
+                    networkIds,
+                    pageable
+            );
+
         } else if ("POSTPAID".equalsIgnoreCase(request.getWalletType())) {
-            responsePage = fetchPostpaid(request, filteredSubProducts, vendorName, statusList,networkIds, pageable);
+
+            responsePage = fetchPostpaid(
+                    request,
+                    filteredSubProducts,
+                    vendorName,
+                    statusList,
+                    networkIds,
+                    pageable
+            );
+
         } else {
+
             Page<RetailerTransactionResponseDto> prepaid =
-                    fetchPrepaid(request, filteredSubProducts, vendorName, statusList, networkIds ,pageable);
+                    fetchPrepaid(request, filteredSubProducts, vendorName, statusList, networkIds, pageable);
 
             Page<RetailerTransactionResponseDto> postpaid =
-                    fetchPostpaid(request, filteredSubProducts, vendorName, statusList, networkIds ,pageable);
+                    fetchPostpaid(request, filteredSubProducts, vendorName, statusList, networkIds, pageable);
 
             List<RetailerTransactionResponseDto> merged =
                     Stream.concat(prepaid.stream(), postpaid.stream())
