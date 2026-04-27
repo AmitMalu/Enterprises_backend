@@ -87,7 +87,7 @@ public class FundingServiceImpl implements FundingService {
 
     @Override
     @Transactional
-    public String fundsCreditDebit(FundCreditDebitDto dto, Double latitude, Double longitude) {
+    public String fundsCreditDebit(FundCreditDebitDto dto) {
         log.info("Starting funds {} operation for userAccountId: {}, WalletType: {}, Amount: {}",
                 dto.getFundingType(), dto.getUserAccountId(), dto.getWalletType(), dto.getAmount());
 
@@ -133,8 +133,8 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Credit (Admin Debit)",
                     dto.getNarrationType(),
-                    latitude,
-                    longitude
+                    null,
+                    null
 
             );
 
@@ -149,8 +149,8 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Credit (User Credit)",
                     dto.getNarrationType(),
-                    latitude,
-                    longitude
+                    null,
+                    null
             );
 
         } else if (transactionType == TransactionType.DEBIT) {
@@ -168,8 +168,8 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Debit (User Debit)",
                     dto.getNarrationType(),
-                    latitude,
-                    longitude
+                    null,
+                    null
             );
 
             // Credit to admin
@@ -183,8 +183,8 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Debit (Admin Credit)",
                     dto.getNarrationType(),
-                    latitude,
-                    longitude
+                    null,
+                    null
             );
         }
 
@@ -309,7 +309,7 @@ public class FundingServiceImpl implements FundingService {
         try {
             TransactionTemplate template = new TransactionTemplate(transactionManager);
             template.execute(status -> {
-                String result = fundsCreditDebit(dto, latitude, longitude); // now runs inside a TX
+                String result = fundsCreditDebit(dto); // now runs inside a TX
                 response.setStatus("SUCCESS");
                 response.setMessage(result);
                 return null;
