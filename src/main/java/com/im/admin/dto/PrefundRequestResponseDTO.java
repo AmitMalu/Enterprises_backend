@@ -41,7 +41,6 @@ public class PrefundRequestResponseDTO {
     private String remarks;
     private String depositType;
 
-    // ✅ Flattened fields (NO LAZY OBJECTS)
     private String subProductName;
     private String productName;
     private String schemeName;
