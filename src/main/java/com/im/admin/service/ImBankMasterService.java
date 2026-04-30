@@ -2,6 +2,7 @@ package com.im.admin.service;
 
 import com.im.admin.entities.ImBankMaster;
 import com.im.admin.request.ImBankMasterRequestDTO;
+import com.im.admin.response.BankResponseDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.ImBankDropdownResponse;
 import com.im.admin.response.ImBankMasterResponseDTO;
@@ -33,4 +34,7 @@ public interface ImBankMasterService {
     );
 
     CommonResponse<List<ImBankDropdownResponse>> getDropdown();
+
+    List<BankResponseDto> getBankDetails();
+
 }

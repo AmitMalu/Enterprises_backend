@@ -3,6 +3,7 @@ package com.im.admin.service.impl;
 import com.im.admin.entities.ImBankMaster;
 import com.im.admin.repositories.ImBankMasterRepository;
 import com.im.admin.request.ImBankMasterRequestDTO;
+import com.im.admin.response.BankResponseDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.ImBankDropdownResponse;
 import com.im.admin.response.ImBankMasterResponseDTO;
@@ -153,6 +154,10 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
                 .collect(Collectors.toList());
 
         return CommonResponse.success(responseList, "Bank dropdown loaded");
+    }
+
+    public List<BankResponseDto> getBankDetails() {
+        return repository.getActiveBankDetails();
     }
 
 }

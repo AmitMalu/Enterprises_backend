@@ -80,6 +80,9 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     @Autowired
     private TransactionEngineServiceImpl transactionEngineServiceImpl;
 
+    @Autowired
+    private ImBankMasterRepository imBankMasterRepository;
+
     @Override
     public CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile, String ipAddress) throws IOException {
 
@@ -94,6 +97,10 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         if (fileExtension == null || !fileExtension.matches("(?i).*\\.(jpg|jpeg|png|pdf)$")) {
             throw new IllegalArgumentException("Invalid image format. Only JPG, JPEG, PNG, PDF allowed.");
         }
+
+        String bankName = imBankMasterRepository.findByAccountNumber(dto.getBankTransferTo())
+                .map(ImBankMaster::getBankName)
+                .orElseThrow(() -> new RuntimeException("Bank not found"));
 
         Optional<PrefundRequest> approved = repository.findApprovedByBankTranId(dto.getBankTranId());
         if (approved.isPresent()) {
@@ -115,6 +122,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         entity.setMobileNumber(dto.getMobileNumber());
         entity.setDepositAmount(depositAmount);
         entity.setDepositImage(fileName);
+        entity.setBankTransferTo(bankName);
         entity.setBankAccountName(dto.getBankAccountName());
         entity.setBankHolderName(dto.getBankHolderName());
         entity.setBankAccountNumber(dto.getBankAccountNumber());
@@ -242,6 +250,29 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         fundRequest.setApproveOrRejectDate(date);
         fundRequest.setApproveOrRejectTime(time);
 
+        // ================= UNIFIED RESOLUTION =================
+
+        SubProducts subProduct = fundRequest.getSubProducts();
+        Scheme scheme = fundRequest.getScheme();
+        Products product = subProduct.getProduct();
+
+        String schemeCode = scheme.getSchemeCode();
+
+        log.info("Resolved from DB | productId={}, subProductId={}, schemeCode={}",
+                product.getId(), subProduct.getId(), schemeCode);
+
+        // ================= SCHEME RATE =================
+
+        SchemeRate schemeRate = schemeRateRepository
+                .findSchemeRateByCodeAndOperatorAndAmount(
+                        schemeCode,
+                        fundRequest.getBankTransferTo(),
+                        fundRequest.getDepositAmount()
+                )
+                .orElseThrow(() -> new RuntimeException("SchemeRate not found"));
+
+        BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
+
         // ================= WALLET FLOW =================
         if (newStatus == Status.APPROVED) {
 
@@ -260,7 +291,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
             updateWallet(approverWallet, approverId, walletType, amount,
                     "Debit", baseTransactionId, "SUCCESS", "DEBIT",
-                    "Fund Transfer to " + requesterId);
+                    "Fund Transfer to " + requesterId, subProduct.getSubProductTitle(), scheme.getSchemeName(), fundRequest.getBankTransferTo());
 
             String requesterType = commonMethods.extractHierarchyType(requesterId);
             String parentHierarchyId = requesterId;
@@ -274,33 +305,10 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
             updateWallet(requesterWallet, parentHierarchyId, walletType, amount,
                     "Credit", baseTransactionId, "SUCCESS", "CREDIT",
-                    "Fund Transfer from " + approverId);
+                    "Fund Transfer from " + approverId, subProduct.getSubProductTitle(), scheme.getSchemeName(), fundRequest.getBankTransferTo());
         }
 
         repository.save(fundRequest);
-
-        // ================= UNIFIED RESOLUTION =================
-
-        SubProducts subProduct = fundRequest.getSubProducts();
-        Scheme scheme = fundRequest.getScheme();
-        Products product = subProduct.getProduct();
-
-        String schemeCode = scheme.getSchemeCode();
-
-        log.info("Resolved from DB | productId={}, subProductId={}, schemeCode={}",
-                product.getId(), subProduct.getId(), schemeCode);
-
-        // ================= SCHEME RATE =================
-
-        SchemeRate schemeRate = schemeRateRepository
-                .findSchemeRateByCodeAndOperatorAndAmount(
-                        schemeCode,
-                        fundRequest.getBankAccountName(),
-                        fundRequest.getDepositAmount()
-                )
-                .orElseThrow(() -> new RuntimeException("SchemeRate not found"));
-
-        BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
 
         try {
 
@@ -352,7 +360,8 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     }
 
     private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-                                                                    String tranxType, String baseTransactionId, String tranStatus, String service, String remarks) {
+                                                                    String tranxType, String baseTransactionId, String tranStatus, String service, String remarks,
+                                                                    String subProductName, String schemeName, String operatorName) {
 
         String actionOnBalance;
 
@@ -375,12 +384,13 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         // Insert transaction
         insertTransaction(walletType.name(), hierarchyId, tranStatus, amount, balanceBefore,
-                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service, remarks);
+                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service, remarks, subProductName, schemeName, operatorName);
 
     }
 
     private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount, BigDecimal beforeBalance,
-                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service, String remarks) {
+                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service, String remarks,
+                                   String subProductName, String schemeName, String operatorName) {
 
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
@@ -391,9 +401,11 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         String sql = "INSERT INTO " + transactionTableName +
                 " (" + columnName + "  ,service, amount, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, remarks) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, remarks, " +
+                "sub_product_name, scheme_name, operator_name) " +
                 "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :remarks)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :remarks," +
+                ":subProductName, :schemeName, :operatorName)";
 
         try {
             entityManager.createNativeQuery(sql)
@@ -409,6 +421,9 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
                     .setParameter("remarks", remarks)
+                    .setParameter("subProductName", subProductName)
+                    .setParameter("schemeName", schemeName)
+                    .setParameter("operatorName", operatorName)
                     .executeUpdate();
 
         } catch (PersistenceException ex) {

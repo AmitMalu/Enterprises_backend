@@ -126,7 +126,7 @@ public class FundingController {
     }
 
     @PostMapping("/detailed-txn-report")
-    public ResponseEntity<CommonResponse> getTransactionrepoortComAndChg(
+    public ResponseEntity<CommonResponse> getTransactionReportComAndChg(
             @RequestBody SettlementPendingRequestDto request,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
