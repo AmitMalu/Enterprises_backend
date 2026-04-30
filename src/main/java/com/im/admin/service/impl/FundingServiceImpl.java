@@ -848,8 +848,14 @@ public class FundingServiceImpl implements FundingService {
             vendorName = request.getVendor();
         }
 
-        Pageable pageable = PageRequest.of(page, size,
-                Sort.by("updatedDateOfTransaction").descending());
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(
+                        Sort.Order.desc("dateOfTransaction"),
+                        Sort.Order.desc("timeOfTransaction")
+                )
+        );
 
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
             return fetchPrepaidTXN(request, filteredSubProducts, vendorName, networkIds, pageable);
@@ -858,30 +864,67 @@ public class FundingServiceImpl implements FundingService {
             return fetchPostpaidTXN(request, filteredSubProducts, vendorName, networkIds, pageable);
         }
         else {
-            // walletType null → fetch both
-            Page<RetailerTransactionResponseDto> prepaid =
-                    fetchPrepaidTXN(request, filteredSubProducts, vendorName, networkIds, pageable);
 
-            Page<RetailerTransactionResponseDto> postpaid =
-                    fetchPostpaidTXN(request, filteredSubProducts, vendorName, networkIds, pageable);
+//            List<RetailerTransactionResponseDto> combinedList = new ArrayList<>();
+//            // walletType null → fetch both
+//            Page<RetailerTransactionResponseDto> prepaid =
+//                    fetchPrepaidTXN(request, filteredSubProducts, vendorName, networkIds, pageable);
+//
+//            Page<RetailerTransactionResponseDto> postpaid =
+//                    fetchPostpaidTXN(request, filteredSubProducts, vendorName, networkIds, pageable);
+//
+//            combinedList.add(prepaid);
+//            combinedList.add(postpaid);
+//
+//            List<RetailerTransactionResponseDto> combined =
+//                    Stream.concat(prepaid.getContent().stream(),
+//                                    postpaid.getContent().stream())
+//                            .sorted(Comparator.comparing(
+//                                    RetailerTransactionResponseDto::getUpdatedDateOfTransaction,
+//                                    Comparator.nullsLast(Comparator.reverseOrder())
+//                            ))
+//                            .collect(Collectors.toList());
+//
+//            return new PageImpl<>(
+//                    combined,
+//                    pageable,
+//                    prepaid.getTotalElements() + postpaid.getTotalElements()
+//            );
 
-            List<RetailerTransactionResponseDto> combined =
-                    Stream.concat(prepaid.getContent().stream(),
-                                    postpaid.getContent().stream())
-                            .sorted(Comparator.comparing(
-                                    RetailerTransactionResponseDto::getUpdatedDateOfTransaction,
-                                    Comparator.nullsLast(Comparator.reverseOrder())
-                            ))
-                            .collect(Collectors.toList());
 
-            return new PageImpl<>(
-                    combined,
-                    pageable,
-                    prepaid.getTotalElements() + postpaid.getTotalElements()
+            // ================= BOTH =================
+
+            List<RetailerTransactionResponseDto> combinedList = new ArrayList<>();
+
+            List<RetailerTransactionResponseDto> prepaid =
+                    fetchPrepaidTXN(request, filteredSubProducts, vendorName, networkIds, Pageable.unpaged())
+                            .getContent();
+
+            List<RetailerTransactionResponseDto> postpaid =
+                    fetchPostpaidTXN(request, filteredSubProducts, vendorName, networkIds, Pageable.unpaged())
+                            .getContent();
+
+            combinedList.addAll(prepaid);
+            combinedList.addAll(postpaid);
+
+            combinedList.sort(
+                    Comparator.comparing(
+                            RetailerTransactionResponseDto::getDateOfTransaction,
+                            Comparator.nullsLast(Comparator.reverseOrder())
+                    ).thenComparing(
+                            RetailerTransactionResponseDto::getTimeOfTransaction,
+                            Comparator.nullsLast(Comparator.reverseOrder())
+                    )
             );
+
+            int start = (int) pageable.getOffset();
+            int end = Math.min(start + pageable.getPageSize(), combinedList.size());
+
+            List<RetailerTransactionResponseDto> paginatedList =
+                    start > end ? Collections.emptyList() : combinedList.subList(start, end);
+
+            return new PageImpl<>(paginatedList, pageable, combinedList.size());
         }
-
-
 
     }
 
@@ -1088,15 +1131,8 @@ public class FundingServiceImpl implements FundingService {
 
         log.info("Fetching transactions for walletType: {}", request.getWalletType());
 
-        log.info("Fetching transactions for walletType: {}", request.getWalletType());
-
-        // network hierarchy logic
         String hierarchyId = tokenUtil.extractHierarchyId();
-
-        List<String> networkIds =
-                getRetailersUnderHierarchy(hierarchyId);
-
-        log.info("Network IDs for report: {}", networkIds);
+        List<String> networkIds = getRetailersUnderHierarchy(hierarchyId);
 
         List<String> filteredSubProducts = null;
 
@@ -1107,7 +1143,7 @@ public class FundingServiceImpl implements FundingService {
             List<String> allSubProducts = subProductsRepository.findByProduct(product)
                     .stream()
                     .map(SubProducts::getSubProductTitle)
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (StringUtils.hasText(request.getSubProductName())) {
                 List<String> requestedSubs = Arrays.stream(request.getSubProductName().split(","))
@@ -1116,12 +1152,11 @@ public class FundingServiceImpl implements FundingService {
 
                 filteredSubProducts = requestedSubs.stream()
                         .filter(allSubProducts::contains)
-                        .collect(Collectors.toList());
+                        .toList();
             } else {
                 filteredSubProducts = allSubProducts;
             }
         }
-
 
         String vendorName = null;
         if (StringUtils.hasText(request.getVendorId())) {
@@ -1132,14 +1167,57 @@ public class FundingServiceImpl implements FundingService {
             vendorName = request.getVendor();
         }
 
-        Pageable pageable = PageRequest.of(page, size,
-                Sort.by("updatedDateOfTransaction").descending());
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(
+                        Sort.Order.desc("dateOfTransaction"),
+                        Sort.Order.desc("timeOfTransaction")
+                )
+        );
+
+        // ================= WALLET TYPE =================
 
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
-            return fetchPrepaidTXNCom(request, filteredSubProducts, vendorName,networkIds, pageable);
-        } else {
-            return fetchPostpaidTXNCom(request, filteredSubProducts, vendorName,networkIds, pageable);
+            return fetchPrepaidTXNCom(request, filteredSubProducts, vendorName, networkIds, pageable);
         }
+
+        if ("POSTPAID".equalsIgnoreCase(request.getWalletType())) {
+            return fetchPostpaidTXNCom(request, filteredSubProducts, vendorName, networkIds, pageable);
+        }
+
+        // ================= BOTH =================
+
+        List<RetailerTransactionResponseDtoCom> combinedList = new ArrayList<>();
+
+        List<RetailerTransactionResponseDtoCom> prepaid =
+                fetchPrepaidTXNCom(request, filteredSubProducts, vendorName, networkIds, Pageable.unpaged())
+                        .getContent();
+
+        List<RetailerTransactionResponseDtoCom> postpaid =
+                fetchPostpaidTXNCom(request, filteredSubProducts, vendorName, networkIds, Pageable.unpaged())
+                        .getContent();
+
+        combinedList.addAll(prepaid);
+        combinedList.addAll(postpaid);
+
+        combinedList.sort(
+                Comparator.comparing(
+                        RetailerTransactionResponseDtoCom::getDateOfTransaction,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ).thenComparing(
+                        RetailerTransactionResponseDtoCom::getTimeOfTransaction,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                )
+        );
+
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), combinedList.size());
+
+        List<RetailerTransactionResponseDtoCom> paginatedList =
+                start > end ? Collections.emptyList() : combinedList.subList(start, end);
+
+        return new PageImpl<>(paginatedList, pageable, combinedList.size());
     }
 
 
@@ -1237,10 +1315,6 @@ public class FundingServiceImpl implements FundingService {
             return dto;
         });
     }
-
-
-
-
 
     private Page<RetailerTransactionResponseDtoCom> fetchPostpaidTXNCom(
             SettlementPendingRequestDto request,

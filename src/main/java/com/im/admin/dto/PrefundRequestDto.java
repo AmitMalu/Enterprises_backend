@@ -28,5 +28,6 @@ public class PrefundRequestDto {
     private String remarks;
     private String schemeCode;
     private String subProductId;
+    private String bankTransferTo;
 
 }

@@ -1617,7 +1617,11 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         SubProducts subProduct = subProductsRepository.findBySubProductCode(request.getSubProductCode())
                 .orElseThrow(() -> new ResourceNotFoundException("SubProduct not found: " + request.getSubProductCode()));
 
+        Scheme scheme = schemeRepository.findBySchemeCode(request.getSchemeRate().getSchemeCode())
+                .orElseThrow(() -> new RuntimeException("Scheme Not Found"));
+
         String subProductName = subProduct.getSubProductTitle();
+        String operatorName = request.getOperatorName();
 
         String hierarchyType = extractHierarchyType(hierarchyId);
         String hierarchyColumnName = transactionHelperService.getHierarchyColumnName(hierarchyType);
@@ -1628,9 +1632,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         String sql = "INSERT INTO " + transactionTable +
                 " (" + hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name,scheme_name, latitude, longitude) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name, scheme_name, operator_name, latitude, longitude) " +
                 "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName,:schemeName, :latitude, :longitude)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName,:schemeName, :operatorName :latitude, :longitude)";
 
         log.debug("[COMM_TXN_INSERT] Generated SQL: {}", sql);
 
@@ -1649,7 +1653,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
                     .setParameter("subProductName", subProductName)
-                    .setParameter("schemeName", request.getSchemeRate().getSchemeCode())
+                    .setParameter("schemeName", scheme.getSchemeName())
+                    .setParameter("operatorName", operatorName)
                     .setParameter("latitude", latitude)
                     .setParameter("longitude", longitude)
                     .executeUpdate();
@@ -2343,13 +2348,24 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 dto.setHasCharge(product.getHasCharges());
 
                 // Optional fields (set safely if available)
-                dto.setVendorName("SYSTEM");
+                dto.setVendorName("Manually Update");
                 dto.setVendorTxnId(fullTxnId);
 
                 log.info("DTO prepared for txnId {}: {}", fullTxnId, dto);
 
                 // Call Transaction Engine
-                processTransaction(dto, request.getNewStatus());
+                //processTransaction(dto, request.getNewStatus());
+
+                AbstractWalletAmountTable wallet = getWalletByType(walletType, txn.getRetailerId());
+
+                processChargesAndCommission(
+                        dto,
+                        wallet,
+                        BigDecimal.valueOf(selectedScheme.getGross()),
+                        product.getSgst().toString(),
+                        baseTxnId,
+                        request.getNewStatus()
+                );
 
                 successList.add(fullTxnId);
 

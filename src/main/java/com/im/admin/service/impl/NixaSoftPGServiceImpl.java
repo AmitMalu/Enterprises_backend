@@ -109,7 +109,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
             ResponseEntity<NixaSoftCreateOrderResponse> response =
                     restTemplate.exchange(
-                            credentials.getBaseUrlUat() +"/payin/nixa-silver-3",
+                            credentials.getBaseUrlUat() +"/payin/nixa-silver-1",
                             HttpMethod.POST,
                             entity,
                             NixaSoftCreateOrderResponse.class

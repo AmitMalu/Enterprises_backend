@@ -32,7 +32,6 @@ public class MyTransactionReportController {
             @RequestParam(defaultValue = "10") int size
     ) {
 
-
         log.info("Received request to fetch MyTransaction report: {}", request);
 
         CommonResponse<Page<MyTransactionReportResponse>> response = myTransactionReportService.getReport(request, page, size);

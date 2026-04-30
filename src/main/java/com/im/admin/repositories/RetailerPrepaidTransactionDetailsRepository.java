@@ -50,29 +50,8 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
                 AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
             """)
-    Page<RetailerPrepaidTransactionDetails> findFilteredTransactions(
-            @Param("id") Integer id,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate,
-            @Param("subProductNames") List<String> subProductNames,  // List<String>
-            @Param("vendorName") String vendorName,
-            @Param("tranStatusList") List<String> tranStatusList,
-            @Param("networkIds") List<String> networkIds,
-            @Param("userId") String userId,
-            @Param("mobileNo") String mobileNo,
-            @Param("schemeName") String schemeName,
-            @Param("amount") Double amount,
-            @Param("txId") String txId,
-            @Param("remarks") String remarks,
-            @Param("medium") String medium,
-            @Param("txType") String txType,
-            @Param("txStatus") String txStatus,
-            @Param("dateOfTransaction") LocalDate dateOfTransaction,
-            @Param("timeOfTransaction") LocalTime timeOfTransaction,
-            @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction,
-            @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction,
-            Pageable pageable
-    );
+    Page<RetailerPrepaidTransactionDetails> findFilteredTransactions(@Param("id") Integer id, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("subProductNames") List<String> subProductNames,  // List<String>
+                                                                     @Param("vendorName") String vendorName, @Param("tranStatusList") List<String> tranStatusList, @Param("networkIds") List<String> networkIds, @Param("userId") String userId, @Param("mobileNo") String mobileNo, @Param("schemeName") String schemeName, @Param("amount") Double amount, @Param("txId") String txId, @Param("remarks") String remarks, @Param("medium") String medium, @Param("txType") String txType, @Param("txStatus") String txStatus, @Param("dateOfTransaction") LocalDate dateOfTransaction, @Param("timeOfTransaction") LocalTime timeOfTransaction, @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction, @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction, Pageable pageable);
 
     // Search by normalized transactionId + retailerId
     @Query("""
@@ -80,15 +59,11 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 WHERE t.transactionId LIKE %:txnId%
                 AND t.retailerId IN :networkIds
             """)
-    List<RetailerPrepaidTransactionDetails>
-    findTransactionsByTransactionIdAndRetailerId(
-            @Param("txnId") String txnId,
-            @Param("networkIds") List<String> networkIds);
+    List<RetailerPrepaidTransactionDetails> findTransactionsByTransactionIdAndRetailerId(@Param("txnId") String txnId, @Param("networkIds") List<String> networkIds);
 
 
     // Search only by normalized transactionId (for Admin / global search)
-    @Query("SELECT t FROM RetailerPrepaidTransactionDetails t " +
-            "WHERE t.transactionId LIKE %:txnId%")
+    @Query("SELECT t FROM RetailerPrepaidTransactionDetails t " + "WHERE t.transactionId LIKE %:txnId%")
     List<RetailerPrepaidTransactionDetails> findTransactionsByTransactionId(@Param("txnId") String txnId);
 
 
@@ -107,9 +82,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 WHERE r.retailerId = :retailerId
                 ORDER BY r.dateOfTransaction DESC, r.timeOfTransaction DESC
             """)
-    List<DashboardTransactionDto> fetchDashboardTransactions(
-            @Param("retailerId") String retailerId
-    );
+    List<DashboardTransactionDto> fetchDashboardTransactions(@Param("retailerId") String retailerId);
 
 
     @Query("""
@@ -120,11 +93,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                   AND t.transactionId LIKE 'TXN%'
                   AND t.dateOfTransaction BETWEEN :fromDate AND :toDate
             """)
-    BigDecimal sumTransactionVolume(
-            @Param("retailerId") String retailerId,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate
-    );
+    BigDecimal sumTransactionVolume(@Param("retailerId") String retailerId, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
 
     @Query("""
@@ -136,11 +105,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                   AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate)
                   AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
             """)
-    BigDecimal sumCommissionEarned(
-            @Param("retailerId") String retailerId,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate
-    );
+    BigDecimal sumCommissionEarned(@Param("retailerId") String retailerId, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
     @Query("""
                 SELECT COUNT(t)
@@ -150,11 +115,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                   AND (:fromDate IS NULL OR t.dateOfTransaction >= :fromDate)
                   AND (:toDate IS NULL OR t.dateOfTransaction <= :toDate)
             """)
-    Long countPendingTransactions(
-            @Param("retailerId") String retailerId,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate
-    );
+    Long countPendingTransactions(@Param("retailerId") String retailerId, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
 
     @Query("""
@@ -169,10 +130,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 GROUP BY FUNCTION('DATE_FORMAT', t.dateOfTransaction, '%Y-%m')
                 ORDER BY month
             """)
-    List<MonthlyTransactionVolumeProjection> getLast4MonthsTransactionVolume(
-            @Param("retailerId") String retailerId,
-            @Param("fromDate") LocalDate fromDate
-    );
+    List<MonthlyTransactionVolumeProjection> getLast4MonthsTransactionVolume(@Param("retailerId") String retailerId, @Param("fromDate") LocalDate fromDate);
 
 
     @Query("""
@@ -189,9 +147,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                   AND YEAR(t.dateOfTransaction) = YEAR(CURRENT_DATE)
                 GROUP BY p.name
             """)
-    List<ProductAmountProjection> getThisMonthProductWiseAmount(
-            @Param("retailerId") String retailerId
-    );
+    List<ProductAmountProjection> getThisMonthProductWiseAmount(@Param("retailerId") String retailerId);
 
     @Modifying
     @Query("""
@@ -232,29 +188,8 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
                 AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
             """)
-    Page<RetailerPrepaidTransactionDetails> findFilteredTransactionsupdated(
-            @Param("id") Integer id,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate,
-            @Param("subProductNames") List<String> subProductNames,  // List<String>
-            @Param("vendorName") String vendorName,
-            @Param("tranStatusList") List<String> tranStatusList,
-            @Param("userId") String userId,
-            @Param("mobileNo") String mobileNo,
-            @Param("schemeName") String schemeName,
-            @Param("amount") Double amount,
-            @Param("txId") String txId,
-            @Param("remarks") String remarks,
-            @Param("medium") String medium,
-            @Param("txType") String txType,
-            @Param("txStatus") String txStatus,
-            @Param("actionOnBalanceAmount") String actionOnBalanceAmount,
-            @Param("dateOfTransaction") LocalDate dateOfTransaction,
-            @Param("timeOfTransaction") LocalTime timeOfTransaction,
-            @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction,
-            @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction,
-            Pageable pageable
-    );
+    Page<RetailerPrepaidTransactionDetails> findFilteredTransactionsupdated(@Param("id") Integer id, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("subProductNames") List<String> subProductNames,  // List<String>
+                                                                            @Param("vendorName") String vendorName, @Param("tranStatusList") List<String> tranStatusList, @Param("userId") String userId, @Param("mobileNo") String mobileNo, @Param("schemeName") String schemeName, @Param("amount") Double amount, @Param("txId") String txId, @Param("remarks") String remarks, @Param("medium") String medium, @Param("txType") String txType, @Param("txStatus") String txStatus, @Param("actionOnBalanceAmount") String actionOnBalanceAmount, @Param("dateOfTransaction") LocalDate dateOfTransaction, @Param("timeOfTransaction") LocalTime timeOfTransaction, @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction, @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction, Pageable pageable);
 
     @Query("""
                 SELECT COALESCE(SUM(t.amount), 0)
@@ -264,11 +199,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                   AND t.transactionId LIKE 'TXN%'
                   AND t.dateOfTransaction BETWEEN :fromDate AND :toDate
             """)
-    BigDecimal sumTransactionVolumeForRetailers(
-            @Param("retailerIds") List<String> retailerIds,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate
-    );
+    BigDecimal sumTransactionVolumeForRetailers(@Param("retailerIds") List<String> retailerIds, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
     @Query("""
                 SELECT COUNT(t)
@@ -278,11 +209,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                   AND (:fromDate IS NULL OR t.dateOfTransaction >= :fromDate)
                   AND (:toDate IS NULL OR t.dateOfTransaction <= :toDate)
             """)
-    Long countPendingTransactionsForRetailers(
-            @Param("retailerIds") List<String> retailerIds,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate
-    );
+    Long countPendingTransactionsForRetailers(@Param("retailerIds") List<String> retailerIds, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
 
     @Query("""
@@ -297,10 +224,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 GROUP BY FUNCTION('DATE_FORMAT', t.dateOfTransaction, '%Y-%m')
                 ORDER BY month
             """)
-    List<MonthlyTransactionVolumeProjection> getLast4MonthsTransactionVolumeForRetailers(
-            @Param("retailerIds") List<String> retailerIds,
-            @Param("fromDate") LocalDate fromDate
-    );
+    List<MonthlyTransactionVolumeProjection> getLast4MonthsTransactionVolumeForRetailers(@Param("retailerIds") List<String> retailerIds, @Param("fromDate") LocalDate fromDate);
 
 
     @Query("""
@@ -340,29 +264,8 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
             """)
     Page<RetailerPrepaidTransactionDetails> findFilteredTransactionTXN(  //..
-                                                                         @Param("id") Integer id,
-                                                                         @Param("fromDate") LocalDate fromDate,
-                                                                         @Param("toDate") LocalDate toDate,
-                                                                         @Param("subProductNames") List<String> subProductNames,  // List<String>
-                                                                         @Param("vendorName") String vendorName,
-                                                                         @Param("tranStatusList") List<String> tranStatusList,
-                                                                         @Param("networkIds") List<String> networkIds,
-                                                                         @Param("userId") String userId,
-                                                                         @Param("mobileNo") String mobileNo,
-                                                                         @Param("schemeName") String schemeName,
-                                                                         @Param("amount") Double amount,
-                                                                         @Param("txId") String txId,
-                                                                         @Param("remarks") String remarks,
-                                                                         @Param("medium") String medium,
-                                                                         @Param("txType") String txType,
-                                                                         @Param("actionOnBalanceAmount") String actionOnBalanceAmount,
-                                                                         @Param("txStatus") String txStatus,
-                                                                         @Param("dateOfTransaction") LocalDate dateOfTransaction,
-                                                                         @Param("timeOfTransaction") LocalTime timeOfTransaction,
-                                                                         @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction,
-                                                                         @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction,
-                                                                         Pageable pageable
-    );
+                                                                         @Param("id") Integer id, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("subProductNames") List<String> subProductNames,  // List<String>
+                                                                         @Param("vendorName") String vendorName, @Param("tranStatusList") List<String> tranStatusList, @Param("networkIds") List<String> networkIds, @Param("userId") String userId, @Param("mobileNo") String mobileNo, @Param("schemeName") String schemeName, @Param("amount") Double amount, @Param("txId") String txId, @Param("remarks") String remarks, @Param("medium") String medium, @Param("txType") String txType, @Param("actionOnBalanceAmount") String actionOnBalanceAmount, @Param("txStatus") String txStatus, @Param("dateOfTransaction") LocalDate dateOfTransaction, @Param("timeOfTransaction") LocalTime timeOfTransaction, @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction, @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction, Pageable pageable);
 
     @Query("""
                 SELECT sp.product.name AS productName,
@@ -375,11 +278,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                   AND r.dateOfTransaction BETWEEN :fromDate AND :toDate
                 GROUP BY sp.product.name
             """)
-    List<ProductVolumeProjection> getProductWiseVolumeForRetailers(
-            @Param("retailerIds") List<String> retailerIds,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate
-    );
+    List<ProductVolumeProjection> getProductWiseVolumeForRetailers(@Param("retailerIds") List<String> retailerIds, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
 
     @Query("""
@@ -393,11 +292,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                   AND r.dateOfTransaction BETWEEN :fromDate AND :toDate
                 GROUP BY sp.product.name
             """)
-    List<ProductCountProjection> getProductWiseTransactionCount(
-            @Param("retailerIds") List<String> retailerIds,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate
-    );
+    List<ProductCountProjection> getProductWiseTransactionCount(@Param("retailerIds") List<String> retailerIds, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
     @Query("""
                 SELECT COUNT(r)
@@ -406,11 +301,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                   AND r.tranStatus = 'PENDING'
                   AND r.dateOfTransaction BETWEEN :fromDate AND :toDate
             """)
-    Long getPendingTransactionCount(
-            @Param("retailerIds") List<String> retailerIds,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate
-    );
+    Long getPendingTransactionCount(@Param("retailerIds") List<String> retailerIds, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
     @Query(value = """
                 SELECT p.partner_id AS id,
@@ -423,11 +314,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                   AND (:toDate IS NULL OR t.date_of_transaction <= :toDate)
                 GROUP BY p.partner_id
             """, nativeQuery = true)
-    List<Map<String, Object>> getPartnerBusinessPrepaid(
-            @Param("retailerIds") List<String> retailerIds,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate
-    );
+    List<Map<String, Object>> getPartnerBusinessPrepaid(@Param("retailerIds") List<String> retailerIds, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
     boolean existsByTransactionId(String transactionId);
 

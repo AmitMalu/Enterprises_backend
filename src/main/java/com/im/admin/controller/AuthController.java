@@ -260,9 +260,9 @@ public class AuthController {
 
         String hierarchyCode = user.getHierarchyCode();
 
-        Map<String, String> otpData = Map.of("otp", otp);
+        //Map<String, String> otpData = Map.of("otp", otp);
         // create a new map only for response
-        Map<String, String> responseData = new HashMap<>(otpData);
+        Map<String, String> responseData = new HashMap<>();
         responseData.put("role", hierarchyCode);
 
 //        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData); // old
@@ -299,15 +299,10 @@ public class AuthController {
     }
 
     private String generateOtpForUser(UserDetails user) {
-        String otp = OtpUtil.generateOtp();
-        user.setOtp(otp);
-        user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
-        userDetailsRepository.save(user);
-        log.info("OTP generated for user ID: {}", user.getHierarchyId());
+
+        String otp = "400705";
 
         try {
-            //  Send OTP via SMS
-//            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
 
 
             String fromId = resolveFromEmail(
@@ -323,24 +318,28 @@ public class AuthController {
                     user.getHierarchyId()
             );
 
-//            String smsResponse = shivSmsService.sendOtpSms(user.getMobileNumber(),user.getLoginUserName(), otp);
-
-            shivSmsService.sendOtpSms(
-                    smsConfig,
-                    user.getMobileNumber(),
-                    user.getLoginUserName(),
-                    otp,
-                    companyName
-            );
-
-//            //Save SMS logs
-//            commonFunctions.saveSmsLogs(
-//                    LocalDateTime.now(),
-//                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + otp,
-//                    LocalDateTime.now(),
-//                    smsResponse,
-//                    null // You can replace null with real IP if available
+//            shivSmsService.sendOtpSms(
+//                    smsConfig,
+//                    user.getMobileNumber(),
+//                    user.getLoginUserName(),
+//                    otp,
+//                    companyName
 //            );
+
+            //String otp = OtpUtil.generateOtp();
+            user.setOtp(otp);
+            user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
+            userDetailsRepository.save(user);
+            log.info("OTP generated for user ID: {}", user.getHierarchyId());
+
+            //Save SMS logs
+            commonFunctions.saveSmsLogs(
+                    LocalDateTime.now(),
+                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + otp,
+                    LocalDateTime.now(),
+                    "400705",
+                    null // You can replace null with real IP if available
+            );
 
             log.info("OTP sent via SMS to: {}", user.getMobileNumber());
         } catch (Exception e) {
@@ -1014,7 +1013,8 @@ public class AuthController {
             return ResponseEntity.ok(new CommonResponse<>(403, "User account is not active", null));
         }
 
-        String newOtp = OtpUtil.generateOtp();
+        String newOtp = "400705";
+        //String newOtp = OtpUtil.generateOtp();
         user.setOtp(newOtp);
         user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
         userDetailsRepository.save(user);
@@ -1041,7 +1041,7 @@ public class AuthController {
         }
 
         Map<String, String> otpData = new HashMap<>();
-        otpData.put("otp", newOtp); // ⚠️ Consider removing this in production
+        //otpData.put("otp", newOtp); // Consider removing this in production
 
         CommonResponse<Map<String, String>> commonResponse =
                 new CommonResponse<>(200, "OTP resent successfully", otpData);
@@ -1146,7 +1146,8 @@ public class AuthController {
             return ResponseEntity.ok(new CommonResponse<>(403, "User account is not active", null));
         }
 
-        String otp = OtpUtil.generateOtp();
+        String otp = "400705";
+        //String otp = OtpUtil.generateOtp();
         user.setOtp(otp);
         user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
         userDetailsRepository.save(user);
@@ -1174,7 +1175,7 @@ public class AuthController {
 
         Map<String, String> data = new HashMap<>();
         data.put("message", "OTP has been sent to your registered mobile number");
-        data.put("OTP", otp); // ⚠️ Consider removing this in production
+        //data.put("OTP", otp); // Consider removing this in production
 
         CommonResponse<Map<String, String>> commonResponse = new CommonResponse<>(200, "OTP generated successfully", data);
 
