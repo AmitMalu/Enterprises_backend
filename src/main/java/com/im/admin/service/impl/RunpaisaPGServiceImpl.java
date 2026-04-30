@@ -264,7 +264,7 @@ public class RunpaisaPGServiceImpl {
 
                 commonFunctions.saveVendorLogs(
                         LocalDateTime.now(),
-                        "Old vendor order request",
+                        "Runpaisa PG ->" +requestEntity.toString(),
                         vendor.getId(),
                         LocalDateTime.now(),
                         imResponseBody,

@@ -81,7 +81,17 @@ public class PayoutOrchestrator {
         log.info("[PROCESS PAYOUT ORCH] Initiating payout process for orderId={}", orderId);
 
         try {
-            // 1. Validate SubProduct
+
+            //Validate Scheme Active or Not
+            Scheme scheme = schemeRepository.findBySchemeCode(req.getSchemeCode())
+                    .orElseThrow(() -> new RuntimeException("Scheme is not activated. Please contact admin"));
+
+            if (!Boolean.TRUE.equals(scheme.getIsActive())) {
+                log.warn("Scheme is inactive for schemeCode={}", req.getSchemeCode());
+                throw new RuntimeException("Scheme is inactive. Please contact admin");
+            }
+
+            // Validate SubProduct
             SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found for ID: " + req.getSubProductId()));
 
