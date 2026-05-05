@@ -43,7 +43,7 @@ public class VendorLogsReportController {
                 startDate, endDate, vendorId, request, response, ip, srNo, requestDateTime, responseDateTime, page, size);
 
         String message = result.isEmpty() ? "No records found" : "Success";
-        log.info("Vendor logs fetched | totalRecords={}");
+        log.info("Vendor logs fetched...");
 
         return ResponseEntity.ok(new CommonResponse<>(200, message, result));
     }

@@ -10,9 +10,6 @@ import java.util.List;
 @Setter
 public class  UpdateTransactionStatusRequest {
 
-
-    //subProductName, schemeName, operatorName, traxId, status
-
     private List<String> transactionIds;
     private String oldStatus;
     private String newStatus; // "SUCCESS" to "FAILED" , FAILED to SUCCESS, PENDING to SUCCESS, SETTLEMENT PENDING to SUCCESS
