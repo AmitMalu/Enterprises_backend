@@ -290,7 +290,7 @@ public class CommonMethods {
             String resolvedHierarchyId = hierarchyId;
             String resolvedHierarchyType = hierarchyType;
 
-            // 🔹 Special handling for RetailerUser
+            // Special handling for RetailerUser
             if ("RU".equalsIgnoreCase(hierarchyType)) {
                 log.debug("Hierarchy is RetailerUser. Resolving parent Retailer ID.");
 

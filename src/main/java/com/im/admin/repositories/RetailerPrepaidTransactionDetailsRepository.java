@@ -26,6 +26,8 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
 
     Optional<RetailerPrepaidTransactionDetails> findByTransactionId(String transactionId);
 
+    List<RetailerPrepaidTransactionDetails> findByBaseTransactionId(String baseTxnId);
+
     @Query("""
                 SELECT r FROM RetailerPrepaidTransactionDetails r
                 WHERE (:id IS NULL OR r.id = :id)
@@ -188,7 +190,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
                 AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
             """)
-    Page<RetailerPrepaidTransactionDetails> findFilteredTransactionsupdated(@Param("id") Integer id, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("subProductNames") List<String> subProductNames,  // List<String>
+    Page<RetailerPrepaidTransactionDetails> findFilteredTransactionsUpdated(@Param("id") Integer id, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("subProductNames") List<String> subProductNames,  // List<String>
                                                                             @Param("vendorName") String vendorName, @Param("tranStatusList") List<String> tranStatusList, @Param("userId") String userId, @Param("mobileNo") String mobileNo, @Param("schemeName") String schemeName, @Param("amount") Double amount, @Param("txId") String txId, @Param("remarks") String remarks, @Param("medium") String medium, @Param("txType") String txType, @Param("txStatus") String txStatus, @Param("actionOnBalanceAmount") String actionOnBalanceAmount, @Param("dateOfTransaction") LocalDate dateOfTransaction, @Param("timeOfTransaction") LocalTime timeOfTransaction, @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction, @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction, Pageable pageable);
 
     @Query("""

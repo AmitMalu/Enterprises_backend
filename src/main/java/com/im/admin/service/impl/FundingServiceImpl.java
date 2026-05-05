@@ -638,8 +638,6 @@ public class FundingServiceImpl implements FundingService {
         }
     }
 
-
-
     private Page<RetailerTransactionResponseDto> fetchPrepaidUpdated(
             SettlementPendingRequestDto request,
             List<String> subProductNames,
@@ -648,7 +646,7 @@ public class FundingServiceImpl implements FundingService {
 
         Map<String, SubProducts> subProductMap = getSubProductMap();
 
-        return retailerPrepaidTransactionDetailsRepository.findFilteredTransactionsupdated(
+        return retailerPrepaidTransactionDetailsRepository.findFilteredTransactionsUpdated(
                 request.getId(),
                 request.getFromDate(),
                 request.getToDate(),
@@ -705,9 +703,6 @@ public class FundingServiceImpl implements FundingService {
             return dto;
         });
     }
-
-
-
 
     private Page<RetailerTransactionResponseDto> fetchPostpaidUpdated(
             SettlementPendingRequestDto request,

@@ -27,6 +27,8 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
 
     Optional<RetailerPostpaidTransactionDetails> findByTransactionId(String transactionId);
 
+    List<RetailerPrepaidTransactionDetails> findByBaseTransactionId(String baseTxnId);
+
     @Query("""
                 SELECT r FROM RetailerPostpaidTransactionDetails r
                 WHERE (:id IS NULL OR r.id = :id)
