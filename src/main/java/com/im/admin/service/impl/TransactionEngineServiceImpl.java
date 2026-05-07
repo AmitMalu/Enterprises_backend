@@ -477,7 +477,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     }
 
     public void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
-                                BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
+                               BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
 
         log.info("[CHARGES] Start | BaseTxnId={} | WalletType={} | Hierarchy={} | Status={}",
                 baseTransactionId, dto.getWalletType(), dto.getHierarchyId(), tranStatus);
@@ -492,15 +492,15 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         log.debug("[CHARGES] Split amounts | Gross={} | Base={} | GST={} | GST%={}", grossAmount, baseAmount, gstAmount, gstValue);
 
         // Step 2: Deduct base and GST from wallet
-        deductCharge(wallet, dto, baseAmount, "CHG", "Deduct Funds (Charge)", baseTransactionId, tranStatus);
-        deductCharge(wallet, dto, gstAmount, "GST", "Deduct Funds (GST)", baseTransactionId, tranStatus);
+        deductChargeAndGST(wallet, dto, baseAmount, "CHG", "Deduct Funds (Charge)", baseTransactionId, tranStatus);
+        deductChargeAndGST(wallet, dto, gstAmount, "GST", "Deduct Funds (GST)", baseTransactionId, tranStatus);
 
         // Step 3: Update wallet meta
         updateWalletMeta(wallet, baseAmount.add(gstAmount), gstAmount);
 
         // Step 4: Credit GST to admin/whitelabel
-        log.info("[CHARGES] Crediting GST {} to Admin/Whitelabel for HierarchyId={}", gstAmount, dto.getHierarchyId());
-        creditGstToAdminOrWhitelabel(dto.getHierarchyId(), dto.getWalletType(), gstAmount, baseTransactionId, tranStatus, dto);
+        //log.info("[CHARGES] Crediting GST {} to Admin/Whitelabel for HierarchyId={}", gstAmount, dto.getHierarchyId());
+        //creditGstToAdminOrWhitelabel(dto.getHierarchyId(), dto.getWalletType(), gstAmount, baseTransactionId, tranStatus, dto);
 
         log.info("[CHARGES] Completed | BaseTxnId={} | WalletType={}", baseTransactionId, dto.getWalletType());
     }
@@ -520,9 +520,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     }
 
 
-    public void deductCharge(AbstractWalletAmountTable wallet, TransactionSchemeDetailsRequestDto dto,
-                              BigDecimal amount, String prefix, String remark,
-                              String baseTransactionId, String tranStatus) {
+    public void deductChargeAndGST(AbstractWalletAmountTable wallet, TransactionSchemeDetailsRequestDto dto,
+                             BigDecimal amount, String prefix, String remark,
+                             String baseTransactionId, String tranStatus) {
 
         BigDecimal before = wallet.getAvailableBalance();
         wallet.setAvailableBalance(before.subtract(amount));
@@ -756,9 +756,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 //    }
 
     public void processCommission(TransactionSchemeDetailsRequestDto dto,
-                                   String baseTransactionId,
-                                   String tranStatus,
-                                   TransactionSchemeDetailsRequestDto request) {
+                                  String baseTransactionId,
+                                  String tranStatus,
+                                  TransactionSchemeDetailsRequestDto request) {
 
         log.info("[COMMISSION] START | TxnId={} | HierarchyId={} | WalletType={} | Status={} | Amount={}",
                 baseTransactionId, dto.getHierarchyId(), dto.getWalletType(), tranStatus, dto.getAmount());
@@ -1634,7 +1634,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 " (" + hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
                 "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name, scheme_name, operator_name, latitude, longitude) " +
                 "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName,:schemeName, :operatorName :latitude, :longitude)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName, :schemeName, :operatorName, :latitude, :longitude)";
 
         log.debug("[COMM_TXN_INSERT] Generated SQL: {}", sql);
 
@@ -2481,109 +2481,112 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                         wallet.setLastUpdatedDate(LocalDate.now());
                         wallet.setLastUpdatedTime(LocalTime.now());
 
-                     // Fetch SubProduct
-                SubProducts subProduct = subProductsRepository
-                        .findBySubProductTitle(txn.getSubProductName())
-                        .orElseThrow(() ->
-                                new RuntimeException("SubProduct not found: " + txn.getSubProductName()));
+                        // Fetch SubProduct
+                        SubProducts subProduct = subProductsRepository
+                                .findBySubProductTitle(txn.getSubProductName())
+                                .orElseThrow(() ->
+                                        new RuntimeException("SubProduct not found: " + txn.getSubProductName()));
 
-                // Fetch Scheme Allocation
-                SchemeAllocation schemeAllocation = schemeAllocationRepository
-                        .findByHierarchyIdAndSubProductCode(
-                                txn.getRetailerId(),
-                                subProduct.getSubProductCode()
-                        )
-                        .orElseThrow(() -> new RuntimeException(
-                                "SchemeAllocation not found | hierarchyId="
-                                        + txn.getRetailerId()
-                                        + ", subProductCode="
-                                        + subProduct.getSubProductCode()
-                        ));
+                        // Fetch Scheme Allocation
+                        SchemeAllocation schemeAllocation = schemeAllocationRepository
+                                .findByHierarchyIdAndSubProductCode(
+                                        txn.getRetailerId(),
+                                        subProduct.getSubProductCode()
+                                )
+                                .orElseThrow(() -> new RuntimeException(
+                                        "SchemeAllocation not found | hierarchyId="
+                                                + txn.getRetailerId()
+                                                + ", subProductCode="
+                                                + subProduct.getSubProductCode()
+                                ));
 
-                String schemeCode = schemeAllocation.getSchemeCode();
+                        String schemeCode = schemeAllocation.getSchemeCode();
 
-                // Prepare Amount
-                double txnAmt = txn.getAmount().doubleValue();
+                        // Prepare Amount
+                        double txnAmt = txn.getAmount().doubleValue();
 
-                // Fetch Matching Schemes
-                List<SchemeRate> matchingSchemes =
-                        schemeRateRepository.findBySchemeCodeAndOperatorName(
-                                schemeCode,
-                                txn.getOperatorName()
+                        // Fetch Matching Schemes
+                        List<SchemeRate> matchingSchemes =
+                                schemeRateRepository.findBySchemeCodeAndOperatorName(
+                                        schemeCode,
+                                        txn.getOperatorName()
+                                );
+
+                        if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+                            skippedList.add(fullTxnId);
+                            messages.add(fullTxnId + " no scheme found");
+                            continue;
+                        }
+
+                        // Select Scheme
+                        SchemeRate selectedScheme = matchingSchemes.stream()
+                                .filter(s -> s.getSlabType() == SlabType.VARIABLE
+                                        && txnAmt >= s.getSlabStart()
+                                        && txnAmt <= s.getSlabEnd())
+                                .findFirst()
+                                .orElse(matchingSchemes.get(0));
+
+                        // Fetch Scheme → Product → SubProduct
+                        Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                                .orElseThrow(() -> new RuntimeException("Scheme not found: " + selectedScheme.getSchemeCode()));
+
+                        // SKIP if scheme inactive
+                        if (scheme.getIsActive() == null || !scheme.getIsActive()) {
+                            skippedList.add(fullTxnId);
+                            messages.add(fullTxnId + " scheme inactive");
+                            continue;
+                        }
+
+                        String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+                        short productId = Short.parseShort(hashParts[0]);
+                        String subProductId = hashParts[1];
+
+                        Products product = productsRepository.findById(productId)
+                                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
+
+                        SubProducts mappedSubProduct = subProductsRepository.findById(subProductId)
+                                .orElseThrow(() -> new RuntimeException("SubProduct not found: " + subProductId));
+
+                        // Build DTO
+                        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
+                        dto.setBaseTranxId(baseTxnId);
+                        dto.setAmount(txnAmt);
+                        dto.setConfirmAmount(txnAmt);
+                        dto.setOperatorName(txn.getOperatorName());
+                        dto.setOperatorCode(selectedScheme.getOperatorCode());
+                        dto.setSchemeRate(selectedScheme);
+                        dto.setTransactionType(product.getTransactionType());
+                        dto.setWalletType(walletType);
+
+                        dto.setGstValue(String.valueOf(product.getSgst()));
+                        dto.setTdsRate(String.valueOf(product.getTds()));
+                        dto.setHierarchyId(txn.getRetailerId());
+                        dto.setProductCode(product.getProductCode());
+                        dto.setSubProductCode(mappedSubProduct.getSubProductCode());
+
+                        dto.setIsCommission(product.getIsCommissions());
+                        dto.setHasCharge(product.getHasCharges());
+
+                        // Optional fields (set safely if available)
+                        dto.setVendorName("Manually Update");
+                        dto.setVendorTxnId(fullTxnId);
+
+                        log.info("DTO prepared for txnId {}: {}", fullTxnId, dto);
+
+                        processChargesAndCommission(
+                                dto,
+                                wallet,
+                                BigDecimal.valueOf(selectedScheme.getGross()),
+                                product.getSgst().toString(),
+                                baseTxnId,
+                                request.getNewStatus()
                         );
-
-                if (matchingSchemes == null || matchingSchemes.isEmpty()) {
-                    skippedList.add(fullTxnId);
-                    messages.add(fullTxnId + " no scheme found");
-                    continue;
-                }
-
-                // Select Scheme
-                SchemeRate selectedScheme = matchingSchemes.stream()
-                        .filter(s -> s.getSlabType() == SlabType.VARIABLE
-                                && txnAmt >= s.getSlabStart()
-                                && txnAmt <= s.getSlabEnd())
-                        .findFirst()
-                        .orElse(matchingSchemes.get(0));
-
-                // Fetch Scheme → Product → SubProduct
-                Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
-                        .orElseThrow(() -> new RuntimeException("Scheme not found: " + selectedScheme.getSchemeCode()));
-
-                // SKIP if scheme inactive
-                if (scheme.getIsActive() == null || !scheme.getIsActive()) {
-                    skippedList.add(fullTxnId);
-                    messages.add(fullTxnId + " scheme inactive");
-                    continue;
-                }
-
-                String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
-                short productId = Short.parseShort(hashParts[0]);
-                String subProductId = hashParts[1];
-
-                Products product = productsRepository.findById(productId)
-                        .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
-
-                SubProducts mappedSubProduct = subProductsRepository.findById(subProductId)
-                        .orElseThrow(() -> new RuntimeException("SubProduct not found: " + subProductId));
-
-                // Build DTO
-                TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
-
-                dto.setBaseTranxId(baseTxnId);
-                dto.setAmount(txnAmt);
-                dto.setConfirmAmount(txnAmt);
-                dto.setOperatorName(txn.getOperatorName());
-                dto.setOperatorCode(selectedScheme.getOperatorCode());
-                dto.setSchemeRate(selectedScheme);
-                dto.setTransactionType(product.getTransactionType());
-                dto.setWalletType(walletType);
-
-                dto.setGstValue(String.valueOf(product.getSgst()));
-                dto.setTdsRate(String.valueOf(product.getTds()));
-                dto.setHierarchyId(txn.getRetailerId());
-                dto.setProductCode(product.getProductCode());
-                dto.setSubProductCode(mappedSubProduct.getSubProductCode());
-
-                dto.setIsCommission(product.getIsCommissions());
-                dto.setHasCharge(product.getHasCharges());
-
-                // Optional fields (set safely if available)
-                dto.setVendorName("Manually Update");
-                dto.setVendorTxnId(fullTxnId);
-
-                log.info("DTO prepared for txnId {}: {}", fullTxnId, dto);
-
-                processChargesAndCommission(
-                        dto,
-                        wallet,
-                        BigDecimal.valueOf(selectedScheme.getGross()),
-                        product.getSgst().toString(),
-                        baseTxnId,
-                        request.getNewStatus()
-                );
                     } else {
                         // CREDIT FAILED
+
+                        //here what i want is if new status is failed then the currently its working fine just
+                        //add one more requriment is the the TransactionId means base  id will be same but just FLD+baseTraxId can we do this ?
                         updateTransactionStatusOnly(hierarchyType, txn.getRetailerId(), walletType, fullTxnId, "FAILED");
                     }
 
@@ -2915,12 +2918,16 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         String table = getTransactionTable(hierarchyType, walletType);
 
-        jdbcTemplate.update(
+        int updated = jdbcTemplate.update(
                 "UPDATE " + table + " SET tran_status=?, bal_before_tran=?, bal_after_tran=?, " +
                         "updated_date_of_transaction=NOW(), updated_time_of_transaction=NOW() " +
                         "WHERE transaction_id=?",
                 status, balBefore, balAfter, txnId
         );
+
+        if (updated == 0) {
+            log.warn("No record found for txnId: {}", txnId);
+        }
     }
 
     private void updateTransactionStatusOnly(String hierarchyType, String id, String walletType,
@@ -2928,13 +2935,18 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         String table = getTransactionTable(hierarchyType, walletType);
 
-        jdbcTemplate.update(
+        int updated = jdbcTemplate.update(
                 "UPDATE " + table + " SET tran_status=?, " +
                         "updated_date_of_transaction=NOW(), updated_time_of_transaction=NOW() " +
                         "WHERE transaction_id=?",
                 status, txnId
         );
+
+        if (updated == 0) {
+            log.warn("No record found for txnId: {}", txnId);
+        }
     }
+
 
     private void updatePendingTransactionTables(String baseTxnId, String status) {
 
@@ -3034,7 +3046,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 //                        continue;
 //                    }
 
-                     //new logic chk SETTLEMENT PENDING with actionOnBalanceAmount field
+                    //new logic chk SETTLEMENT PENDING with actionOnBalanceAmount field
                     String action = postpaidTxn.getActionOnBalanceAmount();
 
                     if (action == null ||

@@ -4,6 +4,7 @@ import com.im.admin.dto.BankVerificationRequest;
 import org.springframework.http.ResponseEntity;
 
 public interface VerificationService {
+
     ResponseEntity<?> validateAadhaar(String aadhaarNumber);
 
     ResponseEntity<?> validatePan(String panNumber);

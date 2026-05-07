@@ -70,7 +70,11 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                 Sort.by("transactionDate").descending()
         );
 
-        String loggedInHierarchyId = request.getHierarchyId();
+        String loggedInHierarchyId =
+                (request.getHierarchyId() != null
+                        && !request.getHierarchyId().trim().isEmpty())
+                        ? request.getHierarchyId()
+                        : tokenUtil.extractHierarchyId();
 
         LocalDate from = StringUtils.hasText(request.getFromDate())
                 ? LocalDate.parse(request.getFromDate())
