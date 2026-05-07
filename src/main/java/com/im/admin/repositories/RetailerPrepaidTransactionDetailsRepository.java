@@ -1,5 +1,6 @@
 package com.im.admin.repositories;
 
+import com.im.admin.entities.RetailerPostpaidTransactionDetails;
 import com.im.admin.entities.RetailerPrepaidTransactionDetails;
 import com.im.admin.response.DashboardTransactionDto;
 import com.im.admin.service.MonthlyTransactionVolumeProjection;
@@ -26,8 +27,14 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
 
     Optional<RetailerPrepaidTransactionDetails> findByTransactionId(String transactionId);
 
-    List<RetailerPrepaidTransactionDetails> findByBaseTransactionId(String baseTxnId);
-
+    @Query(value = """
+        SELECT * 
+        FROM retailer_prepaid_transaction_details 
+        WHERE base_transaction_id = :baseTxnId
+        """, nativeQuery = true)
+    List<RetailerPrepaidTransactionDetails> findByBaseTransactionId(
+            @Param("baseTxnId") String baseTxnId
+    );
     @Query("""
                 SELECT r FROM RetailerPrepaidTransactionDetails r
                 WHERE (:id IS NULL OR r.id = :id)

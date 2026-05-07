@@ -40,7 +40,7 @@ public class PGOrchestrator {
         try {
 
             Scheme scheme = schemeRepository.findBySchemeCode(command.getSchemeCode())
-                    .orElseThrow(() -> new RuntimeException("Scheme is not activated. Please contact admin"));
+                    .orElseThrow(() -> new RuntimeException("Scheme not found. Please contact admin"));
 
             if (!Boolean.TRUE.equals(scheme.getIsActive())) {
                 log.warn("Scheme is inactive for schemeCode={}", command.getSchemeCode());
