@@ -39,31 +39,4 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
 
-//    @Bean
-//    public FilterRegistrationBean<OncePerRequestFilter> rawBodyFilter() {
-//
-//        FilterRegistrationBean<OncePerRequestFilter> registration =
-//                new FilterRegistrationBean<>();
-//
-//        registration.setFilter(new OncePerRequestFilter() {
-//            @Override
-//            protected void doFilterInternal(HttpServletRequest request,
-//                                            HttpServletResponse response,
-//                                            FilterChain filterChain)
-//                    throws ServletException, IOException {
-//
-//                ContentCachingRequestWrapper wrappedRequest =
-//                        new ContentCachingRequestWrapper(request);
-//
-//                filterChain.doFilter(wrappedRequest, response);
-//            }
-//        });
-//
-//        registration.addUrlPatterns("/api/pg/callback/cashfree");
-//        registration.setOrder(1); // ensure it runs early
-//
-//        return registration;
-//    }
-
-
 }

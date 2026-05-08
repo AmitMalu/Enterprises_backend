@@ -75,6 +75,12 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                 Sort.by("transactionDate").descending()
         );
 
+        String loggedInHierarchyId =
+                (request.getHierarchyId() != null
+                        && !request.getHierarchyId().trim().isEmpty())
+                        ? request.getHierarchyId()
+                        : tokenUtil.extractHierarchyId();
+
         LocalDate from = StringUtils.hasText(request.getFromDate())
                 ? LocalDate.parse(request.getFromDate())
                 : null;
@@ -122,7 +128,7 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                             subProductsParam,
                             productParam,
                             pageable,
-                            request.getHierarchyId()
+                            loggedInHierarchyId
                     );
 
             allData.addAll(
@@ -204,7 +210,15 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
         query.setParameter("p_sub_products", subProducts);
         query.setParameter("p_product_name", products);
-        query.setParameter("p_tx_type", request.getReportType());
+        String reportType = null;
+
+        if (StringUtils.hasText(request.getReportType())) {
+            reportType = request.getReportType()
+                    .trim()
+                    .toUpperCase();
+        }
+
+        query.setParameter("p_tx_type", reportType);
 
         query.setParameter("p_tx_id", request.getTxId());
 

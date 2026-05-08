@@ -1,6 +1,8 @@
 package com.im.admin.entities;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
 import jakarta.persistence.*;
@@ -19,6 +21,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Table(name = "vendor_credentials")
 public class VendorCredentials {
 
@@ -26,11 +29,13 @@ public class VendorCredentials {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendor_id", nullable = false)
     @NotNull(message = "Vendor is required")
     private Vendors vendor;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     @NotNull(message = "Product is required")
