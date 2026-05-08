@@ -13,7 +13,7 @@ public class NixaSoftCreateOrderRequest {
     private String beneficiaryName;
     private String mobileNo;
     private String emailId;
-    private Double amount;
+    private String amount;
     private String redirectUrl;
     private String requestId;
     private Short productId;

@@ -82,8 +82,6 @@ public class PayoutOrchestrator {
 
         try {
 
-            log.info("STEP 1");
-
             //Validate Scheme Active or Not
             Scheme scheme = schemeRepository.findBySchemeCode(req.getSchemeCode())
                     .orElseThrow(() -> new RuntimeException("Scheme is not activated. Please contact admin"));
@@ -169,9 +167,6 @@ public class PayoutOrchestrator {
             log.debug("[PROCESS PAYOUT ORCH] Wallet debited (PENDING) for retailer={}, amount={}", req.getRetailerId(), req.getAmount());
 
             // 6. Call vendor-specific implementation (must return PayoutResponseDto)
-
-            //com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Java 8 date/time type `java.time.LocalDateTime` not supported by default: add Module "com.fasterxml.jackson.datatype:jackson-datatype-jsr310" to enable handling (through reference chain: com.im.admin.entities.VendorCredentials[1]->com.im.admin.entities.VendorCredentials["vendor"]->com.im.admin.entities.vendor.Vendors["product"]->com.im.admin.entities.product.Products$HibernateProxy$O6Z0dG6q["createdOn"])
-            //above erorr comes on below line
             PayoutResponseDto vendorResp = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType, latitude, longitude);
 
             if (vendorResp == null) {
@@ -383,6 +378,78 @@ public class PayoutOrchestrator {
 
         } catch (Exception e) {
             log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
+
+            commonFunctions.saveCallbackEventLog(
+//                    payload.toString(),
+                    payload,
+                    receivedAt,
+                    clientIp,
+                    "Error: " + e.getMessage(),
+                    LocalDateTime.now()
+            );
+
+            return "Callback processing failed: " + e.getMessage();
+        }
+    }
+
+
+    @Transactional
+    public String nixasoftPayoutCallback(Map<String, String> payload, HttpServletRequest request)
+            throws JsonProcessingException {
+
+        String status = payload.get("status");
+        String type = payload.get("type");
+        String trnId = payload.get("requestId");
+        String orderId = payload.get("orderIdTransaction");
+        String amount = payload.get("amount");
+        String utr = payload.get("utr");
+        String description = payload.get("description");
+
+        log.info("[1] NIXASOFT Fetching pending transaction for ORDER_ID: {}", trnId);
+        PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository.findByTransactionId(trnId)
+                .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + trnId));
+
+        Optional<Scheme> scheme = schemeRepository.findBySchemeCode(pendingTxn.getSchemeCode());
+
+        // Parse scheme combination hash code
+        String[] hashParts = scheme.get().getSchemeCombinationHashCode().split("-");
+        if (hashParts.length < 2) {
+            throw new RuntimeException("Invalid schemeCombinationHashCode format: " + scheme.get().getSchemeCombinationHashCode());
+        }
+
+        String vendorId = hashParts[2];
+
+        Optional<Vendors> vendor = vendorRepository.findById(vendorId);
+        String vendorCode = vendor.get().getVendorCode();
+
+        LocalDateTime receivedAt = LocalDateTime.now();
+        String clientIp = request.getRemoteAddr();
+        log.info("[ORCH_CALLBACK  NIXASOFT] Received callback from vendor={} IP={} Payload={}", vendorCode, clientIp, payload);
+
+        try {
+            Object vendorService = vendorFactory.getVendor(vendorCode);
+            if (!(vendorService instanceof PayoutCallbackHandler handler)) {
+                log.error("[ORCH_CALLBACK  NIXASOFT] No callback handler implemented for vendor={}", vendorCode);
+                return "Vendor callback handler not found";
+            }
+
+            String vendorResponse = handler.handleCallback(payload, request);
+
+            // Log callback event for auditing
+            commonFunctions.saveCallbackEventLog(
+//                    payload.toString(),
+                    payload,
+                    receivedAt,
+                    clientIp,
+                    "Callback processed for vendor = " + vendorCode,
+                    LocalDateTime.now()
+            );
+
+            log.info("[ORCH_CALLBACK  NIXASOFT] Successfully processed callback for vendor={}", vendorCode);
+            return vendorResponse;
+
+        } catch (Exception e) {
+            log.error("[ORCH_CALLBACK  NIXASOFT] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
 //                    payload.toString(),

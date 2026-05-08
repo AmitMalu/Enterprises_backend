@@ -41,7 +41,16 @@ public class PayoutCallbackController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/slpe-callback")
+    @PostMapping("/callback/nixasoft")
+    public ResponseEntity<String> nixasoftPayCallback(@RequestBody Map<String, String> payload,
+                                                    HttpServletRequest request) throws JsonProcessingException {
+        log.info("<---------------- Nixasoft callback request with payload: {} --------------------->", payload);
+        String response = payoutOrchestratorV0.nixasoftPayoutCallback(payload, request);
+        log.info("Callback response from nixasoft: {}", response);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/callback/slpe")
     public ResponseEntity<String> slpePayCallback(@RequestBody Map<String, String> payload,
                                                     HttpServletRequest request) throws JsonProcessingException {
         log.info("<---------------- SLPE callback request with payload: {} --------------------->", payload);

@@ -22,7 +22,7 @@ import java.util.List;
 public class VendorServiceLoggingAspect {
 
     private final CommonFunctions commonFunctions;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     // ONLY SERVICEIMPL
     @Around("@within(com.im.admin.commons.LoggableVendor)")

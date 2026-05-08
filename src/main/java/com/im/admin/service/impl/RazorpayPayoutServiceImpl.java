@@ -30,7 +30,8 @@ import java.util.Map;
 @Slf4j
 public class RazorpayPayoutServiceImpl  implements PayoutVendorService {
 
-    RestTemplate restTemplate = new RestTemplate();
+    @Autowired
+    private RestTemplate restTemplate;
 
     @Autowired
     private CommonFunctions commonFunctions;

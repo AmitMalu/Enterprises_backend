@@ -17,8 +17,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +63,8 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
     @Autowired
     private TransactionEngineServiceImpl transactionServiceImpl;
 
+    @Autowired
+    private RetailerRepository retailerRepository;
 
     @Override
     public String createOrder(NixaSoftCreateOrderRequest req, Double latitude, Double longitude) {
@@ -74,6 +78,10 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             VendorRouting vendorRouting =
                     vendorRoutingRepository.findBySubProductId(req.getSubProductId());
 
+            // Find retailer by retailerId to get email and mobile
+            Retailer retailer = retailerRepository.findByRetailerId(req.getInitiatedBy())
+                    .orElseThrow(() -> new RuntimeException("Retailer not found for ID: " + req.getInitiatedBy()));
+
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
             VendorCredentials credentials =
@@ -85,15 +93,19 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
             String apiToken = credentials.getToken();
 
+            //String cleanAmount = req.getAmount().replace(",", "");
+            //BigDecimal amountInPaisa = new BigDecimal(cleanAmount).multiply(new BigDecimal("100"));
+            //String paisa = amountInPaisa.toPlainString();
+
             // ===== 2. Prepare Request =====
             String orderId = "ORD" + commonMethods.generateBaseTransactionId();
 
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("beneficiaryName", req.getBeneficiaryName());
             requestBody.put("mobileNumber", req.getMobileNo());
-            requestBody.put("emailId", req.getEmailId());
+            requestBody.put("emailId", retailer.getEmailId());
             requestBody.put("amount", req.getAmount());
-            requestBody.put("redirect_url", credentials.getCallbackUrl());
+            requestBody.put("redirectUrl", credentials.getCallbackUrl());
             requestBody.put("requestId", orderId);
 
             HttpHeaders headers = new HttpHeaders();
@@ -125,7 +137,8 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
             PgTransactionMapping transaction = new PgTransactionMapping();
             transaction.setOrderId(orderId);
-            transaction.setAmount(req.getAmount());
+            transaction.setAmount(Double.valueOf(req.getAmount()));
+//            transaction.setAmount(Double.valueOf(paisa));
             transaction.setInitiatedBy(req.getInitiatedBy());
             transaction.setSubProductId(req.getSubProductId());
             transaction.setStatus(body.getStatusCode());
@@ -151,11 +164,25 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
             }
 
+        } catch (HttpStatusCodeException ex) {
+
+            String errorBody = ex.getResponseBodyAsString();
+
+            log.error("Vendor Error Response: {}", errorBody);
+
+            return errorBody;
+
         } catch (Exception e) {
 
-            log.error("Error during NixaSoft Create Order", e);
-            throw new RuntimeException("NixaSoft Create Order Failed");
+            Throwable root = e;
 
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+
+            log.error("ROOT CAUSE => ", root, e);
+
+            return "Error: " + root.getMessage();
         }
     }
 
@@ -210,9 +237,6 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         Double txnAmt = Double.valueOf(request.getAmount());
         log.info("---- [Callback] Parsed transaction amount: {}", txnAmt);
 
-//            String callbackOperatorName = toDbOperatorName(
-//                    request.getOtherInfo().getPGTrnType()
-//            );
         log.info("---- [Callback] Using operatorName for DB lookup: {}", request.getPayment_network());
 
         List<SchemeRate> matchingSchemes =
