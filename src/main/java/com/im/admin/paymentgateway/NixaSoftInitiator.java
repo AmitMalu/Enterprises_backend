@@ -29,7 +29,7 @@ public class NixaSoftInitiator implements PaymentGatewayInitiator {
         request.setBeneficiaryName(command.getCardHolderName());
         request.setMobileNo(command.getCardHolderMobile());
         request.setEmailId(command.getEmailId());
-        request.setAmount(command.getAmount());
+        request.setAmount(String.valueOf(command.getAmount()));
         request.setRedirectUrl(command.getCallbackUrl());
         request.setRequestId(command.getCardBinNo());  //later we need to change this getValue
         request.setSubProductId(command.getSubProductId());

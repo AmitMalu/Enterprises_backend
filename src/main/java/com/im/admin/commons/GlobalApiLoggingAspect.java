@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 public class GlobalApiLoggingAspect {
 
     private final CommonFunctions commonFunctions;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Around("@within(com.im.admin.commons.LoggableApi)")
     public Object logController(ProceedingJoinPoint joinPoint) throws Throwable {
