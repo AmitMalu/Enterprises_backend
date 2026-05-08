@@ -39,12 +39,13 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-@Service("Runpaisa Payout old")
+@Service("Runpaisa PAYOUT")
 @Slf4j
 @LoggableVendor
 public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutCallbackRegistrar, PayoutCallbackHandler, VendorStatusChecker {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    @Autowired
+    private RestTemplate restTemplate;
 
     @Autowired
     private AESController aesController;
@@ -70,11 +71,12 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
     @Autowired
     private ProductsRepository productsRepository;
 
-    ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Override
     public String getVendorName() {
-        return "Runpaisa";
+        return "Runpaisa PAYOUT";
     }
 
     @Override
@@ -142,7 +144,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             headers.set("client_id", creds.getClientId());
             headers.set("token", generateTokenForPayout(creds));
 
-// multipart/form-data body
+            // multipart/form-data body
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("beneficiaryName", req.getBeneficiaryName());
             body.add("orderId", orderId);
@@ -244,11 +246,13 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                     .amount(req.getAmount())
                     .build();
         } finally {
+
+            String vendorId = creds.getVendor().getId();
+
             commonFunctions.saveVendorLogs(
                     requestTime,
                     requestJson,
-                    creds.getVendor().getId(),
-//                    vendorId,
+                    vendorId,
                     LocalDateTime.now(),
                     responseJson,
                     null

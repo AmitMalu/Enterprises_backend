@@ -82,6 +82,8 @@ public class PayoutOrchestrator {
 
         try {
 
+            log.info("STEP 1");
+
             //Validate Scheme Active or Not
             Scheme scheme = schemeRepository.findBySchemeCode(req.getSchemeCode())
                     .orElseThrow(() -> new RuntimeException("Scheme is not activated. Please contact admin"));
@@ -167,6 +169,9 @@ public class PayoutOrchestrator {
             log.debug("[PROCESS PAYOUT ORCH] Wallet debited (PENDING) for retailer={}, amount={}", req.getRetailerId(), req.getAmount());
 
             // 6. Call vendor-specific implementation (must return PayoutResponseDto)
+
+            //com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Java 8 date/time type `java.time.LocalDateTime` not supported by default: add Module "com.fasterxml.jackson.datatype:jackson-datatype-jsr310" to enable handling (through reference chain: com.im.admin.entities.VendorCredentials[1]->com.im.admin.entities.VendorCredentials["vendor"]->com.im.admin.entities.vendor.Vendors["product"]->com.im.admin.entities.product.Products$HibernateProxy$O6Z0dG6q["createdOn"])
+            //above erorr comes on below line
             PayoutResponseDto vendorResp = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType, latitude, longitude);
 
             if (vendorResp == null) {
@@ -193,7 +198,15 @@ public class PayoutOrchestrator {
                     .build();
 
         } catch (Exception e) {
-            log.error("[PROCESS PAYOUT ORCH] Exception while processing payout orderId={}: {}", orderId, e.getMessage(), e);
+            //log.error("[PROCESS PAYOUT ORCH] Exception while processing payout orderId={}: {}", orderId, e.getMessage(), e);
+
+            Throwable root = e;
+
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+
+            log.error("ROOT CAUSE => ", root);
             // optionally reverse wallet debit if you want — implement compensation logic here
             return CommonResponse.<PayoutResponseDto>builder()
                     .statusCode(500)

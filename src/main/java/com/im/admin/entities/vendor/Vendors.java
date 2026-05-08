@@ -1,5 +1,7 @@
 package com.im.admin.entities.vendor;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.im.admin.entities.product.Products;
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
@@ -18,6 +20,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Table(name = "vendors")
 public class Vendors {
 
@@ -31,6 +34,7 @@ public class Vendors {
     @NotBlank(message = "Vendor Code is required")
     private String vendorCode;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     @NotNull(message = "Product is required")
