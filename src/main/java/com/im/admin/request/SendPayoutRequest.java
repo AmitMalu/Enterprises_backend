@@ -19,7 +19,7 @@ public class SendPayoutRequest {
     private String beneficiaryName;
     private String paymentMode;
     private String subProductId;
-    private String callbackurl;
+    private String callbackUrl;
     private String schemeCode;
     private String channelType;
     private String latitude;

@@ -105,12 +105,12 @@ public class MoveToBankServiceImpl implements MoveToBankService {
                 payoutJsonRequestBody.setOrderId("TXN" + baseTransactionId);
                 payoutJsonRequestBody.setBeneficiaryName(sendPayoutRequest.getBeneficiaryName());
                 payoutJsonRequestBody.setPaymentMode(sendPayoutRequest.getPaymentMode());
-                payoutJsonRequestBody.setCallbackurl(sendPayoutRequest.getCallbackurl());
+                payoutJsonRequestBody.setCallbackUrl(sendPayoutRequest.getCallbackUrl());
 
                 HttpEntity<SendPayoutRequest> requestEntity = new HttpEntity<>(payoutJsonRequestBody, headers);
 
                 String url = credentials.getBaseUrlUat() + "/payment";
-                log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, requestEntity, String.class);
+                log.info("Sending payout request to MoveToBank. URL: {}, Headers: {}, Body: {}", url, requestEntity, String.class);
 
                 ResponseEntity<String> response = restTemplate.exchange(
                         url,
