@@ -114,7 +114,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                 aesRequest.setOrderId(orderId);
                 aesRequest.setBeneficiaryName(req.getBeneficiaryName());
                 aesRequest.setPaymentMode(req.getPaymentMode());
-                aesRequest.setCallbackurl(req.getCallbackurl());
+                aesRequest.setCallbackUrl(req.getCallbackUrl());
 
                 String url = creds.getBaseUrlUat() + "/payment";
                 log.info("[RUNPAISA][AES] Sending payout request to {}", url);
