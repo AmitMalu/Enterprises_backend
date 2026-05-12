@@ -939,9 +939,9 @@ public class CommonMethods {
         HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
 
         String uatUrl = vendorCredentials.getTokenUrlProd();
-        String prodUrl = vendorCredentials.getTokenUrlProd();
+        //String prodUrl = vendorCredentials.getTokenUrlProd();
 
-        ResponseEntity<Map> response = restTemplate.postForEntity(prodUrl, requestEntity, Map.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity(uatUrl, requestEntity, Map.class);
         Map responseBodyMap = response.getBody();
         if (responseBodyMap == null || responseBodyMap.get("token") == null) {
             throw new RuntimeException("AES token generation failed: " + responseBodyMap);

@@ -18,13 +18,15 @@ import com.im.admin.util.CommonMethods;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.UUID;
 
 @Slf4j
 @Service("Cellmoney Recharge")
@@ -60,11 +62,11 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
     @Autowired
     private CommonFunctions commonFunctions;
 
-
     @Autowired
     private CommonMethods commonMethods;
 
-    ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Override
     public String getVendorCode() {
@@ -373,17 +375,13 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
 
             if ("1".equals(callback.getStatus())) {
                 internalStatus = "SUCCESS";
-            }
-            else if ("2".equals(callback.getStatus()) || "3".equals(callback.getStatus())) {
+            } else if ("2".equals(callback.getStatus()) || "3".equals(callback.getStatus())) {
                 internalStatus = "FAILED";
-            }
-            else if ("5".equals(callback.getStatus())) {
+            } else if ("5".equals(callback.getStatus())) {
                 internalStatus = "REFUNDED";
-            }
-            else if ("4".equals(callback.getStatus()) || "6".equals(callback.getStatus())) {
+            } else if ("4".equals(callback.getStatus()) || "6".equals(callback.getStatus())) {
                 internalStatus = "HOLD";
-            }
-            else {
+            } else {
                 internalStatus = "PENDING";
             }
 
@@ -401,7 +399,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
             log.info("[3] Recharge transaction updated successfully");
 
             //  Fetch matching SchemeRate
-            Double txnAmt =txn.getAmount().doubleValue();
+            Double txnAmt = txn.getAmount().doubleValue();
 
             log.info("[4] Searching SchemeRate schemeCode={}, operator={}, amount={}",
                     txn.getSchemeCode(), txn.getTransactionType(), txnAmt);
@@ -487,8 +485,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
 
             log.info("[9] Transaction engine executed successfully");
 
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
 
             log.error("[ERROR] Recharge callback processing failed for txn={} error={}",
                     callback.getTransactionRef(), ex.getMessage(), ex);
@@ -499,23 +496,85 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
 
 
     @Override
-    public MobileLookupResponse mobileLookup(MobileLookupRequest request,
-                                             VendorCredentials credentials) {
-
-        String url = UriComponentsBuilder
-                .fromHttpUrl("https://roundpay.net/PlanServices/v1/MobileLookup")
-                .queryParam("accountNo", request.getMobileNumber())
-                .queryParam("spkey", "8201")
-                .queryParam("userid", "18022")
-                .queryParam("token", credentials.getTokenUrlUat())
-                .toUriString();
-
-        String response = restTemplate.getForObject(url, String.class);
+    public MobileLookupResponse mobileLookup(
+            MobileLookupRequest request,
+            VendorCredentials credentials) {
 
         try {
-            return objectMapper.readValue(response, MobileLookupResponse.class);
+
+            String url = UriComponentsBuilder
+                    .fromHttpUrl("https://roundpay.net/PlanServices/v1/MobileLookup")
+                    .queryParam("accountNo", request.getMobileNumber())
+                    .queryParam("spkey", "8201")
+                    .queryParam("userid", "18022")
+                    .queryParam("token", credentials.getTokenUrlUat())
+                    .toUriString();
+
+            log.info("Calling Mobile Lookup Vendor API");
+            log.info("Vendor URL: {}", url);
+
+            ResponseEntity<String> responseEntity =
+                    restTemplate.exchange(
+                            url,
+                            HttpMethod.GET,
+                            null,
+                            String.class
+                    );
+
+            log.info("Vendor Response Status: {}",
+                    responseEntity.getStatusCode());
+
+            String response = responseEntity.getBody();
+
+            log.info("Vendor Raw Response: {}", response);
+
+            if (response == null || response.isBlank()) {
+
+                log.error("Empty response received from vendor");
+
+                throw new RuntimeException(
+                        "Empty response received from vendor"
+                );
+            }
+
+            MobileLookupResponse mobileLookupResponse =
+                    objectMapper.readValue(
+                            response,
+                            MobileLookupResponse.class
+                    );
+
+            log.info("Parsed Lookup Response: {}",
+                    objectMapper.writeValueAsString(mobileLookupResponse));
+
+            return mobileLookupResponse;
+
+        } catch (HttpStatusCodeException ex) {
+
+            log.error("Vendor HTTP Error Status: {}",
+                    ex.getStatusCode());
+
+            log.error("Vendor HTTP Error Response: {}",
+                    ex.getResponseBodyAsString(), ex);
+
+            throw new RuntimeException(
+                    "Vendor API Error: " + ex.getResponseBodyAsString()
+            );
+
+        } catch (JsonProcessingException ex) {
+
+            log.error("JSON Parsing Error", ex);
+
+            throw new RuntimeException(
+                    "Failed to parse lookup response: " + ex.getMessage()
+            );
+
         } catch (Exception e) {
-            throw new RuntimeException("Failed to parse lookup response");
+
+            log.error("Mobile Lookup Failed", e);
+
+            throw new RuntimeException(
+                    "Mobile lookup failed: " + e.getMessage()
+            );
         }
     }
 
@@ -570,8 +629,8 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
         return switch (statusCode) {
 
             case 1 -> "SUCCESS";
-            case 2,3 -> "FAILED";
-            case 4,6 -> "HOLD";
+            case 2, 3 -> "FAILED";
+            case 4, 6 -> "HOLD";
             case 5 -> "REFUNDED";
             default -> "PENDING";
         };
