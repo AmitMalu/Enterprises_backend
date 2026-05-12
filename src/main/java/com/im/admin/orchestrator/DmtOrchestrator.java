@@ -369,8 +369,18 @@ public class DmtOrchestrator {
                 return CommonResponse.error(400, "All vendors monthly limit exceeded (25K)");
             }
 
+            DmtRemitter dmtRemitter = remitterRepository
+                    .findByMobile(req.getMobile())
+                    .orElseThrow(() ->
+                            new RuntimeException("Remitter not found")
+                    );
+
             // ===== FETCH BENEFICIARY =====
-            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(req.getBeneId());
+            DmtBeneficiary beneficiary = beneficiaryRepository
+                    .findByRemitterAndBeneId(dmtRemitter, req.getBeneId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Beneficiary not found")
+                    );
 
             if (beneficiary == null) {
                 return CommonResponse.error(400, "Beneficiary not found");
@@ -517,11 +527,18 @@ public class DmtOrchestrator {
             }
 
             //** imp
-            DmtBeneficiary beneficiary = beneficiaryRepository.findByBeneId(req.getBeneId());
+            DmtRemitter dmtRemitter = remitterRepository
+                    .findByMobile(req.getMobile())
+                    .orElseThrow(() ->
+                            new RuntimeException("Remitter not found")
+                    );
 
-            if (beneficiary == null) {
-                return CommonResponse.error(400, "Beneficiary not found");
-            }
+            // ===== FETCH BENEFICIARY =====
+            DmtBeneficiary beneficiary = beneficiaryRepository
+                    .findByRemitterAndBeneId(dmtRemitter, req.getBeneId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Beneficiary not found")
+                    );
 
             Vendors vendor = beneficiary.getVendor(); //  MAIN FIX
 
@@ -570,13 +587,14 @@ public class DmtOrchestrator {
             log.info("[PROCESS DMT] Calling vendor API for orderId={}, vendor={}",
                     orderId, vendor.getVendorName());
 
+            // ===== FETCH BENEFICIARY =====
+            DmtBeneficiary afterBeneficiary = beneficiaryRepository
+                    .findByRemitterAndBeneId(dmtRemitter, req.getBeneId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Beneficiary not found")
+                    );
 
-            // Fetch beneficiary details
-            DmtBeneficiary afterbeneficiary = beneficiaryRepository.findByBeneId(
-                    (req.getBeneId())
-            );
-
-            if (afterbeneficiary == null) {
+            if (afterBeneficiary == null) {
                 return CommonResponse.error(400, "Beneficiary not found");
             }
 
@@ -590,7 +608,7 @@ public class DmtOrchestrator {
             req.setPincode(beneficiary.getPincode());
             req.setGstState(beneficiary.getGst_state());
             req.setAccountNumber(beneficiary.getAccountNo());
-            req.setIfscCode(afterbeneficiary.getIfscCode());
+            req.setIfscCode(afterBeneficiary.getIfscCode());
 
             //  Set retailer lat/long into req
             req.setLat(retailer.getLatitude());
@@ -621,7 +639,7 @@ public class DmtOrchestrator {
             dmtTxn.setBalance(remitterTransactionResponse.getBalance());
             dmtTxn.setReferenceId(
                     remitterTransactionResponse.getReferenceid() != null
-                            ? String.valueOf(remitterTransactionResponse.getReferenceid())
+                            ? remitterTransactionResponse.getReferenceid()
                             : null
             );
 
@@ -630,14 +648,6 @@ public class DmtOrchestrator {
 
             log.info("[PROCESS DMT] Transaction saved locally | orderId={} | status={}",
                     orderId, dmtTxn.getVendorStatus());
-
-
-//            SchemeRate selectedScheme = schemeRateRepository
-//                    .findSchemeRateByCodeAndOperatorAndAmount(
-//                            req.getSchemeCode(),
-//                            req.getTxnType(),
-//                            req.getAmount().doubleValue())
-//                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
 
             // Build DTO for transaction engine
             TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();

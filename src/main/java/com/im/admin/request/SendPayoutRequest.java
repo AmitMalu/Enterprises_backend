@@ -29,5 +29,6 @@ public class SendPayoutRequest {
 
     private String bankName;
     private String schemeName;
+    private String partnerId;
 
 }

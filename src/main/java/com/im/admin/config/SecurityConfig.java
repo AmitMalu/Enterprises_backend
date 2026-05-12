@@ -92,23 +92,22 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-//    @Bean
-//    public ObjectMapper objectMapper() {
-//        ObjectMapper mapper = new ObjectMapper();
-//        mapper.registerModule(new JavaTimeModule());
-//        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-//        mapper.configure(DeserializationFeature.READ_ENUMS_USING_TO_STRING, true);
-//        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-//        return mapper;
-//    }
-
     @Bean
     public ObjectMapper objectMapper() {
+
         ObjectMapper mapper = new ObjectMapper();
+
         mapper.registerModule(new JavaTimeModule());
-        mapper.registerModule(new Hibernate5JakartaModule());
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        mapper.registerModule(
+                new Hibernate5JakartaModule()
+                        .disable(Hibernate5JakartaModule.Feature.USE_TRANSIENT_ANNOTATION)
+        );
+
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
         return mapper;
     }
 
