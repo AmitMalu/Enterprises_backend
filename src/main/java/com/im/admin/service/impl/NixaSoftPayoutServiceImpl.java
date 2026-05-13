@@ -236,14 +236,14 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         HttpEntity<SendPayoutRequest> requestEntity =
                 new HttpEntity<>(payoutRequest, headers);
 
-        String baseUrl = creds.getBaseUrlUat();
+        //String baseUrl = creds.getBaseUrlUat();
         String prodUrl = creds.getBaseUrlProd();
 
-        log.info("Calling AES payout API | url={}", baseUrl);
+        log.info("Calling AES payout API | url={}", prodUrl);
 
         ResponseEntity<CommonResponse<PayoutResponseDto>> response =
                 restTemplate.exchange(
-                        baseUrl + "/api/send-payout",
+                        prodUrl + "/api/send-payout",
                         HttpMethod.POST,
                         requestEntity,
                         new ParameterizedTypeReference<CommonResponse<PayoutResponseDto>>() {
