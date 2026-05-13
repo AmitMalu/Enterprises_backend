@@ -323,7 +323,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
             processCallback(callback);
 
             commonFunctions.saveCallbackEventLog(
-                    payload,
+                    payload.toString(),
                     requestTime,
                     clientIp,
                     "Recharge callback processed successfully",
@@ -336,7 +336,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
             log.error("Recharge callback processing failed {}", e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
-                    payload,
+                    payload.toString(),
                     requestTime,
                     clientIp,
                     e.getMessage(),

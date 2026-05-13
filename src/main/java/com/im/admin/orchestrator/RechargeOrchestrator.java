@@ -225,8 +225,7 @@ public class RechargeOrchestrator {
 
             // Log callback event for auditing
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Callback processed for vendor = " + vendorCode,

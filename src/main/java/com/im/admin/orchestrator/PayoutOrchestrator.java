@@ -295,8 +295,7 @@ public class PayoutOrchestrator {
 
             // Log callback event for auditing
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Callback processed for vendor = " + vendorCode,
@@ -310,8 +309,7 @@ public class PayoutOrchestrator {
             log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Error: " + e.getMessage(),
@@ -365,8 +363,7 @@ public class PayoutOrchestrator {
 
             // Log callback event for auditing
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Callback processed for vendor = " + vendorCode,
@@ -380,8 +377,7 @@ public class PayoutOrchestrator {
             log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                   payload.toString(),
                     receivedAt,
                     clientIp,
                     "Error: " + e.getMessage(),
@@ -419,17 +415,20 @@ public class PayoutOrchestrator {
 
         String vendorId = hashParts[2];
 
-        Optional<Vendors> vendor = vendorRepository.findById(vendorId);
-        String vendorCode = vendor.get().getVendorCode();
+        Vendors vendor = vendorRepository.findById(vendorId)
+                .orElseThrow(() ->
+                        new RuntimeException("Vendor not found for ID: " + vendorId));
+
+        String vendorName = vendor.getVendorName();
 
         LocalDateTime receivedAt = LocalDateTime.now();
         String clientIp = request.getRemoteAddr();
-        log.info("[ORCH_CALLBACK  NIXASOFT] Received callback from vendor={} IP={} Payload={}", vendorCode, clientIp, payload);
+        log.info("[ORCH_CALLBACK  NIXASOFT] Received callback from vendor={} IP={} Payload={}", vendorName, clientIp, payload);
 
         try {
-            Object vendorService = vendorFactory.getVendor(vendorCode);
+            Object vendorService = vendorFactory.getVendor(vendorName);
             if (!(vendorService instanceof PayoutCallbackHandler handler)) {
-                log.error("[ORCH_CALLBACK  NIXASOFT] No callback handler implemented for vendor={}", vendorCode);
+                log.error("[ORCH_CALLBACK  NIXASOFT] No callback handler implemented for vendor={}", vendorName);
                 return "Vendor callback handler not found";
             }
 
@@ -437,23 +436,21 @@ public class PayoutOrchestrator {
 
             // Log callback event for auditing
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
-                    "Callback processed for vendor = " + vendorCode,
+                    "Callback processed for vendor = " + vendorName,
                     LocalDateTime.now()
             );
 
-            log.info("[ORCH_CALLBACK  NIXASOFT] Successfully processed callback for vendor={}", vendorCode);
+            log.info("[ORCH_CALLBACK  NIXASOFT] Successfully processed callback for vendor={}", vendorName);
             return vendorResponse;
 
         } catch (Exception e) {
-            log.error("[ORCH_CALLBACK  NIXASOFT] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
+            log.error("[ORCH_CALLBACK  NIXASOFT] Error processing callback for vendor={} | Error={}", vendorName, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Error: " + e.getMessage(),
@@ -728,8 +725,7 @@ public class PayoutOrchestrator {
 
             // Log callback event for auditing
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Callback processed for vendor = " + vendorCode,
@@ -743,8 +739,7 @@ public class PayoutOrchestrator {
             log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Error: " + e.getMessage(),
