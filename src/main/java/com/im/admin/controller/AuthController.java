@@ -539,7 +539,7 @@ public class AuthController {
                 : userDetailsRepository.findByEmailId(loginRequestDto.getUserName());
 
         if (optionalUser.isEmpty()) {
-            log.warn("User not found for username : {}", loginRequestDto.getUserName());
+            log.warn("User not found for username: {}", loginRequestDto.getUserName());
             return ResponseEntity.ok(new CommonResponse<>(404, "User not found", null));
         }
 

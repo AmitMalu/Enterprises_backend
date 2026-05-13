@@ -220,11 +220,12 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         headers.set("latitude", String.valueOf(latitude));
         headers.set("longitude", String.valueOf(longitude));
 
+       String orderId = baseTxnId.startsWith("TXN") ? baseTxnId.substring(3) : baseTxnId;
 
         SendPayoutRequest payoutRequest = new SendPayoutRequest();
 
         payoutRequest.setAmount(req.getAmount());
-        payoutRequest.setOrderId(baseTxnId);
+        payoutRequest.setOrderId(orderId);
         payoutRequest.setIfscCode(req.getIfscCode());
         payoutRequest.setAccountNumber(req.getAccountNumber());
         payoutRequest.setBankName(req.getBankName());
@@ -260,6 +261,25 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         log.info("AES payout completed | orderId={} | status={}",
                 "TXN" + baseTxnId,
                 responseBody.getData().getStatus());
+
+        // SAVE PENDING TRANSACTION
+
+        PayoutPendingTransactions pending = new PayoutPendingTransactions();
+
+        pending.setTransactionId(orderId);
+        pending.setSchemeCode(req.getSchemeCode());
+        pending.setRetailerId(req.getRetailerId());
+        pending.setAmount(req.getAmount());
+        pending.setTransactionType(req.getPaymentMode());
+        pending.setStatus("PENDING");
+        pending.setCreatedAt(LocalDateTime.now());
+        pending.setIfscCode(req.getIfscCode());
+        pending.setAccountNumber(req.getAccountNumber());
+        pending.setBeneficiaryName(req.getBeneficiaryName());
+        pending.setLatitude(latitude);
+        pending.setLongitude(longitude);
+
+        payoutPendingTransactionRepository.save(pending);
 
         return PayoutResponseDto.builder()
                 .orderId("TXN" + baseTxnId)
@@ -342,7 +362,7 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         pending.setRetailerId(req.getRetailerId());
         pending.setAmount(req.getAmount());
         pending.setTransactionType(req.getPaymentMode());
-        pending.setStatus(status);
+        pending.setStatus("PENDING");
         pending.setCreatedAt(LocalDateTime.now());
         pending.setIfscCode(req.getIfscCode());
         pending.setAccountNumber(req.getAccountNumber());
@@ -393,24 +413,24 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         // ===== 1. Extract Fields =====
         String status = payload.get("status");
         String type = payload.get("type");
-        String requestId = payload.get("requestId");
-        String orderId = payload.get("orderIdTransaction");
+        String orderId = payload.get("requestId");
+        String vendorTxnId = payload.get("orderId");
         String amount = payload.get("amount");
         String utr = payload.get("utr");
         String description = payload.get("description");
 
         log.info("[1] Parsed Callback: orderId={}, requestId={}, status={}, amount={}, utr={}",
-                orderId, requestId, status, amount, utr);
+                vendorTxnId, orderId, status, amount, utr);
 
         // ===== 2. Fetch Pending Transaction =====
         PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository
-                .findByTransactionId(requestId)
+                .findByTransactionId(orderId)
                 .orElseThrow(() ->
                         new RuntimeException("Pending transaction not found for order ID: " + orderId));
 
         // ===== Already SUCCESS check =====
         if ("SUCCESS".equalsIgnoreCase(pendingTxn.getStatus())) {
-            log.warn("Transaction already marked SUCCESS for orderId={}", requestId);
+            log.warn("Transaction already marked SUCCESS for orderId={}", orderId);
             return "Transaction already processed successfully";
         }
 

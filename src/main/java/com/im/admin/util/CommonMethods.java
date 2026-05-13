@@ -938,7 +938,7 @@ public class CommonMethods {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
 
-        String uatUrl = vendorCredentials.getTokenUrlProd();
+        String uatUrl = vendorCredentials.getTokenUrlUat();
         //String prodUrl = vendorCredentials.getTokenUrlProd();
 
         ResponseEntity<Map> response = restTemplate.postForEntity(uatUrl, requestEntity, Map.class);

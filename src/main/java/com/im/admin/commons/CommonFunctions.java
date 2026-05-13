@@ -108,24 +108,15 @@ public class CommonFunctions {
 //        callbackEventLogRepository.save(callbackEventLog);
 //    }
 
-    public void saveCallbackEventLog(Map<String, String> payload,
-                                     LocalDateTime requestDateTime,
-                                     String ipAddress,
-                                     String response,
-                                     LocalDateTime responseDateTime) {
+    public void saveCallbackEventLog(String request, LocalDateTime requestDateTime, String ipAddress,
+                                     String response, LocalDateTime responseDateTime) {
 
         CallbackEventLog callbackEventLog = new CallbackEventLog();
-
-        callbackEventLog.setRequest(payload.toString());
+        callbackEventLog.setRequest(request);
         callbackEventLog.setRequestDateTime(requestDateTime);
         callbackEventLog.setIpAddress(ipAddress);
         callbackEventLog.setResponse(response);
         callbackEventLog.setResponseDateTime(responseDateTime);
-
-
-        String orderId = extractOrderId(payload);
-
-        callbackEventLog.setOrderId(orderId);
 
         callbackEventLogRepository.save(callbackEventLog);
     }

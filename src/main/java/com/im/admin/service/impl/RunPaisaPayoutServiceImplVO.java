@@ -470,7 +470,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             // Save callback log
 //            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
 //                    "Payout callback processed successfully", LocalDateTime.now());
-            commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp,
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
                     "Payout callback processed successfully", LocalDateTime.now());
 
             log.info("---- [PAYOUT CALLBACK] Successfully logged callback event");
@@ -481,7 +481,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
 //            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
 //                    e.getMessage(), LocalDateTime.now());
 
-            commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp,
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
                     e.getMessage(), LocalDateTime.now());
 
             throw new RuntimeException("Payout callback processing failed");
