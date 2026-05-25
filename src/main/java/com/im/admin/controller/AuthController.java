@@ -487,11 +487,19 @@ public class AuthController {
 
             if ("IM".equals(currentType) || "AD".equals(currentType)) {
                 Optional<Admin> adminOpt = adminRepository.findById(currentId);
+
                 if (adminOpt.isPresent()) {
                     Admin admin = adminOpt.get();
+
+                    log.info("Request URL: {}", requestUrl);
+                    log.info("Admin Login URL: {}", admin.getLoginURL());
+
                     boolean match = requestUrl.equals(admin.getLoginURL());
+
                     log.info("URL match for Admin/IM: {}", match);
+
                     return match;
+
                 } else {
                     log.warn("Admin not found for ID: {}", currentId);
                 }
