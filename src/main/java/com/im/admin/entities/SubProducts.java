@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.im.admin.entities.product.Products;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -26,6 +27,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "sub_products")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class SubProducts {
 
     @Id
