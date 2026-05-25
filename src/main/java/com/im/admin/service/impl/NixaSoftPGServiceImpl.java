@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.LoggableVendor;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
@@ -75,8 +76,10 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
     @Autowired
     private CommonFunctions commonFunctions;
 
-    RestTemplate restTemplate = new RestTemplate();
+    @Autowired
+    private ObjectMapper objectMapper;
 
+    RestTemplate restTemplate = new RestTemplate();
 
     @Override
     public String createOrder(NixaSoftCreateOrderRequest req, Double latitude, Double longitude) {
@@ -105,168 +108,416 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
             String apiToken = credentials.getToken();
 
-            // ===== 2. Prepare Request =====
+            // ===== 2. Generate Order ID =====
             String orderId = "ORD" + commonMethods.generateBaseTransactionId();
 
+            // ===== 3. Handle AES Flow =====
             if ("AES".equals(credentials.getTokenType())) {
-
-                String token = commonMethods.generateTokenForAES(credentials);
-
-                // Build JSON request for AES admin panel
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.set("client_id", credentials.getClientId());
-                headers.set("token", token);
-                headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
-                headers.add("Latitude", String.valueOf(latitude));
-                headers.add("Longitude", String.valueOf(longitude));
-
-                PGCreateOrderCommand command = new PGCreateOrderCommand();
-
-                command.setAmount(Double.valueOf(req.getAmount()));
-                command.setInitiatedBy(req.getInitiatedBy());
-                command.setOrderId(orderId);
-                command.setUsername(credentials.getUsername());
-                command.setCardHolderName(req.getBeneficiaryName());
-                command.setCardHolderMobile(req.getMobileNo());
-
-                // Add transaction scheme placeholder if needed
-                TransactionSchemeDetailsRequestDto scheme = new TransactionSchemeDetailsRequestDto();
-                // TODO: fill required scheme fields
-                command.setSchemeDetails(scheme);
-
-                //String uatUrl = credentials.getBaseUrlUat() + "/create-order";
-                String prodUrl = credentials.getBaseUrlProd() + "/create-order";
-
-                log.info("AES Admin panel order URL: {}", prodUrl);
-
-                HttpEntity<PGCreateOrderCommand> requestEntity =
-                        new HttpEntity<>(command, headers);
-
-                ResponseEntity<CommonResponse<PgUnifiedOrderResponse>> response =
-                        restTemplate.exchange(
-                                prodUrl,
-                                HttpMethod.POST,
-                                requestEntity,
-                                new ParameterizedTypeReference<CommonResponse<PgUnifiedOrderResponse>>() {
-                                }
-                        );
-
-                CommonResponse<PgUnifiedOrderResponse> responseBody = response.getBody();
-
-                PgUnifiedOrderResponse pgResponse = responseBody.getData();
-
-                commonFunctions.saveVendorLogs(
-                        LocalDateTime.now(),
-                        "AES order request",
-                        vendor.getId(),
-                        LocalDateTime.now(),
-                        pgResponse.toString(),
-                        null
-                );
-
-                // ===== 3. Save Transaction =====
-
-                PgTransactionMapping transaction = new PgTransactionMapping();
-                transaction.setOrderId(orderId);
-                transaction.setAmount(Double.valueOf(req.getAmount()));
-                transaction.setInitiatedBy(req.getInitiatedBy());
-                transaction.setSubProductId(req.getSubProductId());
-                transaction.setStatus("PENDING");
-                transaction.setVendorName("NixaSoft Payment Gateway");
-                transaction.setVendorSessionId(orderId);
-                transaction.setCardBinNo(req.getCardBinNo());
-                transaction.setLatitude(latitude);
-                transaction.setLongitude(longitude);
-
-                pgTransactionMappingRepository.save(transaction);
-
-                return response.getBody().getData().getPaymentLink();
-
+                return processAesCreateOrder(req, credentials, orderId, latitude, longitude, vendor);
             }
 
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("beneficiaryName", req.getBeneficiaryName());
-            requestBody.put("mobileNumber", req.getMobileNo());
-            requestBody.put("emailId", retailer.getEmailId());
-            requestBody.put("amount", req.getAmount());
-            requestBody.put("redirectUrl", "https://uat.nfttech.in/enterprise-portal/products/pgScreen");
-            requestBody.put("requestId", orderId);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("apiToken", apiToken);
-
-            HttpEntity<Map<String, Object>> entity =
-                    new HttpEntity<>(requestBody, headers);
-
-            log.info("Calling NixaSoft Payin API");
-
-            ResponseEntity<NixaSoftCreateOrderResponse> response =
-                    restTemplate.exchange(
-                            credentials.getBaseUrlUat() + "/payin/nixa-silver-1",
-                            HttpMethod.POST,
-                            entity,
-                            NixaSoftCreateOrderResponse.class
-                    );
-
-            NixaSoftCreateOrderResponse body = response.getBody();
-
-            assert body != null;
-            log.info("NixaSoft response received statuscode={}, order_id={}",
-                    body.getStatusCode(), body.getOrderId());
-
-            // ===== 3. Save Transaction =====
-
-            PgTransactionMapping transaction = new PgTransactionMapping();
-            transaction.setOrderId(orderId);
-            transaction.setAmount(Double.valueOf(req.getAmount()));
-            transaction.setInitiatedBy(req.getInitiatedBy());
-            transaction.setSubProductId(req.getSubProductId());
-            transaction.setStatus(body.getStatusCode());
-            transaction.setVendorName("NixaSoft Payment Gateway");
-            transaction.setVendorSessionId(body.getOrderId());
-            transaction.setCardBinNo(req.getCardBinNo());
-            transaction.setLatitude(latitude);
-            transaction.setLongitude(longitude);
-
-            pgTransactionMappingRepository.save(transaction);
-
-            // ===== 4. Return Payment URL =====
-
-            if ("TXN".equals(body.getStatusCode())) {
-
-                log.info("Payment URL generated successfully orderId={}", orderId);
-                return body.getPaymentUrl();
-
-            } else {
-
-                log.error("Transaction failed for orderId={}", orderId);
-                throw new RuntimeException("Transaction Failed");
-
-            }
+            // ===== 4. Handle Direct Vendor Flow =====
+            return processDirectCreateOrder(req, credentials, orderId, retailer, latitude, longitude, vendor);
 
         } catch (HttpStatusCodeException ex) {
-
             String errorBody = ex.getResponseBodyAsString();
+            log.error("Vendor HTTP Error | status={} | response={}", ex.getStatusCode(), errorBody);
 
-            log.error("Vendor Error Response: {}", errorBody);
-
-            return errorBody;
-
-        } catch (Exception e) {
-
-            Throwable root = e;
-
-            while (root.getCause() != null) {
-                root = root.getCause();
+            // Try to parse vendor error message
+            try {
+                Map<String, Object> errorMap = objectMapper.readValue(errorBody, Map.class);
+                String errorMessage = (String) errorMap.getOrDefault("message", "Vendor error occurred");
+                return "ERROR: " + errorMessage;
+            } catch (Exception parseException) {
+                return "ERROR: " + errorBody;
             }
 
+        } catch (Exception e) {
+            Throwable root = getRootCause(e);
             log.error("ROOT CAUSE => ", root, e);
-
             return "Error: " + root.getMessage();
         }
     }
+
+/* =====================================================
+   AES CREATE ORDER FLOW
+   ===================================================== */
+
+    private String processAesCreateOrder(
+            NixaSoftCreateOrderRequest req,
+            VendorCredentials credentials,
+            String orderId,
+            Double latitude,
+            Double longitude,
+            Vendors vendor) throws Exception {
+
+        String token = commonMethods.generateTokenForAES(credentials);
+
+        // Build JSON request for AES admin panel
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("client_id", credentials.getClientId());
+        headers.set("token", token);
+        headers.add("Authorization", "Bearer " + token);
+        headers.add("Latitude", String.valueOf(latitude));
+        headers.add("Longitude", String.valueOf(longitude));
+
+        PGCreateOrderCommand command = new PGCreateOrderCommand();
+        command.setAmount(Double.valueOf(req.getAmount()));
+        command.setInitiatedBy(req.getInitiatedBy());
+        command.setOrderId(orderId);
+        command.setUsername(credentials.getUsername());
+        command.setCardHolderName(req.getBeneficiaryName());
+        command.setCardHolderMobile(req.getMobileNo());
+
+        // Add transaction scheme placeholder if needed
+        TransactionSchemeDetailsRequestDto scheme = new TransactionSchemeDetailsRequestDto();
+        // TODO: fill required scheme fields
+        command.setSchemeDetails(scheme);
+
+        String uatUrl = credentials.getBaseUrlUat() + "/create-order";
+        log.info("[NIXASOFT][AES] Calling AES Admin panel | url={}", uatUrl);
+
+        HttpEntity<PGCreateOrderCommand> requestEntity = new HttpEntity<>(command, headers);
+
+        ResponseEntity<CommonResponse<PgUnifiedOrderResponse>> response =
+                restTemplate.exchange(
+                        uatUrl,
+                        HttpMethod.POST,
+                        requestEntity,
+                        new ParameterizedTypeReference<CommonResponse<PgUnifiedOrderResponse>>() {}
+                );
+
+        CommonResponse<PgUnifiedOrderResponse> responseBody = response.getBody();
+
+        if (responseBody == null || responseBody.getData() == null) {
+            log.error("[NIXASOFT][AES] Empty response from AES");
+            return "ERROR: Empty response from AES vendor";
+        }
+
+        PgUnifiedOrderResponse pgResponse = responseBody.getData();
+
+        commonFunctions.saveVendorLogs(
+                LocalDateTime.now(),
+                "AES order request",
+                vendor.getId(),
+                LocalDateTime.now(),
+                pgResponse.toString(),
+                null
+        );
+
+        // Save Transaction
+        savePgTransaction(orderId, req, "PENDING", orderId, latitude, longitude);
+
+        log.info("[NIXASOFT][AES] Order created successfully | orderId={}", orderId);
+        return pgResponse.getPaymentLink();
+    }
+
+/* =====================================================
+   DIRECT VENDOR CREATE ORDER FLOW
+   ===================================================== */
+
+    private String processDirectCreateOrder(
+            NixaSoftCreateOrderRequest req,
+            VendorCredentials credentials,
+            String orderId,
+            Retailer retailer,
+            Double latitude,
+            Double longitude,
+            Vendors vendor) throws Exception {
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("beneficiaryName", req.getBeneficiaryName());
+        requestBody.put("mobileNumber", req.getMobileNo());
+        requestBody.put("emailId", retailer.getEmailId());
+        requestBody.put("amount", req.getAmount());
+        requestBody.put("redirectUrl", "https://uat.nfttech.in/enterprise-portal/products/pgScreen");
+        requestBody.put("requestId", orderId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("apiToken", credentials.getToken());
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        log.info("[NIXASOFT] Calling NixaSoft Payin API | orderId={}", orderId);
+
+        // Get raw response as String first
+        ResponseEntity<String> rawResponse = restTemplate.exchange(
+                credentials.getBaseUrlUat() + "/payin/nixa-silver-1",
+                HttpMethod.POST,
+                entity,
+                String.class
+        );
+
+        String responseBody = rawResponse.getBody();
+        log.info("[NIXASOFT] Raw response: {}", responseBody);
+
+        // Parse as Map to check status
+        Map<String, Object> responseMap = objectMapper.readValue(responseBody, Map.class);
+        String statusCode = (String) responseMap.get("statuscode");
+
+        // Handle Error Response
+        if ("ERR".equals(statusCode)) {
+            String errorMessage = (String) responseMap.getOrDefault("message", "Transaction Failed");
+            log.error("[NIXASOFT] Vendor returned error | orderId={} | message={}", orderId, errorMessage);
+
+            // Save failed transaction
+            savePgTransaction(orderId, req, "FAILED", null, latitude, longitude);
+
+            return "ERROR: " + errorMessage;
+        }
+
+        // Handle Success Response
+        if ("TXN".equals(statusCode)) {
+            NixaSoftCreateOrderResponse successResponse =
+                    objectMapper.readValue(responseBody, NixaSoftCreateOrderResponse.class);
+
+            log.info("[NIXASOFT] Success response | orderId={} | vendorOrderId={} | paymentUrl={}",
+                    orderId, successResponse.getOrderId(), successResponse.getPaymentUrl());
+
+            // Save Transaction
+            savePgTransaction(orderId, req, "PENDING", successResponse.getOrderId(), latitude, longitude);
+
+            return successResponse.getPaymentUrl();
+        }
+
+        // Unknown status
+        log.error("[NIXASOFT] Unknown status code | orderId={} | status={}", orderId, statusCode);
+        return "ERROR: Unknown response status - " + statusCode;
+    }
+
+/* =====================================================
+   SAVE PG TRANSACTION (Common Method)
+   ===================================================== */
+
+    private void savePgTransaction(
+            String orderId,
+            NixaSoftCreateOrderRequest req,
+            String status,
+            String vendorSessionId,
+            Double latitude,
+            Double longitude) {
+
+        PgTransactionMapping transaction = new PgTransactionMapping();
+        transaction.setOrderId(orderId);
+        transaction.setAmount(Double.valueOf(req.getAmount()));
+        transaction.setInitiatedBy(req.getInitiatedBy());
+        transaction.setSubProductId(req.getSubProductId());
+        transaction.setStatus(status);
+        transaction.setVendorName("NixaSoft Payment Gateway");
+        transaction.setVendorSessionId(vendorSessionId);
+        transaction.setCardBinNo(req.getCardBinNo());
+        transaction.setLatitude(latitude);
+        transaction.setLongitude(longitude);
+
+        pgTransactionMappingRepository.save(transaction);
+
+        log.info("[NIXASOFT] Transaction saved | orderId={} | status={}", orderId, status);
+    }
+
+/* =====================================================
+   ROOT CAUSE EXTRACTOR
+   ===================================================== */
+
+    private Throwable getRootCause(Throwable throwable) {
+        Throwable root = throwable;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        return root;
+    }
+
+
+//    @Override
+//    public String createOrder(NixaSoftCreateOrderRequest req, Double latitude, Double longitude) {
+//
+//        log.info("Starting NixaSoft Create Order for subProductId={}, initiatedBy={}, amount={}",
+//                req.getSubProductId(), req.getInitiatedBy(), req.getAmount());
+//
+//        try {
+//
+//            // ===== 1. Get Vendor Credentials =====
+//            VendorRouting vendorRouting =
+//                    vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+//
+//            // Find retailer by retailerId to get email and mobile
+//            Retailer retailer = retailerRepository.findByRetailerId(req.getInitiatedBy())
+//                    .orElseThrow(() -> new RuntimeException("Retailer not found for ID: " + req.getInitiatedBy()));
+//
+//            Vendors vendor = CommonMethods.getVendors(vendorRouting);
+//
+//            VendorCredentials credentials =
+//                    vendorCredentialsRepository
+//                            .findByVendorIdAndProductId(
+//                                    vendor.getId(),
+//                                    vendor.getProduct().getId())
+//                            .orElseThrow(() -> new RuntimeException("No credentials found"));
+//
+//            String apiToken = credentials.getToken();
+//
+//            // ===== 2. Prepare Request =====
+//            String orderId = "ORD" + commonMethods.generateBaseTransactionId();
+//
+//            if ("AES".equals(credentials.getTokenType())) {
+//
+//                String token = commonMethods.generateTokenForAES(credentials);
+//
+//                // Build JSON request for AES admin panel
+//                HttpHeaders headers = new HttpHeaders();
+//                headers.setContentType(MediaType.APPLICATION_JSON);
+//                headers.set("client_id", credentials.getClientId());
+//                headers.set("token", token);
+//                headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
+//                headers.add("Latitude", String.valueOf(latitude));
+//                headers.add("Longitude", String.valueOf(longitude));
+//
+//                PGCreateOrderCommand command = new PGCreateOrderCommand();
+//
+//                command.setAmount(Double.valueOf(req.getAmount()));
+//                command.setInitiatedBy(req.getInitiatedBy());
+//                command.setOrderId(orderId);
+//                command.setUsername(credentials.getUsername());
+//                command.setCardHolderName(req.getBeneficiaryName());
+//                command.setCardHolderMobile(req.getMobileNo());
+//
+//                // Add transaction scheme placeholder if needed
+//                TransactionSchemeDetailsRequestDto scheme = new TransactionSchemeDetailsRequestDto();
+//                // TODO: fill required scheme fields
+//                command.setSchemeDetails(scheme);
+//
+//                String uatUrl = credentials.getBaseUrlUat() + "/create-order";
+//                //String prodUrl = credentials.getBaseUrlProd() + "/create-order";
+//
+//                log.info("AES Admin panel order URL: {}", uatUrl);
+//
+//                HttpEntity<PGCreateOrderCommand> requestEntity =
+//                        new HttpEntity<>(command, headers);
+//
+//                ResponseEntity<CommonResponse<PgUnifiedOrderResponse>> response =
+//                        restTemplate.exchange(
+//                                uatUrl,
+//                                HttpMethod.POST,
+//                                requestEntity,
+//                                new ParameterizedTypeReference<CommonResponse<PgUnifiedOrderResponse>>() {
+//                                }
+//                        );
+//
+//                CommonResponse<PgUnifiedOrderResponse> responseBody = response.getBody();
+//
+//                PgUnifiedOrderResponse pgResponse = responseBody.getData();
+//
+//                commonFunctions.saveVendorLogs(
+//                        LocalDateTime.now(),
+//                        "AES order request",
+//                        vendor.getId(),
+//                        LocalDateTime.now(),
+//                        pgResponse.toString(),
+//                        null
+//                );
+//
+//                // ===== 3. Save Transaction =====
+//
+//                PgTransactionMapping transaction = new PgTransactionMapping();
+//                transaction.setOrderId(orderId);
+//                transaction.setAmount(Double.valueOf(req.getAmount()));
+//                transaction.setInitiatedBy(req.getInitiatedBy());
+//                transaction.setSubProductId(req.getSubProductId());
+//                transaction.setStatus("PENDING");
+//                transaction.setVendorName("NixaSoft Payment Gateway");
+//                transaction.setVendorSessionId(orderId);
+//                transaction.setCardBinNo(req.getCardBinNo());
+//                transaction.setLatitude(latitude);
+//                transaction.setLongitude(longitude);
+//
+//                pgTransactionMappingRepository.save(transaction);
+//
+//                return response.getBody().getData().getPaymentLink();
+//
+//            }
+//
+//            Map<String, Object> requestBody = new HashMap<>();
+//            requestBody.put("beneficiaryName", req.getBeneficiaryName());
+//            requestBody.put("mobileNumber", req.getMobileNo());
+//            requestBody.put("emailId", retailer.getEmailId());
+//            requestBody.put("amount", req.getAmount());
+//            requestBody.put("redirectUrl", "https://uat.nfttech.in/enterprise-portal/products/pgScreen");
+//            requestBody.put("requestId", orderId);
+//
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+//            headers.set("apiToken", apiToken);
+//
+//            HttpEntity<Map<String, Object>> entity =
+//                    new HttpEntity<>(requestBody, headers);
+//
+//            log.info("Calling NixaSoft Payin API");
+//
+//            ResponseEntity<NixaSoftCreateOrderResponse> response =
+//                    restTemplate.exchange(
+//                            credentials.getBaseUrlUat() + "/payin/nixa-silver-1",
+//                            HttpMethod.POST,
+//                            entity,
+//                            NixaSoftCreateOrderResponse.class
+//                    );
+//
+//            NixaSoftCreateOrderResponse body = response.getBody();
+//
+//            assert body != null;
+//            log.info("NixaSoft response received statuscode={}, order_id={}",
+//                    body.getStatusCode(), body.getOrderId());
+//
+//            // ===== 3. Save Transaction =====
+//
+//            PgTransactionMapping transaction = new PgTransactionMapping();
+//            transaction.setOrderId(orderId);
+//            transaction.setAmount(Double.valueOf(req.getAmount()));
+//            transaction.setInitiatedBy(req.getInitiatedBy());
+//            transaction.setSubProductId(req.getSubProductId());
+//            transaction.setStatus(body.getStatusCode());
+//            transaction.setVendorName("NixaSoft Payment Gateway");
+//            transaction.setVendorSessionId(body.getOrderId());
+//            transaction.setCardBinNo(req.getCardBinNo());
+//            transaction.setLatitude(latitude);
+//            transaction.setLongitude(longitude);
+//
+//            pgTransactionMappingRepository.save(transaction);
+//
+//            // ===== 4. Return Payment URL =====
+//
+//            if ("TXN".equals(body.getStatusCode())) {
+//
+//                log.info("Payment URL generated successfully orderId={}", orderId);
+//                return body.getPaymentUrl();
+//
+//            } else {
+//
+//                log.error("Transaction failed for orderId={}", orderId);
+//                throw new RuntimeException("Transaction Failed");
+//
+//            }
+//
+//        } catch (HttpStatusCodeException ex) {
+//
+//            String errorBody = ex.getResponseBodyAsString();
+//
+//            log.error("Vendor Error Response: {}", errorBody);
+//
+//            return errorBody;
+//
+//        } catch (Exception e) {
+//
+//            Throwable root = e;
+//
+//            while (root.getCause() != null) {
+//                root = root.getCause();
+//            }
+//
+//            log.error("ROOT CAUSE => ", root, e);
+//
+//            return "Error: " + root.getMessage();
+//        }
+//    }
 
     @Override
     @Transactional
