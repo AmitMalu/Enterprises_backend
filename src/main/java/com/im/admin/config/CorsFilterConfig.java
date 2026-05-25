@@ -30,7 +30,9 @@ public class CorsFilterConfig {
                 "http://10.1.3.4",
                 "http://10.1.3.5",
                 "http://202.191.129.23",
-                "http://202.191.129.24"
+                "http://202.191.129.24",
+                "https://portal.nfttech.in",       // Portal public URL
+                "https://admin.nfttech.in"      // Admin public URL
         ));
 
         // Allow all HTTP methods

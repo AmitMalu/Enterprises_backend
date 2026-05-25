@@ -96,13 +96,10 @@ public class RunpaisaPGServiceImpl {
     @Value("${runpaisa.token.password}")
     private String runpaisaPassword;
 
-    @Value("${runpaisa.base.url.prod}")
-    private String baseUrlPROD;
-
     @Value("${runpaisa.client.id}")
     private String clientId;
 
-    @Value("${runpaisa.order.status.url.prod}")
+    @Value("${runpaisa.order.status.url}")
     private String orderStatusUrl;
 
     @Autowired
