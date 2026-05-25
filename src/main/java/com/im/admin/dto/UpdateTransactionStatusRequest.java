@@ -15,6 +15,17 @@ public class  UpdateTransactionStatusRequest {
     private String newStatus; // "SUCCESS" to "FAILED" , FAILED to SUCCESS, PENDING to SUCCESS, SETTLEMENT PENDING to SUCCESS
     private String walletType;  //
     private String failureRemark;
+    private String subProductName;
+    private String operatorName;
+    private String schemeName;
 
+
+    public UpdateTransactionStatusRequest(List<String> transactionIds, String oldStatus, String newStatus, String walletType, String failureRemark) {
+        this.transactionIds = transactionIds;
+        this.oldStatus = oldStatus;
+        this.newStatus = newStatus;
+        this.walletType = walletType;
+        this.failureRemark = failureRemark;
+    }
 }
 

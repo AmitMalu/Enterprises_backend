@@ -3,6 +3,7 @@ package com.im.admin.config;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.hibernate5.jakarta.Hibernate5JakartaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,27 +40,8 @@ public class SecurityConfig {
             "/auth/register", "/api/aes/generate-token", "/api/aes/validate-token", "/api/pg/generate-token",
             "/api/pg/callback/runpaisa", "/api/pg/callback/nixasoft", "/api/pg/callback/slpe", "/api/pg/callback/unisus",
             "/api/payout/callback", "/auth/forget-verify-otp", "/api/aes/encrypt-credentials",
-            "/api/aes/decrypt-credentials", "/api/pg/callback/razorpay", "/api/pg/callback/cashfree");
-
-//    @Bean
-//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-//        http
-//                .csrf(csrf -> csrf.disable())
-//                .cors(Customizer.withDefaults())  // Enable CORS here
-//                .authorizeHttpRequests(auth -> auth
-//
-//                       // IMPORTANT: Allow SockJS handshake endpoints
-//                        .requestMatchers("/ws/**").permitAll()
-//                        .requestMatchers("/ws/info/**").permitAll()
-//                        .requestMatchers("/sockjs/**").permitAll()
-//
-//                        .requestMatchers(PATHS_VIEWABLE_WITHOUT_AUTHENTICATION.toArray(new String[0])).permitAll()
-//                        .anyRequest().permitAll()
-//
-//                );
-//
-//        return http.build();
-//    }
+            "/api/aes/decrypt-credentials", "/api/pg/callback/razorpay", "/api/pg/callback/cashfree",
+            "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui", "/swagger-ui/**", "/swagger-ui.html");
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -112,11 +94,20 @@ public class SecurityConfig {
 
     @Bean
     public ObjectMapper objectMapper() {
+
         ObjectMapper mapper = new ObjectMapper();
+
         mapper.registerModule(new JavaTimeModule());
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        mapper.configure(DeserializationFeature.READ_ENUMS_USING_TO_STRING, true);
+
+        mapper.registerModule(
+                new Hibernate5JakartaModule()
+                        .disable(Hibernate5JakartaModule.Feature.USE_TRANSIENT_ANNOTATION)
+        );
+
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
         return mapper;
     }
 

@@ -10,9 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 public interface TicketService {
-    Object getTransactionDetails(String transactionId, String hierarchyId);
 
-   
+    Object getTransactionDetails(String transactionId, String hierarchyId);
 
     void addComment(AddTicketCommentDto dto);
 
@@ -25,7 +24,6 @@ public interface TicketService {
     List<TicketIssueTypeDto> getAllIssueTypes();
 
     Page<TicketWithTransactionDto> getAllTickets(Map<String, Object> filters, Pageable pageable);
-
 
     Ticket getTicketById(Long id);
 

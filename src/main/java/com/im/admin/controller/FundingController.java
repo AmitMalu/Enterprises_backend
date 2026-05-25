@@ -29,9 +29,9 @@ public class FundingController {
     private FundingService fundingService;
 
     @PostMapping("/credit-debit")
-    public ResponseEntity<CommonResponse<String>> fundsCreditDebit(@RequestBody FundCreditDebitDto dto, @RequestHeader Double latitude, @RequestHeader Double longitude) {
+    public ResponseEntity<CommonResponse<String>> fundsCreditDebit(@RequestBody FundCreditDebitDto dto) {
         log.info("API Call: fundsCreditDebit with data: {}", dto);
-        String result = fundingService.fundsCreditDebit(dto, latitude, latitude);
+        String result = fundingService.fundsCreditDebit(dto);
         log.info("Transaction processed successfully: {}", result);
         return ResponseEntity.ok(CommonResponse.success(result, "Transaction processed successfully"));
     }
@@ -126,7 +126,7 @@ public class FundingController {
     }
 
     @PostMapping("/detailed-txn-report")
-    public ResponseEntity<CommonResponse> getTransactionrepoortComAndChg(
+    public ResponseEntity<CommonResponse> getTransactionReportComAndChg(
             @RequestBody SettlementPendingRequestDto request,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {

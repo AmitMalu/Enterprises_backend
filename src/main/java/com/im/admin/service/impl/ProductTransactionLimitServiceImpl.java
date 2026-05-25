@@ -160,13 +160,14 @@ public class ProductTransactionLimitServiceImpl implements ProductTransactionLim
         existing.setEditedBy(dto.getEditedBy());
 
         // Duplicate check
-        Optional<ProductTransactionLimit> existingg =
-                repository.findByProduct_IdAndSubProduct_Id(
+        Optional<ProductTransactionLimit> duplicate =
+                repository.findByProduct_IdAndSubProduct_IdAndIdNot(
                         dto.getProductId(),
-                        dto.getSubProductId()
+                        dto.getSubProductId(),
+                        id
                 );
 
-        if (existingg.isPresent()) {
+        if (duplicate.isPresent()) {
             throw new RuntimeException(
                     "Duplicate entry: limit already exists for this product and subProduct"
             );

@@ -35,6 +35,7 @@ public class RetailerTransactionResponseDto {
     private LocalTime updatedTimeOfTransaction;
     private String walletType;
     private String productName;
+    private String operatorName;
 
     private String vendorTransactionId;
     private Double latitude;
@@ -62,7 +63,8 @@ public class RetailerTransactionResponseDto {
 
                String vendorTransactionId,
             Double latitude,
-            Double longitude
+            Double longitude,
+            String operatorName
     ) {
         this.id = id;
         this.updatedAt = updatedAt;
@@ -85,5 +87,6 @@ public class RetailerTransactionResponseDto {
         this.vendorTransactionId = vendorTransactionId;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.operatorName = operatorName;
     }
 }

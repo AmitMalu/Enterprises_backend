@@ -44,6 +44,12 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
     @Autowired
     private BeneficiaryBankAccountRepository beneficiaryBankAccountRepository;
 
+    @Autowired
+    private RechargeTransactionRepository rechargeTransactionRepository;
+
+    @Autowired
+    private RechargeOperatorsRepository rechargeOperatorsRepository;
+
 
     @Autowired
     PgTransactionMappingRepository pgTransactionMappingRepository;
@@ -83,6 +89,33 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
 
         String productName = sp.getProduct().getName();
 
+
+        // ======================= Recharge =============================//
+
+        if(productName != null &&
+                productName.toLowerCase().contains("recharge")) {
+
+            RechargeTransaction rechargeTransaction =
+                    rechargeTransactionRepository.findByTransactionRef(request.getTxnId())
+                            .orElseThrow(() -> new RuntimeException("Recharge record not found"));
+
+            String operatorName = rechargeOperatorsRepository
+                    .findByCodeAndType(rechargeTransaction.getOperatorCode(), "MOBILE")
+                    .map(RechargeOperators::getName)
+                    .orElseThrow(() -> new RuntimeException(
+                            "Operator not found for code: " + rechargeTransaction.getOperatorCode() + " and type MOBILE"
+                    ));
+            return RechargeReceiptResponseDto.builder()
+                    .status(rechargeTransaction.getStatus())
+                    .amount(rechargeTransaction.getAmount())
+                    .tranxId(rechargeTransaction.getTransactionId())
+                    .operatorName(operatorName)
+                    .dateTime(rechargeTransaction.getCreatedAt().toString())
+                    .customerNumber(rechargeTransaction.getCustomerNumber())
+                    .vendorResp(rechargeTransaction.getVendorResponse())
+                    .build();
+
+        }
 
         // ======================= DMT =============================
 

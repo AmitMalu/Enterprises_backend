@@ -15,6 +15,7 @@ public class PGCreateOrderCommand {
     private String initiatedBy;
     private Short productId;
     private String subProductId;
+    private String schemeCode;
 
     private Double amount;
     private String merchantRef;

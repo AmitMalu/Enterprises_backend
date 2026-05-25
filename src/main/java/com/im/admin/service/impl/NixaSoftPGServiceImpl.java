@@ -1,24 +1,32 @@
 package com.im.admin.service.impl;
 
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.LoggableVendor;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.repositories.*;
 import com.im.admin.request.NixaSoftCallbackRequest;
 import com.im.admin.request.NixaSoftCreateOrderRequest;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.response.NixaSoftCreateOrderResponse;
+import com.im.admin.response.PgUnifiedOrderResponse;
 import com.im.admin.service.NixaSoftPGService;
 import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +69,14 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
     @Autowired
     private TransactionEngineServiceImpl transactionServiceImpl;
 
+    @Autowired
+    private RetailerRepository retailerRepository;
+
+    @Autowired
+    private CommonFunctions commonFunctions;
+
+    RestTemplate restTemplate = new RestTemplate();
+
 
     @Override
     public String createOrder(NixaSoftCreateOrderRequest req, Double latitude, Double longitude) {
@@ -73,6 +89,10 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             // ===== 1. Get Vendor Credentials =====
             VendorRouting vendorRouting =
                     vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+
+            // Find retailer by retailerId to get email and mobile
+            Retailer retailer = retailerRepository.findByRetailerId(req.getInitiatedBy())
+                    .orElseThrow(() -> new RuntimeException("Retailer not found for ID: " + req.getInitiatedBy()));
 
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
@@ -88,12 +108,89 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             // ===== 2. Prepare Request =====
             String orderId = "ORD" + commonMethods.generateBaseTransactionId();
 
+            if ("AES".equals(credentials.getTokenType())) {
+
+                String token = commonMethods.generateTokenForAES(credentials);
+
+                // Build JSON request for AES admin panel
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("client_id", credentials.getClientId());
+                headers.set("token", token);
+                headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
+                headers.add("Latitude", String.valueOf(latitude));
+                headers.add("Longitude", String.valueOf(longitude));
+
+                PGCreateOrderCommand command = new PGCreateOrderCommand();
+
+                command.setAmount(Double.valueOf(req.getAmount()));
+                command.setInitiatedBy(req.getInitiatedBy());
+                command.setOrderId(orderId);
+                command.setUsername(credentials.getUsername());
+                command.setCardHolderName(req.getBeneficiaryName());
+                command.setCardHolderMobile(req.getMobileNo());
+
+                // Add transaction scheme placeholder if needed
+                TransactionSchemeDetailsRequestDto scheme = new TransactionSchemeDetailsRequestDto();
+                // TODO: fill required scheme fields
+                command.setSchemeDetails(scheme);
+
+                //String uatUrl = credentials.getBaseUrlUat() + "/create-order";
+                String prodUrl = credentials.getBaseUrlProd() + "/create-order";
+
+                log.info("AES Admin panel order URL: {}", prodUrl);
+
+                HttpEntity<PGCreateOrderCommand> requestEntity =
+                        new HttpEntity<>(command, headers);
+
+                ResponseEntity<CommonResponse<PgUnifiedOrderResponse>> response =
+                        restTemplate.exchange(
+                                prodUrl,
+                                HttpMethod.POST,
+                                requestEntity,
+                                new ParameterizedTypeReference<CommonResponse<PgUnifiedOrderResponse>>() {
+                                }
+                        );
+
+                CommonResponse<PgUnifiedOrderResponse> responseBody = response.getBody();
+
+                PgUnifiedOrderResponse pgResponse = responseBody.getData();
+
+                commonFunctions.saveVendorLogs(
+                        LocalDateTime.now(),
+                        "AES order request",
+                        vendor.getId(),
+                        LocalDateTime.now(),
+                        pgResponse.toString(),
+                        null
+                );
+
+                // ===== 3. Save Transaction =====
+
+                PgTransactionMapping transaction = new PgTransactionMapping();
+                transaction.setOrderId(orderId);
+                transaction.setAmount(Double.valueOf(req.getAmount()));
+                transaction.setInitiatedBy(req.getInitiatedBy());
+                transaction.setSubProductId(req.getSubProductId());
+                transaction.setStatus("PENDING");
+                transaction.setVendorName("NixaSoft Payment Gateway");
+                transaction.setVendorSessionId(orderId);
+                transaction.setCardBinNo(req.getCardBinNo());
+                transaction.setLatitude(latitude);
+                transaction.setLongitude(longitude);
+
+                pgTransactionMappingRepository.save(transaction);
+
+                return response.getBody().getData().getPaymentLink();
+
+            }
+
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("beneficiaryName", req.getBeneficiaryName());
             requestBody.put("mobileNumber", req.getMobileNo());
-            requestBody.put("emailId", req.getEmailId());
+            requestBody.put("emailId", retailer.getEmailId());
             requestBody.put("amount", req.getAmount());
-            requestBody.put("redirect_url", credentials.getCallbackUrl());
+            requestBody.put("redirectUrl", "https://uat.nfttech.in/enterprise-portal/products/pgScreen");
             requestBody.put("requestId", orderId);
 
             HttpHeaders headers = new HttpHeaders();
@@ -103,13 +200,11 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             HttpEntity<Map<String, Object>> entity =
                     new HttpEntity<>(requestBody, headers);
 
-            RestTemplate restTemplate = new RestTemplate();
-
             log.info("Calling NixaSoft Payin API");
 
             ResponseEntity<NixaSoftCreateOrderResponse> response =
                     restTemplate.exchange(
-                            credentials.getBaseUrlUat() +"/payin/nixa-silver-3",
+                            credentials.getBaseUrlUat() + "/payin/nixa-silver-1",
                             HttpMethod.POST,
                             entity,
                             NixaSoftCreateOrderResponse.class
@@ -125,7 +220,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
             PgTransactionMapping transaction = new PgTransactionMapping();
             transaction.setOrderId(orderId);
-            transaction.setAmount(req.getAmount());
+            transaction.setAmount(Double.valueOf(req.getAmount()));
             transaction.setInitiatedBy(req.getInitiatedBy());
             transaction.setSubProductId(req.getSubProductId());
             transaction.setStatus(body.getStatusCode());
@@ -151,11 +246,25 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
             }
 
+        } catch (HttpStatusCodeException ex) {
+
+            String errorBody = ex.getResponseBodyAsString();
+
+            log.error("Vendor Error Response: {}", errorBody);
+
+            return errorBody;
+
         } catch (Exception e) {
 
-            log.error("Error during NixaSoft Create Order", e);
-            throw new RuntimeException("NixaSoft Create Order Failed");
+            Throwable root = e;
 
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+
+            log.error("ROOT CAUSE => ", root, e);
+
+            return "Error: " + root.getMessage();
         }
     }
 
@@ -168,9 +277,18 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
         PgTransactionMapping pgTransactionMapping =
                 pgTransactionMappingRepository
-                        .findByOrderId(request.getOrderId())
+                        .findByOrderId(request.getRequestId())
                         .orElseThrow(() ->
                                 new RuntimeException("Transaction not found"));
+
+        // Prevent duplicate success processing
+        if ("SUCCESS".equalsIgnoreCase(pgTransactionMapping.getStatus())) {
+            log.warn(
+                    "Transaction already marked SUCCESS for orderId={}",
+                    request.getRequestId()
+            );
+            return;
+        }
 
         // Update status
         pgTransactionMapping.setStatus(request.getStatus().toUpperCase());
@@ -210,19 +328,43 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         Double txnAmt = Double.valueOf(request.getAmount());
         log.info("---- [Callback] Parsed transaction amount: {}", txnAmt);
 
-//            String callbackOperatorName = toDbOperatorName(
-//                    request.getOtherInfo().getPGTrnType()
-//            );
-        log.info("---- [Callback] Using operatorName for DB lookup: {}", request.getPayment_network());
+        log.info("---- [Callback] Using operatorName for DB lookup: {}", request.getPayment_mode());
+
+        String operatorName;
+
+        if ("consumer".equalsIgnoreCase(request.getSubtype())) {
+
+            operatorName =
+                    "credit_" +
+                            request.getPayment_mode().toLowerCase() +
+                            "_" +
+                            request.getNetwork().toLowerCase();
+
+        } else {
+
+            operatorName =
+                    "debit_" +
+                            request.getPayment_mode().toLowerCase() +
+                            "_" +
+                            request.getNetwork().toLowerCase();
+        }
+
+        log.info("Generated operatorName={}", operatorName);
 
         List<SchemeRate> matchingSchemes =
                 schemeRateRepository.findBySchemeCodeAndOperatorName(
                         schemeCode,
-                        request.getPayment_network()
+                        operatorName
                 );
+
         if (matchingSchemes == null || matchingSchemes.isEmpty()) {
-            log.error("---- [Callback] No matching scheme found for schemeCode={} and operatorName={}",
-                    schemeCode, request.getPayment_network());
+
+            log.error(
+                    "---- [Callback] No matching scheme found for schemeCode={} and operatorName={}",
+                    schemeCode,
+                    operatorName
+            );
+
             return;
         }
 
@@ -265,7 +407,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         dto.setBaseTranxId(baseTranxId);
         dto.setAmount(txnAmt);
         dto.setConfirmAmount(txnAmt);
-        dto.setOperatorName(request.getPayment_network());
+        dto.setOperatorName(request.getPayment_mode());
         dto.setOperatorCode(selectedScheme.getOperatorCode());
         dto.setSchemeRate(selectedScheme);
         dto.setTransactionType(product.getTransactionType());

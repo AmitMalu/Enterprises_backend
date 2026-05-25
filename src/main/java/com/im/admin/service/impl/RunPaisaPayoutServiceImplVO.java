@@ -39,12 +39,13 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-@Service("Runpaisa Payout old")
+@Service("Runpaisa PAYOUT")
 @Slf4j
 @LoggableVendor
 public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutCallbackRegistrar, PayoutCallbackHandler, VendorStatusChecker {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    @Autowired
+    private RestTemplate restTemplate;
 
     @Autowired
     private AESController aesController;
@@ -70,11 +71,12 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
     @Autowired
     private ProductsRepository productsRepository;
 
-    ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Override
     public String getVendorName() {
-        return "Runpaisa";
+        return "Runpaisa PAYOUT";
     }
 
     @Override
@@ -112,7 +114,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                 aesRequest.setOrderId(orderId);
                 aesRequest.setBeneficiaryName(req.getBeneficiaryName());
                 aesRequest.setPaymentMode(req.getPaymentMode());
-                aesRequest.setCallbackurl(req.getCallbackurl());
+                aesRequest.setCallbackUrl(req.getCallbackUrl());
 
                 String url = creds.getBaseUrlUat() + "/payment";
                 log.info("[RUNPAISA][AES] Sending payout request to {}", url);
@@ -138,11 +140,11 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             // Prepare Vendor Request
             // =========================================================
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("client_id", creds.getClientId());
             headers.set("token", generateTokenForPayout(creds));
 
-// multipart/form-data body
+            // multipart/form-data body
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("beneficiaryName", req.getBeneficiaryName());
             body.add("orderId", orderId);
@@ -244,11 +246,13 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                     .amount(req.getAmount())
                     .build();
         } finally {
+
+            String vendorId = creds.getVendor().getId();
+
             commonFunctions.saveVendorLogs(
                     requestTime,
                     requestJson,
-                    creds.getVendor().getId(),
-//                    vendorId,
+                    vendorId,
                     LocalDateTime.now(),
                     responseJson,
                     null
@@ -303,46 +307,46 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("client_id", vendorCredentials.getClientId());
-            headers.set("username", vendorCredentials.getUsername());
-            headers.set("password", vendorCredentials.getPassword());
+            headers.set("client_secret", vendorCredentials.getClientSecret());
+            //headers.set("username", vendorCredentials.getUsername());
+            //headers.set("password", vendorCredentials.getPassword());
 
             HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
 
-            requestJson = "Headers: client_id=" + vendorCredentials.getClientId();
-
-//            requestJson = objectMapper.writeValueAsString(Map.of(
-//                    "headers", Map.of(
-//                            "Content-Type", "application/json",
-//                            "client_id", vendorCredentials.getClientId(),
-//                            "username", vendorCredentials.getUsername(),
-//                            "password", "******"   // NEVER log real password
-//                    ),
-//                    "body", null
-//            ));
-
+            requestJson = "Headers: " + requestEntity.getHeaders();
 
             String url = vendorCredentials.getTokenUrlProd();
             log.info("Sending token request to URL: {}", url);
 
-            ResponseEntity<PayoutTokenResponseDTO> response = restTemplate.postForEntity(
+            log.info("Step 1 Rnpaisa Token Generation.......");
+
+            // First get raw response as Map to debug
+            ResponseEntity<Map> rawResponse = restTemplate.postForEntity(
                     url,
                     requestEntity,
-                    PayoutTokenResponseDTO.class
+                    Map.class
             );
 
-            responseJson = objectMapper.writeValueAsString(response.getBody());
+            log.info("Step 2 Rnpaisa Token Generation Raw Response: {}", rawResponse.getBody());
 
-            PayoutTokenResponseDTO tokenResponse = response.getBody();
+            responseJson = objectMapper.writeValueAsString(rawResponse.getBody());
+
+            // Convert Map to DTO
+            PayoutTokenResponseDTO tokenResponse = objectMapper.convertValue(rawResponse.getBody(), PayoutTokenResponseDTO.class);
             log.info("Bearer token response: {}", tokenResponse);
 
-            if (tokenResponse != null && tokenResponse.getData() != null) {
-                return tokenResponse.getData().getToken();
+            PayoutTokenResponseDTO.TokenData tokenData = tokenResponse.getTokenData();
+            if (tokenData != null && tokenData.getToken() != null) {
+                return tokenData.getToken();
             } else {
-                throw new RuntimeException("Failed To Get Token From Payout Vendor");
+                throw new RuntimeException("Failed To Get Token From Payout Vendor - Response: " + rawResponse.getBody());
             }
 
         } finally {
             //  ALWAYS save vendor logs (success + failure)
+
+            log.info("Step 3 Rnpaisa Token Generation.....");
+
             commonFunctions.saveVendorLogs(
                     requestTime,
                     requestJson,
@@ -466,7 +470,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             // Save callback log
 //            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
 //                    "Payout callback processed successfully", LocalDateTime.now());
-            commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp,
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
                     "Payout callback processed successfully", LocalDateTime.now());
 
             log.info("---- [PAYOUT CALLBACK] Successfully logged callback event");
@@ -477,7 +481,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
 //            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
 //                    e.getMessage(), LocalDateTime.now());
 
-            commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp,
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
                     e.getMessage(), LocalDateTime.now());
 
             throw new RuntimeException("Payout callback processing failed");

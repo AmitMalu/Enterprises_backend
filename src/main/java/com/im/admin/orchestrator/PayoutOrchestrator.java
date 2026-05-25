@@ -81,7 +81,17 @@ public class PayoutOrchestrator {
         log.info("[PROCESS PAYOUT ORCH] Initiating payout process for orderId={}", orderId);
 
         try {
-            // 1. Validate SubProduct
+
+            //Validate Scheme Active or Not
+            Scheme scheme = schemeRepository.findBySchemeCode(req.getSchemeCode())
+                    .orElseThrow(() -> new RuntimeException("Scheme is not activated. Please contact admin"));
+
+            if (!Boolean.TRUE.equals(scheme.getIsActive())) {
+                log.warn("Scheme is inactive for schemeCode={}", req.getSchemeCode());
+                throw new RuntimeException("Scheme is inactive. Please contact admin");
+            }
+
+            // Validate SubProduct
             SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found for ID: " + req.getSubProductId()));
 
@@ -183,7 +193,15 @@ public class PayoutOrchestrator {
                     .build();
 
         } catch (Exception e) {
-            log.error("[PROCESS PAYOUT ORCH] Exception while processing payout orderId={}: {}", orderId, e.getMessage(), e);
+            //log.error("[PROCESS PAYOUT ORCH] Exception while processing payout orderId={}: {}", orderId, e.getMessage(), e);
+
+            Throwable root = e;
+
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+
+            log.error("ROOT CAUSE => ", root);
             // optionally reverse wallet debit if you want — implement compensation logic here
             return CommonResponse.<PayoutResponseDto>builder()
                     .statusCode(500)
@@ -277,8 +295,7 @@ public class PayoutOrchestrator {
 
             // Log callback event for auditing
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Callback processed for vendor = " + vendorCode,
@@ -292,8 +309,7 @@ public class PayoutOrchestrator {
             log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Error: " + e.getMessage(),
@@ -347,8 +363,7 @@ public class PayoutOrchestrator {
 
             // Log callback event for auditing
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Callback processed for vendor = " + vendorCode,
@@ -362,13 +377,179 @@ public class PayoutOrchestrator {
             log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                   payload.toString(),
                     receivedAt,
                     clientIp,
                     "Error: " + e.getMessage(),
                     LocalDateTime.now()
             );
+
+            return "Callback processing failed: " + e.getMessage();
+        }
+    }
+
+
+    @Transactional
+    public String nixasoftPayoutCallback(Map<String, String> payload, HttpServletRequest request)
+            throws JsonProcessingException {
+
+        log.info("============== NIXASOFT PAYOUT CALLBACK START ==============");
+
+        // ===== Extract Payload Fields =====
+        String status = payload.get("status");
+        String type = payload.get("type");
+        String trnId = payload.get("requestId");
+        String orderId = payload.get("orderId");
+        String amount = payload.get("amount");
+        String utr = payload.get("utr");
+        String description = payload.get("description");
+
+        // ===== Fetch Pending Transaction =====
+        log.info("[2] Fetching pending transaction using transactionId={}", trnId);
+
+        PayoutPendingTransactions pendingTxn =
+                payoutPendingTransactionRepository.findByTransactionId(trnId)
+                        .orElseThrow(() -> {
+                            log.error("[2.1] Pending transaction NOT FOUND for transactionId={}", trnId);
+                            return new RuntimeException(
+                                    "Pending transaction not found for order ID: " + trnId
+                            );
+                        });
+
+        log.info("[2.2] Pending transaction found successfully");
+        log.info("    Scheme Code      : {}", pendingTxn.getSchemeCode());
+        log.info("    Retailer Id      : {}", pendingTxn.getRetailerId());
+        log.info("    Amount           : {}", pendingTxn.getAmount());
+
+        // ===== Already SUCCESS Check =====
+        if ("SUCCESS".equalsIgnoreCase(pendingTxn.getStatus())) {
+
+            log.warn("[3] Transaction already processed successfully");
+            log.warn("    transactionId : {}", trnId);
+
+            return "Transaction already processed successfully";
+        }
+
+        // ===== Fetch Scheme =====
+        log.info("[4] Fetching scheme using schemeCode={}", pendingTxn.getSchemeCode());
+
+        Scheme scheme = schemeRepository.findBySchemeCode(pendingTxn.getSchemeCode())
+                .orElseThrow(() -> {
+                    log.error("[4.1] Scheme NOT FOUND for schemeCode={}",
+                            pendingTxn.getSchemeCode());
+
+                    return new RuntimeException(
+                            "Scheme not found for code: " + pendingTxn.getSchemeCode()
+                    );
+                });
+
+        log.info("[4.2] Scheme fetched successfully");
+        log.info("    Scheme HashCode : {}", scheme.getSchemeCombinationHashCode());
+
+        // ===== Parse Hash Code =====
+        log.info("[5] Parsing schemeCombinationHashCode");
+
+        String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+
+        if (hashParts.length < 5) {
+
+            log.error("[5.1] Invalid schemeCombinationHashCode format");
+            log.error("    Actual Hash : {}", scheme.getSchemeCombinationHashCode());
+
+            throw new RuntimeException(
+                    "Invalid schemeCombinationHashCode format: "
+                            + scheme.getSchemeCombinationHashCode()
+            );
+        }
+
+        String vendorId = hashParts[2];
+
+        log.info("[5.2] Hash parsed successfully");
+        log.info("    Vendor Id                 : {}", vendorId);
+
+        // ===== Fetch Vendor =====
+        log.info("[6] Fetching vendor using vendorId={}", vendorId);
+
+        Vendors vendor = vendorRepository.findById(vendorId)
+                .orElseThrow(() -> {
+
+                    log.error("[6.1] Vendor NOT FOUND for vendorId={}", vendorId);
+
+                    return new RuntimeException(
+                            "Vendor not found for ID: " + vendorId
+                    );
+                });
+
+        String vendorName = vendor.getVendorName();
+
+        log.info("[6.2] Vendor fetched successfully");
+        log.info("    Vendor Name : {}", vendorName);
+        log.info("    Vendor Code : {}", vendor.getVendorCode());
+
+        // ===== Request Metadata =====
+        LocalDateTime receivedAt = LocalDateTime.now();
+        String clientIp = request.getRemoteAddr();
+
+        try {
+
+            // ===== Resolve Vendor Service =====
+            log.info("[8] Resolving vendor implementation for vendorName={}",
+                    vendorName);
+
+            Object vendorService = vendorFactory.getVendor(vendorName);
+
+            if (!(vendorService instanceof PayoutCallbackHandler handler)) {
+
+                log.error("[8.1] Vendor callback handler NOT implemented");
+                log.error("Vendor Name : {}", vendorName);
+
+                return "Vendor callback handler not found";
+            }
+
+            log.info("[8.2] Vendor callback handler resolved successfully");
+
+            // ===== Execute Vendor Callback =====
+            log.info("[9] Executing vendor callback handler");
+
+            String vendorResponse = handler.handleCallback(payload, request);
+
+            log.info("[9.1] Vendor callback executed successfully");
+            log.info("    Vendor Response : {}", vendorResponse);
+
+            // ===== Save Callback Logs =====
+            log.info("[10] Saving callback audit logs");
+
+            commonFunctions.saveCallbackEventLog(
+                    payload.toString(),
+                    receivedAt,
+                    clientIp,
+                    "Callback processed for vendor = " + vendorName,
+                    LocalDateTime.now()
+            );
+
+            log.info("[10.1] Callback audit log saved successfully");
+
+            log.info("============== NIXASOFT PAYOUT CALLBACK END SUCCESS ==============");
+
+            return vendorResponse;
+
+        } catch (Exception e) {
+
+            log.error("[ERROR] Error while processing callback");
+            log.error("    Vendor Name : {}", vendorName);
+            log.error("    Error Msg   : {}", e.getMessage(), e);
+
+            commonFunctions.saveCallbackEventLog(
+                    payload.toString(),
+                    receivedAt,
+                    clientIp,
+                    "Error: " + e.getMessage(),
+                    LocalDateTime.now()
+            );
+
+            log.info("[ERROR] Callback error log saved");
+
+            log.info("============== NIXASOFT PAYOUT CALLBACK END FAILED ==============");
 
             return "Callback processing failed: " + e.getMessage();
         }
@@ -638,8 +819,7 @@ public class PayoutOrchestrator {
 
             // Log callback event for auditing
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Callback processed for vendor = " + vendorCode,
@@ -653,8 +833,7 @@ public class PayoutOrchestrator {
             log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
-//                    payload.toString(),
-                    payload,
+                    payload.toString(),
                     receivedAt,
                     clientIp,
                     "Error: " + e.getMessage(),

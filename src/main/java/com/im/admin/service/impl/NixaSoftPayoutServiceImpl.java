@@ -1,29 +1,36 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.LoggableVendor;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
+import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.repositories.*;
+import com.im.admin.request.NixaSoftPayoutRequest;
+import com.im.admin.request.NixaSoftPayoutStatusRequest;
 import com.im.admin.request.NixaSoftPayoutStatusResponse;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
-import com.im.admin.response.NixaSoftPayoutData;
-import com.im.admin.response.NixaSoftPayoutResponse;
-import com.im.admin.response.PayoutStatusResponse;
+import com.im.admin.response.*;
 import com.im.admin.service.PayoutCallbackHandler;
 import com.im.admin.service.PayoutVendorService;
 import com.im.admin.service.VendorStatusChecker;
+import com.im.admin.util.CommonMethods;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,8 +42,8 @@ import java.util.Map;
 @LoggableVendor
 public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCallbackHandler, VendorStatusChecker {
 
-     @Autowired
-     private BeneficiaryBankAccountRepository beneficiaryBankAccountRepository;
+    @Autowired
+    private BeneficiaryBankAccountRepository beneficiaryBankAccountRepository;
 
     @Autowired
     private SchemeRateRepository schemeRateRepository;
@@ -56,6 +63,20 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
     @Autowired
     private SchemeRepository schemeRepository;
 
+    @Autowired
+    private RetailerRepository retailerRepository;
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private CommonMethods commonMethods;
+
+    @Autowired
+    private CommonFunctions commonFunctions;
 
     @Override
     public String getVendorName() {
@@ -72,90 +93,315 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             Double latitude,
             Double longitude) {
 
-        log.info("Starting NixaSoft payout for orderId={}, amount={}", orderId, req.getAmount());
+        log.info("Starting NixaSoft payout | orderId={} | amount={}",
+                orderId,
+                req.getAmount());
 
         try {
 
-            // ===== 1. Build Request =====
+            // VALIDATE BENEFICIARY
+            BeneficiaryBankAccount beneficiaryBankAccount =
+                    beneficiaryBankAccountRepository.findByIfscCode(req.getIfscCode());
 
-            BeneficiaryBankAccount beneficiaryBankAccount = beneficiaryBankAccountRepository.findByIfscCode(req.getIfscCode());
+            if (beneficiaryBankAccount == null) {
+                return failed(orderId, "Beneficiary bank details not found");
+            }
 
-            Map<String, Object> requestBody = new HashMap<>();
+            // AES FLOW
+            boolean isAesFlow =
+                    "AES".equalsIgnoreCase(creds.getTokenType());
 
-            requestBody.put("amount", req.getAmount());
-            requestBody.put("mobileNumber", beneficiaryBankAccount.getMobileNo());
-            requestBody.put("requestId", orderId);
-            requestBody.put("accountNumber", req.getAccountNumber());
-            requestBody.put("ifscCode", req.getIfscCode());
-            requestBody.put("beneficiaryName", req.getBeneficiaryName());
-            requestBody.put("bankName", beneficiaryBankAccount.getBankName());
-            requestBody.put("transferMode", req.getPaymentMode());
-            requestBody.put("emailId", req.getEmailId());
-            requestBody.put("latitude", req.getLatitude());
-            requestBody.put("longitude", req.getLongitude());
+            return isAesFlow
+                    ? processAesPayout(
+                    req,
+                    creds,
+                    orderId,
+                    latitude,
+                    longitude
+            )
+                    : processDirectVendorPayout(
+                    req,
+                    creds,
+                    orderId,
+                    beneficiaryBankAccount,
+                    latitude,
+                    longitude
+            );
 
-            // ===== 2. Headers =====
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("apiToken", creds.getToken());
-
-            HttpEntity<Map<String, Object>> entity =
-                    new HttpEntity<>(requestBody, headers);
-
-            RestTemplate restTemplate = new RestTemplate();
-
-            log.info("Calling NixaSoft payout API");
-
-            ResponseEntity<NixaSoftPayoutResponse> response =
-                    restTemplate.exchange(
-                            creds.getBaseUrlUat() + "/payout",
-                            HttpMethod.POST,
-                            entity,
-                            NixaSoftPayoutResponse.class
-                    );
-
-            NixaSoftPayoutResponse body = response.getBody();
-
-            assert body != null;
-            log.info("NixaSoft payout response status={}, message={}",
-                    body.getStatuscode(),
-                    body.getMessage());
-
-            NixaSoftPayoutData data = body.getData();
-
-            // ===== 3. Map Status =====
-
-                String status = switch (body.getStatuscode()) {
-                    case "TXN" -> "SUCCESS";
-                    case "TXP" -> "PENDING";
-                    default -> "FAILED";
-                };
-
-                // ===== 4. Build Response DTO =====
-
-            PayoutResponseDto payoutResponse = new PayoutResponseDto();
-
-            payoutResponse.setOrderId(orderId);
-            payoutResponse.setStatus(status);
-            payoutResponse.setAmount(new BigDecimal(data.getAmount()));
-            payoutResponse.setMessage(body.getMessage());
-
-            log.info("Payout completed orderId={}, status={}", orderId, status);
-
-            return payoutResponse;
-
-        } catch (Exception e) {
-
-            log.error("Error while calling NixaSoft payout API for orderId={}", orderId, e);
-
-            PayoutResponseDto response = new PayoutResponseDto();
-            response.setOrderId(orderId);
-            response.setStatus("FAILED");
-            response.setMessage("Vendor API error");
-
-            return response;
         }
+
+        // VENDOR API ERRORS
+        catch (HttpStatusCodeException ex) {
+
+            String vendorResponse = ex.getResponseBodyAsString();
+
+            log.error("Vendor API Error | orderId={} | response={}",
+                    orderId,
+                    vendorResponse);
+
+            return failed(
+                    orderId,
+                    vendorResponse
+            );
+        }
+
+        // INTERNAL ERRORS
+        catch (Exception e) {
+
+            Throwable root = getRootCause(e);
+
+            log.error("Internal payout error | orderId={} | error={}",
+                    orderId,
+                    root.getMessage(),
+                    e);
+
+            return failed(
+                    orderId,
+                    root.getMessage()
+            );
+        }
+    }
+
+
+/* =====================================================
+   COMMON FAILED RESPONSE
+   ===================================================== */
+
+    private PayoutResponseDto failed(
+            String orderId,
+            String message) {
+
+        return PayoutResponseDto.builder()
+                .orderId(orderId)
+                .status("FAILED")
+                .message(
+                        message != null
+                                ? message
+                                : "Something went wrong"
+                )
+                .build();
+    }
+
+
+/* =====================================================
+   ROOT CAUSE EXTRACTOR
+   ===================================================== */
+
+    private Throwable getRootCause(Throwable throwable) {
+
+        Throwable root = throwable;
+
+        while (root.getCause() != null
+                && root.getCause() != root) {
+
+            root = root.getCause();
+        }
+
+        return root;
+    }
+
+    //   AES PAYOUT FLOW
+    private PayoutResponseDto processAesPayout(
+            SendPayoutRequest req,
+            VendorCredentials creds,
+            String baseTxnId,
+            Double latitude,
+            Double longitude) throws Exception {
+
+        String token = commonMethods.generateTokenForAES(creds);
+
+        HttpHeaders headers = new HttpHeaders();
+
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("client_id", creds.getClientId());
+        headers.set("token", token);
+        headers.setBearerAuth(token);
+
+        headers.set("latitude", String.valueOf(latitude));
+        headers.set("longitude", String.valueOf(longitude));
+
+       String orderId = baseTxnId.startsWith("TXN") ? baseTxnId.substring(3) : baseTxnId;
+
+        SendPayoutRequest payoutRequest = new SendPayoutRequest();
+
+        payoutRequest.setAmount(req.getAmount());
+        payoutRequest.setOrderId(orderId);
+        payoutRequest.setIfscCode(req.getIfscCode());
+        payoutRequest.setAccountNumber(req.getAccountNumber());
+        payoutRequest.setBankName(req.getBankName());
+        payoutRequest.setPaymentMode(req.getPaymentMode());
+        payoutRequest.setBeneficiaryName(req.getBeneficiaryName());
+        payoutRequest.setPartnerId(creds.getUsername());
+
+        HttpEntity<SendPayoutRequest> requestEntity =
+                new HttpEntity<>(payoutRequest, headers);
+
+        //String baseUrl = creds.getBaseUrlUat();
+        String prodUrl = creds.getBaseUrlProd();
+
+        log.info("Calling AES payout API | url={}", prodUrl);
+
+        ResponseEntity<CommonResponse<PayoutResponseDto>> response =
+                restTemplate.exchange(
+                        prodUrl + "/api/send-payout",
+                        HttpMethod.POST,
+                        requestEntity,
+                        new ParameterizedTypeReference<CommonResponse<PayoutResponseDto>>() {
+                        }
+                );
+
+        CommonResponse<PayoutResponseDto> responseBody = response.getBody();
+
+        log.info("AES payout response => {}", responseBody);
+
+        if (responseBody == null || responseBody.getData() == null) {
+            return buildFailedResponse("TXN" + baseTxnId, "Empty response from AES vendor");
+        }
+
+        log.info("AES payout completed | orderId={} | status={}",
+                "TXN" + baseTxnId,
+                responseBody.getData().getStatus());
+
+        // SAVE PENDING TRANSACTION
+
+        PayoutPendingTransactions pending = new PayoutPendingTransactions();
+
+        pending.setTransactionId(orderId);
+        pending.setSchemeCode(req.getSchemeCode());
+        pending.setRetailerId(req.getRetailerId());
+        pending.setAmount(req.getAmount());
+        pending.setTransactionType(req.getPaymentMode());
+        pending.setStatus("PENDING");
+        pending.setCreatedAt(LocalDateTime.now());
+        pending.setIfscCode(req.getIfscCode());
+        pending.setAccountNumber(req.getAccountNumber());
+        pending.setBeneficiaryName(req.getBeneficiaryName());
+        pending.setLatitude(latitude);
+        pending.setLongitude(longitude);
+
+        payoutPendingTransactionRepository.save(pending);
+
+        return PayoutResponseDto.builder()
+                .orderId("TXN" + baseTxnId)
+                .status(responseBody.getData().getStatus())
+                .amount(req.getAmount())
+                .message(responseBody.getMessage())
+                .build();
+    }
+
+//   DIRECT NIXASOFT PAYOUT FLOW
+
+    private PayoutResponseDto processDirectVendorPayout(
+            SendPayoutRequest req,
+            VendorCredentials creds,
+            String orderId,
+            BeneficiaryBankAccount beneficiaryBankAccount,
+            Double latitude,
+            Double longitude) throws Exception {
+
+        Retailer retailer = retailerRepository.findByRetailerId(req.getRetailerId())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Retailer not found: " + req.getRetailerId()
+                        ));
+
+        // REQUEST BODY
+
+        NixaSoftPayoutRequest requestBody = new NixaSoftPayoutRequest();
+
+        requestBody.setAmount(req.getAmount().toPlainString());
+        requestBody.setMobileNumber(retailer.getMobileNumber());
+        requestBody.setRequestId(orderId);
+        requestBody.setAccountNumber(req.getAccountNumber());
+        requestBody.setIfscCode(req.getIfscCode());
+        requestBody.setBeneficiaryName(req.getBeneficiaryName());
+        requestBody.setBankName(beneficiaryBankAccount.getBankName());
+        requestBody.setTransferMode(req.getPaymentMode());
+        requestBody.setEmailId(retailer.getEmailId());
+        requestBody.setLatitude(latitude.toString());
+        requestBody.setLongitude(longitude.toString());
+
+        // HEADERS
+        HttpHeaders headers = new HttpHeaders();
+
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("apiToken", creds.getToken());
+
+        HttpEntity<NixaSoftPayoutRequest> entity =
+                new HttpEntity<>(requestBody, headers);
+
+        log.info("Calling NixaSoft payout API | request={}",
+                objectMapper.writeValueAsString(requestBody));
+
+        ResponseEntity<NixaSoftPayoutResponse> response =
+                restTemplate.exchange(
+                        creds.getBaseUrlUat() + "/payout",
+                        HttpMethod.POST,
+                        entity,
+                        NixaSoftPayoutResponse.class
+                );
+
+        NixaSoftPayoutResponse body = response.getBody();
+
+        if (body == null) {
+            return buildFailedResponse(orderId, "Empty response from vendor");
+        }
+
+        log.info("NixaSoft payout response | status={} | message={}",
+                body.getStatuscode(),
+                body.getMessage());
+
+        String status = mapVendorStatus(body.getStatuscode());
+
+        // SAVE PENDING TRANSACTION
+
+        PayoutPendingTransactions pending = new PayoutPendingTransactions();
+
+        pending.setTransactionId(orderId);
+        pending.setSchemeCode(req.getSchemeCode());
+        pending.setRetailerId(req.getRetailerId());
+        pending.setAmount(req.getAmount());
+        pending.setTransactionType(req.getPaymentMode());
+        pending.setStatus("PENDING");
+        pending.setCreatedAt(LocalDateTime.now());
+        pending.setIfscCode(req.getIfscCode());
+        pending.setAccountNumber(req.getAccountNumber());
+        pending.setBeneficiaryName(req.getBeneficiaryName());
+        pending.setLatitude(latitude);
+        pending.setLongitude(longitude);
+
+        payoutPendingTransactionRepository.save(pending);
+
+        log.info("Payout saved successfully | orderId={} | status={}",
+                orderId,
+                status);
+
+        return PayoutResponseDto.builder()
+                .orderId(orderId)
+                .status(status)
+                .amount(req.getAmount())
+                .message(body.getMessage())
+                .build();
+    }
+
+    private String mapVendorStatus(String vendorStatus) {
+
+        return switch (vendorStatus) {
+            case "TXN" -> "SUCCESS";
+            case "TXP" -> "PENDING";
+            default -> "FAILED";
+        };
+    }
+
+    private PayoutResponseDto buildFailedResponse(
+            String orderId,
+            String message) {
+
+        return PayoutResponseDto.builder()
+                .orderId(orderId)
+                .status("FAILED")
+                .message(message != null ? message : "Unknown Error")
+                .build();
     }
 
     @Override
@@ -167,14 +413,14 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         // ===== 1. Extract Fields =====
         String status = payload.get("status");
         String type = payload.get("type");
-        String requestId = payload.get("requestId");
-        String orderId = payload.get("orderIdTransaction");
+        String orderId = payload.get("requestId");
+        String vendorTxnId = payload.get("orderId");
         String amount = payload.get("amount");
         String utr = payload.get("utr");
         String description = payload.get("description");
 
         log.info("[1] Parsed Callback: orderId={}, requestId={}, status={}, amount={}, utr={}",
-                orderId, requestId, status, amount, utr);
+                vendorTxnId, orderId, status, amount, utr);
 
         // ===== 2. Fetch Pending Transaction =====
         PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository
@@ -182,11 +428,19 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
                 .orElseThrow(() ->
                         new RuntimeException("Pending transaction not found for order ID: " + orderId));
 
+        // ===== Already SUCCESS check =====
+        if ("SUCCESS".equalsIgnoreCase(pendingTxn.getStatus())) {
+            log.warn("Transaction already marked SUCCESS for orderId={}", orderId);
+            return "Transaction already processed successfully";
+        }
+
         log.info("[2] PendingTxn fetched successfully: ID={}, SchemeCode={}, TxnType={}, Amount={}, Status={}",
                 pendingTxn.getId(), pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(),
                 pendingTxn.getAmount(), pendingTxn.getStatus());
 
-        Double txnAmt = Double.valueOf(amount);
+        // Sanitize amount from callback payload (remove commas)
+        String cleanCallbackAmount = amount != null ? amount.replace(",", "") : "0";
+        Double txnAmt = Double.valueOf(cleanCallbackAmount);
 
         // ===== 3. Fetch Scheme Rate =====
         log.info("[3] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
@@ -295,18 +549,16 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         try {
 
             // ===== Request Body =====
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("requestId", orderId);
+            NixaSoftPayoutStatusRequest statusRequest = new NixaSoftPayoutStatusRequest();
+            statusRequest.setRequestId(orderId);
 
             // ===== Headers =====
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("apiToken", credentials.getToken());
 
-            HttpEntity<Map<String, Object>> entity =
-                    new HttpEntity<>(requestBody, headers);
-
-            RestTemplate restTemplate = new RestTemplate();
+            HttpEntity<NixaSoftPayoutStatusRequest> entity =
+                    new HttpEntity<>(statusRequest, headers);
 
             // ===== Call API =====
             ResponseEntity<NixaSoftPayoutStatusResponse> response =

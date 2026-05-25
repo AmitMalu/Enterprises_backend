@@ -14,7 +14,7 @@ import java.util.List;
 
 public interface FundingService {
 
-    String fundsCreditDebit(FundCreditDebitDto dto, Double latitude, Double longitude);
+    String fundsCreditDebit(FundCreditDebitDto dto);
 
     void downloadSampleFile(HttpServletResponse response) throws IOException;
 

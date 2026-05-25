@@ -70,17 +70,11 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                 Sort.by("transactionDate").descending()
         );
 
-        // ===== NETWORK HIERARCHY LOGIC =====
-        String loggedInHierarchyId = tokenUtil.extractHierarchyId();
-
-        List<String> networkIds =
-                getRetailersUnderHierarchy(loggedInHierarchyId);
-
-        log.info("Network IDs for report: {}", networkIds);
-
-// Convert to CSV
-        String networkCsv = String.join(",", networkIds);
-
+        String loggedInHierarchyId =
+                (request.getHierarchyId() != null
+                        && !request.getHierarchyId().trim().isEmpty())
+                        ? request.getHierarchyId()
+                        : tokenUtil.extractHierarchyId();
 
         LocalDate from = StringUtils.hasText(request.getFromDate())
                 ? LocalDate.parse(request.getFromDate())
@@ -102,27 +96,17 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         }
 
         // ===== PRODUCT FILTER =====
-//        String productParam = "ALL";
-//        if (StringUtils.hasText(request.getProductName())
-//                && !"ALL".equalsIgnoreCase(request.getProductName())) {
-//
-//            productParam = Arrays.stream(request.getProductName().split(","))
-//                    .map(String::trim)
-//                    .filter(s -> !s.isEmpty())
-//                    .collect(Collectors.joining(","));
-//        }
-
-        // ===== PRODUCT FILTER =====
         String productParam = "ALL";
 
-//  Highest priority → productId
+        //  Highest priority → productId
         if (request.getProductId() != null) {
             Products product = productsRepository.findById(request.getProductId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid productId"));
 
             productParam = product.getName();
         }
-// Fallback → productName (old behavior)
+
+        // Fallback → productName (old behavior)
         else if (StringUtils.hasText(request.getProductName())
                 && !"ALL".equalsIgnoreCase(request.getProductName())) {
 
@@ -131,8 +115,6 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                     .filter(s -> !s.isEmpty())
                     .collect(Collectors.joining(","));
         }
-
-
 
         List<MyTransactionReportResponse> allData = new ArrayList<>();
         long totalCount = 0;
@@ -153,7 +135,6 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                             subProductsParam,
                             productParam,
                             pageable,
-                            networkCsv,
                             loggedInHierarchyId
                     );
 
@@ -163,22 +144,29 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             totalCount += (Long) walletData.get("totalCount");
         }
 
-//        Page<MyTransactionReportResponse> resultPage  =
-//                new PageImpl<>(allData, pageable, totalCount);
+        allData.sort(
+                Comparator.comparing(MyTransactionReportResponse::getTransactionDate,
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(MyTransactionReportResponse::getTransactionTime,
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+        );
 
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), allData.size());
 
-        List<MyTransactionReportResponse> pagedData =
-                allData.subList(start, end);
+        List<MyTransactionReportResponse> pagedData;
+
+        if (start >= allData.size()) {
+            pagedData = Collections.emptyList();
+        } else {
+            pagedData = allData.subList(start, end);
+        }
 
         Page<MyTransactionReportResponse> resultPage =
                 new PageImpl<>(pagedData, pageable, totalCount);
 
         return new CommonResponse<>(200, "Report fetched successfully", resultPage );
     }
-
-
 
 
     @SuppressWarnings("unchecked")
@@ -190,7 +178,6 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             String subProducts,
             String products,
             Pageable pageable,
-            String networkCsv,
             String loggedInHierarchyId
     ) {
 
@@ -220,32 +207,14 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
 
         // ===== SET PARAMS =====
-//        query.setParameter("p_table_name", "ALL");
-        // PREPAID or POSTPAID
         query.setParameter("p_table_name", walletType.name());
-// PREPAID or POSTPAID
-
-//        query.setParameter(
-//                "p_hierarchy_type",
-//                StringUtils.hasText(request.getHierarchyType()) ? request.getHierarchyType() : null
-//        );
-//
-////        query.setParameter("p_hierarchy_id", null);
-//        query.setParameter(
-//                "p_hierarchy_id",
-//                StringUtils.hasText(request.getHierarchyId())
-//                        ? request.getHierarchyId()
-//                        : null
-//        );
 
         query.setParameter(
                 "p_hierarchy_type",
                 commonMethods.extractHierarchyType(loggedInHierarchyId)
         );
 
-        query.setParameter("p_hierarchy_id", networkCsv);
-
-
+        query.setParameter("p_hierarchy_id", loggedInHierarchyId);
 
         query.setParameter("p_from_date", from);
         query.setParameter("p_to_date", to);
@@ -309,16 +278,6 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             dto.setBalAfter((BigDecimal) row[5]);
             dto.setSubProductName((String) row[6]);
             dto.setProductName((String) row[7]);
-//            dto.setActionOnBalanceAmount((String) row[8]);
-//
-//            String statusStr =
-//                    ((String) row[9]).trim().replace(" ", "_").toUpperCase();
-//            dto.setStatus(Status.valueOf(statusStr));
-//
-//            dto.setTranxId((String) row[10]);
-//            dto.setNarration((String) row[11]);
-//            dto.setHierarchyId((String) row[12]);
-
             dto.setSchemeName((String) row[8]);
             dto.setActionOnBalanceAmount((String) row[9]);
 
@@ -353,9 +312,6 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         map.put("totalCount", totalCount);
         return map;
     }
-
-
-
 
     @Override
     public ByteArrayInputStream downloadExcel(MyTransactionReportRequest request) throws IOException {

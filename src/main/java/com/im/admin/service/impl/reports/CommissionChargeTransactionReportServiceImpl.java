@@ -67,19 +67,7 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
 
     @Override
-    public CommonResponse<Page<CommissionTransactionReportResponse>> getReport(
-            CommissionTransactionReportRequest request) {
-
-        // ===== NETWORK HIERARCHY LOGIC =====
-        String loggedInHierarchyId = tokenUtil.extractHierarchyId();
-
-        List<String> networkIds =
-                getRetailersUnderHierarchy(loggedInHierarchyId);
-
-        log.info("Network IDs for commission report: {}", networkIds);
-
-// Convert to CSV for Stored Procedure
-        String networkCsv = String.join(",", networkIds);
+    public CommonResponse<Page<CommissionTransactionReportResponse>> getReport(CommissionTransactionReportRequest request) {
 
         Pageable pageable = PageRequest.of(
                 request.getPage(),
@@ -87,7 +75,11 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                 Sort.by("transactionDate").descending()
         );
 
-
+        String loggedInHierarchyId =
+                (request.getHierarchyId() != null
+                        && !request.getHierarchyId().trim().isEmpty())
+                        ? request.getHierarchyId()
+                        : tokenUtil.extractHierarchyId();
 
         LocalDate from = StringUtils.hasText(request.getFromDate())
                 ? LocalDate.parse(request.getFromDate())
@@ -136,8 +128,7 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                             subProductsParam,
                             productParam,
                             pageable,
-                            loggedInHierarchyId,
-                            networkCsv
+                            loggedInHierarchyId
                     );
 
             allData.addAll(
@@ -162,8 +153,7 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
             String subProducts,
             String products,
             Pageable pageable,
-            String loggedInHierarchyId,
-            String networkCsv) {
+            String loggedInHierarchyId) {
 
         StoredProcedureQuery query =
                 entityManager.createStoredProcedureQuery("commission_charge_transaction_report_v2");
@@ -185,33 +175,18 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         query.registerStoredProcedureParameter("p_id", Integer.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_amount", BigDecimal.class, ParameterMode.IN);
 
-
         query.registerStoredProcedureParameter("p_offset", Integer.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
 
         // ===== SET PARAMS =====
         query.setParameter("p_table_name", walletType.name());
 
-//        query.setParameter(
-//                "p_hierarchy_type",
-//                StringUtils.hasText(request.getHierarchyType())
-//                        ? request.getHierarchyType()
-//                        : null
-//        );
-
-//        query.setParameter(
-//                "p_hierarchy_id",
-//                StringUtils.hasText(request.getHierarchyId())
-//                        ? request.getHierarchyId()
-//                        : null
-//        );
-
         query.setParameter(
                 "p_hierarchy_type",
                 commonMethods.extractHierarchyType(loggedInHierarchyId)
         );
 
-        query.setParameter("p_hierarchy_id", networkCsv);
+        query.setParameter("p_hierarchy_id", loggedInHierarchyId);
 
 
         query.setParameter("p_from_date", from);
@@ -235,7 +210,15 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
         query.setParameter("p_sub_products", subProducts);
         query.setParameter("p_product_name", products);
-        query.setParameter("p_tx_type", request.getReportType());
+        String reportType = null;
+
+        if (StringUtils.hasText(request.getReportType())) {
+            reportType = request.getReportType()
+                    .trim()
+                    .toUpperCase();
+        }
+
+        query.setParameter("p_tx_type", reportType);
 
         query.setParameter("p_tx_id", request.getTxId());
 
@@ -295,8 +278,6 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
         return map;
     }
-
-
 
     @Override
     public ByteArrayInputStream downloadExcel(CommissionTransactionReportRequest request) throws IOException {

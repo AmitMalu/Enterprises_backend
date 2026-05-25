@@ -77,9 +77,6 @@ public class OperatorsServiceImpl implements OperatorsService {
             throw new RuntimeException("Operator with same name or code already exists for this product and subproduct!");
         }
 
-        // Generate ID and save
-//        operator.setId(commonMethods.generateNextIdForTables("operators", "id"));
-
         Operators savedOperator = operatorsRepository.save(operator);
         log.info("Operator saved successfully with ID: {}", savedOperator.getId());
         return savedOperator;

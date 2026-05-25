@@ -272,6 +272,11 @@ public class BBPSServiceImpl implements BBPSService {
             Scheme scheme = schemeRepository.findBySchemeCode(schemeRate.getSchemeCode())
                     .orElseThrow(() -> new RuntimeException("Scheme Not Found for schemeCode: " + schemeRate.getSchemeCode()));
 
+            if (!Boolean.TRUE.equals(scheme.getIsActive())) {
+                log.warn("Scheme is inactive for schemeCode: {}", scheme.getSchemeCode());
+                return CommonResponse.error(400, "Scheme is currently inactive");
+            }
+
             // Extract productId from schemeCombinationHashCode
             String hashCode = scheme.getSchemeCombinationHashCode();
             if (hashCode == null || hashCode.isEmpty()) {

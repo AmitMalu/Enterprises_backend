@@ -264,7 +264,7 @@ public class RunpaisaPGServiceImpl {
 
                 commonFunctions.saveVendorLogs(
                         LocalDateTime.now(),
-                        "Old vendor order request",
+                        "Runpaisa PG ->" +requestEntity.toString(),
                         vendor.getId(),
                         LocalDateTime.now(),
                         imResponseBody,
@@ -516,7 +516,7 @@ public class RunpaisaPGServiceImpl {
             RunPaisaCallback callback = parser.parse(payload);
             processCallback(callback);
 
-            commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
 
             return "Callback processed successfully";
         } else {
@@ -526,14 +526,14 @@ public class RunpaisaPGServiceImpl {
         }
 
         try {
-            commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, "Callback processed successfully", LocalDateTime.now());
 
             log.info("---- [Callback] Successfully logged callback event");
             return "Callback processed successfully";
 
         } catch (Exception e) {
             log.error("---- [Callback] Error while saving callback log: {}", e.getMessage(), e);
-            commonFunctions.saveCallbackEventLog(payload, requestTime, clientIp, e.getMessage(), LocalDateTime.now());
+            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp, e.getMessage(), LocalDateTime.now());
 
             throw new RuntimeException("Callback processing failed");
         }

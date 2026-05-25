@@ -54,15 +54,14 @@ public class BBPSRelatedTransactions {
         BigDecimal grossAmount;
 
         if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
-            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross())
-                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP); // convert to fraction
+            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
             grossAmount = new BigDecimal(String.valueOf(dto.getTxnAmount()))
                     .multiply(percentage)
-                    .setScale(4, RoundingMode.HALF_UP);
+                    .setScale(2, RoundingMode.HALF_UP);
             log.debug("---- [Charges] Gross calculated as percentage | RateType: {} | Percentage: {} | GrossAmount: {}",
                     dto.getSchemeRate().getRateType(), percentage, grossAmount);
         } else {
-            grossAmount = new BigDecimal(String.valueOf(dto.getTxnAmount()));;
+            grossAmount = new BigDecimal(String.valueOf(dto.getSchemeRate().getGross()));;
             log.debug("---- [Charges] Gross taken as fixed | GrossAmountInput: {}", grossAmount);
         }
 
@@ -365,8 +364,6 @@ public class BBPSRelatedTransactions {
 
     public void processCommission(BbpsTranactionRequestDto bbpsTranactionRequestDto) {
 
-//        BbpsTranactionRequestDto request = new BbpsTranactionRequestDto();
-//        request.setVendorResponse("SUCCESS");
         // 1. Commission to Retailer
         if (bbpsTranactionRequestDto.getSchemeRate().getRetailer() > 0) {
             BigDecimal retailerCommission = commonMethods.calculateCommissionAmount(

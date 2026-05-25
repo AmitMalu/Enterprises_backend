@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 import com.im.admin.entities.ImBankMaster;
 import com.im.admin.request.ImBankMasterRequestDTO;
+import com.im.admin.response.BankResponseDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.ImBankDropdownResponse;
 import com.im.admin.response.ImBankMasterResponseDTO;
@@ -79,6 +80,11 @@ public class ImBankMasterController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/list")
+    public ResponseEntity<CommonResponse<List<BankResponseDto>>> getBankDetails() {
+        List<BankResponseDto> responseDtoList = service.getBankDetails();
+        return ResponseEntity.ok(CommonResponse.success(responseDtoList, "Record fetch successfully.."));
+    }
 
 }
 

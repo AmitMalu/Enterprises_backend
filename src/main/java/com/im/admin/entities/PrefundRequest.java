@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.im.admin.entities.enums.Status;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class PrefundRequest {
 
     @Id
@@ -47,19 +49,22 @@ public class PrefundRequest {
     @Column(name = "created_datetime", nullable = false, updatable = false)
     private LocalDateTime createDateTime;
 
+    @Column(name = "bank_transfer_to", nullable = false)
+    private String bankTransferTo;
+
     @Column(name = "bank_holder_name")
-    @NotBlank(message = "Bank holder name is required")
-    @Size(min = 2, max = 100, message = "Bank holder name must be between 2 and 100 characters")
+   // @NotBlank(message = "Bank holder name is required")
+    //@Size(min = 2, max = 100, message = "Bank holder name must be between 2 and 100 characters")
     private String bankHolderName;
 
     @Column(name = "bank_account_name")
-    @NotBlank(message = "Bank account name is required")
-    @Size(min = 2, max = 100, message = "Bank account name must be between 2 and 100 characters")
+    //@NotBlank(message = "Bank account name is required")
+    //@Size(min = 2, max = 100, message = "Bank account name must be between 2 and 100 characters")
     private String bankAccountName;
 
     @Column(name = "bank_account_number")
-    @NotBlank(message = "Bank account number is required")
-    @Pattern(regexp = "\\d{9,18}", message = "Bank account number must be between 9 to 18 digits")
+    //@NotBlank(message = "Bank account number is required")
+    //@Pattern(regexp = "\\d{9,18}", message = "Bank account number must be between 9 to 18 digits")
     private String bankAccountNumber;
 
     @Column(name = "bank_tran_id")

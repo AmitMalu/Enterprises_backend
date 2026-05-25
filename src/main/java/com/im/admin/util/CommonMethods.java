@@ -290,7 +290,7 @@ public class CommonMethods {
             String resolvedHierarchyId = hierarchyId;
             String resolvedHierarchyType = hierarchyType;
 
-            // 🔹 Special handling for RetailerUser
+            // Special handling for RetailerUser
             if ("RU".equalsIgnoreCase(hierarchyType)) {
                 log.debug("Hierarchy is RetailerUser. Resolving parent Retailer ID.");
 
@@ -815,8 +815,8 @@ public class CommonMethods {
         BigDecimal commission;
 
         if ("PERCENTAGE".equalsIgnoreCase(rateType)) {
-            commissionRate = commissionRate
-                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP); // convert to fraction
+            //commissionRate = commissionRate
+              //      .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP); // convert to fraction
             commission = transactionAmount.multiply(commissionRate);
             log.debug("Commission calculated as percentage.");
         } else {
@@ -938,7 +938,7 @@ public class CommonMethods {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
 
-        String uatUrl = vendorCredentials.getTokenUrlProd();
+        //String uatUrl = vendorCredentials.getTokenUrlUat();
         String prodUrl = vendorCredentials.getTokenUrlProd();
 
         ResponseEntity<Map> response = restTemplate.postForEntity(prodUrl, requestEntity, Map.class);

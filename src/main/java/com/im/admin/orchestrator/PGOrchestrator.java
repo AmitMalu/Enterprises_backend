@@ -2,11 +2,13 @@ package com.im.admin.orchestrator;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.entities.PgTransactionMapping;
+import com.im.admin.entities.Scheme;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.paymentgateway.PaymentGatewayInitiator;
 import com.im.admin.paymentgateway.PaymentGatewayInitiatorFactory;
 import com.im.admin.repositories.PgTransactionMappingRepository;
+import com.im.admin.repositories.SchemeRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
@@ -25,6 +27,7 @@ public class PGOrchestrator {
     private final VendorRoutingRepository vendorRoutingRepository;
     private final PgTransactionMappingRepository pgTransactionMappingRepository;
     private final PaymentGatewayInitiatorFactory factory;
+    private final SchemeRepository schemeRepository;
 
     // CREATE ORDER
     public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException {
@@ -35,6 +38,17 @@ public class PGOrchestrator {
                 command.getInitiatedBy());
 
         try {
+
+            Scheme scheme = schemeRepository.findBySchemeCode(command.getSchemeCode())
+                    .orElseThrow(() -> new RuntimeException("Scheme not found. Please contact admin"));
+
+            if (!Boolean.TRUE.equals(scheme.getIsActive())) {
+                log.warn("Scheme is inactive for schemeCode={}", command.getSchemeCode());
+                throw new RuntimeException("Scheme is inactive. Please contact admin");
+            }
+
+            log.debug("Scheme is activate ={}",
+                    command.getSchemeCode());
 
             log.debug("Fetching vendor routing for subProductId={}",
                     command.getSubProductId());

@@ -18,7 +18,7 @@ public class NixaSoftCreateOrderResponse {
     @JsonProperty("amount")
     private String amount;
 
-    @JsonProperty("payment_url")
+    @JsonProperty("payment_link")
     private String paymentUrl;
 
     @JsonProperty("redirect_url")

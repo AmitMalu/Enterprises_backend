@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.controller.AESController;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.EncryptDecryptCredentialsDto;
@@ -51,7 +52,11 @@ public class MoveToBankServiceImpl implements MoveToBankService {
     @Autowired
     private AESController aesController;
 
-    RestTemplate restTemplate = new RestTemplate();
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private RestTemplate restTemplate;
 
 
     @Override
@@ -100,12 +105,12 @@ public class MoveToBankServiceImpl implements MoveToBankService {
                 payoutJsonRequestBody.setOrderId("TXN" + baseTransactionId);
                 payoutJsonRequestBody.setBeneficiaryName(sendPayoutRequest.getBeneficiaryName());
                 payoutJsonRequestBody.setPaymentMode(sendPayoutRequest.getPaymentMode());
-                payoutJsonRequestBody.setCallbackurl(sendPayoutRequest.getCallbackurl());
+                payoutJsonRequestBody.setCallbackUrl(sendPayoutRequest.getCallbackUrl());
 
                 HttpEntity<SendPayoutRequest> requestEntity = new HttpEntity<>(payoutJsonRequestBody, headers);
 
                 String url = credentials.getBaseUrlUat() + "/payment";
-                log.info("Sending payout request to RunPaisa. URL: {}, Headers: {}, Body: {}", url, requestEntity, String.class);
+                log.info("Sending payout request to MoveToBank. URL: {}, Headers: {}, Body: {}", url, requestEntity, String.class);
 
                 ResponseEntity<String> response = restTemplate.exchange(
                         url,
@@ -184,19 +189,22 @@ public class MoveToBankServiceImpl implements MoveToBankService {
         String url = vendorCredentials.getTokenUrlUat();
         log.info("Sending token request to URL: {}", url);
 
-        ResponseEntity<PayoutTokenResponseDTO> response = restTemplate.postForEntity(
+        ResponseEntity<Map> rawResponse = restTemplate.postForEntity(
                 url + "/token",
                 requestEntity,
-                PayoutTokenResponseDTO.class
+                Map.class
         );
 
-        PayoutTokenResponseDTO tokenResponse = response.getBody();
+        log.info("Raw token response: {}", rawResponse.getBody());
+
+        PayoutTokenResponseDTO tokenResponse = objectMapper.convertValue(rawResponse.getBody(), PayoutTokenResponseDTO.class);
         log.info("Bearer token response: {}", tokenResponse);
 
-        if (tokenResponse != null && tokenResponse.getData() != null) {
-            return tokenResponse.getData().getToken();
+        PayoutTokenResponseDTO.TokenData tokenData = tokenResponse.getTokenData();
+        if (tokenData != null && tokenData.getToken() != null) {
+            return tokenData.getToken();
         } else {
-            throw new RuntimeException("Failed To Get Token From Payout Vendor");
+            throw new RuntimeException("Failed To Get Token From Payout Vendor - Response: " + rawResponse.getBody());
         }
     }
 

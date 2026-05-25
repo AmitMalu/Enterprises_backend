@@ -43,120 +43,6 @@ public class SchemeRateServiceImpl implements SchemeRateService {
     @Autowired
     private OperatorsRepository operatorRepository;
 
-//    @Override
-//    public SchemeDetailResponseDto getSchemeDetails(String schemeCode) {
-//        log.info("Fetching scheme details for schemeCode: {}", schemeCode);
-//
-//        Scheme scheme = schemeRepository.findBySchemeCode(schemeCode)
-//                .orElseThrow(() -> {
-//                    log.error("Scheme not found for schemeCode: {}", schemeCode);
-//                    return new RuntimeException("Scheme not found");
-//                });
-//
-//        log.debug("Scheme found: {}", scheme.getSchemeName());
-//
-//        String[] parts = scheme.getSchemeCombinationHashCode().split("-");
-//        if (parts.length < 4) {
-//            log.error("Invalid scheme combination hash: {}", scheme.getSchemeCombinationHashCode());
-//            throw new RuntimeException("Invalid combination hash code format");
-//        }
-//
-//        String productId = parts[0];
-//        String subProductId = parts[1];
-//        String schemeHierarchyId = parts[3];
-//
-//        log.debug("Parsed combination hash - productId: {}, subProductId: {}, schemeHierarchyId: {}", productId, subProductId, schemeHierarchyId);
-//
-//        Products product = productsRepository.findById(Short.valueOf(productId))
-//                .orElseThrow(() -> {
-//                    log.error("Product not found for productId: {}", productId);
-//                    return new RuntimeException("Product Not Found");
-//                });
-//
-//        SubProducts subProduct = subProductsRepository.findById(subProductId)
-//                .orElseThrow(() -> {
-//                    log.error("SubProduct not found for subProductId: {}", subProductId);
-//                    return new RuntimeException("Sub Product Not Found");
-//                });
-//
-//        SchemeHierarchySelection hierarchySelection = schemeHierarchySelectionRepository.findById(schemeHierarchyId)
-//                .orElseThrow(() -> {
-//                    log.error("Scheme hierarchy not found for ID: {}", schemeHierarchyId);
-//                    return new RuntimeException("Scheme hierarchy not found");
-//                });
-//
-//        Set<String> allowedHierarchies = Arrays.stream(hierarchySelection.getSchemeHierarchyCombination().split("-"))
-//                .map(String::toLowerCase)
-//                .collect(Collectors.toSet());
-//
-//        log.debug("Allowed hierarchy levels: {}", allowedHierarchies);
-//
-//        List<Operators> operators = operatorRepository.findBySubProductId(subProduct.getId());
-//        log.info("Found {} operators for subProductId: {}", operators.size(), subProduct.getId());
-//
-//        List<OperatorWithSlabsDto> operatorDtos = new ArrayList<>();
-//
-//        for (Operators operator : operators) {
-//            log.debug("Processing operator: {} ({})", operator.getOperatorName(), operator.getOperatorCode());
-//
-//            List<SchemeRate> slabsList = schemeRateRepository
-//                    .findBySchemeCodeAndOperatorName(schemeCode, operator.getOperatorName());
-//
-//            if (slabsList.isEmpty()) {
-//                log.warn("No slabs defined for operator: {}", operator.getOperatorName());
-//
-//                OperatorWithSlabsDto operatorDto = new OperatorWithSlabsDto();
-//                operatorDto.setOperatorCode(operator.getOperatorCode());
-//                operatorDto.setOperatorName(operator.getOperatorName());
-//                operatorDto.setSlabs(new ArrayList<>()); // empty list
-//                operatorDtos.add(operatorDto);
-//                continue; // skip rest
-//            }
-//
-//            List<SlabRateDto> slabs = slabsList.stream().map(slab -> {
-//                SlabRateDto dto = new SlabRateDto();
-//                dto.setId(slab.getId());
-//                dto.setRateType(slab.getRateType());
-//                dto.setSlabType(slab.getSlabType());
-//                dto.setFixedSlabValue(slab.getFixedSlabValue());
-//                dto.setSlabStart(slab.getSlabStart());
-//                dto.setSlabEnd(slab.getSlabEnd());
-//
-//                double factor = slab.getRateType() == RateType.PERCENTAGE ? 100.0 : 1.0;
-//
-//                dto.setGross(safeMultiply(slab.getGross(), factor));
-//                dto.setIm(safeMultiply(slab.getIm(), factor));
-//                dto.setEnterprise(allowedHierarchies.contains("enterprise") ? safeMultiply(slab.getEnterprise(), factor) : null);
-//                dto.setWhitelabel(allowedHierarchies.contains("whitelabel") ? safeMultiply(slab.getWhitelabel(), factor) : null);
-//                dto.setSuperDistributor(hasHierarchy("superdistributor", allowedHierarchies) ? safeMultiply(slab.getSuperDistributor(), factor) : null);
-//                dto.setPartner(allowedHierarchies.contains("partner") ? safeMultiply(slab.getPartner(), factor) : null);
-//                dto.setDistributor(allowedHierarchies.contains("distributor") ? safeMultiply(slab.getDistributor(), factor) : null);
-//                dto.setRetailer(allowedHierarchies.contains("retailer") ? safeMultiply(slab.getRetailer(), factor) : null);
-//
-//                return dto;
-//            }).collect(Collectors.toList());
-//
-//            log.debug("Added {} slabs for operator: {}", slabs.size(), operator.getOperatorName());
-//
-//            OperatorWithSlabsDto operatorDto = new OperatorWithSlabsDto();
-//            operatorDto.setOperatorCode(operator.getOperatorCode());
-//            operatorDto.setOperatorName(operator.getOperatorName());
-//            operatorDto.setSlabs(slabs);
-//
-//            operatorDtos.add(operatorDto);
-//        }
-//
-//        SchemeDetailResponseDto responseDto = new SchemeDetailResponseDto();
-//        responseDto.setSchemeCode(scheme.getSchemeCode());
-//        responseDto.setSchemeName(scheme.getSchemeName());
-//        responseDto.setOperators(operatorDtos);
-//        responseDto.setIsActive(scheme.getIsActive());
-//        responseDto.setTdsRate(product.getTds());
-//
-//        log.info("Scheme detail response ready for schemeCode: {}", schemeCode);
-//        return responseDto;
-//    }
-
     @Override
     public SchemeDetailResponseDto getSchemeDetails(String schemeCode) {
         log.info("Fetching scheme details for schemeCode: {}", schemeCode);
@@ -227,7 +113,6 @@ public class SchemeRateServiceImpl implements SchemeRateService {
                     dto.setId(slab.getId());
                     dto.setRateType(slab.getRateType());
                     dto.setSlabType(slab.getSlabType());
-                    //dto.setFixedSlabValue(slab.getFixedSlabValue());
                     dto.setSlabStart(slab.getSlabStart());
                     dto.setSlabEnd(slab.getSlabEnd());
 
@@ -455,83 +340,6 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         }
     }
 
-//    @Override
-//    @Transactional
-//    public SchemeDetailResponseDto updateSchemeRates(SchemeSlabUpdateRequestDTO requestDto) {
-//        log.info("Updating scheme slabs for schemeCode: {}", requestDto.getSchemeCode());
-//
-//        for (OperatorWithSlabsDto operator : requestDto.getOperators()) {
-//            log.debug("Processing operator: {} ({})", operator.getOperatorName(), operator.getOperatorCode());
-//
-//            for (SlabRateDto slabDto : operator.getSlabs()) {
-//                SchemeRate slab;
-//                String slabIdentifier = slabDto.getId() != null ? "ID: " + slabDto.getId() : "NEW";
-//
-//                if (slabDto.getId() != null) {
-//                    log.debug("Updating existing slab with ID: {}", slabDto.getId());
-//                    slab = schemeRateRepository.findById(slabDto.getId())
-//                            .orElseThrow(() -> {
-//                                log.error("Slab not found for ID: {}", slabDto.getId());
-//                                return new RuntimeException("Slab not found for ID: " + slabDto.getId());
-//                            });
-//                    slab.setCreatedBy(slabDto.getCreatedBy());
-//                } else {
-//                    log.debug("Creating new slab for schemeCode: {}", requestDto.getSchemeCode());
-//                    slab = new SchemeRate();
-//                    slab.setSchemeCode(requestDto.getSchemeCode());
-//                    slab.setOperatorCode(operator.getOperatorCode());
-//                    slab.setOperatorName(operator.getOperatorName());
-//                    slab.setCreatedBy(slabDto.getCreatedBy());
-//                }
-//
-//                slab.setRateType(slabDto.getRateType());
-//                slab.setSlabType(slabDto.getSlabType());
-//                //slab.setFixedSlabValue(slabDto.getFixedSlabValue());
-//                slab.setSlabStart(slabDto.getSlabStart());
-//                slab.setSlabEnd(slabDto.getSlabEnd());
-//
-//                double gross = safeValue(slabDto.getGross());
-//                double im = safeValue(slabDto.getIm());
-//                double enterprise = safeValue(slabDto.getEnterprise());
-//                double whitelabel = safeValue(slabDto.getWhitelabel());
-//                double superDistributor = safeValue(slabDto.getSuperDistributor());
-//                double partner = safeValue(slabDto.getPartner());
-//                double distributor = safeValue(slabDto.getDistributor());
-//                double retailer = safeValue(slabDto.getRetailer());
-//
-//                log.debug("Validating gross for {}: gross={}, sum={}", slabIdentifier,
-//                        gross, im + enterprise + whitelabel + superDistributor + partner + distributor + retailer);
-//
-//                validateGrossMatch(
-//                        gross, im, enterprise, whitelabel, superDistributor,
-//                        partner, distributor, retailer,
-//                        "Update Scheme Slab",
-//                        operator.getOperatorName(),
-//                        operator.getOperatorCode(),
-//                        slabIdentifier
-//                );
-//
-//                double factor = (slabDto.getRateType() == RateType.PERCENTAGE) ? 0.01 : 1.0;
-//
-//                slab.setGross(gross * factor);
-//                slab.setIm(im * factor);
-//                slab.setEnterprise(enterprise * factor);
-//                slab.setWhitelabel(whitelabel * factor);
-//                slab.setSuperDistributor(superDistributor * factor);
-//                slab.setPartner(partner * factor);
-//                slab.setDistributor(distributor * factor);
-//                slab.setRetailer(retailer * factor);
-//                slab.setEditedBy(slabDto.getEditedBy());
-//
-//                schemeRateRepository.save(slab);
-//                log.debug("Saved slab: {}", slabIdentifier);
-//            }
-//        }
-//
-//        log.info("Successfully updated slabs. Fetching latest scheme detail for: {}", requestDto.getSchemeCode());
-//        return getSchemeDetails(requestDto.getSchemeCode());
-//    }
-
     @Override
     @Transactional
     public SchemeDetailResponseDto updateSchemeRates(SchemeSlabUpdateRequestDTO requestDto) {
@@ -749,24 +557,6 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         double sum = im + enterprise + whitelabel + superDistributor + partner + distributor + retailer;
 
         if (!doubleEquals(gross, sum)) {
-//            throw new RuntimeException(String.format(
-//                    "Mismatch in %s (Slab: %s) for Operator [%s - %s]:%n" +
-//                            "➡ Expected Gross: %.3f%n" +
-//                            "➡ Actual Sum of Shares: %.3f%n" +
-//                            "➡ Share Breakdown:%n" +
-//                            "   - IM: %.3f%n" +
-//                            "   - Enterprise: %.3f%n" +
-//                            "   - Whitelabel: %.3f%n" +
-//                            "   - SuperDistributor: %.3f%n" +
-//                            "   - Partner: %.3f%n" +
-//                            "   - Distributor: %.3f%n" +
-//                            "   - Retailer: %.3f",
-//                    slabLabel, slabIdentifier, operatorName, operatorCode,
-//                    gross, sum,
-//                    im, enterprise, whitelabel, superDistributor, partner, distributor, retailer
-//            ));
-//        }
-
             throw new RuntimeException(String.format(
                     "Mismatch in %s for Operator [%s - %s]:%n" +
                             "➡ Expected Gross: %.3f%n" +

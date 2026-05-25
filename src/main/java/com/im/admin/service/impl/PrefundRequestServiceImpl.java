@@ -1,10 +1,7 @@
 package com.im.admin.service.impl;
 
 
-import com.im.admin.dto.AbstractWalletAmountTable;
-import com.im.admin.dto.FundRequestActionDto;
-import com.im.admin.dto.PrefundRequestDto;
-import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
@@ -83,8 +80,11 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     @Autowired
     private TransactionEngineServiceImpl transactionEngineServiceImpl;
 
+    @Autowired
+    private ImBankMasterRepository imBankMasterRepository;
+
     @Override
-    public CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile) throws IOException {
+    public CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile, String ipAddress) throws IOException {
 
         double depositAmount = Double.parseDouble(dto.getDepositAmount());
         double confirmAmount = Double.parseDouble(dto.getConfirmAmount());
@@ -97,6 +97,10 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         if (fileExtension == null || !fileExtension.matches("(?i).*\\.(jpg|jpeg|png|pdf)$")) {
             throw new IllegalArgumentException("Invalid image format. Only JPG, JPEG, PNG, PDF allowed.");
         }
+
+        String bankName = imBankMasterRepository.findByAccountNumber(dto.getBankTransferTo())
+                .map(ImBankMaster::getBankName)
+                .orElseThrow(() -> new RuntimeException("Bank not found"));
 
         Optional<PrefundRequest> approved = repository.findApprovedByBankTranId(dto.getBankTranId());
         if (approved.isPresent()) {
@@ -118,13 +122,14 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         entity.setMobileNumber(dto.getMobileNumber());
         entity.setDepositAmount(depositAmount);
         entity.setDepositImage(fileName);
+        entity.setBankTransferTo(bankName);
         entity.setBankAccountName(dto.getBankAccountName());
         entity.setBankHolderName(dto.getBankHolderName());
         entity.setBankAccountNumber(dto.getBankAccountNumber());
         entity.setBankTranId(dto.getBankTranId());
         entity.setPaymentMode(dto.getPaymentMode());
         entity.setNarration(dto.getNarration());
-        entity.setIpAddress(dto.getIpAddress());
+        entity.setIpAddress(ipAddress);
 
         if (dto.getDepositDate() != null && !dto.getDepositDate().isEmpty()) {
             entity.setDepositDate(LocalDate.parse(dto.getDepositDate()));
@@ -143,7 +148,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
             // From request
             subProduct = subProductsRepository
-                    .findBySubProductCode(dto.getSubProductCode())
+                    .findById(dto.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found"));
 
             scheme = schemeRepository.findBySchemeCode(dto.getSchemeCode())
@@ -174,21 +179,54 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     }
 
     @Override
-    public Page<PrefundRequest> getAllPrefundRequests(int page, int size, Long id, String requestedBy, String mobileNumber, Double depositAmount, String status, LocalDate depositDate, LocalDate fromDate,
-                                                      LocalDate toDate, LocalDate createDateTime,
-                                                      String bankHolderName, String bankAccountName, String bankAccountNumber,
-                                                      String bankTranId, String paymentMode, String narration, String ipAddress,
-                                                      LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks, String depositType) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createDateTime"));
+    public Page<PrefundRequestResponseDTO> getAllPrefundRequests(
+            int page, int size, Long id, String requestedBy, String mobileNumber,
+            Double depositAmount, String status, LocalDate depositDate,
+            LocalDate fromDate, LocalDate toDate, LocalDate createDateTime,
+            String bankHolderName, String bankAccountName, String bankAccountNumber,
+            String bankTranId, String paymentMode, String narration, String ipAddress,
+            LocalDate approveOrRejectDate, String approveOrRejectTime,
+            String remarks, String depositType) {
+
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.DESC, "createDateTime"));
+
         Specification<PrefundRequest> spec = PrefundRequestSpecification.getFilter(
                 id, requestedBy, mobileNumber, depositAmount, status, depositDate,
-                fromDate, toDate,
-                createDateTime, bankHolderName, bankAccountName, bankAccountNumber,
-                bankTranId, paymentMode, narration, ipAddress,
+                fromDate, toDate, createDateTime, bankHolderName, bankAccountName,
+                bankAccountNumber, bankTranId, paymentMode, narration, ipAddress,
                 approveOrRejectDate, approveOrRejectTime, remarks, depositType
         );
 
-        return repository.findAll(spec, pageable);
+        Page<PrefundRequest> pageResult = repository.findAll(spec, pageable);
+
+        return pageResult.map(p -> PrefundRequestResponseDTO.builder()
+                .id(p.getId())
+                .requestedBy(p.getRequestedBy())
+                .mobileNumber(p.getMobileNumber())
+                .depositAmount(p.getDepositAmount())
+                .status(p.getStatus())
+                .depositDate(p.getDepositDate())
+                .createDateTime(p.getCreateDateTime())
+                .bankHolderName(p.getBankHolderName())
+                .bankAccountName(p.getBankAccountName())
+                .bankAccountNumber(p.getBankAccountNumber())
+                .bankTranId(p.getBankTranId())
+                .narration(p.getNarration())
+                .paymentMode(p.getPaymentMode())
+                .ipAddress(p.getIpAddress())
+                .approveOrRejectDate(p.getApproveOrRejectDate())
+                .approveOrRejectTime(p.getApproveOrRejectTime())
+                .remarks(p.getRemarks())
+                .depositType(p.getDepositType())
+
+                .subProductName(p.getSubProducts() != null ? p.getSubProducts().getSubProductTitle() : null)
+                .productName(p.getSubProducts() != null && p.getSubProducts().getProduct() != null
+                        ? p.getSubProducts().getProduct().getName() : null)
+                .schemeName(p.getScheme() != null ? p.getScheme().getSchemeName() : null)
+
+                .build()
+        );
     }
 
     @Transactional
@@ -212,6 +250,29 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         fundRequest.setApproveOrRejectDate(date);
         fundRequest.setApproveOrRejectTime(time);
 
+        // ================= UNIFIED RESOLUTION =================
+
+        SubProducts subProduct = fundRequest.getSubProducts();
+        Scheme scheme = fundRequest.getScheme();
+        Products product = subProduct.getProduct();
+
+        String schemeCode = scheme.getSchemeCode();
+
+        log.info("Resolved from DB | productId={}, subProductId={}, schemeCode={}",
+                product.getId(), subProduct.getId(), schemeCode);
+
+        // ================= SCHEME RATE =================
+
+        SchemeRate schemeRate = schemeRateRepository
+                .findSchemeRateByCodeAndOperatorAndAmount(
+                        schemeCode,
+                        fundRequest.getBankTransferTo(),
+                        fundRequest.getDepositAmount()
+                )
+                .orElseThrow(() -> new RuntimeException("SchemeRate not found"));
+
+        BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
+
         // ================= WALLET FLOW =================
         if (newStatus == Status.APPROVED) {
 
@@ -230,7 +291,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
             updateWallet(approverWallet, approverId, walletType, amount,
                     "Debit", baseTransactionId, "SUCCESS", "DEBIT",
-                    "Fund Transfer to " + requesterId);
+                    "Fund Transfer to " + requesterId, subProduct.getSubProductTitle(), scheme.getSchemeName(), fundRequest.getBankTransferTo());
 
             String requesterType = commonMethods.extractHierarchyType(requesterId);
             String parentHierarchyId = requesterId;
@@ -244,33 +305,10 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
             updateWallet(requesterWallet, parentHierarchyId, walletType, amount,
                     "Credit", baseTransactionId, "SUCCESS", "CREDIT",
-                    "Fund Transfer from " + approverId);
+                    "Fund Transfer from " + approverId, subProduct.getSubProductTitle(), scheme.getSchemeName(), fundRequest.getBankTransferTo());
         }
 
         repository.save(fundRequest);
-
-        // ================= UNIFIED RESOLUTION =================
-
-        SubProducts subProduct = fundRequest.getSubProducts();
-        Scheme scheme = fundRequest.getScheme();
-        Products product = subProduct.getProduct();
-
-        String schemeCode = scheme.getSchemeCode();
-
-        log.info("Resolved from DB | productId={}, subProductId={}, schemeCode={}",
-                product.getId(), subProduct.getId(), schemeCode);
-
-        // ================= SCHEME RATE =================
-
-        SchemeRate schemeRate = schemeRateRepository
-                .findSchemeRateByCodeAndOperatorAndAmount(
-                        schemeCode,
-                        fundRequest.getBankAccountName(),
-                        fundRequest.getDepositAmount()
-                )
-                .orElseThrow(() -> new RuntimeException("SchemeRate not found"));
-
-        BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
 
         try {
 
@@ -322,7 +360,8 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     }
 
     private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-                                                                    String tranxType, String baseTransactionId, String tranStatus, String service, String remarks) {
+                                                                    String tranxType, String baseTransactionId, String tranStatus, String service, String remarks,
+                                                                    String subProductName, String schemeName, String operatorName) {
 
         String actionOnBalance;
 
@@ -345,12 +384,13 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         // Insert transaction
         insertTransaction(walletType.name(), hierarchyId, tranStatus, amount, balanceBefore,
-                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service, remarks);
+                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service, remarks, subProductName, schemeName, operatorName);
 
     }
 
     private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount, BigDecimal beforeBalance,
-                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service, String remarks) {
+                                   BigDecimal afterBalance, String actionOnBalanceAmount, String tranxId, String service, String remarks,
+                                   String subProductName, String schemeName, String operatorName) {
 
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
@@ -361,9 +401,11 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         String sql = "INSERT INTO " + transactionTableName +
                 " (" + columnName + "  ,service, amount, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, remarks) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, remarks, " +
+                "sub_product_name, scheme_name, operator_name) " +
                 "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :remarks)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :remarks," +
+                ":subProductName, :schemeName, :operatorName)";
 
         try {
             entityManager.createNativeQuery(sql)
@@ -379,6 +421,9 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
                     .setParameter("remarks", remarks)
+                    .setParameter("subProductName", subProductName)
+                    .setParameter("schemeName", schemeName)
+                    .setParameter("operatorName", operatorName)
                     .executeUpdate();
 
         } catch (PersistenceException ex) {
@@ -398,12 +443,49 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     }
 
     @Override
-    public CommonResponse<PrefundRequest> getById(Long id) {
+    public CommonResponse<PrefundRequestResponseDTO> getById(Long id) {
+
         Optional<PrefundRequest> optional = repository.findById(id);
-        return optional.map(prefundRequest ->
-                new CommonResponse<>(200, "Prefund request fetched successfully", prefundRequest))
-                .orElseGet(() ->
-                        new CommonResponse<>(404, "Prefund request not found with ID: " + id, null));
+
+        return optional.map(entity -> {
+
+            PrefundRequestResponseDTO dto = PrefundRequestResponseDTO.builder()
+                    .id(entity.getId())
+                    .requestedBy(entity.getRequestedBy())
+                    .mobileNumber(entity.getMobileNumber())
+                    .depositAmount(entity.getDepositAmount())
+                    .status(entity.getStatus())
+
+                    .depositDate(entity.getDepositDate())
+                    .createDateTime(entity.getCreateDateTime())
+
+                    .bankHolderName(entity.getBankHolderName())
+                    .bankAccountName(entity.getBankAccountName())
+                    .bankAccountNumber(entity.getBankAccountNumber())
+                    .bankTranId(entity.getBankTranId())
+
+                    .narration(entity.getNarration())
+                    .paymentMode(entity.getPaymentMode())
+                    .ipAddress(entity.getIpAddress())
+
+                    .approveOrRejectDate(entity.getApproveOrRejectDate())
+                    .approveOrRejectTime(entity.getApproveOrRejectTime())
+
+                    .remarks(entity.getRemarks())
+                    .depositType(entity.getDepositType())
+
+                    .subProductName(entity.getSubProducts() != null ? entity.getSubProducts().getSubProductTitle() : null)
+                    .productName(entity.getSubProducts() != null && entity.getSubProducts().getProduct() != null
+                            ? entity.getSubProducts().getProduct().getName() : null)
+                    .schemeName(entity.getScheme() != null ? entity.getScheme().getSchemeName() : null)
+
+                    .build();
+
+            return new CommonResponse<>(200, "Prefund request fetched successfully", dto);
+
+        }).orElseGet(() ->
+                new CommonResponse<>(404, "Prefund request not found with ID: " + id, null)
+        );
     }
 
     public String getSchemeNameByHierarchy(String hierarchyId) {

@@ -6,16 +6,14 @@ import com.im.admin.entities.enums.SlabType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.*;
+import com.im.admin.response.BulkTransactionStatusResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.TransactionEngineService;
 import com.im.admin.util.AbstractRetailerTransactionDetails;
-import com.im.admin.util.CommonMethods;
 import com.im.admin.util.TransactionHelperService;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityNotFoundException;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.PersistenceException;
+import jakarta.persistence.*;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -44,6 +42,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
     @Autowired
     private SchemeRateRepository schemeRateRepository;
+
+    @Autowired
+    private SchemeRepository schemeRepository;
 
     @Autowired
     private SchemeAllocationRepository schemeAllocationRepository;
@@ -110,6 +111,15 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
     @Autowired
     private CardTypeMasterRepository cardTypeMasterRepository;
+
+    @Autowired
+    private PgTransactionMappingRepository pgTransactionMappingRepository;
+
+    @Autowired
+    private PayoutPendingTransactionRepository payoutPendingTransactionRepository;
+
+    @Autowired
+    private BBPSPendingTransactionsRepository bbpsPendingTransactionsRepository;
 
 
     @Override
@@ -467,7 +477,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     }
 
     public void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
-                                BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
+                               BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
 
         log.info("[CHARGES] Start | BaseTxnId={} | WalletType={} | Hierarchy={} | Status={}",
                 baseTransactionId, dto.getWalletType(), dto.getHierarchyId(), tranStatus);
@@ -482,15 +492,15 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         log.debug("[CHARGES] Split amounts | Gross={} | Base={} | GST={} | GST%={}", grossAmount, baseAmount, gstAmount, gstValue);
 
         // Step 2: Deduct base and GST from wallet
-        deductCharge(wallet, dto, baseAmount, "CHG", "Deduct Funds (Charge)", baseTransactionId, tranStatus);
-        deductCharge(wallet, dto, gstAmount, "GST", "Deduct Funds (GST)", baseTransactionId, tranStatus);
+        deductChargeAndGST(wallet, dto, baseAmount, "CHG", "Deduct Funds (Charge)", baseTransactionId, tranStatus);
+        deductChargeAndGST(wallet, dto, gstAmount, "GST", "Deduct Funds (GST)", baseTransactionId, tranStatus);
 
         // Step 3: Update wallet meta
         updateWalletMeta(wallet, baseAmount.add(gstAmount), gstAmount);
 
         // Step 4: Credit GST to admin/whitelabel
-        log.info("[CHARGES] Crediting GST {} to Admin/Whitelabel for HierarchyId={}", gstAmount, dto.getHierarchyId());
-        creditGstToAdminOrWhitelabel(dto.getHierarchyId(), dto.getWalletType(), gstAmount, baseTransactionId, tranStatus, dto);
+        //log.info("[CHARGES] Crediting GST {} to Admin/Whitelabel for HierarchyId={}", gstAmount, dto.getHierarchyId());
+        //creditGstToAdminOrWhitelabel(dto.getHierarchyId(), dto.getWalletType(), gstAmount, baseTransactionId, tranStatus, dto);
 
         log.info("[CHARGES] Completed | BaseTxnId={} | WalletType={}", baseTransactionId, dto.getWalletType());
     }
@@ -510,9 +520,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     }
 
 
-    public void deductCharge(AbstractWalletAmountTable wallet, TransactionSchemeDetailsRequestDto dto,
-                              BigDecimal amount, String prefix, String remark,
-                              String baseTransactionId, String tranStatus) {
+    public void deductChargeAndGST(AbstractWalletAmountTable wallet, TransactionSchemeDetailsRequestDto dto,
+                             BigDecimal amount, String prefix, String remark,
+                             String baseTransactionId, String tranStatus) {
 
         BigDecimal before = wallet.getAvailableBalance();
         wallet.setAvailableBalance(before.subtract(amount));
@@ -746,9 +756,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 //    }
 
     public void processCommission(TransactionSchemeDetailsRequestDto dto,
-                                   String baseTransactionId,
-                                   String tranStatus,
-                                   TransactionSchemeDetailsRequestDto request) {
+                                  String baseTransactionId,
+                                  String tranStatus,
+                                  TransactionSchemeDetailsRequestDto request) {
 
         log.info("[COMMISSION] START | TxnId={} | HierarchyId={} | WalletType={} | Status={} | Amount={}",
                 baseTransactionId, dto.getHierarchyId(), dto.getWalletType(), tranStatus, dto.getAmount());
@@ -1607,7 +1617,11 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         SubProducts subProduct = subProductsRepository.findBySubProductCode(request.getSubProductCode())
                 .orElseThrow(() -> new ResourceNotFoundException("SubProduct not found: " + request.getSubProductCode()));
 
+        Scheme scheme = schemeRepository.findBySchemeCode(request.getSchemeRate().getSchemeCode())
+                .orElseThrow(() -> new RuntimeException("Scheme Not Found"));
+
         String subProductName = subProduct.getSubProductTitle();
+        String operatorName = request.getOperatorName();
 
         String hierarchyType = extractHierarchyType(hierarchyId);
         String hierarchyColumnName = transactionHelperService.getHierarchyColumnName(hierarchyType);
@@ -1618,9 +1632,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         String sql = "INSERT INTO " + transactionTable +
                 " (" + hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name,scheme_name, latitude, longitude) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name, scheme_name, operator_name, latitude, longitude) " +
                 "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName,:schemeName, :latitude, :longitude)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName, :schemeName, :operatorName, :latitude, :longitude)";
 
         log.debug("[COMM_TXN_INSERT] Generated SQL: {}", sql);
 
@@ -1639,7 +1653,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
                     .setParameter("subProductName", subProductName)
-                    .setParameter("schemeName", request.getSchemeRate().getSchemeCode())
+                    .setParameter("schemeName", scheme.getSchemeName())
+                    .setParameter("operatorName", operatorName)
                     .setParameter("latitude", latitude)
                     .setParameter("longitude", longitude)
                     .executeUpdate();
@@ -2201,6 +2216,785 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     }
 
 
+//    @Override
+//    @Transactional
+//    public CommonResponse<BulkTransactionStatusResponse> updatePendingTransactionStatus(UpdateTransactionStatusRequest request) {
+//
+//        StringBuilder result = new StringBuilder();
+//
+//        if (request == null || request.getTransactionIds() == null || request.getTransactionIds().isEmpty()) {
+//            throw new IllegalArgumentException("TransactionIds cannot be null or empty");
+//        }
+//
+//        BulkTransactionStatusResponse statusResponse = new BulkTransactionStatusResponse();
+//
+//        List<String> successList = new ArrayList<>();
+//        List<String> skippedList = new ArrayList<>();
+//        List<String> failedList = new ArrayList<>();
+//        List<String> messages = new ArrayList<>();
+//
+//        final String walletType = request.getWalletType() != null
+//                ? request.getWalletType().toUpperCase()
+//                : null;
+//
+//        for (String tranxId : request.getTransactionIds()) {
+//
+//            try {
+//                // Normalize txnId
+//                String baseTxnId = tranxId.replaceFirst("^TXN", "");
+//                String fullTxnId = "TXN" + baseTxnId;
+//
+//                // Fetch Transaction (Postpaid → else Prepaid)
+//                AbstractRetailerTransactionDetails txn =
+//                        retailerPostpaidTransactionDetailsRepository.findByTransactionId(fullTxnId)
+//                                .map(t -> (AbstractRetailerTransactionDetails) t)
+//                                .orElseGet(() ->
+//                                        retailerPrepaidTransactionDetailsRepository.findByTransactionId(fullTxnId)
+//                                                .orElseThrow(() ->
+//                                                        new RuntimeException("Transaction not found: " + fullTxnId)));
+//
+//                // SKIP if already SUCCESS
+//                if ("SUCCESS".equalsIgnoreCase(txn.getTranStatus())) {
+//                    skippedList.add(fullTxnId);
+//                    messages.add(fullTxnId + " already SUCCESS");
+//                    continue;
+//                }
+//
+//                // Fetch SubProduct
+//                SubProducts subProduct = subProductsRepository
+//                        .findBySubProductTitle(txn.getSubProductName())
+//                        .orElseThrow(() ->
+//                                new RuntimeException("SubProduct not found: " + txn.getSubProductName()));
+//
+//                // Fetch Scheme Allocation
+//                SchemeAllocation schemeAllocation = schemeAllocationRepository
+//                        .findByHierarchyIdAndSubProductCode(
+//                                txn.getRetailerId(),
+//                                subProduct.getSubProductCode()
+//                        )
+//                        .orElseThrow(() -> new RuntimeException(
+//                                "SchemeAllocation not found | hierarchyId="
+//                                        + txn.getRetailerId()
+//                                        + ", subProductCode="
+//                                        + subProduct.getSubProductCode()
+//                        ));
+//
+//                String schemeCode = schemeAllocation.getSchemeCode();
+//
+//                // Prepare Amount
+//                double txnAmt = txn.getAmount().doubleValue();
+//
+//                // Fetch Matching Schemes
+//                List<SchemeRate> matchingSchemes =
+//                        schemeRateRepository.findBySchemeCodeAndOperatorName(
+//                                schemeCode,
+//                                txn.getOperatorName()
+//                        );
+//
+//                if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+//                    skippedList.add(fullTxnId);
+//                    messages.add(fullTxnId + " no scheme found");
+//                    continue;
+//                }
+//
+//                // Select Scheme
+//                SchemeRate selectedScheme = matchingSchemes.stream()
+//                        .filter(s -> s.getSlabType() == SlabType.VARIABLE
+//                                && txnAmt >= s.getSlabStart()
+//                                && txnAmt <= s.getSlabEnd())
+//                        .findFirst()
+//                        .orElse(matchingSchemes.get(0));
+//
+//                // Fetch Scheme → Product → SubProduct
+//                Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+//                        .orElseThrow(() -> new RuntimeException("Scheme not found: " + selectedScheme.getSchemeCode()));
+//
+//                // SKIP if scheme inactive
+//                if (scheme.getIsActive() == null || !scheme.getIsActive()) {
+//                    skippedList.add(fullTxnId);
+//                    messages.add(fullTxnId + " scheme inactive");
+//                    continue;
+//                }
+//
+//                String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+//                short productId = Short.parseShort(hashParts[0]);
+//                String subProductId = hashParts[1];
+//
+//                Products product = productsRepository.findById(productId)
+//                        .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
+//
+//                SubProducts mappedSubProduct = subProductsRepository.findById(subProductId)
+//                        .orElseThrow(() -> new RuntimeException("SubProduct not found: " + subProductId));
+//
+//                // Build DTO
+//                TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+//
+//                dto.setBaseTranxId(baseTxnId);
+//                dto.setAmount(txnAmt);
+//                dto.setConfirmAmount(txnAmt);
+//                dto.setOperatorName(txn.getOperatorName());
+//                dto.setOperatorCode(selectedScheme.getOperatorCode());
+//                dto.setSchemeRate(selectedScheme);
+//                dto.setTransactionType(product.getTransactionType());
+//                dto.setWalletType(walletType != null ? walletType : mappedSubProduct.getWalletType());
+//
+//                dto.setGstValue(String.valueOf(product.getSgst()));
+//                dto.setTdsRate(String.valueOf(product.getTds()));
+//                dto.setHierarchyId(txn.getRetailerId());
+//                dto.setProductCode(product.getProductCode());
+//                dto.setSubProductCode(mappedSubProduct.getSubProductCode());
+//
+//                dto.setIsCommission(product.getIsCommissions());
+//                dto.setHasCharge(product.getHasCharges());
+//
+//                // Optional fields (set safely if available)
+//                dto.setVendorName("Manually Update");
+//                dto.setVendorTxnId(fullTxnId);
+//
+//                log.info("DTO prepared for txnId {}: {}", fullTxnId, dto);
+//
+//                AbstractWalletAmountTable wallet = getWalletByType(walletType, txn.getRetailerId());
+//
+//                processChargesAndCommission(
+//                        dto,
+//                        wallet,
+//                        BigDecimal.valueOf(selectedScheme.getGross()),
+//                        product.getSgst().toString(),
+//                        baseTxnId,
+//                        request.getNewStatus()
+//                );
+//
+//                successList.add(fullTxnId);
+//
+//                updatePendingTransactionTables(baseTxnId, request.getNewStatus());
+//
+//                result.append("SUCCESS: ").append(fullTxnId).append(" processed\n");
+//
+//            } catch (Exception ex) {
+//                log.error("Error processing txnId {}: {}", tranxId, ex.getMessage(), ex);
+//
+//                result.append("FAILED: ")
+//                        .append(tranxId)
+//                        .append(" -> ")
+//                        .append(ex.getMessage())
+//                        .append("\n");
+//            }
+//        }
+//
+//        statusResponse.setTotal(request.getTransactionIds().size());
+//        statusResponse.setSuccessCount(successList.size());
+//        statusResponse.setSkippedCount(skippedList.size());
+//        statusResponse.setFailedCount(0);
+//
+//        statusResponse.setSuccessTxnIds(successList);
+//        statusResponse.setSkippedTxnIds(skippedList);
+//        statusResponse.setFailedTxnIds(failedList);
+//        statusResponse.setMessages(messages);
+//
+//        return new CommonResponse<>(200, "Bulk transaction processing completed", statusResponse);
+//    }
+
+
+    @Override
+    @Transactional
+    public CommonResponse<BulkTransactionStatusResponse> updatePendingTransactionStatus(UpdateTransactionStatusRequest request) {
+
+        if (request == null || request.getTransactionIds() == null || request.getTransactionIds().isEmpty()) {
+            throw new IllegalArgumentException("TransactionIds cannot be null or empty");
+        }
+
+        BulkTransactionStatusResponse statusResponse = new BulkTransactionStatusResponse();
+
+        List<String> successList = new ArrayList<>();
+        List<String> skippedList = new ArrayList<>();
+        List<String> failedList = new ArrayList<>();
+        List<String> messages = new ArrayList<>();
+
+        for (String tranxId : request.getTransactionIds()) {
+
+            try {
+                String baseTxnId = tranxId.replaceFirst("^TXN", "");
+                String fullTxnId = "TXN" + baseTxnId;
+
+                // ================= FETCH TXN =================
+                Pair<AbstractRetailerTransactionDetails, String> result = fetchTxnWithWalletType(fullTxnId);
+
+                AbstractRetailerTransactionDetails txn = result.getLeft();
+                String walletType = result.getRight();
+
+                // ================= SKIP =================
+                if ("SUCCESS".equalsIgnoreCase(txn.getTranStatus()) ||
+                        "FAILED".equalsIgnoreCase(txn.getTranStatus())) {
+                    skippedList.add(fullTxnId);
+                    messages.add(fullTxnId + " already processed");
+                    continue;
+                }
+
+                boolean isCredit = "CREDIT".equalsIgnoreCase(txn.getService());
+                boolean isDebit = "DEBIT".equalsIgnoreCase(txn.getService());
+
+                String hierarchyType = extractHierarchyType(txn.getRetailerId());
+                String actionOnBalance;
+
+                // ================= CREDIT FLOW =================
+                if (isCredit) {
+
+                    if ("SUCCESS".equalsIgnoreCase(request.getNewStatus())) {
+
+                        BigDecimal currentBalance = getCurrentBalance(txn.getRetailerId(), walletType);
+                        BigDecimal txnAmount = txn.getAmount();
+
+                        BigDecimal balBefore = currentBalance;
+                        BigDecimal balAfter = currentBalance.add(txnAmount);
+
+                        // Update main TXN
+                        updateTransactionStatusAndBalance(
+                                hierarchyType,
+                                txn.getRetailerId(),
+                                walletType,
+                                fullTxnId,
+                                "SUCCESS",
+                                balBefore,
+                                balAfter
+                        );
+
+                        AbstractWalletAmountTable wallet = getWalletByType(walletType, txn.getRetailerId());
+
+                        // *** Credit or Debit Operation ***
+                        BigDecimal balanceBefore = wallet.getAvailableBalance();
+                        log.debug("Initial Balance Before Operation: {}", balanceBefore);
+
+                        if (txn.getService().equalsIgnoreCase("credit")) {
+                            wallet.setTotalCash(wallet.getTotalCash().add(txn.getAmount()));
+                            wallet.setAvailableBalance(wallet.getAvailableBalance().add(txn.getAmount()));
+                            actionOnBalance = "Add Funds - " + walletType;
+                            log.info("Wallet CREDIT operation: Added {} | New AvailableBalance: {}", txn.getAmount(), wallet.getAvailableBalance());
+                        } else {
+                            wallet.setTotalCash(wallet.getTotalCash().subtract(txn.getAmount()));
+                            wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(txn.getAmount()));
+                            actionOnBalance = "Deduct Funds - " + walletType;
+                            log.info("Wallet DEBIT operation: Deducted {} | New AvailableBalance: {}", txn.getAmount(), wallet.getAvailableBalance());
+                        }
+
+                        // Update metadata
+                        wallet.setLastUpdatedAmount(txn.getAmount());
+                        wallet.setLastUpdatedDate(LocalDate.now());
+                        wallet.setLastUpdatedTime(LocalTime.now());
+
+                        // Fetch SubProduct
+                        SubProducts subProduct = subProductsRepository
+                                .findBySubProductTitle(txn.getSubProductName())
+                                .orElseThrow(() ->
+                                        new RuntimeException("SubProduct not found: " + txn.getSubProductName()));
+
+                        // Fetch Scheme Allocation
+                        SchemeAllocation schemeAllocation = schemeAllocationRepository
+                                .findByHierarchyIdAndSubProductCode(
+                                        txn.getRetailerId(),
+                                        subProduct.getSubProductCode()
+                                )
+                                .orElseThrow(() -> new RuntimeException(
+                                        "SchemeAllocation not found | hierarchyId="
+                                                + txn.getRetailerId()
+                                                + ", subProductCode="
+                                                + subProduct.getSubProductCode()
+                                ));
+
+                        String schemeCode = schemeAllocation.getSchemeCode();
+
+                        // Prepare Amount
+                        double txnAmt = txn.getAmount().doubleValue();
+
+                        // Fetch Matching Schemes
+                        List<SchemeRate> matchingSchemes =
+                                schemeRateRepository.findBySchemeCodeAndOperatorName(
+                                        schemeCode,
+                                        txn.getOperatorName()
+                                );
+
+                        if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+                            skippedList.add(fullTxnId);
+                            messages.add(fullTxnId + " no scheme found");
+                            continue;
+                        }
+
+                        // Select Scheme
+                        SchemeRate selectedScheme = matchingSchemes.stream()
+                                .filter(s -> s.getSlabType() == SlabType.VARIABLE
+                                        && txnAmt >= s.getSlabStart()
+                                        && txnAmt <= s.getSlabEnd())
+                                .findFirst()
+                                .orElse(matchingSchemes.get(0));
+
+                        // Fetch Scheme → Product → SubProduct
+                        Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                                .orElseThrow(() -> new RuntimeException("Scheme not found: " + selectedScheme.getSchemeCode()));
+
+                        // SKIP if scheme inactive
+                        if (scheme.getIsActive() == null || !scheme.getIsActive()) {
+                            skippedList.add(fullTxnId);
+                            messages.add(fullTxnId + " scheme inactive");
+                            continue;
+                        }
+
+                        String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+                        short productId = Short.parseShort(hashParts[0]);
+                        String subProductId = hashParts[1];
+
+                        Products product = productsRepository.findById(productId)
+                                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
+
+                        SubProducts mappedSubProduct = subProductsRepository.findById(subProductId)
+                                .orElseThrow(() -> new RuntimeException("SubProduct not found: " + subProductId));
+
+                        // Build DTO
+                        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
+                        dto.setBaseTranxId(baseTxnId);
+                        dto.setAmount(txnAmt);
+                        dto.setConfirmAmount(txnAmt);
+                        dto.setOperatorName(txn.getOperatorName());
+                        dto.setOperatorCode(selectedScheme.getOperatorCode());
+                        dto.setSchemeRate(selectedScheme);
+                        dto.setTransactionType(product.getTransactionType());
+                        dto.setWalletType(walletType);
+
+                        dto.setGstValue(String.valueOf(product.getSgst()));
+                        dto.setTdsRate(String.valueOf(product.getTds()));
+                        dto.setHierarchyId(txn.getRetailerId());
+                        dto.setProductCode(product.getProductCode());
+                        dto.setSubProductCode(mappedSubProduct.getSubProductCode());
+
+                        dto.setIsCommission(product.getIsCommissions());
+                        dto.setHasCharge(product.getHasCharges());
+
+                        // Optional fields (set safely if available)
+                        dto.setVendorName("Manually Update");
+                        dto.setVendorTxnId(fullTxnId);
+
+                        log.info("DTO prepared for txnId {}: {}", fullTxnId, dto);
+
+                        processChargesAndCommission(
+                                dto,
+                                wallet,
+                                BigDecimal.valueOf(selectedScheme.getGross()),
+                                product.getSgst().toString(),
+                                baseTxnId,
+                                request.getNewStatus()
+                        );
+                    } else {
+                        // CREDIT FAILED
+
+                        //here what i want is if new status is failed then the currently its working fine just
+                        //add one more requriment is the the TransactionId means base  id will be same but just FLD+baseTraxId can we do this ?
+                        updateTransactionStatusOnly(hierarchyType, txn.getRetailerId(), walletType, fullTxnId, "FAILED");
+                    }
+
+                    successList.add(fullTxnId);
+                }
+
+                // ================= DEBIT FLOW =================
+                else if (isDebit) {
+
+                    if ("SUCCESS".equalsIgnoreCase(request.getNewStatus())) {
+
+                        // Only update status
+                        updateTransactionStatusOnly(hierarchyType, txn.getRetailerId(), walletType, fullTxnId, "SUCCESS");
+
+                        List<AbstractRetailerTransactionDetails> relatedTxns =
+                                getRelatedTransactions(baseTxnId, walletType);
+
+                        boolean hasChargeOrGst = relatedTxns.stream().anyMatch(t ->
+                                t.getTransactionId().startsWith("CHG") ||
+                                        t.getTransactionId().startsWith("GST"));
+
+                        if (hasChargeOrGst) {
+
+                            // Update CHG + GST
+                            for (AbstractRetailerTransactionDetails t : relatedTxns) {
+                                if (t.getTransactionId().startsWith("CHG") ||
+                                        t.getTransactionId().startsWith("GST")) {
+
+                                    updateTransactionStatusOnly(
+                                            hierarchyType,
+                                            txn.getRetailerId(),
+                                            walletType,
+                                            t.getTransactionId(),
+                                            "SUCCESS"
+                                    );
+                                }
+                            }
+
+                            // Fetch SubProduct
+                            SubProducts subProduct = subProductsRepository
+                                    .findBySubProductTitle(txn.getSubProductName())
+                                    .orElseThrow(() ->
+                                            new RuntimeException("SubProduct not found: " + txn.getSubProductName()));
+
+                            // Fetch Scheme Allocation
+                            SchemeAllocation schemeAllocation = schemeAllocationRepository
+                                    .findByHierarchyIdAndSubProductCode(
+                                            txn.getRetailerId(),
+                                            subProduct.getSubProductCode()
+                                    )
+                                    .orElseThrow(() -> new RuntimeException(
+                                            "SchemeAllocation not found | hierarchyId="
+                                                    + txn.getRetailerId()
+                                                    + ", subProductCode="
+                                                    + subProduct.getSubProductCode()
+                                    ));
+
+                            String schemeCode = schemeAllocation.getSchemeCode();
+
+                            // Prepare Amount
+                            double txnAmt = txn.getAmount().doubleValue();
+
+                            // Fetch Matching Schemes
+                            List<SchemeRate> matchingSchemes =
+                                    schemeRateRepository.findBySchemeCodeAndOperatorName(
+                                            schemeCode,
+                                            txn.getOperatorName()
+                                    );
+
+                            if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+                                skippedList.add(fullTxnId);
+                                messages.add(fullTxnId + " no scheme found");
+                                continue;
+                            }
+
+                            // Select Scheme
+                            SchemeRate selectedScheme = matchingSchemes.stream()
+                                    .filter(s -> s.getSlabType() == SlabType.VARIABLE
+                                            && txnAmt >= s.getSlabStart()
+                                            && txnAmt <= s.getSlabEnd())
+                                    .findFirst()
+                                    .orElse(matchingSchemes.get(0));
+
+                            // Fetch Scheme → Product → SubProduct
+                            Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                                    .orElseThrow(() -> new RuntimeException("Scheme not found: " + selectedScheme.getSchemeCode()));
+
+                            // SKIP if scheme inactive
+                            if (scheme.getIsActive() == null || !scheme.getIsActive()) {
+                                skippedList.add(fullTxnId);
+                                messages.add(fullTxnId + " scheme inactive");
+                                continue;
+                            }
+
+                            String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+                            short productId = Short.parseShort(hashParts[0]);
+                            String subProductId = hashParts[1];
+
+                            Products product = productsRepository.findById(productId)
+                                    .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
+
+                            SubProducts mappedSubProduct = subProductsRepository.findById(subProductId)
+                                    .orElseThrow(() -> new RuntimeException("SubProduct not found: " + subProductId));
+
+                            // Build DTO
+                            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
+                            dto.setBaseTranxId(baseTxnId);
+                            dto.setAmount(txnAmt);
+                            dto.setConfirmAmount(txnAmt);
+                            dto.setOperatorName(txn.getOperatorName());
+                            dto.setOperatorCode(selectedScheme.getOperatorCode());
+                            dto.setSchemeRate(selectedScheme);
+                            dto.setTransactionType(product.getTransactionType());
+                            dto.setWalletType(walletType);
+
+                            dto.setGstValue(String.valueOf(product.getSgst()));
+                            dto.setTdsRate(String.valueOf(product.getTds()));
+                            dto.setHierarchyId(txn.getRetailerId());
+                            dto.setProductCode(product.getProductCode());
+                            dto.setSubProductCode(mappedSubProduct.getSubProductCode());
+
+                            dto.setIsCommission(product.getIsCommissions());
+                            dto.setHasCharge(product.getHasCharges());
+
+                            // Optional fields (set safely if available)
+                            dto.setVendorName("Manually Update");
+                            dto.setVendorTxnId(fullTxnId);
+
+                            log.info("DTO prepared for txnId {}: {}", fullTxnId, dto);
+
+                            // Insert COM + TDS
+                            processCommission(dto, baseTxnId, request.getNewStatus(), dto);
+
+                        } else {
+
+                            // Fetch SubProduct
+                            SubProducts subProduct = subProductsRepository
+                                    .findBySubProductTitle(txn.getSubProductName())
+                                    .orElseThrow(() ->
+                                            new RuntimeException("SubProduct not found: " + txn.getSubProductName()));
+
+                            // Fetch Scheme Allocation
+                            SchemeAllocation schemeAllocation = schemeAllocationRepository
+                                    .findByHierarchyIdAndSubProductCode(
+                                            txn.getRetailerId(),
+                                            subProduct.getSubProductCode()
+                                    )
+                                    .orElseThrow(() -> new RuntimeException(
+                                            "SchemeAllocation not found | hierarchyId="
+                                                    + txn.getRetailerId()
+                                                    + ", subProductCode="
+                                                    + subProduct.getSubProductCode()
+                                    ));
+
+                            String schemeCode = schemeAllocation.getSchemeCode();
+
+                            // Prepare Amount
+                            double txnAmt = txn.getAmount().doubleValue();
+
+                            // Fetch Matching Schemes
+                            List<SchemeRate> matchingSchemes =
+                                    schemeRateRepository.findBySchemeCodeAndOperatorName(
+                                            schemeCode,
+                                            txn.getOperatorName()
+                                    );
+
+                            if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+                                skippedList.add(fullTxnId);
+                                messages.add(fullTxnId + " no scheme found");
+                                continue;
+                            }
+
+                            // Select Scheme
+                            SchemeRate selectedScheme = matchingSchemes.stream()
+                                    .filter(s -> s.getSlabType() == SlabType.VARIABLE
+                                            && txnAmt >= s.getSlabStart()
+                                            && txnAmt <= s.getSlabEnd())
+                                    .findFirst()
+                                    .orElse(matchingSchemes.get(0));
+
+                            // Fetch Scheme → Product → SubProduct
+                            Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                                    .orElseThrow(() -> new RuntimeException("Scheme not found: " + selectedScheme.getSchemeCode()));
+
+                            // SKIP if scheme inactive
+                            if (scheme.getIsActive() == null || !scheme.getIsActive()) {
+                                skippedList.add(fullTxnId);
+                                messages.add(fullTxnId + " scheme inactive");
+                                continue;
+                            }
+
+                            String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+                            short productId = Short.parseShort(hashParts[0]);
+                            String subProductId = hashParts[1];
+
+                            Products product = productsRepository.findById(productId)
+                                    .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
+
+                            SubProducts mappedSubProduct = subProductsRepository.findById(subProductId)
+                                    .orElseThrow(() -> new RuntimeException("SubProduct not found: " + subProductId));
+
+                            // Build DTO
+                            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
+                            dto.setBaseTranxId(baseTxnId);
+                            dto.setAmount(txnAmt);
+                            dto.setConfirmAmount(txnAmt);
+                            dto.setOperatorName(txn.getOperatorName());
+                            dto.setOperatorCode(selectedScheme.getOperatorCode());
+                            dto.setSchemeRate(selectedScheme);
+                            dto.setTransactionType(product.getTransactionType());
+                            dto.setWalletType(walletType);
+
+                            dto.setGstValue(String.valueOf(product.getSgst()));
+                            dto.setTdsRate(String.valueOf(product.getTds()));
+                            dto.setHierarchyId(txn.getRetailerId());
+                            dto.setProductCode(product.getProductCode());
+                            dto.setSubProductCode(mappedSubProduct.getSubProductCode());
+
+                            dto.setIsCommission(product.getIsCommissions());
+                            dto.setHasCharge(product.getHasCharges());
+
+                            // Optional fields (set safely if available)
+                            dto.setVendorName("Manually Update");
+                            dto.setVendorTxnId(fullTxnId);
+
+                            log.info("DTO prepared for txnId {}: {}", fullTxnId, dto);
+
+                            AbstractWalletAmountTable wallet = getWalletByType(walletType, txn.getRetailerId());
+
+                            // Insert all
+                            processChargesAndCommission(
+                                    dto,
+                                    wallet,
+                                    BigDecimal.valueOf(selectedScheme.getGross()),
+                                    product.getSgst().toString(),
+                                    baseTxnId,
+                                    request.getNewStatus()
+                            );
+                        }
+
+                    } else {
+                        // ================= DEBIT FAILED (REFUND) =================
+
+                        List<AbstractRetailerTransactionDetails> relatedTxns =
+                                getRelatedTransactions(baseTxnId, walletType);
+
+                        BigDecimal totalAmount = relatedTxns.stream()
+                                .map(AbstractRetailerTransactionDetails::getAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        // Refund wallet
+                        //updateWalletAmount(hierarchyType, txn.getRetailerId(), walletType, totalAmount.doubleValue());
+
+                        // Mark all FAILED
+                        for (AbstractRetailerTransactionDetails t : relatedTxns) {
+                            updateTransactionStatusOnly(
+                                    hierarchyType,
+                                    txn.getRetailerId(),
+                                    walletType,
+                                    t.getTransactionId(),
+                                    "FAILED"
+                            );
+                        }
+                    }
+
+                    successList.add(fullTxnId);
+                }
+
+                // ================= UPDATE PENDING TABLE =================
+                updatePendingTransactionTables(baseTxnId, request.getNewStatus());
+
+            } catch (Exception ex) {
+                log.error("Error processing txnId {}: {}", tranxId, ex.getMessage(), ex);
+                failedList.add(tranxId);
+                messages.add(tranxId + " -> " + ex.getMessage());
+            }
+        }
+
+        statusResponse.setTotal(request.getTransactionIds().size());
+        statusResponse.setSuccessCount(successList.size());
+        statusResponse.setSkippedCount(skippedList.size());
+        statusResponse.setFailedCount(failedList.size());
+
+        statusResponse.setSuccessTxnIds(successList);
+        statusResponse.setSkippedTxnIds(skippedList);
+        statusResponse.setFailedTxnIds(failedList);
+        statusResponse.setMessages(messages);
+
+        return new CommonResponse<>(200, "Bulk transaction processing completed", statusResponse);
+    }
+
+    private Pair<AbstractRetailerTransactionDetails, String> fetchTxnWithWalletType(String txnId) {
+
+        return retailerPostpaidTransactionDetailsRepository.findByTransactionId(txnId)
+                .map(t -> Pair.<AbstractRetailerTransactionDetails, String>of(t, "POSTPAID"))
+                .orElseGet(() ->
+                        retailerPrepaidTransactionDetailsRepository.findByTransactionId(txnId)
+                                .map(t -> Pair.<AbstractRetailerTransactionDetails, String>of(t, "PREPAID"))
+                                .orElseThrow(() ->
+                                        new RuntimeException("Transaction not found: " + txnId))
+                );
+    }
+
+    private List<AbstractRetailerTransactionDetails> getRelatedTransactions(String baseTxnId, String walletType) {
+
+        if ("PREPAID".equalsIgnoreCase(walletType)) {
+
+            return retailerPrepaidTransactionDetailsRepository
+                    .findByBaseTransactionId(baseTxnId)
+                    .stream()
+                    .map(t -> (AbstractRetailerTransactionDetails) t)
+                    .toList();
+
+        } else {
+
+            return retailerPostpaidTransactionDetailsRepository
+                    .findByBaseTransactionId(baseTxnId)
+                    .stream()
+                    .map(t -> (AbstractRetailerTransactionDetails) t)
+                    .toList();
+        }
+    }
+
+    private void updateTransactionStatusAndBalance(String hierarchyType, String id, String walletType,
+                                                   String txnId, String status,
+                                                   BigDecimal balBefore, BigDecimal balAfter) {
+
+        String table = getTransactionTable(hierarchyType, walletType);
+
+        int updated = jdbcTemplate.update(
+                "UPDATE " + table + " SET tran_status=?, bal_before_tran=?, bal_after_tran=?, " +
+                        "updated_date_of_transaction=NOW(), updated_time_of_transaction=NOW() " +
+                        "WHERE transaction_id=?",
+                status, balBefore, balAfter, txnId
+        );
+
+        if (updated == 0) {
+            log.warn("No record found for txnId: {}", txnId);
+        }
+    }
+
+    private void updateTransactionStatusOnly(String hierarchyType, String id, String walletType,
+                                             String txnId, String status) {
+
+        String table = getTransactionTable(hierarchyType, walletType);
+
+        int updated = jdbcTemplate.update(
+                "UPDATE " + table + " SET tran_status=?, " +
+                        "updated_date_of_transaction=NOW(), updated_time_of_transaction=NOW() " +
+                        "WHERE transaction_id=?",
+                status, txnId
+        );
+
+        if (updated == 0) {
+            log.warn("No record found for txnId: {}", txnId);
+        }
+    }
+
+
+    private void updatePendingTransactionTables(String baseTxnId, String status) {
+
+        String orderId = "ORD" + baseTxnId;
+        String txnId = "TXN" + baseTxnId;
+
+        // PG Transaction Mapping (PRIORITY 1)
+        Optional<PgTransactionMapping> pgOpt = pgTransactionMappingRepository.findByOrderId(orderId);
+
+        if (pgOpt.isPresent()) {
+            PgTransactionMapping pg = pgOpt.get();
+            pg.setStatus(status);
+            pgTransactionMappingRepository.save(pg);
+
+            log.info("Updated PG_TRANSACTION_MAPPING for orderId={} with status={}", orderId, status);
+            return;
+        }
+
+        // Payout Pending (PRIORITY 2)
+        Optional<PayoutPendingTransactions> payoutOpt =
+                payoutPendingTransactionRepository.findByTransactionId(txnId);
+
+        if (payoutOpt.isPresent()) {
+            PayoutPendingTransactions payout = payoutOpt.get();
+            payout.setStatus(status);
+            payoutPendingTransactionRepository.save(payout);
+
+            log.info("Updated PAYOUT_PENDING_TRANSACTIONS for txnId={} with status={}", txnId, status);
+            return;
+        }
+
+        // BBPS Pending (PRIORITY 3)
+        Optional<BBPSPendingTransactions> bbpsOpt =
+                Optional.ofNullable(bbpsPendingTransactionsRepository.findByTransactionId(txnId));
+
+        if (bbpsOpt.isPresent()) {
+            BBPSPendingTransactions bbps = bbpsOpt.get();
+            bbps.setStatus(status);
+            bbpsPendingTransactionsRepository.save(bbps);
+
+            log.info("Updated BBPS_PENDING_TRANSACTIONS for txnId={} with status={}", txnId, status);
+            return;
+        }
+
+        log.warn("No pending transaction record found for baseTxnId={} (orderId={}, txnId={})",
+                baseTxnId, orderId, txnId);
+    }
+
     @Override
     @Transactional
     public String updateTransactionStatus(UpdateTransactionStatusRequest request) {
@@ -2252,7 +3046,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 //                        continue;
 //                    }
 
-                     //new logic chk SETTLEMENT PENDING with actionOnBalanceAmount field
+                    //new logic chk SETTLEMENT PENDING with actionOnBalanceAmount field
                     String action = postpaidTxn.getActionOnBalanceAmount();
 
                     if (action == null ||
