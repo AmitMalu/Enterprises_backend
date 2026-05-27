@@ -8,6 +8,11 @@ import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.request.TokenGenerationRequest;
 import com.im.admin.util.AESEncryptionUtil;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +33,7 @@ import java.util.*;
 @RestController
 @Slf4j
 @RequestMapping("/api/aes")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Authentication & AES", description = "Authentication APIs")
 public class AESController {
 
 	@Autowired
@@ -77,7 +83,7 @@ public class AESController {
 		if (this.defaultSecretKey == null) {
 			throw new IllegalStateException("Secret key is not initialized.");
 		}
-		log.info("SecretKey --------->" + defaultSecretKey);
+		log.info("SecretKey --------->" + Arrays.toString(defaultSecretKey));
 		return this.defaultSecretKey;
 	}
 
@@ -103,8 +109,41 @@ public class AESController {
 		}
 	}
 
+	@PostMapping("/encrypt-credentials")
+	public ResponseEntity<?> encryptCredentials(
+			@RequestBody EncryptDecryptCredentialsDto encryptDecryptCredentialsDto ) {
+		try {
+			// 1. Generate raw salt bytes
+			byte[] saltBytes = new byte[16];
+			new SecureRandom().nextBytes(saltBytes);
+			String saltBase64 = Base64.getEncoder().encodeToString(saltBytes); // send to client
+
+			// 2. Generate IV
+			IvParameterSpec iv = aesEncryptionUtil.generateIv();
+			String ivBase64 = Base64.getEncoder().encodeToString(iv.getIV());
+
+			// 3. Derive key from raw salt bytes
+			byte[] derivedKey = aesEncryptionUtil.deriveKey(baseSecret, saltBytes, iterations, keyLength);
+
+			// 4. Encrypt using derived key + IV
+			String encryptedUsername = aesEncryptionUtil.encrypt(encryptDecryptCredentialsDto.getUsername(), derivedKey, iv );
+			String encryptedPassword = aesEncryptionUtil.encrypt(encryptDecryptCredentialsDto.getPassword(), derivedKey, iv );
+
+			return ResponseEntity.ok(Map.of(
+					"cipherUsername", encryptedUsername,
+					"cipherPassword", encryptedPassword,
+					"salt", saltBase64,   // send base64 salt to client
+					"iv", ivBase64
+			));
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("error", e.getMessage()));
+		}
+	}
+
 	@PostMapping("/generate-token")
-	public ResponseEntity<?> generateToken(@RequestBody TokenGenerationRequest tokenGenerationRequest) {
+	public ResponseEntity<?> generateToken(
+			@RequestBody TokenGenerationRequest tokenGenerationRequest) {
 		try {
 			// 1 Generate salt & IV
 			byte[] saltBytes = Base64.getDecoder().decode(tokenGenerationRequest.getSalt());
@@ -130,11 +169,10 @@ public class AESController {
 						.body(Map.of("error", "Invalid credentials"));
 			}
 			UserDetails user = optionalUser.get();
-			String rawPassword = decryptedPassword;
 			String storedPassword = user.getLoginPassword();
 
-			boolean passwordOk = passwordEncoder.matches(rawPassword, storedPassword)
-					|| rawPassword.equals(storedPassword);
+			boolean passwordOk = passwordEncoder.matches(decryptedPassword, storedPassword)
+					|| decryptedPassword.equals(storedPassword);
 
 			if (!passwordOk) {
 				return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -173,40 +211,10 @@ public class AESController {
 		}
 	}
 
-	@PostMapping("/encrypt-credentials")
-	public ResponseEntity<?> encryptCredentials(@RequestBody EncryptDecryptCredentialsDto encryptDecryptCredentialsDto ) {
-		try {
-			// 1. Generate raw salt bytes
-			byte[] saltBytes = new byte[16];
-			new SecureRandom().nextBytes(saltBytes);
-			String saltBase64 = Base64.getEncoder().encodeToString(saltBytes); // send to client
-
-			// 2. Generate IV
-			IvParameterSpec iv = aesEncryptionUtil.generateIv();
-			String ivBase64 = Base64.getEncoder().encodeToString(iv.getIV());
-
-			// 3. Derive key from raw salt bytes
-			byte[] derivedKey = aesEncryptionUtil.deriveKey(baseSecret, saltBytes, iterations, keyLength);
-
-			// 4. Encrypt using derived key + IV
-			String encryptedUsername = aesEncryptionUtil.encrypt(encryptDecryptCredentialsDto.getUsername(), derivedKey, iv );
-			String encryptedPassword = aesEncryptionUtil.encrypt(encryptDecryptCredentialsDto.getPassword(), derivedKey, iv );
-
-			return ResponseEntity.ok(Map.of(
-					"cipherUsername", encryptedUsername,
-					"cipherPassword", encryptedPassword,
-					"salt", saltBase64,   // send base64 salt to client
-					"iv", ivBase64
-			));
-		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body(Map.of("error", e.getMessage()));
-		}
-	}
-
 
 	@PostMapping("/decrypt-credentials")
-	public ResponseEntity<?> decryptCredentials(@RequestBody EncryptDecryptCredentialsDto decryptCredentials) {
+	public ResponseEntity<?> decryptCredentials(
+			@RequestBody EncryptDecryptCredentialsDto decryptCredentials) {
 		try {
 			// 1️ IV decode
 			byte[] ivBytes = Base64.getDecoder().decode(decryptCredentials.getIv());

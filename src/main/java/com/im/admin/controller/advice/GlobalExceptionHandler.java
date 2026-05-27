@@ -1,6 +1,5 @@
 package com.im.admin.controller.advice;
 
-
 import com.im.admin.dto.CustomResponseDTO;
 import com.im.admin.exception.CustomValidationException;
 import com.im.admin.exception.FileValidationException;
@@ -9,8 +8,6 @@ import com.im.admin.exception.UserNotFoundException;
 import com.im.admin.response.CommonResponse;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,18 +15,33 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 import javax.naming.AuthenticationException;
 import java.nio.file.AccessDeniedException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    // Handle SpringDoc/Swagger specific exceptions - just log and return
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<?> handleNoHandlerFound(NoHandlerFoundException ex, WebRequest request) {
+        // Don't interfere with Swagger endpoints
+        String path = request.getDescription(false);
+        if (path.contains("swagger") || path.contains("api-docs")) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", HttpStatus.NOT_FOUND.value());
+        response.put("error", "Endpoint not found");
+        response.put("path", ex.getRequestURL());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
 
     @ExceptionHandler(CustomValidationException.class)
     public ResponseEntity<Map<String, Object>> handleValidationException(CustomValidationException ex) {
@@ -40,21 +52,8 @@ public class GlobalExceptionHandler {
                 .map(err -> err.getField() + ": " + err.getMessage())
                 .collect(Collectors.toList())
         );
-
         return ResponseEntity.badRequest().body(response);
     }
-
-//    @ExceptionHandler(MethodArgumentNotValidException.class)
-//    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-//        Map<String, String> errors = new HashMap<>();
-//
-//        ex.getBindingResult().getFieldErrors().forEach(error -> {
-//            log.error("Validation error - Field: {}, Message: {}", error.getField(), error.getDefaultMessage());
-//            errors.put(error.getField(), error.getDefaultMessage());
-//        });
-//
-//        return ResponseEntity.badRequest().body(errors);
-//    }
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<CustomResponseDTO> handleUserNotFound(UserNotFoundException ex) {
@@ -63,9 +62,15 @@ public class GlobalExceptionHandler {
                 .body(new CustomResponseDTO(400, ex.getMessage()));
     }
 
-
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<CustomResponseDTO> handleRuntimeException(RuntimeException ex) {
+        // Don't log Swagger-related exceptions as errors
+        if (ex.getMessage() != null && (ex.getMessage().contains("swagger") || ex.getMessage().contains("api-docs"))) {
+            log.debug("Swagger related exception: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CustomResponseDTO(500, "Internal server error"));
+        }
+        log.error("RuntimeException: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new CustomResponseDTO(400, ex.getMessage()));
     }
@@ -115,15 +120,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.ok(response);
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<CommonResponse<Object>> handleGeneralException(Exception ex) {
-        CommonResponse<Object> response = new CommonResponse<>();
-        response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.setMessage("Something Went Wrong - " + ex.getMessage());
-        response.setData(null);
-        return ResponseEntity.ok(response);
-    }
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<CommonResponse<Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
         String errorMessage = ex.getBindingResult()
@@ -148,5 +144,31 @@ public class GlobalExceptionHandler {
                 CommonResponse.handleErrors(errorMessage)
         );
     }
-}
 
+    // This is the most important - handle general Exception but don't break Swagger
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<CommonResponse<Object>> handleGeneralException(Exception ex, WebRequest request) {
+        String path = request.getDescription(false);
+
+        // Log the FULL stack trace for debugging
+        log.error("Full exception details: ", ex); // This will print the real erroR
+
+        // If it's a Swagger/OpenAPI request, provide a more helpful response
+        if (path.contains("v3/api-docs") || path.contains("swagger")) {
+            log.error("Swagger/OpenAPI error: {}", ex.getMessage());
+            CommonResponse<Object> response = new CommonResponse<>();
+            response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            response.setMessage("Swagger documentation error. Please check configuration.");
+            response.setData(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+
+        // For non-Swagger requests, log the full error
+        log.error("Something Went Wrong: {}", ex.getMessage(), ex);
+        CommonResponse<Object> response = new CommonResponse<>();
+        response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        response.setMessage("Something Went Wrong - " + ex.getMessage());
+        response.setData(null);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+}
