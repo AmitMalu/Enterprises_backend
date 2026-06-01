@@ -18,10 +18,10 @@ public class SmsLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "request")
+	@Column(name = "request", columnDefinition = "TEXT")
 	private String request;
-    
-	@Column(name = "response")
+
+	@Column(name = "response", columnDefinition = "TEXT")
 	private String response;
 	
 	@Column(name = "ip_address")

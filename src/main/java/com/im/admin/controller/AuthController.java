@@ -300,7 +300,8 @@ public class AuthController {
 
     private String generateOtpForUser(UserDetails user) {
 
-        String otp = "400705";
+//        String otp = "400705";
+        String otp = OtpUtil.generateOtp();
 
         try {
 
@@ -318,13 +319,13 @@ public class AuthController {
                     user.getHierarchyId()
             );
 
-//            shivSmsService.sendOtpSms(
-//                    smsConfig,
-//                    user.getMobileNumber(),
-//                    user.getLoginUserName(),
-//                    otp,
-//                    companyName
-//            );
+            shivSmsService.sendOtpSms(
+                    smsConfig,
+                    user.getMobileNumber(),
+                    user.getLoginUserName(),
+                    otp,
+                    companyName
+            );
 
             //String otp = OtpUtil.generateOtp();
             user.setOtp(otp);
@@ -337,7 +338,7 @@ public class AuthController {
                     LocalDateTime.now(),
                     "Send OTP to: " + user.getMobileNumber() + ", OTP: " + otp,
                     LocalDateTime.now(),
-                    "400705",
+                    otp,
                     null // You can replace null with real IP if available
             );
 
@@ -1021,8 +1022,8 @@ public class AuthController {
             return ResponseEntity.ok(new CommonResponse<>(403, "User account is not active", null));
         }
 
-        String newOtp = "400705";
-        //String newOtp = OtpUtil.generateOtp();
+//        String newOtp = "400705";
+        String newOtp = OtpUtil.generateOtp();
         user.setOtp(newOtp);
         user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
         userDetailsRepository.save(user);
@@ -1030,20 +1031,64 @@ public class AuthController {
         log.info("New OTP generated and saved for user ID: {}", user.getHierarchyId());
 
         // Hook: Send OTP via SMS or Email
-        if (loginRequestDto.getUserName().matches("\\d{10}")) {
-            log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
-//            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), newOtp);
+//        if (loginRequestDto.getUserName().matches("\\d{10}")) {
+//            log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
+////            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), newOtp);
+////
+////            // Save SMS logs
+////            commonFunctions.saveSmsLogs(
+////                    LocalDateTime.now(),
+////                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + newOtp,
+////                    LocalDateTime.now(),
+////                    smsResponse,
+////                    null // You can replace null with real IP if available
+////            );
 //
-//            // Save SMS logs
-//            commonFunctions.saveSmsLogs(
-//                    LocalDateTime.now(),
-//                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + newOtp,
-//                    LocalDateTime.now(),
-//                    smsResponse,
-//                    null // You can replace null with real IP if available
-//            );
+//        }
 
-        } else {
+        if (loginRequestDto.getUserName().matches("\\d{10}")) {
+
+            log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
+
+            try {
+                String fromId = resolveFromEmail(
+                        user.getHierarchyCode(),
+                        user.getHierarchyId()
+                );
+
+                String companyName = getCompanyName(fromId);
+
+                SmsCredentialsMaster smsConfig = getSmsCredentials(
+                        user.getHierarchyCode(),
+                        user.getHierarchyId()
+                );
+
+                String smsResponse = shivSmsService.sendOtpSms(
+                        smsConfig,
+                        user.getMobileNumber(),
+                        user.getLoginUserName(),
+                        newOtp,
+                        companyName
+                );
+
+                // Save SMS logs
+                commonFunctions.saveSmsLogs(
+                        LocalDateTime.now(),
+                        "Send OTP to: " + user.getMobileNumber() + ", OTP: " + newOtp,
+                        LocalDateTime.now(),
+                        smsResponse,
+                        null
+                );
+
+                log.info("OTP resent via SMS to: {}", user.getMobileNumber());
+
+            } catch (Exception e) {
+                log.error("Failed to resend OTP via SMS to {}", user.getMobileNumber(), e);
+            }
+
+        }
+
+        else {
             log.debug("Sending OTP via Email to email ID: {}", user.getEmailId());
             // emailService.sendOtp(user.getEmail(), newOtp);
         }
@@ -1154,8 +1199,8 @@ public class AuthController {
             return ResponseEntity.ok(new CommonResponse<>(403, "User account is not active", null));
         }
 
-        String otp = "400705";
-        //String otp = OtpUtil.generateOtp();
+//        String otp = "400705";
+        String otp = OtpUtil.generateOtp();
         user.setOtp(otp);
         user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
         userDetailsRepository.save(user);
@@ -1163,23 +1208,66 @@ public class AuthController {
         log.info("OTP generated and saved for user ID: {}", user.getHierarchyId());
 
         // Optional: Hook for sending OTP
-        if (loginRequestDto.getUserName().matches("\\d{10}")) {
-            log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
-//            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
+//        if (loginRequestDto.getUserName().matches("\\d{10}")) {
+//            log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
+////            String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);
+////
+////            // Save SMS logs
+////            commonFunctions.saveSmsLogs(
+////                    LocalDateTime.now(),
+////                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + otp,
+////                    LocalDateTime.now(),
+////                    smsResponse,
+////                    null // You can replace null with real IP if available
+////            );
 //
-//            // Save SMS logs
-//            commonFunctions.saveSmsLogs(
-//                    LocalDateTime.now(),
-//                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + otp,
-//                    LocalDateTime.now(),
-//                    smsResponse,
-//                    null // You can replace null with real IP if available
-//            );
+//        }
+
+        if (loginRequestDto.getUserName().matches("\\d{10}")) {
+
+            log.debug("Sending OTP via SMS to mobile number: {}", user.getMobileNumber());
+
+            try {
+                String fromId = resolveFromEmail(
+                        user.getHierarchyCode(),
+                        user.getHierarchyId()
+                );
+
+                String companyName = getCompanyName(fromId);
+
+                SmsCredentialsMaster smsConfig = getSmsCredentials(
+                        user.getHierarchyCode(),
+                        user.getHierarchyId()
+                );
+
+                String smsResponse = shivSmsService.sendOtpSms(
+                        smsConfig,
+                        user.getMobileNumber(),
+                        user.getLoginUserName(),
+                        otp,
+                        companyName
+                );
+
+                // Save SMS logs
+                commonFunctions.saveSmsLogs(
+                        LocalDateTime.now(),
+                        "Send OTP to: " + user.getMobileNumber(),
+                        LocalDateTime.now(),
+                        smsResponse,
+                        null
+                );
+
+                log.info("OTP sent via SMS to: {}", user.getMobileNumber());
+
+            } catch (Exception e) {
+                log.error("Failed to send OTP via SMS to {}", user.getMobileNumber(), e);
+            }
 
         } else {
             log.debug("Sending OTP via Email to email ID: {}", user.getEmailId());
             // emailService.sendOtp(user.getEmail(), otp);
         }
+        
 
         Map<String, String> data = new HashMap<>();
         data.put("message", "OTP has been sent to your registered mobile number");

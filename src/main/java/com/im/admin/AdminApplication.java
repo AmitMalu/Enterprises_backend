@@ -10,6 +10,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import com.im.admin.util.SSLUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -23,6 +24,7 @@ import java.security.MessageDigest;
 public class AdminApplication extends SpringBootServletInitializer {
 
     public static void main(String[] args) {
+        SSLUtil.disableSSL();
         SpringApplication.run(AdminApplication.class, args);
     }
 

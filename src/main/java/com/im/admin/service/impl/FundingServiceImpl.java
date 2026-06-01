@@ -338,14 +338,39 @@ public class FundingServiceImpl implements FundingService {
         List<String> filteredSubProducts = null;
 
         // =========================================================
+        // ✅ NEW: HANDLE subProductName ONLY (IMPORTANT FIX)
+        // =========================================================
+        if (StringUtils.hasText(request.getSubProductName())
+                && !StringUtils.hasText(request.getSubProductId())
+                && request.getProductId() == null
+                && !StringUtils.hasText(request.getProductName())) {
+
+            List<String> requestedSubs = Arrays.stream(request.getSubProductName().split(","))
+                    .map(String::trim)
+                    .toList();
+
+            filteredSubProducts = subProductsRepository.findAll().stream()
+                    .filter(sp ->
+                            requestedSubs.contains(sp.getSubProductTitle()) ||
+                                    requestedSubs.contains(sp.getSubProductCode())
+                    )
+                    .flatMap(sp -> Stream.of(
+                            sp.getSubProductTitle(),
+                            sp.getSubProductCode()
+                    ))
+                    .distinct()
+                    .toList();
+        }
+
+        // =========================================================
         // 1. PRIORITY: subProductId (STRICT FILTER)
         // =========================================================
-        if (StringUtils.hasText(request.getSubProductId())) {
+        else if (StringUtils.hasText(request.getSubProductId())) {
 
             SubProducts subProduct = subProductsRepository.findById(request.getSubProductId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid subProductId"));
 
-            filteredSubProducts = List.of(subProduct.getSubProductTitle());
+            filteredSubProducts = List.of(subProduct.getSubProductCode());
         }
 
         // =========================================================
@@ -358,7 +383,7 @@ public class FundingServiceImpl implements FundingService {
 
             List<String> allSubProducts = subProductsRepository.findByProduct(product)
                     .stream()
-                    .map(SubProducts::getSubProductTitle)
+                    .map(SubProducts::getSubProductCode)
                     .toList();
 
             if (StringUtils.hasText(request.getSubProductName())) {
@@ -367,11 +392,34 @@ public class FundingServiceImpl implements FundingService {
                         .map(String::trim)
                         .toList();
 
-                filteredSubProducts = requestedSubs.stream()
-                        .filter(allSubProducts::contains)
-                        .collect(Collectors.toList());
+                filteredSubProducts = subProductsRepository.findAll().stream()
+                        .filter(sp ->
+                                requestedSubs.contains(sp.getSubProductTitle()) ||
+                                        requestedSubs.contains(sp.getSubProductCode())
+                        )
+                        .flatMap(sp -> Stream.of(
+                                sp.getSubProductTitle(),
+                                sp.getSubProductCode()
+                        ))
+                        .distinct()
+                        .toList();
+            } else {
+                filteredSubProducts = allSubProducts;
             }
+        }
 
+        // =========================================================
+        // PRODUCT NAME FILTER
+        // =========================================================
+        else if (StringUtils.hasText(request.getProductName())) {
+
+            List<String> subProductsByName = subProductsRepository.findAll().stream()
+                    .filter(sp -> sp.getProduct() != null
+                            && request.getProductName().equalsIgnoreCase(sp.getProduct().getName()))
+                    .map(SubProducts::getSubProductCode)
+                    .toList();
+
+            filteredSubProducts = subProductsByName;
         }
 
         log.info("Using subProducts: {}", filteredSubProducts);
@@ -387,9 +435,6 @@ public class FundingServiceImpl implements FundingService {
         } else if (StringUtils.hasText(request.getVendor())) {
             vendorName = request.getVendor();
         }
-
-//        Pageable pageable = PageRequest.of(page, size,
-//                Sort.by("updatedDateOfTransaction").descending());
 
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by(
@@ -417,7 +462,7 @@ public class FundingServiceImpl implements FundingService {
         Page<RetailerTransactionResponseDto> responsePage;
 
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
-            responsePage = fetchPrepaid(request,filteredSubProducts,vendorName,statusList,networkIds,pageable);
+            responsePage = fetchPrepaid(request, filteredSubProducts, vendorName, statusList, networkIds, pageable);
         } else if ("POSTPAID".equalsIgnoreCase(request.getWalletType())) {
             responsePage = fetchPostpaid(request, filteredSubProducts, vendorName, statusList, networkIds, pageable);
         } else {
@@ -453,6 +498,19 @@ public class FundingServiceImpl implements FundingService {
 
         Map<String, SubProducts> subProductMap = getSubProductMap();
 
+        // ===== LAT LONG RANGE =====
+        Double latMin = null, latMax = null, longMin = null, longMax = null;
+
+        if (request.getLatitude() != null) {
+            latMin = request.getLatitude() - 0.0001;
+            latMax = request.getLatitude() + 0.0001;
+        }
+
+        if (request.getLongitude() != null) {
+            longMin = request.getLongitude() - 0.0001;
+            longMax = request.getLongitude() + 0.0001;
+        }
+
         return retailerPrepaidTransactionDetailsRepository.findFilteredTransactions(
                 request.getId(),
                 request.getFromDate(),
@@ -474,6 +532,10 @@ public class FundingServiceImpl implements FundingService {
                 request.getTimeOfTransaction(),
                 request.getUpdatedDateOfTransaction(),
                 request.getUpdatedTimeOfTransaction(),
+                latMin,
+                latMax,
+                longMin,
+                longMax,
                 pageable
         ).map(txn -> {
 
@@ -504,8 +566,8 @@ public class FundingServiceImpl implements FundingService {
                             txn.getOperatorName()
                     );
 
-            dto.setWalletType("PREPAID"); //  request
-            dto.setProductName(sp != null ? sp.getProduct().getName() : null); //  join
+            dto.setWalletType("PREPAID");
+            dto.setProductName(sp != null ? sp.getProduct().getName() : null);
 
             return dto;
         });
@@ -521,6 +583,19 @@ public class FundingServiceImpl implements FundingService {
             Pageable pageable) {
 
         Map<String, SubProducts> subProductMap = getSubProductMap();
+
+        // ===== LAT LONG RANGE =====
+        Double latMin = null, latMax = null, longMin = null, longMax = null;
+
+        if (request.getLatitude() != null) {
+            latMin = request.getLatitude() - 0.0001;
+            latMax = request.getLatitude() + 0.0001;
+        }
+
+        if (request.getLongitude() != null) {
+            longMin = request.getLongitude() - 0.0001;
+            longMax = request.getLongitude() + 0.0001;
+        }
 
         return retailerPostpaidTransactionDetailsRepository.findFilteredTransactions(
                 request.getId(),
@@ -543,6 +618,10 @@ public class FundingServiceImpl implements FundingService {
                 request.getTimeOfTransaction(),
                 request.getUpdatedDateOfTransaction(),
                 request.getUpdatedTimeOfTransaction(),
+                latMin,
+                latMax,
+                longMin,
+                longMax,
                 pageable
         ).map(txn -> {
 
