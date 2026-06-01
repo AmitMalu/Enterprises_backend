@@ -1,6 +1,5 @@
 package com.im.admin.service;
 
-//import com.im.admin.dto.DmtResponseDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.*;
 import com.im.admin.entities.DmtBankList;
@@ -9,7 +8,6 @@ import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.request.*;
 import com.im.admin.response.BeneficiaryRegisterResponse;
-import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PaysprintPennyDropResponse;
 import com.im.admin.response.PaysprintSendOtpResponse;
 
@@ -28,10 +26,9 @@ public interface DmtVendorService {
 
     String generateJwtToken();
 
-    List<DmtBankList> getdmtbanklist(DmtBankListRequest request,VendorCredentials credentials);
+    List<DmtBankList> getdmtbanklist(DmtBankListRequest request, VendorCredentials credentials);
 
     RemitterQueryResponse checkRemitter(
-//            String mobile,
             RemitterQueryRequest request,
             VendorCredentials credentials
     ) throws Exception;
@@ -63,7 +60,7 @@ public interface DmtVendorService {
 
     RemitterRegisterResponse verifyRemitterOtp(RemitterEkycRequest request, VendorCredentials credentials) throws Exception;
 
-    Map verifyBeneficiaryOtp(VerifyBeneOtpRequest req, VendorCredentials credentials)throws Exception ;
+    Map verifyBeneficiaryOtp(VerifyBeneOtpRequest req, VendorCredentials credentials) throws Exception;
 
-    Map verifyDeleteOtp(VerifyDeleteOtpRequest req, VendorCredentials credentials)throws Exception;
+    Map verifyDeleteOtp(VerifyDeleteOtpRequest req, VendorCredentials credentials) throws Exception;
 }
