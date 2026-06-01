@@ -15,7 +15,8 @@ public class BillAvenueStatusScheduler {
     @Autowired
     private BillAvenueStatusService billAvenueStatusService;
 
-    @Scheduled(cron = "0 */5 * * * *") // every 5 minutes
+//    @Scheduled(cron = "0 */5 * * * *") // every 5 minutes
+      @Scheduled(cron = "0 0 * * * *") //every one hour
     public void checkBillAvenuePendingTxns() {
         log.info("BillAvenue cron started...");
         billAvenueStatusService.checkPendingTransactions();

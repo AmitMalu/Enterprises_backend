@@ -40,7 +40,10 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 WHERE (:id IS NULL OR r.id = :id)
                 AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate)
                 AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
-                AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
+            AND (
+                                   :subProductNames IS NULL\s
+                                   OR LOWER(r.subProductName) IN :subProductNames
+                               )
                 AND (:vendorName IS NULL OR LOWER(r.vendorName) LIKE LOWER(CONCAT('%', :vendorName, '%')))
                 AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)
                 AND (:networkIds IS NULL OR r.retailerId IN :networkIds)
@@ -58,9 +61,17 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 AND (:timeOfTransaction IS NULL OR r.timeOfTransaction = :timeOfTransaction)
                 AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
                 AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
+               
+               AND (:latMin IS NULL OR r.latitude BETWEEN :latMin AND :latMax)
+               AND (:longMin IS NULL OR r.longitude BETWEEN :longMin AND :longMax)
             """)
     Page<RetailerPrepaidTransactionDetails> findFilteredTransactions(@Param("id") Integer id, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("subProductNames") List<String> subProductNames,  // List<String>
-                                                                     @Param("vendorName") String vendorName, @Param("tranStatusList") List<String> tranStatusList, @Param("networkIds") List<String> networkIds, @Param("userId") String userId, @Param("mobileNo") String mobileNo, @Param("schemeName") String schemeName, @Param("amount") Double amount, @Param("txId") String txId, @Param("remarks") String remarks, @Param("medium") String medium, @Param("txType") String txType, @Param("txStatus") String txStatus, @Param("dateOfTransaction") LocalDate dateOfTransaction, @Param("timeOfTransaction") LocalTime timeOfTransaction, @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction, @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction, Pageable pageable);
+                                                                     @Param("vendorName") String vendorName, @Param("tranStatusList") List<String> tranStatusList, @Param("networkIds") List<String> networkIds, @Param("userId") String userId, @Param("mobileNo") String mobileNo, @Param("schemeName") String schemeName, @Param("amount") Double amount, @Param("txId") String txId, @Param("remarks") String remarks, @Param("medium") String medium, @Param("txType") String txType, @Param("txStatus") String txStatus, @Param("dateOfTransaction") LocalDate dateOfTransaction, @Param("timeOfTransaction") LocalTime timeOfTransaction, @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction, @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction,
+                                                                     @Param("latMin") Double latMin,
+                                                                     @Param("latMax") Double latMax,
+                                                                     @Param("longMin") Double longMin,
+                                                                     @Param("longMax") Double longMax,
+                                                                     Pageable pageable);
 
     // Search by normalized transactionId + retailerId
     @Query("""

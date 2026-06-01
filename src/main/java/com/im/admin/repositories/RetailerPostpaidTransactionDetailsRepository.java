@@ -41,8 +41,10 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
                 WHERE (:id IS NULL OR r.id = :id)
                 AND (:fromDate IS NULL OR r.dateOfTransaction >= :fromDate)
                 AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
-                AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
-                AND (:vendorName IS NULL OR r.vendorName = :vendorName)
+            AND (
+                                   :subProductNames IS NULL\s
+                                   OR LOWER(r.subProductName) IN :subProductNames
+                               )                AND (:vendorName IS NULL OR r.vendorName = :vendorName)
                 AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)
                  AND (:networkIds IS NULL OR r.retailerId IN :networkIds)
                  AND (r.transactionId LIKE 'TXN%')
@@ -59,6 +61,9 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
                   AND (:timeOfTransaction IS NULL OR r.timeOfTransaction = :timeOfTransaction)
                    AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
                   AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
+                 
+                 AND (:latMin IS NULL OR r.latitude BETWEEN :latMin AND :latMax)
+                 AND (:longMin IS NULL OR r.longitude BETWEEN :longMin AND :longMax)
             """)
     Page<RetailerPostpaidTransactionDetails> findFilteredTransactions(
             @Param("id") Integer id,
@@ -81,6 +86,10 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
             @Param("timeOfTransaction") LocalTime timeOfTransaction,
             @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction,
             @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction,
+            @Param("latMin") Double latMin,
+            @Param("latMax") Double latMax,
+            @Param("longMin") Double longMin,
+            @Param("longMax") Double longMax,
             Pageable pageable
     );
 

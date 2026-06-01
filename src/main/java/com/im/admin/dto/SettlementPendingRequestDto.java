@@ -41,4 +41,8 @@ public class SettlementPendingRequestDto {
     private String hierarchyId;
     private String productName;
 
+
+    private Double latitude;
+    private Double longitude;
+
 }
