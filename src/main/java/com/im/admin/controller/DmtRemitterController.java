@@ -22,17 +22,7 @@ public class DmtRemitterController {
     private DmtOrchestrator dmtOrchestrator;
 
     @Autowired
-    private  RemitterService remitterService;
-
-//    @PostMapping("/check")
-//    public ResponseEntity<CommonResponse<RemitterQueryResponse>> checkAndProcess(
-//            @RequestBody RemitterQueryRequest request) throws Exception  {
-//
-//        CommonResponse<RemitterQueryResponse> response = remitterService.checkRemitter(request.getMobile(),request.getSubProductId());
-//        return ResponseEntity.status(response.getStatusCode()).body(response);
-//    }
-
-//    dmtOrchestrator
+    private RemitterService remitterService;
 
     @PostMapping("/check")
     public ResponseEntity<CommonResponse<RemitterQueryResponse>> checkAndProcess(
@@ -40,21 +30,11 @@ public class DmtRemitterController {
 
         CommonResponse<RemitterQueryResponse> response =
                 dmtOrchestrator.checkRemitter(
-//                        request.getMobile(),
-//                        request.getSubProductId()
                         request
                 );
 
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
-
-//    @PostMapping("/register")
-//    public ResponseEntity<CommonResponse<RemitterRegisterResponse>> registerRemitter(
-//            @RequestBody RemitterRegisterRequest request) {
-//        CommonResponse<RemitterRegisterResponse> response =
-//                (CommonResponse<RemitterRegisterResponse>) remitterService.registerRemitter(request);
-//        return ResponseEntity.status(response.getStatusCode()).body(response);
-//    }
 
     @PostMapping("/register")
     public ResponseEntity<CommonResponse<RemitterRegisterResponse>> registerRemitter(
@@ -65,12 +45,6 @@ public class DmtRemitterController {
 
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
-
-//    @PostMapping("/ekyc")
-//    public ResponseEntity<CommonResponse<Object>> doEkyc(@RequestBody RemitterEkycRequest request) {
-//        CommonResponse<Object> response = remitterService.doEkyc(request);
-//        return ResponseEntity.status(response.getStatusCode()).body(response);
-//    }
 
     @PostMapping("/ekyc")
     public ResponseEntity<CommonResponse<Object>> doEkyc(@RequestBody RemitterEkycRequest request) {
@@ -96,9 +70,8 @@ public class DmtRemitterController {
         return remitterService.sendOtp(dmtOtpRequest);
     }
 
-
     @PostMapping("/resend-otp")
-    public CommonResponse<String> resendOtp(@RequestBody  DmtOtpRequest request) {
+    public CommonResponse<String> resendOtp(@RequestBody DmtOtpRequest request) {
         return remitterService.resendOtp(request.getMobile());
     }
 
@@ -111,8 +84,4 @@ public class DmtRemitterController {
         );
     }
 
-
-
-
 }
-

@@ -27,14 +27,6 @@ public class DmtBeneficiaryController {
     @Autowired
     private DmtBeneficiaryService dmtBeneficiaryService;
 
-//    @PostMapping("/register")
-//    public ResponseEntity<CommonResponse<BeneficiaryRegisterResponse>> registerBeneficiary(
-//            @RequestBody BeneficiaryRegisterRequest request) throws Exception  {
-//
-//        CommonResponse<BeneficiaryRegisterResponse> response = dmtBeneficiaryService.registerBeneficiary(request);
-//        return ResponseEntity.status(response.getStatusCode()).body(response);
-//    }
-
     @PostMapping("/register")
     public ResponseEntity<CommonResponse<BeneficiaryRegisterResponse>> registerBeneficiary(
             @RequestBody BeneficiaryRegisterRequest request) throws Exception  {
@@ -43,36 +35,12 @@ public class DmtBeneficiaryController {
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
-//    @PostMapping("/delete")
-//    public ResponseEntity<CommonResponse<DmtBeneficiaryDeleteResponse>> deleteBeneficiary(
-//            @RequestBody DmtBeneficiaryDeleteRequest request) throws Exception {
-//        CommonResponse<DmtBeneficiaryDeleteResponse> response = dmtBeneficiaryService.deleteBeneficiary(request);
-//        return ResponseEntity.status(response.getStatusCode()).body(response);
-//    }
-
     @PostMapping("/delete")
     public ResponseEntity<CommonResponse<DmtBeneficiaryDeleteResponse>> deleteBeneficiary(
             @RequestBody DmtBeneficiaryDeleteRequest request) throws Exception {
         CommonResponse<DmtBeneficiaryDeleteResponse> response = dmtOrchestrator.deleteBeneficiary(request);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
-
-//    @PostMapping("/fetchBeneficiary")
-//    public ResponseEntity<CommonResponse<DmtBeneficiaryFetchResponse>> fetchBeneficiary(@RequestBody DmtBeneficiaryFetchRequest req) {
-//        CommonResponse<DmtBeneficiaryFetchResponse> response = dmtBeneficiaryService.fetchBeneficiary(req);
-//        return ResponseEntity.ok(response);
-//    }
-
-//    @PostMapping("/fetchBeneficiary")
-//    public ResponseEntity<CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>>> fetchBeneficiary(
-//            @RequestBody DmtBeneficiaryFetchRequest req,
-//            @RequestParam(defaultValue = "0") int page,
-//            @RequestParam(defaultValue = "10") int size) {
-//
-//        CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>> response =
-//                dmtBeneficiaryService.fetchBeneficiary(req, page, size);
-//        return ResponseEntity.ok(response);
-//    }
 
     @PostMapping("/fetchBeneficiary")
     public ResponseEntity<CommonResponse<Page<DmtBeneficiaryFetchResponse.BeneficiaryData>>> fetchBeneficiary(
@@ -84,15 +52,6 @@ public class DmtBeneficiaryController {
                 dmtOrchestrator.fetchBeneficiary(req, page, size);
         return ResponseEntity.ok(response);
     }
-
-
-//
-//    @PostMapping("/fetchBeneficiaryByBeneId")
-//    public ResponseEntity<CommonResponse<DmtBeneficiaryFetchByBeneIdResponse>> fetchBeneficiaryByBeneId(
-//            @RequestBody DmtBeneficiaryFetchByBeneIdRequest req) {
-//        CommonResponse<DmtBeneficiaryFetchByBeneIdResponse> response = dmtBeneficiaryService.fetchBeneficiaryByBeneId(req);
-//        return ResponseEntity.ok(response);
-//    }
 
 
     @PostMapping("/fetchBeneficiaryByBeneId")

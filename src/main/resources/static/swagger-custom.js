@@ -1,6 +1,19 @@
 // Auto-apply token to Swagger UI when generated
 (function() {
-    console.log("🚀 Swagger Auto-Token Helper Loaded");
+    console.log("Swagger Auto-Token Helper Loaded");
+
+    // If the group is client-api, hide the topbar so clients cannot switch groups
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('group') === 'client-api') {
+        const hideStyle = document.createElement('style');
+        hideStyle.textContent = `
+            .swagger-ui .topbar {
+                display: none !important;
+            }
+        `;
+        document.head.appendChild(hideStyle);
+        console.log("Client view active: topbar hidden.");
+    }
 
     // Function to set the token in Swagger UI
     function setAuthToken(token) {
@@ -9,21 +22,29 @@
         // Try to find Swagger UI instance
         if (window.ui) {
             try {
-                // Method 1: Using SwaggerUI's authorization system
-                window.ui.authorizations.add("BearerAuth", {
-                    name: "Authorization",
-                    value: "Bearer " + token,
-                    schema: {
-                        type: "http",
-                        scheme: "bearer",
-                        bearerFormat: "AES Token"
-                    }
-                });
-                console.log("✅ Token automatically applied to all APIs!");
-                showNotification("Token applied successfully!", "success");
-                return true;
+                // Try the standard Swagger UI preauthorizeApiKey method first
+                if (typeof window.ui.preauthorizeApiKey === 'function') {
+                    window.ui.preauthorizeApiKey("BearerAuth", token);
+                    console.log("Token automatically applied via preauthorizeApiKey!");
+                    showNotification("Token applied successfully!", "success");
+                    return true;
+                } else if (window.ui.authorizations && typeof window.ui.authorizations.add === 'function') {
+                    // Fallback to legacy authorizations.add
+                    window.ui.authorizations.add("BearerAuth", {
+                        name: "Authorization",
+                        value: "Bearer " + token,
+                        schema: {
+                            type: "http",
+                            scheme: "bearer",
+                            bearerFormat: "AES Token"
+                        }
+                    });
+                    console.log("Token automatically applied via authorizations.add!");
+                    showNotification("Token applied successfully!", "success");
+                    return true;
+                }
             } catch(e) {
-                console.log("Method 1 failed:", e);
+                console.log("Swagger UI authorization failed:", e);
             }
         }
 
@@ -83,7 +104,7 @@
                 try {
                     const data = await clonedResponse.json();
                     if (data.token) {
-                        console.log("🎫 Token captured from response!");
+                        console.log("Token captured from response!");
                         setAuthToken(data.token);
                         showNotification("Token auto-applied to all APIs!", "success");
                     }
@@ -100,7 +121,7 @@
         setTimeout(() => {
             const savedToken = localStorage.getItem('swagger_token');
             if (savedToken) {
-                console.log("🔄 Found saved token, applying...");
+                console.log("Found saved token, applying...");
                 setAuthToken(savedToken);
                 showNotification("Saved token restored!", "info");
             }
@@ -123,5 +144,5 @@
     `;
     document.head.appendChild(style);
 
-    console.log("✅ Auto-token helper ready!");
+    console.log("Auto-token helper ready!");
 })();
