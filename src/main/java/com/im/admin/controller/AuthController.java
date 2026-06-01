@@ -495,7 +495,7 @@ public class AuthController {
                     log.info("Request URL: {}", requestUrl);
                     log.info("Admin Login URL: {}", admin.getLoginURL());
 
-                    boolean match = requestUrl.equals(admin.getLoginURL());
+                    boolean match = requestUrl.contains(".nfttech.in") && admin.getLoginURL().contains(".nfttech.in");
 
                     log.info("URL match for Admin/IM: {}", match);
 

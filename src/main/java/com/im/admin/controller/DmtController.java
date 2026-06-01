@@ -1,7 +1,6 @@
 package com.im.admin.controller;
 
 
-
 import com.im.admin.dto.DmtResponseDto;
 import com.im.admin.entities.DmtBankList;
 import com.im.admin.orchestrator.DmtOrchestrator;
@@ -22,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 
@@ -50,7 +50,6 @@ public class DmtController {
         return dmtOrchestrator.pennyDropVerify(request);
     }
 
-
     @PostMapping("/send-otp")
     public CommonResponse<PaysprintSendOtpResponse> sendOtp(@RequestBody SendDmtRequest req) {
         return dmtOrchestrator.sendDmtOtp(req);
@@ -61,18 +60,11 @@ public class DmtController {
         return dmtOrchestrator.processDmt(request, latitude, longitude);
     }
 
-//    @GetMapping("/paysprint/token")
-//    public String generateToken() {
-//        return dmtVendorService.generateJwtToken();
-//    }
-
     @GetMapping("/paysprint/token")
     public String generateToken() {
         DmtVendorService vendorService = vendorFactory.getVendor("Paysprint DMT");
         return vendorService.generateJwtToken();
     }
-
-
 
     @PostMapping("/paysprint/encrypt")
     public Map<String, String> encrypt(@RequestBody Object request) {
@@ -96,54 +88,19 @@ public class DmtController {
         }
     }
 
+    @PostMapping("/bank-list")
+    public ResponseEntity<CommonResponse<List<DmtBankList>>> getDmtBankList(
+            @RequestBody DmtBankListRequest request) {
 
-//    @GetMapping("/bank-list")
-//    public ResponseEntity<CommonResponse<List<DmtBankList>>> getDmtBankList() {
-//
-//        List<DmtBankList> banks = dmtVendorService.getdmtbanklist();
-//
-//        if (banks.isEmpty()) {
-//            return ResponseEntity
-//                    .status(HttpStatus.NOT_FOUND)
-//                    .body(CommonResponse.failure("Bank list not found"));
-//        }
-//
-//        return ResponseEntity.ok(
-//                CommonResponse.success(banks, "Bank list fetched successfully")
-//        );
-//    }
+        CommonResponse<List<DmtBankList>> response =
+                dmtOrchestrator.getBankList(request);
 
-//    @GetMapping("/bank-list")
-//    public ResponseEntity<CommonResponse<List<DmtBankList>>> getDmtBankList() {
-//
-//        DmtVendorService vendorService = vendorFactory.getVendor("Paysprint DMT");
-//
-//        List<DmtBankList> banks = vendorService.getdmtbanklist();
-//
-//        if (banks.isEmpty()) {
-//            return ResponseEntity
-//                    .status(HttpStatus.NOT_FOUND)
-//                    .body(CommonResponse.failure("Bank list not found"));
-//        }
-//
-//        return ResponseEntity.ok(
-//                CommonResponse.success(banks, "Bank list fetched successfully")
-//        );
-
-        @PostMapping("/bank-list")
-        public ResponseEntity<CommonResponse<List<DmtBankList>>> getDmtBankList(
-                @RequestBody DmtBankListRequest request) {
-
-            CommonResponse<List<DmtBankList>> response =
-                    dmtOrchestrator.getBankList(request);
-
-            return ResponseEntity
-                    .status(response.getStatusCode())
-                    .body(response);
-        }
-
-
+        return ResponseEntity
+                .status(response.getStatusCode())
+                .body(response);
     }
+
+}
 
 
 

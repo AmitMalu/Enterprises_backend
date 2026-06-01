@@ -13,16 +13,6 @@ public enum DmtResponseMapper {
         this.codes = codes;
     }
 
-//    public static String map(int code) {
-//        for (DmtResponseMapper type : values()) {
-//            if (type.codes.contains(code)) {
-//                return type.name();
-//            }
-//        }
-//        return "PENDING"; // default
-//    }
-
-
     public static String map(int code, String message) {
 
         //  Special handling for response_code = 1
