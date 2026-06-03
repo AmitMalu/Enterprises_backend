@@ -67,7 +67,7 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
 
     @Override
-    public CommonResponse<Page<CommissionTransactionReportResponse>> getReport(CommissionTransactionReportRequest request) {
+    public CommonResponse<Page<CommissionTransactionReportResponse>>  getReport(CommissionTransactionReportRequest request) {
 
         Pageable pageable = PageRequest.of(
                 request.getPage(),
@@ -174,6 +174,8 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         query.registerStoredProcedureParameter("p_tx_id", String.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_id", Integer.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_amount", BigDecimal.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_bal_before", BigDecimal.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("p_bal_after", BigDecimal.class, ParameterMode.IN);
 
         query.registerStoredProcedureParameter("p_offset", Integer.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
@@ -192,11 +194,22 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         query.setParameter("p_from_date", from);
         query.setParameter("p_to_date", to);
 
+//        Date tranDate = null;
+//        if (StringUtils.hasText(request.getTransactionDate())) {
+//            tranDate = Date.valueOf(
+//                    LocalDate.parse(request.getTransactionDate())
+//            );
+//        }
+
         Date tranDate = null;
+
         if (StringUtils.hasText(request.getTransactionDate())) {
-            tranDate = Date.valueOf(
-                    LocalDate.parse(request.getTransactionDate())
-            );
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+
+            LocalDate localDate = LocalDate.parse(request.getTransactionDate(), formatter);
+
+            tranDate = Date.valueOf(localDate);
         }
 
         query.setParameter("p_transaction_date", tranDate);
@@ -228,6 +241,9 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
         query.setParameter("p_offset", pageable.getOffset());
         query.setParameter("p_page_size", pageable.getPageSize());
+
+        query.setParameter("p_bal_before", request.getBalBefore());
+        query.setParameter("p_bal_after", request.getBalAfter());
 
         // ===== EXECUTE =====
         query.execute();

@@ -338,7 +338,7 @@ public class FundingServiceImpl implements FundingService {
         List<String> filteredSubProducts = null;
 
         // =========================================================
-        // ✅ NEW: HANDLE subProductName ONLY (IMPORTANT FIX)
+        //  NEW: HANDLE subProductName ONLY (IMPORTANT FIX)
         // =========================================================
         if (StringUtils.hasText(request.getSubProductName())
                 && !StringUtils.hasText(request.getSubProductId())
@@ -473,6 +473,16 @@ public class FundingServiceImpl implements FundingService {
             Page<RetailerTransactionResponseDto> postpaid =
                     fetchPostpaid(request, filteredSubProducts, vendorName, statusList, networkIds, pageable);
 
+//            List<RetailerTransactionResponseDto> merged =
+//                    Stream.concat(prepaid.stream(), postpaid.stream())
+//                            .sorted(Comparator.comparing(
+//                                    RetailerTransactionResponseDto::getUpdatedAt,
+//                                    Comparator.nullsLast(Comparator.naturalOrder())
+//                            ).reversed())
+//                            .collect(Collectors.toList());
+//
+//            responsePage = new PageImpl<>(merged, pageable, merged.size());
+
             List<RetailerTransactionResponseDto> merged =
                     Stream.concat(prepaid.stream(), postpaid.stream())
                             .sorted(Comparator.comparing(
@@ -481,7 +491,13 @@ public class FundingServiceImpl implements FundingService {
                             ).reversed())
                             .collect(Collectors.toList());
 
-            responsePage = new PageImpl<>(merged, pageable, merged.size());
+            int start = (int) pageable.getOffset();
+            int end = Math.min(start + pageable.getPageSize(), merged.size());
+
+            List<RetailerTransactionResponseDto> paginatedList =
+                    merged.subList(start, end);
+
+            responsePage = new PageImpl<>(paginatedList, pageable, merged.size());
         }
 
         return responsePage;
