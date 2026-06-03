@@ -8,10 +8,15 @@ import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.paymentgateway.PaymentGatewayInitiator;
 import com.im.admin.paymentgateway.PaymentGatewayInitiatorFactory;
 import com.im.admin.repositories.PgTransactionMappingRepository;
+import com.im.admin.repositories.SchemeRateRepository;
 import com.im.admin.repositories.SchemeRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
+import com.im.admin.request.SchemeRateRequest;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
+import com.im.admin.response.SchemeRateResponse;
+import com.im.admin.service.impl.SchemeRateServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +33,7 @@ public class PGOrchestrator {
     private final PgTransactionMappingRepository pgTransactionMappingRepository;
     private final PaymentGatewayInitiatorFactory factory;
     private final SchemeRepository schemeRepository;
+    private final SchemeRateServiceImpl schemeRateServiceImpl;
 
     // CREATE ORDER
     public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException {
@@ -45,6 +51,23 @@ public class PGOrchestrator {
             if (!Boolean.TRUE.equals(scheme.getIsActive())) {
                 log.warn("Scheme is inactive for schemeCode={}", command.getSchemeCode());
                 throw new RuntimeException("Scheme is inactive. Please contact admin");
+            }
+
+            CommonResponse<SchemeRateResponse> schemeRateResponse =
+                    schemeRateServiceImpl.getSchemeRate(
+                            new SchemeRateRequest(
+                                    command.getSchemeCode(),
+                                    command.getAmount()));
+
+            if (schemeRateResponse.getData() == null
+                    || !Boolean.TRUE.equals(schemeRateResponse.getData().isExists())) {
+
+                log.warn("No matching slab found for SchemeCode={}, Amount={}",
+                        command.getSchemeCode(),
+                        command.getAmount());
+
+                throw new RuntimeException(
+                        schemeRateResponse.getMessage());
             }
 
             log.debug("Scheme is activate ={}",

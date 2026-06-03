@@ -21,7 +21,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageImpl;
@@ -36,6 +38,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -98,6 +101,8 @@ public class DmtOrchestrator {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    RestTemplate restTemplate = new RestTemplate();
 
     //  STEP 1: Send OTP
     public CommonResponse<PaysprintSendOtpResponse> sendDmtOtp(SendDmtRequest req) {
@@ -656,6 +661,54 @@ public class DmtOrchestrator {
                             .orElseThrow(() ->
                                     new RuntimeException("No credentials found for selected vendor"));
 
+            // ====== Check Vendor Type ======
+            if ("AES".equalsIgnoreCase(credentials.getTokenType())) {
+
+                // AES Flow (Admin Panel)
+                String token = commonMethods.generateTokenForAES(credentials);
+
+                // Build JSON request for AES admin panel
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("client_id", credentials.getClientId());
+                headers.set("token", token);
+                headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
+
+                ApiPanelRemitterRequest jsonBody =
+                        new ApiPanelRemitterRequest();
+                jsonBody.setMobileNo(request.getMobile());
+
+                jsonBody.setProductId(
+                        vendor.getProduct().getId().toString());
+                jsonBody.setApiPartnerId(credentials.getUsername());
+
+                HttpEntity<ApiPanelRemitterRequest> requestEntity = new HttpEntity<>(jsonBody, headers);
+
+                String url = credentials.getBaseUrlUat() + "/remitter/check";
+                log.info("AES Admin panel order URL: {}", url);
+
+                ResponseEntity<CommonResponse<RemitterQueryResponse>> response =
+                        restTemplate.exchange(
+                                url,
+                                HttpMethod.POST,
+                                requestEntity,
+                                new ParameterizedTypeReference<CommonResponse<RemitterQueryResponse>>() {}
+                        );
+
+                responseJson = String.valueOf(response.getBody());
+
+                commonFunctions.saveVendorLogs(
+                        LocalDateTime.now(),
+                        "AES order request",
+                        vendor.getId(),
+                        LocalDateTime.now(),
+                        responseJson,
+                        null
+                );
+
+                return response.getBody();
+            }
+
             // ===== STEP 2 LOCAL DB CHECK =====
             Optional<DmtRemitter> exist =
                     remitterRepository.findByMobileAndVendor(request.getMobile(), vendor);
@@ -709,7 +762,6 @@ public class DmtOrchestrator {
                     vendorService.checkRemitter(request, credentials);
 
             res.setVendor_flow(vendor.getVendorName());
-
 
             responseJson = objectMapper.writeValueAsString(res);
 
@@ -913,6 +965,57 @@ public class DmtOrchestrator {
 
             requestJson = objectMapper.writeValueAsString(req);
 
+            // ====== Check Vendor Type ======
+            if ("AES".equalsIgnoreCase(credentials.getTokenType())) {
+
+                // AES Flow (Admin Panel)
+                String token = commonMethods.generateTokenForAES(credentials);
+
+                // Build JSON request for AES admin panel
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("client_id", credentials.getClientId());
+                headers.set("token", token);
+                headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
+
+                ApiPanelRemitterRegisterRequest jsonBody = new ApiPanelRemitterRegisterRequest();
+
+                jsonBody.setMobile(req.getMobile());
+                jsonBody.setOtp(req.getOtp());
+                jsonBody.setStateresp(req.getStateresp());
+                jsonBody.setEkyc_id(req.getEkyc_id());
+                jsonBody.setReferenceKey(req.getReferenceKey());
+                jsonBody.setAadhaarNumber(req.getAadhaarNumber());
+                jsonBody.setProductId(String.valueOf(credentials.getVendor().getProduct().getId()));
+                jsonBody.setApiPartnerId(credentials.getUsername());
+
+                HttpEntity<ApiPanelRemitterRegisterRequest> requestEntity = new HttpEntity<>(jsonBody, headers);
+
+                String url = credentials.getBaseUrlUat() + "/remitter/register";
+                log.info("AES Admin panel remitter register URL: {}", url);
+
+                ResponseEntity<CommonResponse<RemitterRegisterResponse>> response =
+                        restTemplate.exchange(
+                                url,
+                                HttpMethod.POST,
+                                requestEntity,
+                                new ParameterizedTypeReference<CommonResponse<RemitterRegisterResponse>>() {}
+                        );
+
+                responseJson = String.valueOf(response.getBody());
+
+                commonFunctions.saveVendorLogs(
+                        LocalDateTime.now(),
+                        "AES order request",
+                        vendor.getId(),
+                        LocalDateTime.now(),
+                        responseJson,
+                        null
+                );
+
+                return response.getBody();
+            }
+
             // STEP 2 Vendor Call
             DmtVendorService vendorService =
                     vendorFactory.getVendor(vendor.getVendorName());
@@ -932,7 +1035,6 @@ public class DmtOrchestrator {
                     null
             );
 
-
             // STEP 3: DB UPDATE (VENDOR BASED)
 
             if (resp != null && (resp.getResponse_code() == 1 || resp.getResponse_code() == 2)) {
@@ -948,9 +1050,7 @@ public class DmtOrchestrator {
                 if ("InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
 
                     rem.setStatus("PENDING");   // OTP sent only
-//                    rem.setVendor(vendor);  //new
 
-                    // IMPORTANT: store otpReference
                     if (resp.getData() != null) {
                         rem.setOtpReference(resp.getData().getOtpReference());
                     }

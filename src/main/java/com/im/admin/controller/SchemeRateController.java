@@ -5,8 +5,10 @@ import com.im.admin.dto.SchemeRateRequestDTO;
 import com.im.admin.dto.SchemeSlabUpdateRequestDTO;
 import com.im.admin.entities.SchemeRate;
 import com.im.admin.entities.product.Products;
+import com.im.admin.request.SchemeRateRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.SchemeDetailResponseDto;
+import com.im.admin.response.SchemeRateResponse;
 import com.im.admin.service.SchemeRateService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +55,20 @@ public class SchemeRateController {
         SchemeRateProductResponseDto productDetails = schemeRateService.getProductDetails(schemeCode);
         log.info("Successfully fetched product details for schemeCode: {}", schemeCode);
         return ResponseEntity.ok(CommonResponse.success(productDetails, "Fetched Product Details By Scheme Code"));
+    }
+
+    @PostMapping("/find")
+    public ResponseEntity<CommonResponse<SchemeRateResponse>> findSchemeRate(
+            @RequestBody SchemeRateRequest request) {
+
+        log.info("Received scheme rate lookup request. SchemeCode={}, Amount={}",
+                request.getSchemeCode(),
+                request.getAmount());
+
+        CommonResponse<SchemeRateResponse> response =
+                schemeRateService.getSchemeRate(request);
+
+        return ResponseEntity.ok(response);
     }
 
 
