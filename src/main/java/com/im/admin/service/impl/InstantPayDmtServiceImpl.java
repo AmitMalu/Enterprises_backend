@@ -464,7 +464,6 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
             RemitterQueryRequest request,
             VendorCredentials credentials) throws Exception {
 
-
         Retailer retailer = retailerRepository
                 .findById(request.getRetailerId())
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
@@ -495,8 +494,6 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
         // ===== STEP 4 : BODY =====
         Map<String, Object> body = new HashMap<>();
         body.put("mobileNumber", request.getMobile());
-//        body.put("txnMode", "ALL");
-//        body.put("iftEnable", "YES");
 
         HttpEntity<Map<String, Object>> entity =
                 new HttpEntity<>(body, headers);
@@ -556,7 +553,6 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
             return finalRes;
         }
 
-// ===== STEP 8 : REMITTER NOT FOUND =====
         // ===== STEP 8 : REMITTER NOT FOUND =====
         else if ("RNF".equalsIgnoreCase(statusCode)) {
 
@@ -583,7 +579,7 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
             return finalRes;
         }
 
-// ===== STEP 9 : VENDOR ERROR (IMPORTANT FIX) =====
+        // ===== STEP 9 : VENDOR ERROR (IMPORTANT FIX) =====
         else {
 
             finalRes.setStatus(false);
@@ -613,18 +609,6 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
         Retailer retailer = retailerRepository
                 .findById(request.getRetailerId())
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
-
-        // ===== STEP 2 : GET REMITTER FROM DB (FOR referenceKey) =====
-//        DmtRemitter remitter = remitterRepository
-//                .findByMobile(request.getMobile())
-//                .orElseThrow(() ->
-//                        new RuntimeException("Remitter not found. Call profile API first"));
-//
-//        String referenceKey = remitter.getReferenceKey();
-
-//        if (referenceKey == null) {
-//            throw new RuntimeException("ReferenceKey missing. Call profile API first");
-//        }
 
         // ===== STEP 3 : URL =====
         String url = credentials.getBaseUrlProd()

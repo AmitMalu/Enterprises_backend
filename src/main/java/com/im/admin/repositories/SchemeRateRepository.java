@@ -39,4 +39,14 @@ public interface SchemeRateRepository extends JpaRepository<SchemeRate, Long> {
             @Param("amount") Double amount
     );
 
+    @Query("""
+       SELECT s
+       FROM SchemeRate s
+       WHERE s.schemeCode = :schemeCode
+       AND :amount BETWEEN s.slabStart AND s.slabEnd
+       """)
+    Optional<SchemeRate> findMatchingSlab(
+            @Param("schemeCode") String schemeCode,
+            @Param("amount") Double amount);
+
 }

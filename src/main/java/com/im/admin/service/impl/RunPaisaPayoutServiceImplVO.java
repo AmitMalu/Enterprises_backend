@@ -24,6 +24,7 @@ import com.im.admin.service.PayoutCallbackHandler;
 import com.im.admin.service.PayoutCallbackRegistrar;
 import com.im.admin.service.PayoutVendorService;
 import com.im.admin.service.VendorStatusChecker;
+import com.im.admin.util.CommonMethods;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +76,9 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private CommonMethods commonMethods;
 
     @Override
     public String getVendorName() {
@@ -180,7 +184,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             Double latitude,
             Double longitude) throws Exception {
 
-        String token = generateTokenForAES(creds);
+        String token = commonMethods.generateTokenForAES(creds);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -378,45 +382,6 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
     /* =====================================================
        TOKEN GENERATION METHODS
        ===================================================== */
-
-    private String generateTokenForAES(VendorCredentials vendorCredentials) {
-        // Call AES encrypt service
-        ResponseEntity<?> responseEntity = aesController.encryptCredentials(
-                new EncryptDecryptCredentialsDto(vendorCredentials.getUsername(), vendorCredentials.getPassword())
-        );
-
-        @SuppressWarnings("unchecked")
-        Map<String, String> encryptedMap = (Map<String, String>) responseEntity.getBody();
-        String encUser = encryptedMap.get("cipherUsername");
-        String encPass = encryptedMap.get("cipherPassword");
-        String salt = encryptedMap.get("salt");
-        String iv = encryptedMap.get("iv");
-
-        // Build JSON for token request
-        Map<String, String> jsonBody = new HashMap<>();
-        jsonBody.put("username", encUser);
-        jsonBody.put("password", encPass);
-        jsonBody.put("client_id", vendorCredentials.getClientId());
-        jsonBody.put("salt", salt);
-        jsonBody.put("ivBase64", iv);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
-
-        ResponseEntity<Map> response = restTemplate.postForEntity(
-                vendorCredentials.getTokenUrlUat(),
-                requestEntity,
-                Map.class
-        );
-
-        Map<String, Object> responseBodyMap = response.getBody();
-        if (responseBodyMap == null || responseBodyMap.get("token") == null) {
-            throw new RuntimeException("AES token generation failed: " + responseBodyMap);
-        }
-
-        return (String) responseBodyMap.get("token");
-    }
 
     public String generateTokenForPayout(VendorCredentials vendorCredentials) throws JsonProcessingException {
         LocalDateTime requestTime = LocalDateTime.now();
