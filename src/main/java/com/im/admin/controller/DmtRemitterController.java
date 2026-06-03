@@ -3,7 +3,6 @@ package com.im.admin.controller;
 import com.im.admin.dto.*;
 import com.im.admin.orchestrator.DmtOrchestrator;
 import com.im.admin.request.RemitterUpdateRequest;
-import com.im.admin.entities.DmtRemitter;
 import com.im.admin.request.DmtOtpRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.DmtRemitterResponseDto;

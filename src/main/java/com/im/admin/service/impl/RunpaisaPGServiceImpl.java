@@ -188,7 +188,7 @@ public class RunpaisaPGServiceImpl {
                 // =========================
                 // AES Flow (Admin Panel)
                 // =========================
-                String token = generateTokenForAES(credentials);
+                String token = commonMethods.generateTokenForAES(credentials);
 
                 // Build JSON request for AES admin panel
                 HttpHeaders headers = new HttpHeaders();
@@ -301,41 +301,6 @@ public class RunpaisaPGServiceImpl {
     // =========================
     // Token generation methods
     // =========================
-
-    private String generateTokenForAES(VendorCredentials vendorCredentials) {
-        // Call AES encrypt service
-        ResponseEntity<?> responseEntity = aesController.encryptCredentials(
-                new EncryptDecryptCredentialsDto(vendorCredentials.getUsername(), vendorCredentials.getPassword())
-        );
-
-        @SuppressWarnings("unchecked")
-        Map<String, String> encryptedMap = (Map<String, String>) responseEntity.getBody();
-        assert encryptedMap != null;
-        String encUser = encryptedMap.get("cipherUsername");
-        String encPass = encryptedMap.get("cipherPassword");
-        String salt = encryptedMap.get("salt");
-        String iv = encryptedMap.get("iv");
-
-        // Build JSON for token request
-        Map<String, String> jsonBody = new HashMap<>();
-        jsonBody.put("username", encUser);
-        jsonBody.put("password", encPass);
-        jsonBody.put("client_id", vendorCredentials.getClientId());
-        jsonBody.put("salt", salt);
-        jsonBody.put("ivBase64", iv);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(jsonBody, headers);
-
-        ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlUat(), requestEntity, Map.class);
-        Map responseBodyMap = response.getBody();
-        if (responseBodyMap == null || responseBodyMap.get("token") == null) {
-            throw new RuntimeException("AES token generation failed: " + responseBodyMap);
-        }
-
-        return (String) responseBodyMap.get("token");
-    }
 
     private String generateTokenForVendor(VendorCredentials vendorCredentials) {
         HttpHeaders headers = new HttpHeaders();

@@ -358,33 +358,6 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 });
     }
 
-
-//    private void updateTransactionStatus(String transactionId, String status, String walletType) {
-//        if ("PREPAID".equalsIgnoreCase(walletType)) {
-//            Optional<RetailerPrepaidTransactionDetails> txnOpt = retailerPrepaidTransactionDetailsRepository.findByTransactionId(transactionId);
-//            if (txnOpt.isPresent()) {
-//                RetailerPrepaidTransactionDetails txn = txnOpt.get();
-//                txn.setActionOnBalanceAmount("Deduct Funds - PREPAID");
-//                txn.setTranStatus(status);
-//                retailerPrepaidTransactionDetailsRepository.save(txn);
-//            } else {
-//                throw new RuntimeException("Transaction not found in Prepaid table: " + transactionId);
-//            }
-//        } else if ("POSTPAID".equalsIgnoreCase(walletType)) {
-//            Optional<RetailerPostpaidTransactionDetails> txnOpt = retailerPostpaidTransactionDetailsRepository.findByTransactionId(transactionId);
-//            if (txnOpt.isPresent()) {
-//                RetailerPostpaidTransactionDetails txn = txnOpt.get();
-//                txn.setActionOnBalanceAmount("Deduct Funds - POSTPAID");
-//                txn.setTranStatus(status);
-//                retailerPostpaidTransactionDetailsRepository.save(txn);
-//            } else {
-//                throw new RuntimeException("Transaction not found in Postpaid table: " + transactionId);
-//            }
-//        } else {
-//            throw new IllegalArgumentException("Invalid wallet type: " + walletType);
-//        }
-//    }
-
     private void saveWallet(String walletType, AbstractWalletAmountTable wallet) {
         if ("PREPAID".equals(walletType)) {
             retailerPrepaidAmountRepository.save((RetailerPrepaidAmount) wallet);
@@ -655,11 +628,12 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 gstAmount,
                 "GST collected",
                 receiverHierarchyId,
+                retailerId,
                 walletType,
                 beforeBalance,
                 afterBalance,
                 "Add Funds (GST) - " + walletType.toUpperCase(),
-                gstCreditTranxId, tranStatus, request
+                gstCreditTranxId, tranStatus, request, hierarchyType
         );
 
         log.debug("---- [GST] Transaction inserted successfully for Receiver: {} | Table: {}", receiverHierarchyId, transactionTable);
@@ -1552,27 +1526,40 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
     @Transactional
     private void insertTransactionForAdminHierarchy(
-            String transactionTable, String service, BigDecimal amount, String remarks, String hierarchyId,
+            String transactionTable, String service, BigDecimal amount, String remarks, String adminId, String hierarchyId,
             String walletType, BigDecimal beforeBalance, BigDecimal afterBalance,
-            String actionOnBalanceAmount, String tranxId, String tranStatus, TransactionSchemeDetailsRequestDto request) {
+            String actionOnBalanceAmount, String tranxId, String tranStatus, TransactionSchemeDetailsRequestDto request, String hierarhcyType) {
 
         log.info("[ADMIN_TXN_INSERT] Starting insert for Admin Hierarchy | Table={} | HierarchyID={} | Amount={} | WalletType={} | TranxID={}",
                 transactionTable, hierarchyId, amount, walletType, tranxId);
+
+        String hierarchyColumn = switch (hierarhcyType) {
+            case "AD" -> "admin_id";
+            case "WL" -> "white_label_id";
+            default -> throw new IllegalArgumentException(
+                    "Unsupported hierarchy type: " + hierarhcyType);
+        };
 
         String operatorName = request.getOperatorName();
         Double latitude = request.getLatitude();
         Double longitude = request.getLongitude();
 
         String sql = "INSERT INTO " + transactionTable +
-                " (hierarchy_id, service, amount, remarks, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, operator_name, latitude, longitude) " +
-                "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :operatorName, :latitude, :longitude)";
+                " (" + hierarchyColumn + ", hierarchy_id, service, amount, remarks, " +
+                "date_of_transaction, time_of_transaction, " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, " +
+                "final_balance, transaction_id, tran_status, operator_name, latitude, longitude) " +
+                "VALUES (:adminId, :hierarchyId, :service, :amount, :remarks, " +
+                ":dateOfTransaction, :timeOfTransaction, " +
+                ":beforeTransactionBalance, :afterTransactionBalance, " +
+                ":actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, " +
+                ":operatorName, :latitude, :longitude)";
 
         log.debug("[ADMIN_TXN_INSERT] Generated SQL: {}", sql);
 
         try {
             entityManager.createNativeQuery(sql)
+                    .setParameter("adminId", adminId)
                     .setParameter("hierarchyId", hierarchyId)
                     .setParameter("service", service)
                     .setParameter("amount", amount)
@@ -1860,6 +1847,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         try {
 
+            Scheme scheme = schemeRepository.findBySchemeCode(dto.getSchemeRate().getSchemeCode())
+                    .orElseThrow(() -> new ResourceNotFoundException("Scheme not found with Scheme Code: " + dto.getSchemeRate().getSchemeCode()));
+
             if (wallet instanceof RetailerPrepaidAmount) {
 
                 // Fast duplicate check
@@ -1882,7 +1872,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setRetailerId(((RetailerPrepaidAmount) wallet).getRetailerId().getRetailerId());
                 transaction.setOperatorName(dto.getOperatorName());
                 transaction.setSubProductName(dto.getSubProductCode());
-                transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());
+                transaction.setSchemeName(scheme.getSchemeName());
                 transaction.setLatitude(dto.getLatitude());
                 transaction.setLongitude(dto.getLongitude());
                 transaction.setVendorName(dto.getVendorName());
@@ -1913,7 +1903,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setRetailerId(((RetailerPostpaidAmount) wallet).getRetailerId().getRetailerId());
                 transaction.setOperatorName(dto.getOperatorName());
                 transaction.setSubProductName(dto.getSubProductCode());
-                transaction.setSchemeName(dto.getSchemeRate().getSchemeCode());
+                transaction.setSchemeName(scheme.getSchemeName());
                 transaction.setLatitude(dto.getLatitude());
                 transaction.setLongitude(dto.getLongitude());
                 transaction.setVendorName(dto.getVendorName());
@@ -2085,12 +2075,13 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                     mirrorTxnType,
                     amount,
                     "Mirror Transaction for " + originalTxnType,
+                    targetHierarchyId,
                     sourceHierarchyId,
                     walletType,
                     currentBalance,
                     afterBalance,
                     actionOnBalanceAmount,
-                    txnId, tranStatus, request
+                    txnId, tranStatus, request, targetType
             );
             log.info("Mirror transaction inserted successfully for target [{} - {}]", targetHierarchyId, targetType);
         } catch (Exception e) {

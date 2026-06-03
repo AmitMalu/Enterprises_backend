@@ -8,8 +8,11 @@ import com.im.admin.entities.enums.SlabType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
 import com.im.admin.request.OperatorWithSlabsDto;
+import com.im.admin.request.SchemeRateRequest;
 import com.im.admin.request.SlabRateDto;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.response.SchemeDetailResponseDto;
+import com.im.admin.response.SchemeRateResponse;
 import com.im.admin.service.SchemeRateService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -570,6 +573,95 @@ public class SchemeRateServiceImpl implements SchemeRateService {
 
         }
 
+    }
+
+    @Override
+    public CommonResponse<SchemeRateResponse> getSchemeRate(
+            SchemeRateRequest request) {
+
+        log.info("Scheme rate lookup started. SchemeCode={}, Amount={}",
+                request.getSchemeCode(),
+                request.getAmount());
+
+        try {
+
+            List<SchemeRate> schemeRates =
+                    schemeRateRepository.findBySchemeCode(
+                            request.getSchemeCode());
+
+            if (schemeRates.isEmpty()) {
+
+                log.warn("No slabs configured for SchemeCode={}",
+                        request.getSchemeCode());
+
+                return CommonResponse.<SchemeRateResponse>builder()
+                        .statusCode(404)
+                        .message("No slabs configured for scheme")
+                        .data(SchemeRateResponse.builder()
+                                .exists(false)
+                                .build())
+                        .build();
+            }
+
+            boolean slabFound = false;
+
+            for (SchemeRate slab : schemeRates) {
+
+                log.info("Checking slab : Start={}, End={}, Amount={}",
+                        slab.getSlabStart(),
+                        slab.getSlabEnd(),
+                        request.getAmount());
+
+                if (request.getAmount() >= slab.getSlabStart()
+                        && request.getAmount() <= slab.getSlabEnd()) {
+
+                    slabFound = true;
+
+                    log.info("Matching slab found. SchemeCode={}, Amount={}, SlabStart={}, SlabEnd={}",
+                            request.getSchemeCode(),
+                            request.getAmount(),
+                            slab.getSlabStart(),
+                            slab.getSlabEnd());
+
+                    break;
+                }
+            }
+
+            if (!slabFound) {
+
+                log.warn("No matching slab found. SchemeCode={}, Amount={}",
+                        request.getSchemeCode(),
+                        request.getAmount());
+
+                return CommonResponse.<SchemeRateResponse>builder()
+                        .statusCode(404)
+                        .message("No matching slab found")
+                        .data(SchemeRateResponse.builder()
+                                .exists(false)
+                                .build())
+                        .build();
+            }
+
+            return CommonResponse.<SchemeRateResponse>builder()
+                    .statusCode(200)
+                    .message("Matching slab found")
+                    .data(SchemeRateResponse.builder()
+                            .exists(true)
+                            .build())
+                    .build();
+
+        } catch (Exception ex) {
+
+            log.error("Error while fetching slab details", ex);
+
+            return CommonResponse.<SchemeRateResponse>builder()
+                    .statusCode(500)
+                    .message("Internal server error")
+                    .data(SchemeRateResponse.builder()
+                            .exists(false)
+                            .build())
+                    .build();
+        }
     }
 
 }
