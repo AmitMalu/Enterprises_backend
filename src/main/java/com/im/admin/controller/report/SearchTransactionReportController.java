@@ -46,11 +46,13 @@ public class SearchTransactionReportController {
 
         String userType = (hierarchyId == null) ? "AD" : commonMethods.extractHierarchyType(hierarchyId);
 
-        if ("AD".equalsIgnoreCase(userType) && hierarchyId != null) {
-            log.warn("Admin provided hierarchyId which is not allowed | hierarchyId={}", hierarchyId);
-            return ResponseEntity.badRequest().body(
-                    new CommonResponse<>(400, "Admin must not provide hierarchyId", null));
-        } else if (!"AD".equalsIgnoreCase(userType) && hierarchyId.isBlank()) {
+//        if ("AD".equalsIgnoreCase(userType) && hierarchyId != null) {
+//            log.warn("Admin provided hierarchyId which is not allowed | hierarchyId={}", hierarchyId);
+//            return ResponseEntity.badRequest().body(
+//                    new CommonResponse<>(400, "Admin must not provide hierarchyId", null));
+//
+//        }
+         if (!"AD".equalsIgnoreCase(userType) && hierarchyId.isBlank()) {
             log.warn("Non-admin user did not provide required hierarchyId");
             return ResponseEntity.badRequest().body(
                     new CommonResponse<>(400, "hierarchyId is required for non-admin users", null));
