@@ -82,7 +82,7 @@ public class SchemeController {
         return ResponseEntity.ok(rates);
     }
 
-    @GetMapping
+    @GetMapping("/{hierarchyId}")
     public ResponseEntity<CommonResponse<Page<GetAllSchemeResponse>>> getAllSchemes(
             @RequestParam(required = false) Long id,
             @RequestParam(required = false) String schemeName,
@@ -101,18 +101,19 @@ public class SchemeController {
             @RequestParam(required = false) String editedOn,
             @RequestParam(required = false) String editedBy,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @PathVariable("hierarchyId") String hierarchyId
     ) {
-        log.info("Fetching all schemes with filters: schemeName: {}, schemeCode: {}, schemeCombinationHashCode: {}, productId: {}, productName: {}, subProductId: {}, subProductName: {}, vendorId: {}, vendorName: {}, schemeHierarchyName: {}, schemeHierarchySelectionId: {}, createdOn: {}, createdBy: {}, editedOn: {}, editedBy: {}, page: {}, size: {}",
+        log.info("Fetching all schemes with filters: schemeName: {}, schemeCode: {}, schemeCombinationHashCode: {}, productId: {}, productName: {}, subProductId: {}, subProductName: {}, vendorId: {}, vendorName: {}, schemeHierarchyName: {}, schemeHierarchySelectionId: {}, createdOn: {}, createdBy: {}, editedOn: {}, editedBy: {}, page: {}, size: {}, hierarchyId: {}",
                 schemeName, schemeCode, schemeCombinationHashCode, productId, productName, subProductId, subProductName,
                 vendorId, vendorName, schemeHierarchyName, schemeHierarchySelectionId, createdOn, createdBy, editedOn, editedBy,
-                page, size);
+                page, size, hierarchyId);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
 
         Page<GetAllSchemeResponse> schemes = schemeService.getAllSchemes(
                 id, schemeName, schemeCode, schemeCombinationHashCode, productId, productName, subProductId,
                 subProductName, vendorId, vendorName, schemeHierarchyName, schemeHierarchySelectionId,
-                createdOn, createdBy, editedOn, editedBy, pageable
+                createdOn, createdBy, editedOn, editedBy, pageable, hierarchyId
         );
 
         log.info("Fetched {} schemes", schemes.getTotalElements());
