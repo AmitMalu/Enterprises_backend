@@ -217,21 +217,6 @@ public class SchemeServiceImpl implements SchemeService {
         return schemeRateRepository.findByOperatorCode(operatorCode);
     }
 
-//    @Transactional
-//    @Override
-//    public VendorRouting saveVendorRouting(VendorRoutingDto request) {
-//        VendorRouting vendorRouting = new VendorRouting();
-//        vendorRouting.setSubProductId(request.getSubProductId());
-//        vendorRouting.setSubProductName(request.getSubProductName());
-//        vendorRouting.setVendorId(request.getVendorId());
-//        vendorRouting.setVendorName(request.getVendorName());
-//        vendorRouting.setPriority(request.getPriority());
-//        vendorRouting.setCreatedBy(request.getCreatedBy());
-//        vendorRouting.setEditedBy(request.getEditedBy());
-//
-//        return vendorRoutingRepository.save(vendorRouting);
-//    }
-
     @Override
     public Page<GetAllSchemeResponse> getAllSchemes(
             Long id,
@@ -250,7 +235,8 @@ public class SchemeServiceImpl implements SchemeService {
             String createdBy,
             String editedOn,
             String editedBy,
-            Pageable pageable
+            Pageable pageable,
+            String hierarchyId
     ) {
         Specification<Scheme> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -304,9 +290,21 @@ public class SchemeServiceImpl implements SchemeService {
                     String vendId = parts.length > 2 ? parts[2] : null;
                     String schemeHierarchySelId = parts.length > 3 ? parts[3] : null;
 
+                    //now what i want is in the request hierarchyID will come based on that now we have to show s the scheme reocrds
+                    //  IM-AD-001 if admin is there then like this id will come ramdom prefix-hierarchyType-radmon Id will the id formation.
+                    //so AD means Admin so al records to this type
+                    //if WL come then check is this isAdmin then is whitelable id have assign
+
+
+                    assert prodId != null;
                     String prodName = productsRepository.findById(Short.valueOf(prodId)).map(Products::getName).orElse("N/A");
+
+                    assert subProdId != null;
                     String subProdName = subProductsRepository.findById(subProdId).map(SubProducts::getSubProductTitle).orElse("N/A");
+
+                    assert vendId != null;
                     String vendName = vendorRepository.findById(vendId).map(Vendors::getVendorName).orElse("N/A");
+
                     String schemeHierarchyNameRes = schemeHierarchySelectionRepository.findByCustomId(schemeHierarchySelId)
                             .map(SchemeHierarchySelection::getSchemeHierarchyCombination).orElse("N/A");
 

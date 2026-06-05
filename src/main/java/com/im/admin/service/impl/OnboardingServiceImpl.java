@@ -307,17 +307,14 @@ public class OnboardingServiceImpl implements OnboardingService {
 
         String fromId = resolveFromEmail(hierarchyType, hierarchyId);
 
-
         EmailCredentialsMaster credentials = emailCredentialsRepository
-                .findByWhitelabelId(fromId)
+                .findByAdminId("IM-AD-002")
                 .orElseGet(() -> emailCredentialsRepository
-                        .findByWhitelabelId("IM-AD-001")
+                        .findByWhitelabelId(fromId)
                         .orElseThrow(() -> new RuntimeException("Default email credentials not found")));
-
 
         String fromEmail = credentials.getEmail();
         String fromPassword = credentials.getPassword();
-
 
         Map<String, String> vars = new HashMap<>();
         vars.put("name", name);

@@ -38,8 +38,6 @@ public class SubProducts {
     private String subProductTitle;
 
     @Column(name = "sub_product_code", nullable = false, unique = true)
-//    @NotNull(message = "Sub Product Code cannot be null")
-//    @NotBlank(message = "Sub Product Code cannot be blank")
     private String subProductCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
