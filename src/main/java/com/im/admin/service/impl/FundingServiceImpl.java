@@ -1045,8 +1045,13 @@ public class FundingServiceImpl implements FundingService {
                 request.getRemarks(),
                 request.getMedium(),
                 request.getTxType(),
-                request.getTranStatus(),
-                request.getActionOnBalanceAmount(), //  Settlement Pending filter
+
+//                request.getTranStatus(),
+//                request.getActionOnBalanceAmount(), //  Settlement Pending filter
+
+                request.getActionOnBalanceAmount(), // actionOnBalanceAmount
+                request.getTxStatus(),
+
                 request.getDateOfTransaction(),
                 request.getTimeOfTransaction(),
                 request.getUpdatedDateOfTransaction(),
@@ -1116,7 +1121,8 @@ public class FundingServiceImpl implements FundingService {
                 request.getRemarks(),
                 request.getMedium(),
                 request.getTxType(),
-                request.getTranStatus(),
+//                request.getTranStatus(),
+                request.getTxStatus(),
                 actionFilter,   //  ONLY THIS FILTER MATTERS
                 request.getDateOfTransaction(),
                 request.getTimeOfTransaction(),
@@ -1291,6 +1297,18 @@ public class FundingServiceImpl implements FundingService {
         combinedList.addAll(prepaid);
         combinedList.addAll(postpaid);
 
+        // Commission/GST/TDS/Charge filter
+        combinedList = combinedList.stream()
+                .filter(dto -> request.getCommissionAmount() == null
+                        || Objects.equals(dto.getCommissionAmount(), request.getCommissionAmount()))
+                .filter(dto -> request.getGstAmount() == null
+                        || Objects.equals(dto.getGstAmount(), request.getGstAmount()))
+                .filter(dto -> request.getTdsAmount() == null
+                        || Objects.equals(dto.getTdsAmount(), request.getTdsAmount()))
+                .filter(dto -> request.getChargeAmount() == null
+                        || Objects.equals(dto.getChargeAmount(), request.getChargeAmount()))
+                .collect(Collectors.toList());
+
         combinedList.sort(
                 Comparator.comparing(
                         RetailerTransactionResponseDtoCom::getDateOfTransaction,
@@ -1335,9 +1353,12 @@ public class FundingServiceImpl implements FundingService {
                 request.getTxId(),
                 request.getRemarks(),
                 request.getMedium(),
+//                request.getTxType(),
+//                request.getTxStatus(),
+//                request.getActionOnBalanceAmount(),
                 request.getTxType(),
-                request.getTxStatus(),
                 request.getActionOnBalanceAmount(),
+                request.getTxStatus(),
                 request.getDateOfTransaction(),
                 request.getTimeOfTransaction(),
                 request.getUpdatedDateOfTransaction(),
@@ -1434,7 +1455,8 @@ public class FundingServiceImpl implements FundingService {
                 request.getRemarks(),
                 request.getMedium(),
                 request.getTxType(),
-                request.getTranStatus(),
+//                request.getTranStatus(),
+                request.getTxStatus(),
                 actionFilter,
                 request.getDateOfTransaction(),
                 request.getTimeOfTransaction(),

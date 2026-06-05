@@ -308,9 +308,9 @@ public class OnboardingServiceImpl implements OnboardingService {
         String fromId = resolveFromEmail(hierarchyType, hierarchyId);
 
         EmailCredentialsMaster credentials = emailCredentialsRepository
-                .findByAdminId("IM-AD-002")
+                .findByWhitelabelId(fromId)
                 .orElseGet(() -> emailCredentialsRepository
-                        .findByWhitelabelId(fromId)
+                        .findByWhitelabelId("IM-AD-001")
                         .orElseThrow(() -> new RuntimeException("Default email credentials not found")));
 
         String fromEmail = credentials.getEmail();

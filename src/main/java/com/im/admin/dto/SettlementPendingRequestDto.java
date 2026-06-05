@@ -41,6 +41,11 @@ public class SettlementPendingRequestDto {
     private String hierarchyId;
     private String productName;
 
+    private Double commissionAmount;
+    private Double gstAmount;
+    private Double tdsAmount;
+    private Double chargeAmount;
+
 
     private Double latitude;
     private Double longitude;
