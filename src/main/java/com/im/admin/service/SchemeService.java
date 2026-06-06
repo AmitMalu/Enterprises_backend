@@ -44,8 +44,7 @@ public interface SchemeService {
             String createdBy,
             String editedOn,
             String editedBy,
-            Pageable pageable,
-            String hierarchyId
+            Pageable pageable
     );
 
 
