@@ -137,8 +137,33 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
             totalCount += (Long) walletData.get("totalCount");
         }
 
+//        Page<CommissionTransactionReportResponse> page =
+//                new PageImpl<>(allData, pageable, totalCount);
+
+        allData.sort(
+                Comparator.comparing(
+                        CommissionTransactionReportResponse::getTransactionDate,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ).thenComparing(
+                        CommissionTransactionReportResponse::getTransactionTime,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                )
+        );
+
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), allData.size());
+
+        List<CommissionTransactionReportResponse> paginatedList =
+                start >= allData.size()
+                        ? Collections.emptyList()
+                        : allData.subList(start, end);
+
         Page<CommissionTransactionReportResponse> page =
-                new PageImpl<>(allData, pageable, totalCount);
+                new PageImpl<>(
+                        paginatedList,
+                        pageable,
+                        allData.size()
+                );
 
         return new CommonResponse<>(200, "Records fetched successfully", page);
     }
@@ -176,6 +201,12 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         query.registerStoredProcedureParameter("p_amount", BigDecimal.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_bal_before", BigDecimal.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_bal_after", BigDecimal.class, ParameterMode.IN);
+
+        query.registerStoredProcedureParameter(
+                "p_service",
+                String.class,
+                ParameterMode.IN
+        );
 
         query.registerStoredProcedureParameter("p_offset", Integer.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
@@ -244,6 +275,8 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
         query.setParameter("p_bal_before", request.getBalBefore());
         query.setParameter("p_bal_after", request.getBalAfter());
+
+        query.setParameter("p_service", request.getTxType());
 
         // ===== EXECUTE =====
         query.execute();

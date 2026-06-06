@@ -483,6 +483,7 @@ public class FundingServiceImpl implements FundingService {
 //
 //            responsePage = new PageImpl<>(merged, pageable, merged.size());
 
+//
             List<RetailerTransactionResponseDto> merged =
                     Stream.concat(prepaid.stream(), postpaid.stream())
                             .sorted(Comparator.comparing(
@@ -495,9 +496,19 @@ public class FundingServiceImpl implements FundingService {
             int end = Math.min(start + pageable.getPageSize(), merged.size());
 
             List<RetailerTransactionResponseDto> paginatedList =
-                    merged.subList(start, end);
+                    start >= merged.size()
+                            ? Collections.emptyList()
+                            : merged.subList(start, end);
 
-            responsePage = new PageImpl<>(paginatedList, pageable, merged.size());
+            long totalElements =
+                    prepaid.getTotalElements() +
+                            postpaid.getTotalElements();
+
+            responsePage = new PageImpl<>(
+                    paginatedList,
+                    pageable,
+                    totalElements
+            );
         }
 
         return responsePage;
