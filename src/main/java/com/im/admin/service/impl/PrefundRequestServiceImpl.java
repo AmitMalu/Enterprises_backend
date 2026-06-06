@@ -13,15 +13,13 @@ import com.im.admin.service.PrefundRequestService;
 import com.im.admin.spec.PrefundRequestSpecification;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.TokenUtil;
 import com.im.admin.util.WalletTransactionService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,9 +33,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Validated
@@ -82,6 +79,9 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
     @Autowired
     private ImBankMasterRepository imBankMasterRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Override
     public CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile, String ipAddress) throws IOException {
@@ -178,6 +178,57 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                 "Prefund request submitted successfully : " + dto.getConfirmAmount(), saved);
     }
 
+//    @Override
+//    public Page<PrefundRequestResponseDTO> getAllPrefundRequests(
+//            int page, int size, Long id, String requestedBy, String mobileNumber,
+//            Double depositAmount, String status, LocalDate depositDate,
+//            LocalDate fromDate, LocalDate toDate, LocalDate createDateTime,
+//            String bankHolderName, String bankAccountName, String bankAccountNumber,
+//            String bankTranId, String paymentMode, String narration, String ipAddress,
+//            LocalDate approveOrRejectDate, String approveOrRejectTime,
+//            String remarks, String depositType, ) {
+//
+//        Pageable pageable = PageRequest.of(page, size,
+//                Sort.by(Sort.Direction.DESC, "createDateTime"));
+//
+//        Specification<PrefundRequest> spec = PrefundRequestSpecification.getFilter(
+//                id, requestedBy, mobileNumber, depositAmount, status, depositDate,
+//                fromDate, toDate, createDateTime, bankHolderName, bankAccountName,
+//                bankAccountNumber, bankTranId, paymentMode, narration, ipAddress,
+//                approveOrRejectDate, approveOrRejectTime, remarks, depositType
+//        );
+//
+//        Page<PrefundRequest> pageResult = repository.findAll(spec, pageable);
+//
+//        return pageResult.map(p -> PrefundRequestResponseDTO.builder()
+//                .id(p.getId())
+//                .requestedBy(p.getRequestedBy())
+//                .mobileNumber(p.getMobileNumber())
+//                .depositAmount(p.getDepositAmount())
+//                .status(p.getStatus())
+//                .depositDate(p.getDepositDate())
+//                .createDateTime(p.getCreateDateTime())
+//                .bankHolderName(p.getBankHolderName())
+//                .bankAccountName(p.getBankAccountName())
+//                .bankAccountNumber(p.getBankAccountNumber())
+//                .bankTranId(p.getBankTranId())
+//                .narration(p.getNarration())
+//                .paymentMode(p.getPaymentMode())
+//                .ipAddress(p.getIpAddress())
+//                .approveOrRejectDate(p.getApproveOrRejectDate())
+//                .approveOrRejectTime(p.getApproveOrRejectTime())
+//                .remarks(p.getRemarks())
+//                .depositType(p.getDepositType())
+//
+//                .subProductName(p.getSubProducts() != null ? p.getSubProducts().getSubProductTitle() : null)
+//                .productName(p.getSubProducts() != null && p.getSubProducts().getProduct() != null
+//                        ? p.getSubProducts().getProduct().getName() : null)
+//                .schemeName(p.getScheme() != null ? p.getScheme().getSchemeName() : null)
+//
+//                .build()
+//        );
+//    }
+
     @Override
     public Page<PrefundRequestResponseDTO> getAllPrefundRequests(
             int page, int size, Long id, String requestedBy, String mobileNumber,
@@ -186,7 +237,10 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
             String bankHolderName, String bankAccountName, String bankAccountNumber,
             String bankTranId, String paymentMode, String narration, String ipAddress,
             LocalDate approveOrRejectDate, String approveOrRejectTime,
-            String remarks, String depositType) {
+            String remarks, String depositType
+    ) {
+
+        String hierarchyId = tokenUtil.extractHierarchyId();
 
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by(Sort.Direction.DESC, "createDateTime"));
@@ -200,33 +254,86 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         Page<PrefundRequest> pageResult = repository.findAll(spec, pageable);
 
-        return pageResult.map(p -> PrefundRequestResponseDTO.builder()
-                .id(p.getId())
-                .requestedBy(p.getRequestedBy())
-                .mobileNumber(p.getMobileNumber())
-                .depositAmount(p.getDepositAmount())
-                .status(p.getStatus())
-                .depositDate(p.getDepositDate())
-                .createDateTime(p.getCreateDateTime())
-                .bankHolderName(p.getBankHolderName())
-                .bankAccountName(p.getBankAccountName())
-                .bankAccountNumber(p.getBankAccountNumber())
-                .bankTranId(p.getBankTranId())
-                .narration(p.getNarration())
-                .paymentMode(p.getPaymentMode())
-                .ipAddress(p.getIpAddress())
-                .approveOrRejectDate(p.getApproveOrRejectDate())
-                .approveOrRejectTime(p.getApproveOrRejectTime())
-                .remarks(p.getRemarks())
-                .depositType(p.getDepositType())
+        // OPTIMIZATION START
+        String hierarchyType;
+        String wlId;
 
-                .subProductName(p.getSubProducts() != null ? p.getSubProducts().getSubProductTitle() : null)
-                .productName(p.getSubProducts() != null && p.getSubProducts().getProduct() != null
-                        ? p.getSubProducts().getProduct().getName() : null)
-                .schemeName(p.getScheme() != null ? p.getScheme().getSchemeName() : null)
+        if (hierarchyId != null && hierarchyId.contains("-")) {
+            String[] parts = hierarchyId.split("-");
+            hierarchyType = parts[1];
+            wlId = parts.length > 2 ? parts[2] : null;
+        } else {
+            hierarchyType = hierarchyId;
+            wlId = null;
+        }
 
-                .build()
-        );
+        // STEP 1: COLLECT ALL USERS
+        Set<String> requestedBySet = pageResult.getContent()
+                .stream()
+                .map(PrefundRequest::getRequestedBy)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // STEP 2: BATCH RESOLVE HIERARCHY
+        Map<String, String> hierarchyMap = new HashMap<>();
+
+        if (!"AD".equalsIgnoreCase(hierarchyType)) {
+            for (String userId : requestedBySet) {
+                commonMethods.findParentHierarchy(userId)
+                        .ifPresent(parent -> hierarchyMap.put(userId, parent));
+            }
+        }
+
+        // STEP 3: FILTER + MAP
+        List<PrefundRequestResponseDTO> filteredList = pageResult.stream()
+                .filter(req -> {
+
+                    // ADMIN → return all
+                    if ("AD".equalsIgnoreCase(hierarchyType)) {
+                        return true;
+                    }
+
+                    // WL → check hierarchy match
+                    if ("WL".equalsIgnoreCase(hierarchyType)) {
+
+                        String parent = hierarchyMap.get(req.getRequestedBy());
+
+                        return parent != null && parent.equals(wlId);
+                    }
+
+                    return false;
+                })
+                .map(p -> PrefundRequestResponseDTO.builder()
+                        .id(p.getId())
+                        .requestedBy(p.getRequestedBy())
+                        .mobileNumber(p.getMobileNumber())
+                        .depositAmount(p.getDepositAmount())
+                        .status(p.getStatus())
+                        .depositDate(p.getDepositDate())
+                        .createDateTime(p.getCreateDateTime())
+                        .bankHolderName(p.getBankHolderName())
+                        .bankAccountName(p.getBankAccountName())
+                        .bankAccountNumber(p.getBankAccountNumber())
+                        .bankTranId(p.getBankTranId())
+                        .narration(p.getNarration())
+                        .paymentMode(p.getPaymentMode())
+                        .ipAddress(p.getIpAddress())
+                        .approveOrRejectDate(p.getApproveOrRejectDate())
+                        .approveOrRejectTime(p.getApproveOrRejectTime())
+                        .remarks(p.getRemarks())
+                        .depositType(p.getDepositType())
+                        .subProductName(p.getSubProducts() != null
+                                ? p.getSubProducts().getSubProductTitle() : null)
+                        .productName(p.getSubProducts() != null
+                                && p.getSubProducts().getProduct() != null
+                                ? p.getSubProducts().getProduct().getName() : null)
+                        .schemeName(p.getScheme() != null
+                                ? p.getScheme().getSchemeName() : null)
+                        .build()
+                )
+                .toList();
+
+        return new PageImpl<>(filteredList, pageable, filteredList.size());
     }
 
     @Transactional
