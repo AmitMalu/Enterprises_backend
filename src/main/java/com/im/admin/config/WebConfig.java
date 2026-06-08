@@ -32,7 +32,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/images/**")
-                .addResourceLocations("file:/opt/im/uploads/");
+        registry.addResourceHandler("/enterprises/images/**")
+                .addResourceLocations("file:/opt/nft/uploads/");
     }
 }

@@ -6,6 +6,7 @@ import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.dto.WhiteLabelDropdownDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.WhiteLabelPostpaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelPrepaidAmountRepository;
@@ -67,6 +68,9 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 
     @Autowired
     private BankDetailsRepository bankDetailsRepository;
+
+    @Autowired
+    private FileUrlUtil fileUrlUtil;
 
     @Transactional
     @Override
@@ -380,11 +384,11 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
         dto.setRemarks(wl.getRemarks());
         dto.setCreatedBy(wl.getCreatedBy());
         dto.setCreatedOn(wl.getCreatedOn());
-        dto.setAadhaarCardFrontImage(wl.getAadhaarCardFrontImage());
-        dto.setAadhaarCardBackImage(wl.getAadhaarCardBackImage());
-        dto.setPanCardImage(wl.getPanCardImage());
-        dto.setShopImage(wl.getShopImage());
-        dto.setBusinessProofImage(wl.getBusinessProofImage());
+        dto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(wl.getAadhaarCardFrontImage()));
+        dto.setAadhaarCardBackImage( fileUrlUtil.getFullUrl(wl.getAadhaarCardBackImage()));
+        dto.setPanCardImage( fileUrlUtil.getFullUrl(wl.getPanCardImage()));
+        dto.setShopImage( fileUrlUtil.getFullUrl(wl.getShopImage()));
+        dto.setBusinessProofImage( fileUrlUtil.getFullUrl(wl.getBusinessProofImage()));
 
         return dto;
     }

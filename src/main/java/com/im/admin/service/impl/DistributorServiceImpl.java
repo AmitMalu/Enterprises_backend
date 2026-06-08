@@ -5,6 +5,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.*;
 import com.im.admin.response.DistributorResponseDTO;
 import com.im.admin.service.DistributorService;
@@ -67,6 +68,8 @@ public class DistributorServiceImpl implements DistributorService {
     @Autowired
     private BankDetailsRepository bankDetailsRepository;
 
+    @Autowired
+    private FileUrlUtil fileUrlUtil;
 
     @Transactional
     @Override
@@ -240,25 +243,9 @@ public class DistributorServiceImpl implements DistributorService {
                 return existingDistributor;
             }
 
-            // Validate mobile
-//            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
-//            try {
-//                phoneNumberValidationService.validatePhoneNumber(distributor.getMobileNumber());
-//            } catch (IllegalArgumentException ex) {
-//                log.error("Invalid mobile number for Distributor ID {}: {}", id, ex.getMessage());
-//                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-//            }
-//
-//            if (!errors.isEmpty()) {
-//                log.error("Validation failed for Distributor update. Errors: {}", errors);
-//                throw new CustomValidationException(errors);
-//            }
-
             // Update fields if provided
             if (distributor.getTitle() != null) existingDistributor.setTitle(distributor.getTitle());
             if (distributor.getName() != null) existingDistributor.setName(distributor.getName());
-//            if (distributor.getMobileNumber() != null)
-//                existingDistributor.setMobileNumber(distributor.getMobileNumber());
             if (distributor.getEmailId() != null) existingDistributor.setEmailId(distributor.getEmailId());
             if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
             if (distributor.getAddress() != null) existingDistributor.setAddress(distributor.getAddress());
@@ -422,11 +409,11 @@ public class DistributorServiceImpl implements DistributorService {
         dto.setBusinessNumber(distributor.getBusinessNumber());
         dto.setCreatedBy(distributor.getCreatedBy());
         dto.setCreatedOn(distributor.getCreatedOn());
-        dto.setAadhaarCardFrontImage(distributor.getAadhaarCardFrontImage());
-        dto.setAadhaarCardBackImage(distributor.getAadhaarCardBackImage());
-        dto.setPanCardImage(distributor.getPanCardImage());
-        dto.setShopImage(distributor.getShopImage());
-        dto.setBusinessProofImage(distributor.getBusinessProofImage());
+        dto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(distributor.getAadhaarCardFrontImage()));
+        dto.setAadhaarCardBackImage( fileUrlUtil.getFullUrl(distributor.getAadhaarCardBackImage()));
+        dto.setPanCardImage( fileUrlUtil.getFullUrl(distributor.getPanCardImage()));
+        dto.setShopImage( fileUrlUtil.getFullUrl(distributor.getShopImage()));
+        dto.setBusinessProofImage( fileUrlUtil.getFullUrl(distributor.getBusinessProofImage()));
         return dto;
     }
 
