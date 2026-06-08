@@ -45,8 +45,11 @@ public class EmailServiceImpl implements EmailService {
         try {
 
             JavaMailSenderImpl dynamicSender = new JavaMailSenderImpl();
-            dynamicSender.setHost("smtp.gmail.com");
+//            dynamicSender.setHost("smtp.gmail.com");
+
+            dynamicSender.setHost("smtp.rediffmailpro.com");
             dynamicSender.setPort(587);
+
             dynamicSender.setUsername(fromEmail);      // email
             dynamicSender.setPassword(fromPassword);   // password
 //            dynamicSender.setHost(credentials.getSmtpHost());
@@ -55,6 +58,8 @@ public class EmailServiceImpl implements EmailService {
             Properties props = dynamicSender.getJavaMailProperties();
             props.put("mail.smtp.auth", "true");
             props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.ssl.trust", "smtp.rediffmailpro.com");
+            props.put("mail.debug", "true");
 
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
@@ -66,8 +71,8 @@ public class EmailServiceImpl implements EmailService {
 
             response = "Mail sent successfully to " + toEmail;
 
-        } catch (Exception e) {
-            response = "Failed to send email: " + e.getMessage();
+        }catch (Exception e) {
+            e.printStackTrace();
         }
 
         LocalDateTime responseTime = LocalDateTime.now();

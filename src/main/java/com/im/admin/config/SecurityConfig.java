@@ -35,7 +35,7 @@ public class SecurityConfig {
 
     private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/images/**","/webjars/**", "cache",
             "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password", "/auth/forgot-password",
-            "/auth/verify-forgot-mpin-otp",
+            "/auth/verify-forgot-mpin-otp", "/api/tenant/config",
             "/auth/register", "/api/aes/generate-token", "/api/aes/validate-token", "/api/pg/generate-token",
             "/api/pg/callback/runpaisa", "/api/pg/callback/nixasoft", "/api/pg/callback/slpe", "/api/pg/callback/unisus",
             "/api/payout/callback", "/auth/forget-verify-otp", "/api/aes/encrypt-credentials",

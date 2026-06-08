@@ -27,7 +27,7 @@ public class AESFilter extends OncePerRequestFilter {
 
 	private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/images/","/webjars/**", "cache",
 			"/api/aes/generate-token", "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password","/auth/forgot-password",
-			"/auth/verify-forgot-mpin-otp",
+			"/auth/verify-forgot-mpin-otp",  "/api/tenant/config",
 			"/api/aes/validate-token", "/api/pg/generate-token", "/auth/forget-verify-otp", "/api/payout/callback",
 			"/api/pg/callback/runpaisa", "/api/pg/callback/nixasoft", "/api/pg/callback/slpe", "/api/pg/callback/unisus",
 			"/api/pg/callback/razorpay", "/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials", "/api/pg/callback/cashfree",
