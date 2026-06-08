@@ -258,14 +258,52 @@ public class AuthController {
         resetFailedAttempts(user);
         String otp = generateOtpForUser(user);
 
-        String hierarchyCode = user.getHierarchyCode();
-
-        //Map<String, String> otpData = Map.of("otp", otp);
         // create a new map only for response
-        Map<String, String> responseData = new HashMap<>();
-        responseData.put("role", hierarchyCode);
+        String hierarchyCode = user.getHierarchyCode();
+        String role = hierarchyCode;
 
-//        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", otpData); // old
+        if ("WL".equalsIgnoreCase(hierarchyCode)) {
+
+            Optional<WhiteLabels> currentWlOpt =
+                    whiteLabelsRepository.findById(user.getHierarchyId());
+
+            if (currentWlOpt.isPresent()) {
+
+                WhiteLabels currentWl = currentWlOpt.get();
+
+                // WL Admin
+                if (Boolean.TRUE.equals(currentWl.getIsAdmin())) {
+
+                    role = "WLAD";
+
+                } else {
+
+                    // Check parent account
+                    String parentAccount = currentWl.getParentAccount();
+
+                    if (parentAccount != null && !parentAccount.isBlank()) {
+
+                        Optional<WhiteLabels> parentWlOpt =
+                                whiteLabelsRepository.findById(parentAccount);
+
+                        if (parentWlOpt.isPresent()
+                                && Boolean.TRUE.equals(parentWlOpt.get().getIsAdmin())) {
+
+                            role = "WLAU";
+                        } else {
+                            role = "WL";
+                        }
+
+                    } else {
+                        role = "WL";
+                    }
+                }
+            }
+        }
+
+        Map<String, String> responseData = new HashMap<>();
+        responseData.put("role", role);
+
         CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", responseData);
         logLoginAttempt(requestJson, requestTime, response);
         log.info("OTP sent successfully for user ID: {}", user.getHierarchyId());
@@ -662,6 +700,10 @@ public class AuthController {
                 responseMap.put("products", adProductList);
                 break;
 
+            case "AU":
+                responseMap.put("permissions", user.getPermission());
+                responseMap.put("role", "AU");
+                break;
 
             case "WL":
                 WhiteLabels whiteLabel = whiteLabelRepository.findByMobileNumber(user.getMobileNumber());
@@ -676,6 +718,11 @@ public class AuthController {
                 } else {
                     responseMap.put("role", "WL");
                 }
+                break;
+
+            case "WL-AU":
+                responseMap.put("permissions", user.getPermission());
+                responseMap.put("role", "WL-AU");
                 break;
 
             case "RT":
@@ -888,11 +935,6 @@ public class AuthController {
 
                 responseMap.put("products", ruProductList);
 
-                break;
-
-            case "AU":
-                responseMap.put("permissions", user.getPermission());
-                responseMap.put("role", "AU");
                 break;
 
             default:
