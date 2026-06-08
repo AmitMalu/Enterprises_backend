@@ -6,6 +6,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.EnterprisesPostpaidAmountRepository;
 import com.im.admin.repositories.EnterprisesPrepaidAmountRepository;
@@ -65,6 +66,9 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
     @Autowired
     private BankDetailsRepository bankDetailsRepository;
+
+    @Autowired
+    private FileUrlUtil fileUrlUtil;
 
     @Transactional
     @Override
@@ -376,11 +380,11 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         dto.setAadhaarPanVerified(enterprise.getAadhaarPanVerified());
         dto.setCreatedBy(enterprise.getCreatedBy());
         dto.setCreatedOn(enterprise.getCreatedOn());
-        dto.setAadhaarCardFrontImage(enterprise.getAadhaarCardFrontImage());
-        dto.setAadhaarCardBackImage(enterprise.getAadhaarCardBackImage());
-        dto.setPanCardImage(enterprise.getPanCardImage());
-        dto.setShopImage(enterprise.getShopImage());
-        dto.setBusinessProofImage(enterprise.getBusinessProofImage());
+        dto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(enterprise.getAadhaarCardFrontImage()));
+        dto.setAadhaarCardBackImage( fileUrlUtil.getFullUrl(enterprise.getAadhaarCardBackImage()));
+        dto.setPanCardImage( fileUrlUtil.getFullUrl(enterprise.getPanCardImage()));
+        dto.setShopImage( fileUrlUtil.getFullUrl(enterprise.getShopImage()));
+        dto.setBusinessProofImage( fileUrlUtil.getFullUrl(enterprise.getBusinessProofImage()));
         return dto;
     }
 
