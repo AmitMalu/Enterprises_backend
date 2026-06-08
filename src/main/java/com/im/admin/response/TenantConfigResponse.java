@@ -20,5 +20,7 @@ public class TenantConfigResponse {
     private String primaryColor;
     private String secondaryColor;
     private String welcomeText;
+    private String favicon;
+    private String portalTitle;
 
 }

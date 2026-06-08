@@ -42,6 +42,12 @@ public class TenantBranding {
     @Column(name = "refund_path")
     private String refundPath;
 
+    @Column(name = "favicon")
+    private String favicon;
+
+    @Column(name = "portal_title")
+    private String portalTitle;
+
     @Column(name = "welcome_text")
     private String welcomeText;
 
