@@ -25,6 +25,6 @@ public class PayoutCheckStatusScheduler {
     public void runPendingTransactionCheck() {
         log.info("=== [SCHEDULER] Checking vendor payout statuses ===");
         payoutOrchestrator.checkStatusForPendingTransactions();
-     }
+      }
 
 }
