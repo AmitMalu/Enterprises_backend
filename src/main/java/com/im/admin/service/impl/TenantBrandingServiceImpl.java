@@ -39,6 +39,8 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
                 .primaryColor(tenant.getPrimaryColor())
                 .secondaryColor(tenant.getSecondaryColor())
                 .welcomeText(tenant.getWelcomeText())
+                .favicon(tenant.getFavicon())
+                .portalTitle(tenant.getPortalTitle())
                 .build();
     }
 
@@ -71,6 +73,8 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
         tenant.setTermsPath(request.getTermsPath());
         tenant.setPrivacyPath(request.getPrivacyPath());
         tenant.setRefundPath(request.getRefundPath());
+        tenant.setFavicon(request.getFavicon());
+        tenant.setPortalTitle(request.getPortalTitle());
 
         tenant.setWelcomeText(request.getWelcomeText());
 

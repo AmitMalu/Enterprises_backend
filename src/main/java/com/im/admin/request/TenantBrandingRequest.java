@@ -32,5 +32,7 @@ public class TenantBrandingRequest {
     private String welcomeText;
 
     private Boolean isActive;
+    private String favicon;
+    private String portalTitle;
 
 }
