@@ -44,5 +44,8 @@ public class RetailerResponseDTO {
     private LocalDateTime createdOn;
     private LocalDateTime lastEditedOn;
 
+    private String latitude;
+    private String longitude;
+
 
 }

@@ -5,6 +5,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.SuperDistributorPostpaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorPrepaidAmountRepository;
@@ -67,6 +68,8 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
     @Autowired
     private BankDetailsRepository bankDetailsRepository;
 
+    @Autowired
+    private FileUrlUtil fileUrlUtil;
 
     @Transactional
     @Override
@@ -278,11 +281,11 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
         dto.setBusinessNumber(sd.getBusinessNumber());
         dto.setCreatedBy(sd.getCreatedBy());
         dto.setCreatedOn(sd.getCreatedOn());
-        dto.setAadhaarCardFrontImage(sd.getAadhaarCardFrontImage());
-        dto.setAadhaarCardBackImage(sd.getAadhaarCardBackImage());
-        dto.setPanCardImage(sd.getPanCardImage());
-        dto.setShopImage(sd.getShopImage());
-        dto.setBusinessProofImage(sd.getBusinessProofImage());
+        dto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(sd.getAadhaarCardFrontImage()));
+        dto.setAadhaarCardBackImage( fileUrlUtil.getFullUrl(sd.getAadhaarCardBackImage()));
+        dto.setPanCardImage( fileUrlUtil.getFullUrl(sd.getPanCardImage()));
+        dto.setShopImage( fileUrlUtil.getFullUrl(sd.getShopImage()));
+        dto.setBusinessProofImage( fileUrlUtil.getFullUrl(sd.getBusinessProofImage()));
 
         return dto;
     }

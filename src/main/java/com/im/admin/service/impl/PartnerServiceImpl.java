@@ -6,6 +6,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.PartnerPostpaidAmountRepository;
 import com.im.admin.repositories.PartnerPrepaidAmountRepository;
@@ -65,6 +66,9 @@ public class PartnerServiceImpl implements PartnerService {
 
     @Autowired
     private BankDetailsRepository bankDetailsRepository;
+
+    @Autowired
+    private FileUrlUtil fileUrlUtil;
 
 
     @Transactional
@@ -211,24 +215,9 @@ public class PartnerServiceImpl implements PartnerService {
                 return existingPartner;
             }
 
-//            // Validate mobile
-//            List<FieldErrorDetailsDTO> errors = new ArrayList<>();
-//            try {
-//                phoneNumberValidationService.validatePhoneNumber(partner.getMobileNumber());
-//            } catch (IllegalArgumentException ex) {
-//                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-//                log.warn("Phone validation failed for Partner mobile: {}", partner.getMobileNumber());
-//            }
-//
-//            if (!errors.isEmpty()) {
-//                log.error("Partner update validation failed: {}", errors);
-//                throw new CustomValidationException(errors);
-//            }
-
             // Update only provided fields
             if (partner.getTitle() != null) existingPartner.setTitle(partner.getTitle());
             if (partner.getName() != null) existingPartner.setName(partner.getName());
-//            if (partner.getMobileNumber() != null) existingPartner.setMobileNumber(partner.getMobileNumber());
             if (partner.getEmailId() != null) existingPartner.setEmailId(partner.getEmailId());
             if (partner.getDob() != null) existingPartner.setDob(partner.getDob());
             if (partner.getAddress() != null) existingPartner.setAddress(partner.getAddress());
@@ -382,11 +371,11 @@ public class PartnerServiceImpl implements PartnerService {
         dto.setBusinessNumber(partner.getBusinessNumber());
         dto.setCreatedBy(partner.getCreatedBy());
         dto.setCreatedOn(partner.getCreatedOn());
-        dto.setAadhaarCardFrontImage(partner.getAadhaarCardFrontImage());
-        dto.setAadhaarCardBackImage(partner.getAadhaarCardBackImage());
-        dto.setPanCardImage(partner.getPanCardImage());
-        dto.setShopImage(partner.getShopImage());
-        dto.setBusinessProofImage(partner.getBusinessProofImage());
+        dto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(partner.getAadhaarCardFrontImage()));
+        dto.setAadhaarCardBackImage( fileUrlUtil.getFullUrl(partner.getAadhaarCardBackImage()));
+        dto.setPanCardImage( fileUrlUtil.getFullUrl(partner.getPanCardImage()));
+        dto.setShopImage( fileUrlUtil.getFullUrl(partner.getShopImage()));
+        dto.setBusinessProofImage( fileUrlUtil.getFullUrl(partner.getBusinessProofImage()));
 
         return dto;
     }

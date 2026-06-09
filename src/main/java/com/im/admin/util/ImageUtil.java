@@ -2,6 +2,7 @@ package com.im.admin.util;
 
 import com.im.admin.properties.FileAccessProperties;
 import com.im.admin.properties.FileStorageProperties;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,11 +34,13 @@ public class ImageUtil {
             Files.createDirectories(categoryDir);
         }
 
-        String fileName = UUID.randomUUID() + "_" + imageFile.getOriginalFilename();
+        String extension = FilenameUtils.getExtension(imageFile.getOriginalFilename());
+
+        String fileName = UUID.randomUUID() + "." + extension;
         Path filePath = categoryDir.resolve(fileName);
 
         Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-        return fileAccessProperties.getBaseUrl() + category + "/" + fileName;
+        return  category + "/" + fileName;
     }
 }

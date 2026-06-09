@@ -8,6 +8,7 @@ import com.im.admin.dto.BankDetailsDTO;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
+import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.*;
 import com.im.admin.response.RetailerResponseDTO;
 import com.im.admin.service.RetailerService;
@@ -69,6 +70,9 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Autowired
     private ImageUtil imageUtil;
+
+    @Autowired
+    private FileUrlUtil fileUrlUtil;
 
     @Transactional
     @Override
@@ -361,15 +365,17 @@ public class RetailerServiceImpl implements RetailerService {
             dto.setBankDetails(bankDto);
         }
 
+
         dto.setAadhaarNumber(retailer.getAadhaarNumber());
         dto.setPanNumber(retailer.getPanNumber());
         dto.setShopNumber(retailer.getShopNumber());
         dto.setBusinessNumber(retailer.getBusinessNumber());
-        dto.setAadhaarCardFrontImage(retailer.getAadhaarCardFrontImage());
-        dto.setAadhaarCardBackImage(retailer.getAadhaarCardBackImage());
-        dto.setPanCardImage(retailer.getPanCardImage());
-        dto.setShopImage(retailer.getShopImage());
-        dto.setBusinessProofImage(retailer.getBusinessProofImage());
+
+        dto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(retailer.getAadhaarCardFrontImage()));
+        dto.setAadhaarCardBackImage( fileUrlUtil.getFullUrl(retailer.getAadhaarCardBackImage()));
+        dto.setPanCardImage( fileUrlUtil.getFullUrl(retailer.getPanCardImage()));
+        dto.setShopImage( fileUrlUtil.getFullUrl(retailer.getShopImage()));
+        dto.setBusinessProofImage( fileUrlUtil.getFullUrl(retailer.getBusinessProofImage()));
 
         dto.setStatus(retailer.getStatus());
         dto.setRemarks(retailer.getRemarks());
@@ -379,6 +385,8 @@ public class RetailerServiceImpl implements RetailerService {
         dto.setCreatedByIPAddress(retailer.getCreatedByIPAddress());
         dto.setCreatedOn(retailer.getCreatedOn());
         dto.setLastEditedOn(retailer.getLastEditedOn());
+        dto.setLatitude(retailer.getLatitude());
+        dto.setLongitude(retailer.getLongitude());
 
         return dto;
     }

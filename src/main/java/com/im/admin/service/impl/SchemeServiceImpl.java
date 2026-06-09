@@ -415,18 +415,35 @@ public class SchemeServiceImpl implements SchemeService {
             // =========================
             // HIERARCHY LOGIC AD / WL
             // =========================
-            Join<Scheme, SubProducts> subProduct = root.join("subProduct", JoinType.LEFT);
+//            Join<Scheme, SubProducts> subProduct = root.join("subProduct", JoinType.LEFT);
+
+//            if ("WL".equalsIgnoreCase(hierarchyTypeFinal)) {
+//
+//                predicates.add(cb.isTrue(subProduct.get("isWhiteLabelAdmin")));
+//
+//                if (whiteLabelAdminIdFinal != null && !whiteLabelAdminIdFinal.isEmpty()) {
+//                    predicates.add(
+//                            cb.equal(subProduct.get("whiteLabelAdminId"), whiteLabelAdminIdFinal)
+//                    );
+//                } else {
+//                    predicates.add(cb.disjunction());
+//                }
+//            }
 
             if ("WL".equalsIgnoreCase(hierarchyTypeFinal)) {
 
-                predicates.add(cb.isTrue(subProduct.get("isWhiteLabelAdmin")));
-
                 if (whiteLabelAdminIdFinal != null && !whiteLabelAdminIdFinal.isEmpty()) {
+
+                    // enforce WL filtering via encoded hash structure
                     predicates.add(
-                            cb.equal(subProduct.get("whiteLabelAdminId"), whiteLabelAdminIdFinal)
+                            cb.like(
+                                    root.get("schemeCombinationHashCode"),
+                                    "%-" + whiteLabelAdminIdFinal + "-%"
+                            )
                     );
+
                 } else {
-                    predicates.add(cb.disjunction());
+                    predicates.add(cb.disjunction()); // return empty result
                 }
             }
 
