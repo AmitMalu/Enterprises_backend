@@ -12,6 +12,14 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class AsyncPendingFetcher {
 
+    @Autowired private RetailerRepository retailerRepository;
+    @Autowired private DistributorRepository distributorRepository;
+    @Autowired private PartnerRepository partnerRepository;
+    @Autowired private SuperDistributorRepository superDistributorRepository;
+    @Autowired private WhiteLabelRepository whiteLabelsRepository;
+    @Autowired private EnterprisesRepository enterprisesRepository;
+    @Autowired private AdminRepository adminRepository;
+
     @Async
     public CompletableFuture<List<Retailer>> fetchRetailers(String status) {
         return CompletableFuture.completedFuture(retailerRepository.findByStatus(status));
@@ -47,13 +55,5 @@ public class AsyncPendingFetcher {
         return CompletableFuture.completedFuture(adminRepository.findByStatus(status));
     }
 
-    @Autowired
-    private RetailerRepository retailerRepository;
-    @Autowired private DistributorRepository distributorRepository;
-    @Autowired private PartnerRepository partnerRepository;
-    @Autowired private SuperDistributorRepository superDistributorRepository;
-    @Autowired private WhiteLabelRepository whiteLabelsRepository;
-    @Autowired private EnterprisesRepository enterprisesRepository;
-    @Autowired private AdminRepository adminRepository;
 }
 
