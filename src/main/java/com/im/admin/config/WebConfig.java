@@ -33,7 +33,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         System.out.println("==== STATIC RESOURCE HANDLER LOADED ====");
 
-        registry.addResourceHandler("/enterprises/images/**")
+        registry.addResourceHandler("/images/**")
                 .addResourceLocations("file:/opt/nft/uploads/");
     }
 }

@@ -42,5 +42,7 @@ public class ImageUtil {
         Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
         return  category + "/" + fileName;
+
+        //   Retailer/ image.png
     }
 }
