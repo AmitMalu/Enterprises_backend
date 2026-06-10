@@ -124,7 +124,8 @@ public class AuthController {
     @Autowired
     private RsaUtil rsaUtil;
 
-
+    @Autowired
+    private WhiteLabelUserRepository whiteLabelUserRepository;
 
     @Autowired
     private DistributorRepository distributorRepository;
@@ -463,13 +464,28 @@ public class AuthController {
 
                 if (Boolean.TRUE.equals(wl.getIsAdmin())) {
                     return wl.getWhiteLabelId();
-//                    return wl.getEmailId(); //
                 }
 
                 String parentId = wl.getParentAccount();
                 String parentType = commonMethods.extractHierarchyType(parentId);
 
                 return resolveFromEmail(parentType, parentId);
+            }
+
+            case "WLAU" -> {
+                Optional<WhiteLabelUser> wlauOpt =
+                        whiteLabelUserRepository.findById(hierarchyId);
+
+                if (wlauOpt.isEmpty()) {
+                return wlauOpt.get().getId();
+                }
+
+                WhiteLabelUser wlau = wlauOpt.get();
+                String parentId = wlau.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+
             }
 
             case "ET" -> {
@@ -487,14 +503,11 @@ public class AuthController {
                         .orElseThrow(() -> new RuntimeException("Admin not found"));
 
                 return ad.getId();
-//                return ad.getEmailId(); //
             }
 
             default -> throw new RuntimeException("Invalid hierarchy type: " + hierarchyType);
         }
     }
-
-
 
     public boolean isUrlValidForUserHierarchy(String hierarchyId, String requestUrl) {
         String currentId = hierarchyId;
@@ -504,19 +517,58 @@ public class AuthController {
             String currentType = commonMethods.extractHierarchyType(currentId);
             log.debug("Current hierarchy ID: {}, Type: {}", currentId, currentType);
 
-            if ("WL".equals(currentType)) {
-                Optional<WhiteLabels> wlOpt = whiteLabelRepository.findById(currentId);
-                if (wlOpt.isPresent()) {
-                    WhiteLabels wl = wlOpt.get();
-                    log.debug("WhiteLabel found: ID={}, isAdmin={}, domainURL={}", currentId, wl.getIsAdmin(), wl.getDomainURL());
+            String whiteLabelId = null;
 
-                    if (Boolean.TRUE.equals(wl.getIsAdmin())) {
-                        boolean match = requestUrl.contains(wl.getDomainURL());
-                        log.info("URL match for WhiteLabel admin: {}", match);
-                        return match;
-                    }
-                } else {
-                    log.warn("WhiteLabel not found for ID: {}", currentId);
+            if ("WL".equals(currentType)) {
+                whiteLabelId = currentId;
+            }
+            else if ("WLAU".equals(currentType)) {
+
+                Optional<WhiteLabelUser> wlauOpt =
+                        whiteLabelUserRepository.findById(currentId);
+
+                if (wlauOpt.isEmpty()) {
+                    log.warn("WhiteLabel Admin User not found: {}", currentId);
+                    return false;
+                }
+
+                WhiteLabelUser wlau = wlauOpt.get();
+                whiteLabelId = wlau.getParentAccount();
+
+                log.debug("WLAU found. Parent WL ID: {}", whiteLabelId);
+            }
+
+            if (whiteLabelId != null) {
+
+                Optional<WhiteLabels> wlOpt =
+                        whiteLabelRepository.findById(whiteLabelId);
+
+                if (wlOpt.isEmpty()) {
+                    log.warn("WhiteLabel not found: {}", whiteLabelId);
+                    return false;
+                }
+
+                WhiteLabels wl = wlOpt.get();
+
+                log.debug(
+                        "WhiteLabel found: ID={}, isAdmin={}, domainURL={}",
+                        wl.getWhiteLabelId(),
+                        wl.getIsAdmin(),
+                        wl.getDomainURL()
+                );
+
+                if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+
+                    boolean match = requestUrl.contains(wl.getDomainURL());
+
+                    log.info(
+                            "Domain validation - Request URL: {}, WL Domain: {}, Match: {}",
+                            requestUrl,
+                            wl.getDomainURL(),
+                            match
+                    );
+
+                    return match;
                 }
             }
 
@@ -720,9 +772,9 @@ public class AuthController {
                 }
                 break;
 
-            case "WL-AU":
+            case "WLAU":
                 responseMap.put("permissions", user.getPermission());
-                responseMap.put("role", "WL-AU");
+                responseMap.put("role", "WLAU");
                 break;
 
             case "RT":
