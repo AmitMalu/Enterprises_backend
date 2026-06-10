@@ -8,12 +8,15 @@ import com.im.admin.entities.enums.EmailType;
 import com.im.admin.exception.NoPendingRecordsFoundException;
 import com.im.admin.repositories.*;
 import com.im.admin.request.ChangeStatusToPendingRequest;
+import com.im.admin.request.UserContext;
 import com.im.admin.response.GenericPendingResponseDto;
 import com.im.admin.service.EmailService;
 import com.im.admin.service.OnboardingService;
 import com.im.admin.service.asyncMethods.AsyncPendingFetcher;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.HierarchyAccessValidator;
 import com.im.admin.util.PasswordGeneratorUtil;
+import com.im.admin.util.TokenUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -30,6 +33,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -84,65 +89,190 @@ public class OnboardingServiceImpl implements OnboardingService {
     @Autowired
     private EmailCredentialsRepository emailCredentialsRepository;
 
+    @Autowired
+    private HierarchyAccessValidator hierarchyAccessValidator;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Override
     @Transactional(readOnly = true)
-    public Page<GenericPendingRecordDto> getAllRecordsByStatus(String status, int page, int size,
-                                                               String type,
-                                                               String id,
-                                                               String name,
-                                                               String createdBy,
-                                                               String createdOn,
-                                                               String mobileNumber,
-                                                               String emailId,
-                                                               String parentAccount,
-                                                               String rejectionReason) {
+    public Page<GenericPendingRecordDto> getAllRecordsByStatus(
+            String status,
+            int page,
+            int size,
+            String type,
+            String id,
+            String name,
+            String createdBy,
+            String createdOn,
+            String mobileNumber,
+            String emailId,
+            String parentAccount,
+            String rejectionReason) {
 
-        CompletableFuture<List<Retailer>> retailersFuture = asyncPendingFetcher.fetchRetailers(status);
-        CompletableFuture<List<Distributor>> distributorsFuture = asyncPendingFetcher.fetchDistributors(status);
-        CompletableFuture<List<Partner>> partnersFuture = asyncPendingFetcher.fetchPartners(status);
-        CompletableFuture<List<SuperDistributor>> superDistributorsFuture = asyncPendingFetcher.fetchSuperDistributors(status);
-        CompletableFuture<List<WhiteLabels>> whiteLabelsFuture = asyncPendingFetcher.fetchWhiteLabels(status);
-        CompletableFuture<List<Enterprises>> enterprisesFuture = asyncPendingFetcher.fetchEnterprises(status);
+        // 1. USER CONTEXT
+        UserContext ctx = tokenUtil.getUserContext();
+        String userRoot = ctx.getHierarchyId();
+        boolean isAdmin = ctx.isAdmin();
 
-        CompletableFuture.allOf(retailersFuture, distributorsFuture, partnersFuture, superDistributorsFuture,
-                whiteLabelsFuture, enterprisesFuture).join();
+        // 2. ASYNC FETCH
+        CompletableFuture<List<Retailer>> retailersFuture =
+                asyncPendingFetcher.fetchRetailers(status);
 
-        List<GenericPendingRecordDto> records = new ArrayList<>();
-        records.addAll(retailersFuture.join().stream().map(PendingRecordMapper::fromRetailer).toList());
-        records.addAll(distributorsFuture.join().stream().map(PendingRecordMapper::fromDistributor).toList());
-        records.addAll(partnersFuture.join().stream().map(PendingRecordMapper::fromPartner).toList());
-        records.addAll(superDistributorsFuture.join().stream().map(PendingRecordMapper::fromSuperDistributor).toList());
-        records.addAll(whiteLabelsFuture.join().stream().map(PendingRecordMapper::fromWhiteLabel).toList());
-        records.addAll(enterprisesFuture.join().stream().map(PendingRecordMapper::fromEnterprise).toList());
+        CompletableFuture<List<Distributor>> distributorsFuture =
+                asyncPendingFetcher.fetchDistributors(status);
+
+        CompletableFuture<List<Partner>> partnersFuture =
+                asyncPendingFetcher.fetchPartners(status);
+
+        CompletableFuture<List<SuperDistributor>> superDistributorsFuture =
+                asyncPendingFetcher.fetchSuperDistributors(status);
+
+        CompletableFuture<List<WhiteLabels>> whiteLabelsFuture =
+                asyncPendingFetcher.fetchWhiteLabels(status);
+
+        CompletableFuture<List<Enterprises>> enterprisesFuture =
+                asyncPendingFetcher.fetchEnterprises(status);
+
+        CompletableFuture.allOf(
+                retailersFuture,
+                distributorsFuture,
+                partnersFuture,
+                superDistributorsFuture,
+                whiteLabelsFuture,
+                enterprisesFuture
+        ).join();
+
+        // 3. FIXED FLAT LIST (NO GENERICS ISSUE)
+        List<Object> allEntities = Stream.of(
+                        (List<?>) retailersFuture.join(),
+                        (List<?>) distributorsFuture.join(),
+                        (List<?>) partnersFuture.join(),
+                        (List<?>) superDistributorsFuture.join(),
+                        (List<?>) whiteLabelsFuture.join(),
+                        (List<?>) enterprisesFuture.join()
+                )
+                .flatMap(Collection::stream)
+                .map(o -> (Object) o)
+                .toList();
+
+        // 4. HIERARCHY FILTER (CORE LOGIC FIX)
+        List<GenericPendingRecordDto> records = allEntities.stream()
+                .filter(entity -> {
+
+                    if (isAdmin) return true;
+
+                    String recordId = extractId(entity);
+
+                    return belongsToHierarchy(recordId, userRoot);
+                })
+                .map(this::mapToDto)
+                .toList();
 
         if (records.isEmpty()) {
-            throw new NoPendingRecordsFoundException("No " + status + " records found in any hierarchy.");
+            throw new NoPendingRecordsFoundException(
+                    "No " + status + " records found in your hierarchy scope."
+            );
         }
 
-        // Apply filters
+        // 5. BUSINESS FILTERS
         List<GenericPendingRecordDto> filteredRecords = records.stream()
-                .filter(r -> status == null || status.isEmpty() || r.getStatus().equalsIgnoreCase(status))
-                .filter(r -> type == null || type.isEmpty() || r.getType().toLowerCase().contains(type.toLowerCase()))
-                .filter(r -> id == null || id.isEmpty() || r.getId().toLowerCase().contains(id.toLowerCase()))
-                .filter(r -> name == null || name.isEmpty() || r.getName().toLowerCase().contains(name.toLowerCase()))
-                .filter(r -> createdBy == null || createdBy.isEmpty() || r.getCreatedBy().toLowerCase().contains(createdBy.toLowerCase()))
-                .filter(r -> createdOn == null || createdOn.isEmpty() || r.getCreatedOn().contains(createdOn))
-                .filter(r -> mobileNumber == null || mobileNumber.isEmpty() || r.getMobileNumber().contains(mobileNumber))
-                .filter(r -> emailId == null || emailId.isEmpty() || r.getEmailId().toLowerCase().contains(emailId.toLowerCase()))
-                .filter(r -> parentAccount == null || parentAccount.isEmpty() || r.getParentAccount().toLowerCase().contains(parentAccount.toLowerCase()))
-                .filter(r -> rejectionReason == null || rejectionReason.isEmpty() || r.getRemarks().toLowerCase().contains(rejectionReason.toLowerCase()))
-                //  sort by createdOn descending (latest first)
+
+                .filter(r -> status == null || status.isEmpty()
+                        || r.getStatus().equalsIgnoreCase(status))
+
+                .filter(r -> type == null || type.isEmpty()
+                        || r.getType().toLowerCase().contains(type.toLowerCase()))
+
+                .filter(r -> id == null || id.isEmpty()
+                        || r.getId().toLowerCase().contains(id.toLowerCase()))
+
+                .filter(r -> name == null || name.isEmpty()
+                        || r.getName().toLowerCase().contains(name.toLowerCase()))
+
+                .filter(r -> createdBy == null || createdBy.isEmpty()
+                        || r.getCreatedBy().toLowerCase().contains(createdBy.toLowerCase()))
+
+                .filter(r -> createdOn == null || createdOn.isEmpty()
+                        || r.getCreatedOn().contains(createdOn))
+
+                .filter(r -> mobileNumber == null || mobileNumber.isEmpty()
+                        || r.getMobileNumber().contains(mobileNumber))
+
+                .filter(r -> emailId == null || emailId.isEmpty()
+                        || r.getEmailId().toLowerCase().contains(emailId.toLowerCase()))
+
+                .filter(r -> parentAccount == null || parentAccount.isEmpty()
+                        || r.getParentAccount().toLowerCase().contains(parentAccount.toLowerCase()))
+
+                .filter(r -> rejectionReason == null || rejectionReason.isEmpty()
+                        || (r.getRemarks() != null &&
+                        r.getRemarks().toLowerCase().contains(rejectionReason.toLowerCase())))
+
                 .sorted((a, b) -> b.getCreatedOn().compareTo(a.getCreatedOn()))
                 .toList();
 
-
+        // 6. PAGINATION
         Pageable pageable = PageRequest.of(page, size);
+
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), filteredRecords.size());
-        List<GenericPendingRecordDto> paginatedList = filteredRecords.subList(start, end);
 
-        return new PageImpl<>(paginatedList, pageable, filteredRecords.size());
+        List<GenericPendingRecordDto> paginated =
+                filteredRecords.subList(start, end);
+
+        return new PageImpl<>(paginated, pageable, filteredRecords.size());
+    }
+
+    private String extractId(Object entity) {
+
+        if (entity == null) return null;
+
+        if (entity instanceof Retailer r) return r.getRetailerId();
+        if (entity instanceof Distributor d) return d.getDistributorId();
+        if (entity instanceof Partner p) return p.getPartnerId();
+        if (entity instanceof SuperDistributor sd) return sd.getSuperDistributorId();
+        if (entity instanceof WhiteLabels wl) return wl.getWhiteLabelId();
+        if (entity instanceof Enterprises e) return e.getEnterpriseId();
+        if (entity instanceof Admin a) return a.getId();
+
+        return null;
+    }
+
+    private GenericPendingRecordDto mapToDto(Object entity) {
+
+        if (entity instanceof Retailer r) return PendingRecordMapper.fromRetailer(r);
+        if (entity instanceof Distributor d) return PendingRecordMapper.fromDistributor(d);
+        if (entity instanceof Partner p) return PendingRecordMapper.fromPartner(p);
+        if (entity instanceof SuperDistributor s) return PendingRecordMapper.fromSuperDistributor(s);
+        if (entity instanceof WhiteLabels w) return PendingRecordMapper.fromWhiteLabel(w);
+        if (entity instanceof Enterprises e) return PendingRecordMapper.fromEnterprise(e);
+
+        return null;
+    }
+
+    public boolean belongsToHierarchy(String nodeId, String targetRoot) {
+
+        String current = nodeId;
+        int maxDepth = 20;
+
+        while (current != null && maxDepth-- > 0) {
+
+            Optional<String> parentOpt = hierarchyAccessValidator.findParentHierarchy(current);
+
+            if (parentOpt.isEmpty()) {
+                break;
+            }
+
+            if (parentOpt.get().equals(targetRoot)) {
+                return true;
+            }
+
+            current = parentOpt.get();
+        }
+
+        return false;
     }
 
     @Override
@@ -340,7 +470,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         return randomPassword;
     }
 
-    public class PendingRecordMapper {
+    public static class PendingRecordMapper {
 
         public static GenericPendingRecordDto fromRetailer(Retailer r) {
             return new GenericPendingRecordDto("RETAILER", r.getRetailerId(), r.getName(), r.getStatus(),
