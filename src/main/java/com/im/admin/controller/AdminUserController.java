@@ -1,47 +1,79 @@
 package com.im.admin.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.im.admin.dto.AdminUserRequestDTO;
-import com.im.admin.entities.AdminUser;
+import com.im.admin.dto.UserRequestDTO;
+import com.im.admin.dto.UserResponseDTO;
 import com.im.admin.response.CommonResponse;
-import com.im.admin.service.AdminUserService;
+import com.im.admin.service.UnifiedUserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 
+/**
+ * Single controller for AdminUser and WhiteLabelUser.
+ *
+ * The frontend sends the exact same request it always did — no new fields.
+ * The backend derives which table to use automatically:
+ *
+ *   CREATE / GET-ALL → from parentAccount segment[1]
+ *     "MAY-AD-001" → admin_users
+ *     "MAY-WL-001" → white_label_users
+ *
+ *   GET-BY-ID / UPDATE → from the id itself
+ *     "MAY-AU-0001"  → admin_users
+ *     "MAY-WAU-0001" → white_label_users
+ *
+ * Endpoints (unchanged from original admin-user URLs):
+ *   POST   /api/admin-user/create
+ *   GET    /api/admin-user?parentAccount=MAY-AD-001
+ *   GET    /api/admin-user/{id}
+ *   PUT    /api/admin-user/{id}
+ *
+ * @author SHUBHAM KHOPADE
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/admin-user")
+@RequiredArgsConstructor
 public class AdminUserController {
 
-    @Autowired
-    private AdminUserService adminUserService;
+    private final UnifiedUserService unifiedUserService;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CREATE
+    // ─────────────────────────────────────────────────────────────────────────
 
     @PostMapping("/create")
-    public ResponseEntity<CommonResponse<AdminUser>> createAgent(@RequestBody AdminUserRequestDTO dto) throws JsonProcessingException {
-        log.info("Creating admin user with data: {}", dto);
+    public ResponseEntity<CommonResponse<UserResponseDTO>> createUser(
+            @RequestBody UserRequestDTO dto) throws JsonProcessingException {
 
-        AdminUser savedAdminUser = adminUserService.createAdminUser(dto);
-        log.debug("Created admin user: {}", savedAdminUser);
+        log.info("createUser — parentAccount={}", dto.getParentAccount());
 
-        CommonResponse<AdminUser> response = new CommonResponse<>();
-        response.setStatusCode(HttpStatus.CREATED.value());
-        response.setMessage("Admin user created successfully");
-        response.setData(savedAdminUser);
+        UserResponseDTO saved = unifiedUserService.createUser(dto);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                CommonResponse.created(saved, "User created successfully")
+        );
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // GET ALL  (paginated + filtered)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * parentAccount (required) is used to derive which table to query.
+     * All other params are optional filters.
+     */
     @GetMapping
-    public ResponseEntity<CommonResponse<Page<AdminUser>>> getAllAdminUsers(
-            @RequestParam(defaultValue = "0") int page,
+    public ResponseEntity<CommonResponse<Page<UserResponseDTO>>> getAllUsers(
+            @RequestParam String parentAccount,
+            @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String id,
             @RequestParam(required = false) String name,
@@ -56,60 +88,51 @@ public class AdminUserController {
             @RequestParam(required = false) String editedBy
     ) throws JsonProcessingException {
 
-        log.info("Fetching admin users with filters - page: {}, size: {}", page, size);
+        log.info("getAllUsers — parentAccount={} page={} size={}", parentAccount, page, size);
 
-        Page<AdminUser> adminUsers = adminUserService.getAllAdminUsers(
-                page, size, id, name, mobileNumber, username,
-                emailId, status, dob, createdOn, createdBy, lastEditedOn, editedBy
+        Page<UserResponseDTO> result = unifiedUserService.getAllUsers(
+                page, size, parentAccount,
+                id, name, mobileNumber, username, emailId,
+                status, dob, createdOn, createdBy, lastEditedOn, editedBy
         );
 
-        CommonResponse<Page<AdminUser>> response = new CommonResponse<>();
-        response.setStatusCode(HttpStatus.OK.value());
-        response.setMessage("Admin users fetched successfully");
-        response.setData(adminUsers);
-
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(response);
+        return ResponseEntity.ok(
+                CommonResponse.success(result, "Users fetched successfully")
+        );
     }
 
-
-    @PutMapping("/{id}")
-    public ResponseEntity<CommonResponse<AdminUser>> updateAdminUser(
-            @PathVariable String id,
-            @RequestBody AdminUserRequestDTO dto) throws JsonProcessingException {
-
-        log.info("Updating admin user with ID: {}", id);
-        log.debug("Update data: {}", dto);
-
-        AdminUser updatedAdminUser = adminUserService.updateAdminUser(id, dto);
-        log.debug("Updated admin user: {}", updatedAdminUser);
-
-        CommonResponse<AdminUser> response = new CommonResponse<>();
-        response.setStatusCode(HttpStatus.OK.value());
-        response.setMessage("Admin user updated successfully");
-        response.setData(updatedAdminUser);
-
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(response);
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // GET BY ID
+    // ─────────────────────────────────────────────────────────────────────────
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommonResponse<AdminUser>> getAdminUserById(@PathVariable String  id) throws JsonProcessingException {
-        log.info("Fetching admin user with ID: {}", id);
+    public ResponseEntity<CommonResponse<UserResponseDTO>> getUserById(
+            @PathVariable String id) throws JsonProcessingException {
 
-        AdminUser adminUser = adminUserService.getAdminUserById(id);
-        log.debug("Fetched admin user: {}", adminUser);
+        log.info("getUserById — id={}", id);
 
-        CommonResponse<AdminUser> response = new CommonResponse<>();
-        response.setStatusCode(HttpStatus.OK.value());
-        response.setMessage("Admin user fetched successfully");
-        response.setData(adminUser);
+        UserResponseDTO dto = unifiedUserService.getUserById(id);
 
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(response);
+        return ResponseEntity.ok(
+                CommonResponse.success(dto, "User fetched successfully")
+        );
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // UPDATE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CommonResponse<UserResponseDTO>> updateUser(
+            @PathVariable String id,
+            @RequestBody UserRequestDTO dto) throws JsonProcessingException {
+
+        log.info("updateUser — id={}", id);
+
+        UserResponseDTO updated = unifiedUserService.updateUser(id, dto);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(updated, "User updated successfully")
+        );
+    }
 }
