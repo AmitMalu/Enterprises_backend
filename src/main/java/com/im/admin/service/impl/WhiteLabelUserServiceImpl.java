@@ -6,7 +6,6 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
-import com.im.admin.repositories.AdminUserRepository;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.repositories.WhiteLabelRepository;
 import com.im.admin.repositories.WhiteLabelUserRepository;
@@ -41,9 +40,6 @@ public class WhiteLabelUserServiceImpl implements WhiteLabelUserService {
 
     @Autowired
     private IdGenerator idGenerator;
-
-    @Autowired
-    private AdminUserRepository adminUserRepository;
 
     @Autowired
     private UserDetailsRepository userDetailsRepository;
@@ -96,7 +92,21 @@ public class WhiteLabelUserServiceImpl implements WhiteLabelUserService {
                 throw new CustomValidationException(errors);
             }
             request = objectMapper.writeValueAsString(dto);
-            log.info("Received AdminUser creation request: {}", request);
+            log.info("Received WhiteLabelUser creation request: {}", request);
+
+            // Duplicate checks before persisting
+            if (whiteLabelUserRepository.existsByMobileNumber(dto.getMobileNumber())) {
+                errors.add(new FieldErrorDetailsDTO("mobileNumber", "Mobile number already exists in Admin User"));
+            }
+            if (dto.getUsername() != null && whiteLabelUserRepository.existsByUsername(dto.getUsername())) {
+                errors.add(new FieldErrorDetailsDTO("username", "Username already taken"));
+            }
+            if (dto.getEmailId() != null && whiteLabelUserRepository.existsByEmailId(dto.getEmailId())) {
+                errors.add(new FieldErrorDetailsDTO("emailId", "Email already registered"));
+            }
+            if (!errors.isEmpty()) {
+                throw new CustomValidationException(errors);
+            }
 
             String parentAccount = dto.getParentAccount();
 
@@ -149,9 +159,6 @@ public class WhiteLabelUserServiceImpl implements WhiteLabelUserService {
             adminUser.setCreatedByIPAddress(dto.getCreatedByIPAddress());
             adminUser.setPermission(permissionString);
 
-            WhiteLabelUser savedAdmin = whiteLabelUserRepository.save(adminUser);
-            log.info("AdminUser saved successfully with ID: {}", savedAdmin.getId());
-
             WhiteLabelUser savedUser = whiteLabelUserRepository.save(adminUser);
 
             log.info("WhiteLabelUser saved successfully with ID: {}", savedUser.getId());
@@ -159,7 +166,7 @@ public class WhiteLabelUserServiceImpl implements WhiteLabelUserService {
             UserDetails user = new UserDetails();
             user.setMobileNumber(savedUser.getMobileNumber());
             user.setHierarchyId(savedUser.getId());
-            user.setHierarchyCode("WAU");
+            user.setHierarchyCode("WLAU");
             user.setLoginUserName(savedUser.getUsername());
             user.setLoginPassword(savedUser.getPassword());
             user.setEmailId(savedUser.getEmailId());
@@ -511,6 +518,7 @@ public class WhiteLabelUserServiceImpl implements WhiteLabelUserService {
             existingUser.setDob(dto.getDob());
             existingUser.setAdd(mapAddress(dto.getAdd()));
             existingUser.setEditedBy(dto.getEditedBy());
+            existingUser.setCreatedByIPAddress(dto.getCreatedByIPAddress());
 
             if (dto.getPermissions() != null) {
                 existingUser.setPermission(

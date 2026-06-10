@@ -57,14 +57,15 @@ public class IdGenerator {
         }
 
         String prefix = switch (entityType) {
+            case "Admin User" -> abbreviation + "-AU-";
             case "Enterprises" -> abbreviation + "-ET-";
             case "White Label" -> abbreviation + "-WL-";
+            case "White Label User" -> abbreviation + "-WLAU-";
             case "Super Distributor" -> abbreviation + "-SD-";
             case "Partner" -> abbreviation + "-PT-";
             case "Distributor" -> abbreviation + "-DT-";
             case "Retailer" -> abbreviation + "-RT-";
             case "RetailerUser" -> abbreviation + "-RU-";
-            case "AdminUser" -> abbreviation + "-AU-";
             default -> throw new IllegalArgumentException("Invalid entity type: " + entityType);
         };
 
