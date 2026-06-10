@@ -7,8 +7,10 @@ import com.im.admin.service.TenantBrandingService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * author abdul.M
@@ -25,10 +27,12 @@ public class TenantBrandingController {
     public ResponseEntity<CommonResponse<TenantConfigResponse>> getTenantConfig(
             HttpServletRequest request) {
 
-        String hostName = request.getServerName();
+        String origin = request.getHeader("X-Tenant-Domain");
+
+        System.out.println("Origin = " + origin);
 
         TenantConfigResponse response =
-                tenantBrandingService.getTenantConfig(hostName);
+                tenantBrandingService.getTenantConfig(origin);
 
         return ResponseEntity.ok(
                 CommonResponse.success(
@@ -39,10 +43,31 @@ public class TenantBrandingController {
     }
 
 
-    @PostMapping("/create")
-    public CommonResponse<?> createTenant(
-            @RequestBody TenantBrandingRequest request) {
 
-        return tenantBrandingService.createTenant(request);
+    @PostMapping(
+            value = "/create",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public CommonResponse<?> createTenant(
+
+            @ModelAttribute TenantBrandingRequest request
+    ) {
+
+        return tenantBrandingService.createTenant(
+                request
+        );
+    }
+
+
+    @PostMapping(value = "/upload-logo",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> uploadLogo(
+            @RequestParam("wlId") Long wlId,
+            @RequestParam("image") MultipartFile image
+    ) {
+
+        return ResponseEntity.ok(
+                tenantBrandingService.uploadLogo(wlId, image)
+        );
     }
 }

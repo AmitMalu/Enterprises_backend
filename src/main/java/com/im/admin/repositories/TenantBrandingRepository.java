@@ -16,4 +16,6 @@ public interface TenantBrandingRepository  extends JpaRepository<TenantBranding,
 
     boolean existsByDomainName(String domainName);
 
+    Optional<TenantBranding> findByTenantCode(String tenantCode);
+
 }
