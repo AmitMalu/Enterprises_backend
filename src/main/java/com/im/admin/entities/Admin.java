@@ -15,7 +15,7 @@ public class Admin extends BaseEntity {
 
     @Id
     @Column(name = "id", nullable = false)
-    private String id;
+    private String id;          //example --> IM-AD-001
 
     @NotBlank(message = "Name is mandatory")
     @Column(name = "name", nullable = false)
