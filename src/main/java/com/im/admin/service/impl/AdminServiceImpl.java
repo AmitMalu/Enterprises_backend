@@ -10,7 +10,9 @@ import com.im.admin.repositories.AdminPostpaidAmountRepository;
 import com.im.admin.repositories.AdminPrepaidAmountRepository;
 import com.im.admin.repositories.AdminRepository;
 import com.im.admin.repositories.UserDetailsRepository;
+import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.service.AdminService;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.IdGenerator;
 import jakarta.validation.ConstraintViolation;
@@ -63,6 +65,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private Validator validator;
+
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
 
 
     @Transactional

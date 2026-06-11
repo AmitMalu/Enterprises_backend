@@ -9,6 +9,8 @@ import com.im.admin.exception.CustomValidationException;
 import com.im.admin.repositories.UserDetailsRepository;
 import com.im.admin.repositories.WhiteLabelRepository;
 import com.im.admin.repositories.WhiteLabelUserRepository;
+import com.im.admin.request.HierarchyRegistrationRequest;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.WhiteLabelUserService;
 import com.im.admin.util.IdGenerator;
 import jakarta.persistence.criteria.Predicate;
@@ -61,6 +63,9 @@ public class WhiteLabelUserServiceImpl implements WhiteLabelUserService {
 
     @Autowired
     private WhiteLabelUserRepository whiteLabelUserRepository;
+
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
 
     @Override
     @Transactional
@@ -153,6 +158,7 @@ public class WhiteLabelUserServiceImpl implements WhiteLabelUserService {
             adminUser.setPassword(dto.getPassword());
             adminUser.setEmailId(dto.getEmailId());
             adminUser.setEmailVerified(dto.getEmailVerified());
+            adminUser.setParentAccount(dto.getParentAccount());
             adminUser.setDob(dto.getDob());
             adminUser.setAdd(mapAddress(dto.getAdd()));
             adminUser.setCreatedBy(dto.getCreatedBy());
@@ -160,8 +166,17 @@ public class WhiteLabelUserServiceImpl implements WhiteLabelUserService {
             adminUser.setPermission(permissionString);
 
             WhiteLabelUser savedUser = whiteLabelUserRepository.save(adminUser);
-
             log.info("WhiteLabelUser saved successfully with ID: {}", savedUser.getId());
+
+            hierarchyAccessService.registerHierarchyNode(
+                    HierarchyRegistrationRequest
+                            .builder()
+                            .hierarchyId(savedUser.getId())
+                            .hierarchyType("WLAU")
+                            .parentHierarchyId(
+                                    savedUser.getParentAccount())
+                            .build()
+            );
 
             UserDetails user = new UserDetails();
             user.setMobileNumber(savedUser.getMobileNumber());

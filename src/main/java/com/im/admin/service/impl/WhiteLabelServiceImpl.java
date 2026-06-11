@@ -11,7 +11,9 @@ import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.WhiteLabelPostpaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelPrepaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelRepository;
+import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.response.WhiteLabelResponseDTO;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.WhiteLabelService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -71,6 +73,9 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 
     @Autowired
     private FileUrlUtil fileUrlUtil;
+
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
 
     @Transactional
     @Override
@@ -166,6 +171,16 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             // Save entity
             WhiteLabels savedWhiteLabel = whiteLabelRepository.save(whiteLabels);
             log.info("WhiteLabel saved with ID: {}", savedWhiteLabel.getWhiteLabelId());
+
+            hierarchyAccessService.registerHierarchyNode(
+                    HierarchyRegistrationRequest
+                            .builder()
+                            .hierarchyId(savedWhiteLabel.getWhiteLabelId())
+                            .hierarchyType("WL")
+                            .parentHierarchyId(
+                                    savedWhiteLabel.getParentAccount())
+                            .build()
+            );
 
             // Save Prepaid Record
             WhiteLabelPrepaidAmount prepaid = new WhiteLabelPrepaidAmount();

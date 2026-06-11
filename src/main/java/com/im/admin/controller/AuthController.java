@@ -765,7 +765,7 @@ public class AuthController {
                     if (wlSubRole != null) {
                         responseMap.put("sub_role_id", wlSubRole.getSubRoleId());
                     }
-                    responseMap.put("role", "WL-AD");
+                    responseMap.put("role", "WLAD");
                     responseMap.put("logoUrl",whiteLabel.getBusinessProofImage());
                 } else {
                     responseMap.put("role", "WL");

@@ -317,8 +317,6 @@ public class OnboardingServiceImpl implements OnboardingService {
                 distributorRepository.save(dt);
             }
 
-
-
             case "PT" -> {
                 Optional<Partner> ptOpt = partnerRepository.findById(hierarchyId);
                 if (ptOpt.isEmpty()) return "Partner not found";
@@ -334,6 +332,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 }
                 partnerRepository.save(pt);
             }
+
             case "SD" -> {
                 Optional<SuperDistributor> sdOpt = superDistributorRepository.findById(hierarchyId);
                 if (sdOpt.isEmpty()) return "SuperDistributor not found";
@@ -349,6 +348,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 }
                 superDistributorRepository.save(sd);
             }
+
             case "WL" -> {
                 Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(hierarchyId);
                 if (wlOpt.isEmpty()) return "WhiteLabel not found";
