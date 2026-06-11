@@ -11,8 +11,10 @@ import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.EnterprisesPostpaidAmountRepository;
 import com.im.admin.repositories.EnterprisesPrepaidAmountRepository;
 import com.im.admin.repositories.EnterprisesRepository;
+import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.response.EnterpriseResponseDTO;
 import com.im.admin.service.EnterprisesService;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
@@ -69,6 +71,9 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
     @Autowired
     private FileUrlUtil fileUrlUtil;
+
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
 
     @Transactional
     @Override
@@ -168,6 +173,16 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         // ===== Save Enterprise =====
         Enterprises savedEnterprise = enterpriseRepository.save(enterprises);
         log.info("Enterprise [{}] saved successfully with ID: {}", savedEnterprise.getName(), savedEnterprise.getEnterpriseId());
+
+        hierarchyAccessService.registerHierarchyNode(
+                HierarchyRegistrationRequest
+                        .builder()
+                        .hierarchyId(savedEnterprise.getEnterpriseId())
+                        .hierarchyType("ET")
+                        .parentHierarchyId(
+                                savedEnterprise.getParentAccount())
+                        .build()
+        );
 
         // ===== Initialize Amounts =====
         EnterprisesPrepaidAmount prepaid = new EnterprisesPrepaidAmount();

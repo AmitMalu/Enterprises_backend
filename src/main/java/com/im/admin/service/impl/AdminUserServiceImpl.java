@@ -12,7 +12,9 @@ import com.im.admin.repositories.AdminRepository;
 import com.im.admin.repositories.AdminUserRepository;
 import com.im.admin.repositories.ImSubRoleRepository;
 import com.im.admin.repositories.UserDetailsRepository;
+import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.service.AdminUserService;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.util.IdGenerator;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -63,6 +65,9 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Autowired
     private Validator validator;
+
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
 
     @Override
     @Transactional
@@ -143,6 +148,16 @@ public class AdminUserServiceImpl implements AdminUserService {
 
             AdminUser savedAdmin = adminUserRepository.save(adminUser);
             log.info("AdminUser saved successfully with ID: {}", savedAdmin.getId());
+
+                    hierarchyAccessService.registerHierarchyNode(
+                HierarchyRegistrationRequest
+                        .builder()
+                        .hierarchyId(savedAdmin.getId())
+                        .hierarchyType("AU")
+                        .parentHierarchyId(
+                                savedAdmin.getParentAccount())
+                        .build()
+        );
 
             UserDetails user = new UserDetails();
             user.setMobileNumber(savedAdmin.getMobileNumber());

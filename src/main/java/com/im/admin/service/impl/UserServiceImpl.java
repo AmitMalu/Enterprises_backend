@@ -10,6 +10,7 @@ import com.im.admin.response.PaginatedResponse;
 import com.im.admin.response.UserSearchResponseDto;
 import com.im.admin.service.UserService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +61,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private CommonMethods commonMethods;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Override
     public CommonResponse<UserDetailsResponseDTO> updateUserBlockStatus(String idOrMobile, boolean block) {
@@ -254,8 +258,24 @@ public class UserServiceImpl implements UserService {
     public Page<ViewUserResponseDto> getAllUsers(int page, int size, String keyword) {
         log.info("Fetching users - page: {}, size: {}, keyword: {}", page, size, keyword);
 
+        String loginHierarchyId = tokenUtil.extractHierarchyId();
+        String loginType = commonMethods.extractHierarchyType(loginHierarchyId);
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
-        Page<UserDetails> usersPage = userDetailsRepository.findAll(pageable);
+        Page<UserDetails> usersPage;
+
+        if ("AD".equals(loginType)) {
+
+            usersPage = userDetailsRepository.findAll(pageable);
+
+        } else {
+
+            usersPage =
+                    userDetailsRepository.findAccessibleUsers(
+                            loginHierarchyId,
+                            keyword,
+                            pageable);
+        }
 
         List<ViewUserResponseDto> dtoList = usersPage.stream()
                 .map(user -> {

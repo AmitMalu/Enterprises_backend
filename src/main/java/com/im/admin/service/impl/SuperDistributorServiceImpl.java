@@ -10,7 +10,9 @@ import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.SuperDistributorPostpaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorPrepaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorRepository;
+import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.response.SuperDistributorResponseDTO;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.SuperDistributorService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -70,6 +72,9 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 
     @Autowired
     private FileUrlUtil fileUrlUtil;
+
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
 
     @Transactional
     @Override
@@ -163,10 +168,19 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
                 superDistributor.setBankDetails(savedBankDetails);
             }
 
-
             // Save SuperDistributor
             SuperDistributor savedDistributor = superDistributorRepository.save(superDistributor);
             log.info("SuperDistributor saved successfully with ID: {}", savedDistributor.getSuperDistributorId());
+
+            hierarchyAccessService.registerHierarchyNode(
+                    HierarchyRegistrationRequest
+                            .builder()
+                            .hierarchyId(savedDistributor.getSuperDistributorId())
+                            .hierarchyType("SD")
+                            .parentHierarchyId(
+                                    savedDistributor.getParentAccount())
+                            .build()
+            );
 
             // Create prepaid/postpaid records
             SuperDistributorPrepaidAmount prepaidAmount = new SuperDistributorPrepaidAmount();
