@@ -9,8 +9,12 @@ import lombok.*;
 public class TenantBranding {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "white_label_id")
+    private String whiteLabelId;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "white_label_id")
+    private WhiteLabels whiteLabel;
 
     @Column(name = "tenant_code", unique = true)
     private String tenantCode;
@@ -53,5 +57,6 @@ public class TenantBranding {
 
     @Column(name = "is_active")
     private Boolean isActive;
+
 
 }

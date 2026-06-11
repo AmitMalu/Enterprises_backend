@@ -1,6 +1,7 @@
 package com.im.admin.request;
 
 import lombok.Data;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * author abdul.M
@@ -8,6 +9,8 @@ import lombok.Data;
 
 @Data
 public class TenantBrandingRequest {
+
+    private String whiteLabelId;
 
     private String tenantCode;
 
@@ -19,20 +22,23 @@ public class TenantBrandingRequest {
 
     private String secondaryColor;
 
-    private String logoPath;
+    private MultipartFile logo;
 
-    private String backgroundPath;
+    private MultipartFile background;
 
-    private String termsPath;
+    private MultipartFile faviconFile;
 
-    private String privacyPath;
+    private MultipartFile terms;
 
-    private String refundPath;
+    private MultipartFile privacy;
+
+    private MultipartFile refund;
+
+    private String portalTitle;
 
     private String welcomeText;
 
     private Boolean isActive;
-    private String favicon;
-    private String portalTitle;
+
 
 }
