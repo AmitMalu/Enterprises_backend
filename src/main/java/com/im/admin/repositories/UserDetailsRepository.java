@@ -55,4 +55,37 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
 
     List<UserDetails> findByParentAccount(String parentId);
 
+//    @Query("""
+//       SELECT u
+//       FROM UserDetails u
+//       WHERE u.hierarchyId IN (
+//           SELECT p.id.descendantId
+//           FROM AccessHierarchyPath p
+//           WHERE p.id.ancestorId = :loginHierarchyId
+//       )
+//       """)
+//    Page<UserDetails> findAccessibleUsers(
+//            @Param("loginHierarchyId") String loginHierarchyId,
+//            Pageable pageable);
+
+    @Query("""
+SELECT u
+FROM UserDetails u
+WHERE u.hierarchyId IN (
+    SELECT p.id.descendantId
+    FROM AccessHierarchyPath p
+    WHERE p.id.ancestorId = :ancestorId
+)
+AND (
+    :keyword IS NULL
+    OR :keyword = ''
+    OR LOWER(u.hierarchyId) LIKE LOWER(CONCAT('%', :keyword, '%'))
+    OR u.mobileNumber LIKE CONCAT('%', :keyword, '%')
+)
+""")
+    Page<UserDetails> findAccessibleUsers(
+            @Param("ancestorId") String ancestorId,
+            @Param("keyword") String keyword,
+            Pageable pageable);
+
 }

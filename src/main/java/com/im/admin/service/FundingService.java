@@ -24,11 +24,9 @@ public interface FundingService {
 
     Page<RetailerTransactionResponseDto> getSettlementPendingTransactionsUpdated(SettlementPendingRequestDto request, int page, int size);
 
-
     Page<RetailerTransactionResponseDto> getTransactionReport(SettlementPendingRequestDto request, int page, int size);
 
     Page<RetailerTransactionResponseDtoCom> getTransactionReportComWise(SettlementPendingRequestDto request, int page, int size);
-
 
     List<String> getRetailersUnderHierarchy(String hierarchyId);
 }

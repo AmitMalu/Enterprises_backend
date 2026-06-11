@@ -10,7 +10,9 @@ import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
 import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.*;
+import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.response.RetailerResponseDTO;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.RetailerService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -73,6 +75,9 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Autowired
     private FileUrlUtil fileUrlUtil;
+
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
 
     @Transactional
     @Override
@@ -169,6 +174,16 @@ public class RetailerServiceImpl implements RetailerService {
 
         Retailer savedRetailer = retailerRepository.save(retailer);
         log.info("Retailer created successfully with ID: {}", savedRetailer.getRetailerId());
+
+        hierarchyAccessService.registerHierarchyNode(
+                HierarchyRegistrationRequest
+                        .builder()
+                        .hierarchyId(savedRetailer.getRetailerId())
+                        .hierarchyType("RT")
+                        .parentHierarchyId(
+                                savedRetailer.getParentAccount())
+                        .build()
+        );
 
         RetailerPrepaidAmount prepaidAmount = new RetailerPrepaidAmount();
         prepaidAmount.setRetailerId(savedRetailer);

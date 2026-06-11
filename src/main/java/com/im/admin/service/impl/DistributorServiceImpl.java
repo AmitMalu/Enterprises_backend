@@ -7,8 +7,10 @@ import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
 import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.*;
+import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.response.DistributorResponseDTO;
 import com.im.admin.service.DistributorService;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
@@ -70,6 +72,9 @@ public class DistributorServiceImpl implements DistributorService {
 
     @Autowired
     private FileUrlUtil fileUrlUtil;
+
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
 
     @Transactional
     @Override
@@ -171,6 +176,15 @@ public class DistributorServiceImpl implements DistributorService {
             // Save distributor
             log.info("Saving Distributor entity...");
             Distributor savedDistributor = distributorRepository.save(distributor);
+
+            hierarchyAccessService.registerHierarchyNode(
+                    HierarchyRegistrationRequest.builder()
+                            .hierarchyId(savedDistributor.getDistributorId())
+                            .hierarchyType("DT")
+                            .parentHierarchyId(
+                                    savedDistributor.getParentAccount())
+                            .build()
+            );
 
             // Initialize wallet balances
             DistributorPrepaidAmount prepaid = new DistributorPrepaidAmount();

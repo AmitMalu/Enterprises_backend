@@ -11,7 +11,9 @@ import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.PartnerPostpaidAmountRepository;
 import com.im.admin.repositories.PartnerPrepaidAmountRepository;
 import com.im.admin.repositories.PartnerRepository;
+import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.response.PartnerResponseDTO;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.PartnerService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
@@ -70,6 +72,8 @@ public class PartnerServiceImpl implements PartnerService {
     @Autowired
     private FileUrlUtil fileUrlUtil;
 
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
 
     @Transactional
     @Override
@@ -160,8 +164,17 @@ public class PartnerServiceImpl implements PartnerService {
             partner.setBankDetails(savedBankDetails);
         }
 
-
         Partner savedPartner = partnerRepository.save(partner);
+
+        hierarchyAccessService.registerHierarchyNode(
+                HierarchyRegistrationRequest
+                        .builder()
+                        .hierarchyId(savedPartner.getPartnerId())
+                        .hierarchyType("PT")
+                        .parentHierarchyId(
+                                savedPartner.getParentAccount())
+                        .build()
+        );
 
         // Save prepaid & postpaid accounts
         PartnerPrepaidAmount prepaidAmount = new PartnerPrepaidAmount();
