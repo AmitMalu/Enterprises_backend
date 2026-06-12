@@ -11,6 +11,7 @@ import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.GetAllSchemeResponse;
 import com.im.admin.service.SchemeService;
+import com.im.admin.util.CommonMethods;
 import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Join;
@@ -68,6 +69,12 @@ public class SchemeServiceImpl implements SchemeService {
 
     @Autowired
     private TokenUtil tokenUtil;
+
+    @Autowired
+    private CommonMethods commonMethods;
+
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
 
     public List<Map<String, Object>> getAllSchemeHierarchySelections() {
         List<SchemeHierarchySelection> selections = schemeHierarchySelectionRepository.findAll();
@@ -223,121 +230,6 @@ public class SchemeServiceImpl implements SchemeService {
         return schemeRateRepository.findByOperatorCode(operatorCode);
     }
 
-//    @Override
-//    public Page<GetAllSchemeResponse> getAllSchemes(
-//            Long id,
-//            String schemeName,
-//            String schemeCode,
-//            String schemeCombinationHashCode,
-//            String productId,
-//            String productName,
-//            String subProductId,
-//            String subProductName,
-//            String vendorId,
-//            String vendorName,
-//            String schemeHierarchyName,
-//            String schemeHierarchySelectionId,
-//            String createdOn,
-//            String createdBy,
-//            String editedOn,
-//            String editedBy,
-//            Pageable pageable,
-//            String hierarchyId
-//    ) {
-//        Specification<Scheme> spec = (root, query, cb) -> {
-//            List<Predicate> predicates = new ArrayList<>();
-//
-//            if (id != null)
-//                predicates.add(cb.equal(root.get("id"), id));
-//
-//            if (schemeName != null && !schemeName.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("schemeName")), "%" + schemeName.toLowerCase() + "%"));
-//
-//            if (schemeCode != null && !schemeCode.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("schemeCode")), "%" + schemeCode.toLowerCase() + "%"));
-//
-//            if (schemeCombinationHashCode != null && !schemeCombinationHashCode.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%" + schemeCombinationHashCode.toLowerCase() + "%"));
-//
-//            if (createdOn != null && !createdOn.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("createdOn").as(String.class)), "%" + createdOn.toLowerCase() + "%"));
-//
-//            if (createdBy != null && !createdBy.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
-//
-//            if (editedOn != null && !editedOn.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("editedOn").as(String.class)), "%" + editedOn.toLowerCase() + "%"));
-//
-//            if (editedBy != null && !editedBy.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
-//
-//            if (productId != null && !productId.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), productId.toLowerCase() + "-%"));
-//
-//            if (subProductId != null && !subProductId.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%-" + subProductId.toLowerCase() + "-%"));
-//
-//            if (vendorId != null && !vendorId.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%-" + vendorId.toLowerCase() + "-%"));
-//
-//            if (schemeHierarchySelectionId != null && !schemeHierarchySelectionId.isEmpty())
-//                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%-" + schemeHierarchySelectionId.toLowerCase() + "-%"));
-//
-//            return cb.and(predicates.toArray(new Predicate[0]));
-//        };
-//
-//        Page<Scheme> schemes = schemeRepository.findAll(spec, pageable);
-//
-//        List<GetAllSchemeResponse> filteredList = schemes.stream().map(scheme -> {
-//                    String[] parts = scheme.getSchemeCombinationHashCode().split("-");
-//
-//                    String prodId = parts.length > 0 ? parts[0] : null;
-//                    String subProdId = parts.length > 1 ? parts[1] : null;
-//                    String vendId = parts.length > 2 ? parts[2] : null;
-//                    String schemeHierarchySelId = parts.length > 3 ? parts[3] : null;
-//
-//                    assert prodId != null;
-//                    String prodName = productsRepository.findById(Short.valueOf(prodId)).map(Products::getName).orElse("N/A");
-//
-//                    assert subProdId != null;
-//                    String subProdName = subProductsRepository.findById(subProdId).map(SubProducts::getSubProductTitle).orElse("N/A");
-//
-//                    assert vendId != null;
-//                    String vendName = vendorRepository.findById(vendId).map(Vendors::getVendorName).orElse("N/A");
-//
-//                    String schemeHierarchyNameRes = schemeHierarchySelectionRepository.findByCustomId(schemeHierarchySelId)
-//                            .map(SchemeHierarchySelection::getSchemeHierarchyCombination).orElse("N/A");
-//
-//                    return new GetAllSchemeResponse(
-//                            scheme.getId(),
-//                            scheme.getSchemeName(),
-//                            scheme.getSchemeCode(),
-//                            scheme.getSchemeCombinationHashCode(),
-//                            prodId,
-//                            prodName,
-//                            subProdId,
-//                            subProdName,
-//                            vendId,
-//                            vendName,
-//                            schemeHierarchyNameRes,
-//                            schemeHierarchySelId,
-//                            scheme.getCreatedOn(),
-//                            scheme.getCreatedBy(),
-//                            scheme.getEditedOn(),
-//                            scheme.getEditedBy(),
-//                            scheme.getIsActive()
-//                    );
-//                })
-//                .filter(s -> (productName == null || productName.isEmpty() || s.getProductName().toLowerCase().contains(productName.toLowerCase())))
-//                .filter(s -> (subProductName == null || subProductName.isEmpty() || s.getSubProductName().toLowerCase().contains(subProductName.toLowerCase())))
-//                .filter(s -> (vendorName == null || vendorName.isEmpty() || s.getVendorName().toLowerCase().contains(vendorName.toLowerCase())))
-//                .filter(s -> (schemeHierarchyName == null || schemeHierarchyName.isEmpty() || s.getSchemeHierarchyName().toLowerCase().contains(schemeHierarchyName.toLowerCase())))
-//                .toList();  // Collect into List<GetAllSchemeResponse>
-//
-//              // Return as Page<GetAllSchemeResponse> preserving pagination metadata
-//        return new PageImpl<>(filteredList, pageable, schemes.getTotalElements());
-//    }
-
     @Override
     public Page<GetAllSchemeResponse> getAllSchemes(
             Long id,
@@ -359,147 +251,355 @@ public class SchemeServiceImpl implements SchemeService {
             Pageable pageable
     ) {
 
-        String hierarchyId = tokenUtil.extractHierarchyId();
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
 
-        final String hierarchyTypeFinal;
-        final String whiteLabelAdminIdFinal;
+        String hierarchyType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
 
-        if (hierarchyId != null && hierarchyId.contains("-")) {
-            String[] parts = hierarchyId.split("-");
-            hierarchyTypeFinal = parts[1];
-            whiteLabelAdminIdFinal = parts.length > 2 ? parts[2] : null;
-        } else {
-            hierarchyTypeFinal = hierarchyId;
-            whiteLabelAdminIdFinal = null;
-        }
+        List<String> accessibleHierarchyIds =
+                "AD".equalsIgnoreCase(hierarchyType)
+                        ? Collections.emptyList()
+                        : accessHierarchyPathRepository
+                        .findDescendantsByAncestor(
+                                loginHierarchyId
+                        );
 
-        Specification<Scheme> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
+        Specification<Scheme> spec =
+                (root, query, cb) -> {
 
-            if (id != null)
-                predicates.add(cb.equal(root.get("id"), id));
+                    List<Predicate> predicates =
+                            new ArrayList<>();
 
-            if (schemeName != null && !schemeName.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("schemeName")), "%" + schemeName.toLowerCase() + "%"));
+                    if (id != null)
+                        predicates.add(
+                                cb.equal(
+                                        root.get("id"),
+                                        id
+                                )
+                        );
 
-            if (schemeCode != null && !schemeCode.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("schemeCode")), "%" + schemeCode.toLowerCase() + "%"));
+                    if (schemeName != null
+                            && !schemeName.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        cb.lower(
+                                                root.get(
+                                                        "schemeName"
+                                                )
+                                        ),
+                                        "%"
+                                                + schemeName
+                                                .toLowerCase()
+                                                + "%"
+                                )
+                        );
 
-            if (schemeCombinationHashCode != null && !schemeCombinationHashCode.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%" + schemeCombinationHashCode.toLowerCase() + "%"));
+                    if (schemeCode != null
+                            && !schemeCode.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        cb.lower(
+                                                root.get(
+                                                        "schemeCode"
+                                                )
+                                        ),
+                                        "%"
+                                                + schemeCode
+                                                .toLowerCase()
+                                                + "%"
+                                )
+                        );
 
-            if (createdOn != null && !createdOn.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("createdOn").as(String.class)), "%" + createdOn.toLowerCase() + "%"));
+                    if (schemeCombinationHashCode != null
+                            && !schemeCombinationHashCode.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        cb.lower(
+                                                root.get(
+                                                        "schemeCombinationHashCode"
+                                                )
+                                        ),
+                                        "%"
+                                                + schemeCombinationHashCode
+                                                .toLowerCase()
+                                                + "%"
+                                )
+                        );
 
-            if (createdBy != null && !createdBy.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+                    if (createdOn != null
+                            && !createdOn.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        root.get(
+                                                "createdOn"
+                                        ).as(String.class),
+                                        "%"
+                                                + createdOn
+                                                + "%"
+                                )
+                        );
 
-            if (editedOn != null && !editedOn.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("editedOn").as(String.class)), "%" + editedOn.toLowerCase() + "%"));
+                    if (createdBy != null
+                            && !createdBy.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        cb.lower(
+                                                root.get(
+                                                        "createdBy"
+                                                )
+                                        ),
+                                        "%"
+                                                + createdBy
+                                                .toLowerCase()
+                                                + "%"
+                                )
+                        );
 
-            if (editedBy != null && !editedBy.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("editedBy")), "%" + editedBy.toLowerCase() + "%"));
+                    if (editedOn != null
+                            && !editedOn.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        root.get(
+                                                "editedOn"
+                                        ).as(String.class),
+                                        "%"
+                                                + editedOn
+                                                + "%"
+                                )
+                        );
 
-            if (productId != null && !productId.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), productId.toLowerCase() + "-%"));
+                    if (editedBy != null
+                            && !editedBy.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        cb.lower(
+                                                root.get(
+                                                        "editedBy"
+                                                )
+                                        ),
+                                        "%"
+                                                + editedBy
+                                                .toLowerCase()
+                                                + "%"
+                                )
+                        );
 
-            if (subProductId != null && !subProductId.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%-" + subProductId.toLowerCase() + "-%"));
+                    if (productId != null
+                            && !productId.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        root.get(
+                                                "schemeCombinationHashCode"
+                                        ),
+                                        productId + "-%"
+                                )
+                        );
 
-            if (vendorId != null && !vendorId.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%-" + vendorId.toLowerCase() + "-%"));
+                    if (subProductId != null
+                            && !subProductId.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        root.get(
+                                                "schemeCombinationHashCode"
+                                        ),
+                                        "%-"
+                                                + subProductId
+                                                + "-%"
+                                )
+                        );
 
-            if (schemeHierarchySelectionId != null && !schemeHierarchySelectionId.isEmpty())
-                predicates.add(cb.like(cb.lower(root.get("schemeCombinationHashCode")), "%-" + schemeHierarchySelectionId.toLowerCase() + "-%"));
+                    if (vendorId != null
+                            && !vendorId.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        root.get(
+                                                "schemeCombinationHashCode"
+                                        ),
+                                        "%-"
+                                                + vendorId
+                                                + "-%"
+                                )
+                        );
 
-            // =========================
-            // HIERARCHY LOGIC AD / WL
-            // =========================
-//            Join<Scheme, SubProducts> subProduct = root.join("subProduct", JoinType.LEFT);
+                    if (schemeHierarchySelectionId != null
+                            && !schemeHierarchySelectionId.isBlank())
+                        predicates.add(
+                                cb.like(
+                                        root.get(
+                                                "schemeCombinationHashCode"
+                                        ),
+                                        "%-"
+                                                + schemeHierarchySelectionId
+                                                + "-%"
+                                )
+                        );
 
-//            if ("WL".equalsIgnoreCase(hierarchyTypeFinal)) {
-//
-//                predicates.add(cb.isTrue(subProduct.get("isWhiteLabelAdmin")));
-//
-//                if (whiteLabelAdminIdFinal != null && !whiteLabelAdminIdFinal.isEmpty()) {
-//                    predicates.add(
-//                            cb.equal(subProduct.get("whiteLabelAdminId"), whiteLabelAdminIdFinal)
-//                    );
-//                } else {
-//                    predicates.add(cb.disjunction());
-//                }
-//            }
+                    /*
+                     * ACCESS CONTROL
+                     */
 
-            if ("WL".equalsIgnoreCase(hierarchyTypeFinal)) {
+                    if (!"AD".equalsIgnoreCase(
+                            hierarchyType)) {
 
-                if (whiteLabelAdminIdFinal != null && !whiteLabelAdminIdFinal.isEmpty()) {
+                        if (accessibleHierarchyIds
+                                == null
+                                || accessibleHierarchyIds
+                                .isEmpty()) {
 
-                    // enforce WL filtering via encoded hash structure
-                    predicates.add(
-                            cb.like(
-                                    root.get("schemeCombinationHashCode"),
-                                    "%-" + whiteLabelAdminIdFinal + "-%"
+                            predicates.add(
+                                    cb.disjunction()
+                            );
+
+                        } else {
+
+                            Predicate[] hierarchyFilter =
+                                    accessibleHierarchyIds
+                                            .stream()
+                                            .map(idValue ->
+
+                                                    cb.like(
+                                                            root.get(
+                                                                    "schemeCombinationHashCode"
+                                                            ),
+
+                                                            "%-"
+                                                                    + idValue
+                                                                    + "-%"
+                                                    )
+
+                                            )
+                                            .toArray(
+                                                    Predicate[]::new
+                                            );
+
+                            predicates.add(
+                                    cb.or(
+                                            hierarchyFilter
+                                    )
+                            );
+                        }
+                    }
+
+                    return cb.and(
+                            predicates.toArray(
+                                    new Predicate[0]
                             )
                     );
+                };
 
-                } else {
-                    predicates.add(cb.disjunction()); // return empty result
-                }
-            }
+        Page<Scheme> schemes =
+                schemeRepository.findAll(
+                        spec,
+                        pageable
+                );
 
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
+        List<GetAllSchemeResponse> response =
+                schemes.stream()
+                        .map(scheme -> {
 
-        Page<Scheme> schemes = schemeRepository.findAll(spec, pageable);
+                            String[] parts =
+                                    scheme
+                                            .getSchemeCombinationHashCode()
+                                            .split("-");
 
-        List<GetAllSchemeResponse> filteredList = schemes.stream().map(scheme -> {
+                            String prodId =
+                                    parts.length > 0
+                                            ? parts[0]
+                                            : null;
 
-            String[] parts = scheme.getSchemeCombinationHashCode().split("-");
+                            String subProdId =
+                                    parts.length > 1
+                                            ? parts[1]
+                                            : null;
 
-            String prodId = parts.length > 0 ? parts[0] : null;
-            String subProdId = parts.length > 1 ? parts[1] : null;
-            String vendId = parts.length > 2 ? parts[2] : null;
-            String schemeHierarchySelId = parts.length > 3 ? parts[3] : null;
+                            String vendId =
+                                    parts.length > 2
+                                            ? parts[2]
+                                            : null;
 
-            String prodName = productsRepository.findById(Short.valueOf(prodId))
-                    .map(Products::getName)
-                    .orElse("N/A");
+                            String hierarchySelId =
+                                    parts.length > 3
+                                            ? parts[3]
+                                            : null;
 
-            String subProdName = subProductsRepository.findById(subProdId)
-                    .map(SubProducts::getSubProductTitle)
-                    .orElse("N/A");
+                            return new GetAllSchemeResponse(
 
-            String vendName = vendorRepository.findById(vendId)
-                    .map(Vendors::getVendorName)
-                    .orElse("N/A");
+                                    scheme.getId(),
 
-            String schemeHierarchyNameRes = schemeHierarchySelectionRepository
-                    .findByCustomId(schemeHierarchySelId)
-                    .map(SchemeHierarchySelection::getSchemeHierarchyCombination)
-                    .orElse("N/A");
+                                    scheme.getSchemeName(),
 
-            return new GetAllSchemeResponse(
-                    scheme.getId(),
-                    scheme.getSchemeName(),
-                    scheme.getSchemeCode(),
-                    scheme.getSchemeCombinationHashCode(),
-                    prodId,
-                    prodName,
-                    subProdId,
-                    subProdName,
-                    vendId,
-                    vendName,
-                    schemeHierarchyNameRes,
-                    schemeHierarchySelId,
-                    scheme.getCreatedOn(),
-                    scheme.getCreatedBy(),
-                    scheme.getEditedOn(),
-                    scheme.getEditedBy(),
-                    scheme.getIsActive()
-            );
-        }).toList();
+                                    scheme.getSchemeCode(),
 
-        return new PageImpl<>(filteredList, pageable, schemes.getTotalElements());
+                                    scheme.getSchemeCombinationHashCode(),
+
+                                    prodId,
+
+                                    productsRepository
+                                            .findById(
+                                                    Short.valueOf(
+                                                            prodId
+                                                    )
+                                            )
+                                            .map(
+                                                    Products::getName
+                                            )
+                                            .orElse("N/A"),
+
+                                    subProdId,
+
+                                    subProductsRepository
+                                            .findById(
+                                                    subProdId
+                                            )
+                                            .map(
+                                                    SubProducts::getSubProductTitle
+                                            )
+                                            .orElse("N/A"),
+
+                                    vendId,
+
+                                    vendorRepository
+                                            .findById(
+                                                    vendId
+                                            )
+                                            .map(
+                                                    Vendors::getVendorName
+                                            )
+                                            .orElse("N/A"),
+
+                                    schemeHierarchySelectionRepository
+                                            .findByCustomId(
+                                                    hierarchySelId
+                                            )
+                                            .map(
+                                                    SchemeHierarchySelection::getSchemeHierarchyCombination
+                                            )
+                                            .orElse("N/A"),
+
+                                    hierarchySelId,
+
+                                    scheme.getCreatedOn(),
+
+                                    scheme.getCreatedBy(),
+
+                                    scheme.getEditedOn(),
+
+                                    scheme.getEditedBy(),
+
+                                    scheme.getIsActive()
+                            );
+
+                        })
+                        .toList();
+
+        return new PageImpl<>(
+                response,
+                pageable,
+                schemes.getTotalElements()
+        );
     }
 
     @Override

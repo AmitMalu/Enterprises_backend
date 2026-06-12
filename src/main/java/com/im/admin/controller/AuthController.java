@@ -32,6 +32,7 @@ import java.math.BigDecimal;
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
@@ -682,6 +683,8 @@ public class AuthController {
         user.setUserLoginStatus(true);
         user.setOtp(null);
         user.setOtpExpiryTime(null);
+        user.setLastLoginDate(LocalDate.now());
+        user.setLastLoginTime(LocalTime.now());
         userDetailsRepository.save(user);
 
         // 8. Build responseMap

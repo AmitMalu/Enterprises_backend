@@ -1,7 +1,10 @@
 package com.im.admin.spec;
 
+import com.im.admin.entities.AccessHierarchyPath;
 import com.im.admin.entities.PrefundRequest;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
@@ -105,6 +108,34 @@ public class PrefundRequestSpecification {
                 predicates.add(cb.like(cb.lower(root.get("depositType")), "%" + depositType.toLowerCase() + "%" ));
 
             return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    public static Specification<PrefundRequest> hierarchyScope(
+            String loginHierarchyId) {
+
+        return (root, query, cb) -> {
+
+            assert query != null;
+            Subquery<String> subquery = query.subquery(String.class);
+
+            Root<AccessHierarchyPath> path =
+                    subquery.from(AccessHierarchyPath.class);
+
+            subquery.select(
+                    path.get("id")
+                            .get("descendantId")
+            );
+
+            subquery.where(
+                    cb.equal(
+                            path.get("id")
+                                    .get("ancestorId"),
+                            loginHierarchyId
+                    )
+            );
+
+            return root.get("requestedBy").in(subquery);
         };
     }
 }
