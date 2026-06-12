@@ -46,23 +46,33 @@ import java.util.stream.Stream;
 @Service
 @Slf4j
 public class FundingServiceImpl implements FundingService {
+
     @Autowired
     private SuperDistributorRepository superDistributorRepository;
+
     @Autowired
     private WhiteLabelRepository whiteLabelRepository;
+
     @Autowired
     private EnterprisesRepository enterprisesRepository;
+
     @Autowired
     private UserDetailsRepository userDetailsRepository;
+
     @Autowired
     private DistributorRepository distributorRepository;
+
     @Autowired
     private PartnerRepository partnerRepository;
+
     @Autowired
     private RetailerRepository retailerRepository;
+
     @Autowired
     private TokenUtil tokenUtil;
 
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
 
     @Autowired
     private CommonMethods commonMethods;
@@ -333,7 +343,7 @@ public class FundingServiceImpl implements FundingService {
         List<String> networkIds = getRetailersUnderHierarchy(hierarchyId);
         log.info("Settlement Network IDs: {}", networkIds);
 
-        log.info("Fetching transactions for walletType: {}", request.getWalletType());
+        log.info("Fetching Settlement Transactions for walletType: {}", request.getWalletType());
 
         List<String> filteredSubProducts = null;
 
@@ -413,13 +423,11 @@ public class FundingServiceImpl implements FundingService {
         // =========================================================
         else if (StringUtils.hasText(request.getProductName())) {
 
-            List<String> subProductsByName = subProductsRepository.findAll().stream()
+            filteredSubProducts = subProductsRepository.findAll().stream()
                     .filter(sp -> sp.getProduct() != null
                             && request.getProductName().equalsIgnoreCase(sp.getProduct().getName()))
                     .map(SubProducts::getSubProductCode)
                     .toList();
-
-            filteredSubProducts = subProductsByName;
         }
 
         log.info("Using subProducts: {}", filteredSubProducts);
@@ -451,7 +459,8 @@ public class FundingServiceImpl implements FundingService {
             statusList = Arrays.asList("SUCCESS", "FAILURE");
         } else if (!StringUtils.hasText(request.getTranStatus())
                 || "ALL".equalsIgnoreCase(request.getTranStatus())) {
-            statusList = null;
+            statusList = List.of("PENDING");
+            //statusList = null;
         } else {
             statusList = Collections.singletonList(request.getTranStatus());
         }
@@ -473,17 +482,6 @@ public class FundingServiceImpl implements FundingService {
             Page<RetailerTransactionResponseDto> postpaid =
                     fetchPostpaid(request, filteredSubProducts, vendorName, statusList, networkIds, pageable);
 
-//            List<RetailerTransactionResponseDto> merged =
-//                    Stream.concat(prepaid.stream(), postpaid.stream())
-//                            .sorted(Comparator.comparing(
-//                                    RetailerTransactionResponseDto::getUpdatedAt,
-//                                    Comparator.nullsLast(Comparator.naturalOrder())
-//                            ).reversed())
-//                            .collect(Collectors.toList());
-//
-//            responsePage = new PageImpl<>(merged, pageable, merged.size());
-
-//
             List<RetailerTransactionResponseDto> merged =
                     Stream.concat(prepaid.stream(), postpaid.stream())
                             .sorted(Comparator.comparing(
@@ -1177,59 +1175,42 @@ public class FundingServiceImpl implements FundingService {
 
 
     @Override
-     public List<String> getRetailersUnderHierarchy(String hierarchyId) {
+    public List<String> getRetailersUnderHierarchy(
+            String hierarchyId) {
 
-        String type = commonMethods.extractHierarchyType(hierarchyId);
+        String hierarchyType =
+                commonMethods.extractHierarchyType(
+                        hierarchyId);
 
-//        if ("RT".equals(type) || "RU".equals(type)) {
-//            return List.of(hierarchyId);
-//        }
-        if ("RU".equals(type)) {
+        // Admin sees everything
+        if ("AD".equalsIgnoreCase(hierarchyType)) {
+            return null;
+        }
+
+        // Retailer sees only himself
+        if ("RT".equalsIgnoreCase(hierarchyType)) {
             return List.of(hierarchyId);
         }
 
-        List<String> resultIds = new ArrayList<>();
-
-        // Add itself
-        resultIds.add(hierarchyId);
-
-        List<UserDetails> allChildren = new ArrayList<>();
-
-        fetchChildrenRecursively(hierarchyId, allChildren);
-
-        log.info("All children IDs fetched: {}",
-                allChildren.stream()
-                        .map(UserDetails::getHierarchyId)
-                        .toList());
-
-
-        resultIds.addAll(
-         allChildren.stream()
-                .filter(user ->
-                        "RT".equalsIgnoreCase(user.getHierarchyCode())
-//                                "RU".equalsIgnoreCase(user.getHierarchyCode())
-                )
-                .map(UserDetails::getHierarchyId)
-                .toList()
-        );
-
-        return resultIds;
+        return accessHierarchyPathRepository
+                .findRetailerDescendants(
+                        hierarchyId);
     }
 
 
-    private void fetchChildrenRecursively(
-            String parentId,
-            List<UserDetails> result
-    ) {
-
-        List<UserDetails> children =
-                userDetailsRepository.findByParentAccount(parentId);
-
-        for (UserDetails child : children) {
-            result.add(child);
-            fetchChildrenRecursively(child.getHierarchyId(), result);
-        }
-    }
+//    private void fetchChildrenRecursively(
+//            String parentId,
+//            List<UserDetails> result
+//    ) {
+//
+//        List<UserDetails> children =
+//                userDetailsRepository.findByParentAccount(parentId);
+//s
+//        for (UserDetails child : children) {
+//            result.add(child);
+//            fetchChildrenRecursively(child.getHierarchyId(), result);
+//        }
+//    }
 
 
     @Override
