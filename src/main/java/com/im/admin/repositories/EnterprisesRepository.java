@@ -2,6 +2,8 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.Enterprises;
 import com.im.admin.entities.SuperDistributor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -41,6 +43,12 @@ public interface EnterprisesRepository extends JpaRepository<Enterprises, String
 """)
     List<String> findEnterpriseIdsByWhiteLabel(
             @Param("whiteLabelId") String whiteLabelId
+    );
+
+    Page<Enterprises>
+    findByEnterpriseIdIn(
+            List<String> ids,
+            Pageable pageable
     );
 }
 

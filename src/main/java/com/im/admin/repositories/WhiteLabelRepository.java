@@ -4,6 +4,8 @@ import com.im.admin.entities.Admin;
 import com.im.admin.entities.WhiteLabels;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -47,9 +49,11 @@ public interface WhiteLabelRepository extends JpaRepository<WhiteLabels, String>
             @Param("enterpriseId") String enterpriseId
     );
 
-
-
-
+    Page<WhiteLabels>
+    findByWhiteLabelIdIn(
+            List<String> ids,
+            Pageable pageable
+    );
 
 }
 

@@ -7,10 +7,13 @@ import com.im.admin.repositories.*;
 import com.im.admin.response.KYCApprovedResponseDto;
 import com.im.admin.response.KYCResponseDto;
 import com.im.admin.response.KycDocumentDto;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.KYCService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.TokenUtil;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +40,7 @@ import java.io.File;
 import java.io.IOException;
 
 @Service
+@Slf4j
 public class KYCServiceImpl implements KYCService {
 
     @Autowired
@@ -66,20 +70,82 @@ public class KYCServiceImpl implements KYCService {
     @Autowired
     private ImageUtil imageUtil;
 
+    @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
+
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
+
 
     @Override
-    public KYCResponseDto searchByMobileNoAndHierarchyId(KYCRequestDto kycRequestDto) {
+    public KYCResponseDto searchByMobileNoAndHierarchyId(
+            KYCRequestDto kycRequestDto
+    ) {
 
-        String searchKeyword = kycRequestDto.getSearchKeyword();
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
 
-        // Try to extract type (RT, DT, PT, etc.)
-        String type = commonMethods.extractHierarchyType(searchKeyword);
+        String searchKeyword =
+                kycRequestDto.getSearchKeyword();
 
-        if (type != null && !"UNKNOWN".equalsIgnoreCase(type)) {
-            return getByHierarchyId(type, searchKeyword);
-        } else {
-            return getByMobileNumber(searchKeyword);
+        KYCResponseDto result;
+
+        String type =
+                commonMethods.extractHierarchyType(
+                        searchKeyword
+                );
+
+        /*
+         * Search by hierarchyId
+         */
+        if (type != null
+                && !"UNKNOWN"
+                .equalsIgnoreCase(type)) {
+
+            result =
+                    getByHierarchyId(
+                            type,
+                            searchKeyword
+                    );
+
         }
+
+        /*
+         * Search by mobile
+         */
+        else {
+
+            result =
+                    getByMobileNumber(
+                            searchKeyword
+                    );
+        }
+
+        if (result == null) {
+            return null;
+        }
+
+        /*
+         * ACCESS CHECK
+         */
+        if (!hierarchyAccessService.hasAccessToHierarchy(
+                loginHierarchyId,
+                result.getHierarchyId()
+        )) {
+
+            log.warn(
+                    "Access denied. login={} target={}",
+                    loginHierarchyId,
+                    result.getHierarchyId()
+            );
+
+            return null;
+        }
+
+        return result;
     }
 
     private KYCResponseDto getByHierarchyId(String type, String hierarchyId) {
@@ -166,27 +232,145 @@ public class KYCServiceImpl implements KYCService {
     }
 
     @Override
-    public Page<KYCResponseDto> searchByHierarchyWise(String hierarchyType, Pageable pageable) {
-        return switch (hierarchyType.toUpperCase()) {
-            case "RT" -> retailerRepository.findAll(pageable)
-                    .map(this::mapRetailer);
+    public Page<KYCResponseDto> searchByHierarchyWise(
+            String hierarchyType,
+            Pageable pageable
+    ) {
 
-            case "DT" -> distributorRepository.findAll(pageable)
-                    .map(this::mapDistributor);
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
 
-            case "PT" -> partnerRepository.findAll(pageable)
-                    .map(this::mapPartner);
+        String loginType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
 
-            case "SD" -> superDistributorRepository.findAll(pageable)
-                    .map(this::mapSuperDistributor);
+        /*
+         * ADMIN
+         */
+        if ("AD".equalsIgnoreCase(
+                loginType
+        )) {
 
-            case "WL" -> whiteLabelsRepository.findAll(pageable)
-                    .map(this::mapWhiteLabel);
+            return switch (
+                    hierarchyType.toUpperCase()
+                    ) {
 
-            case "ET" -> enterprisesRepository.findAll(pageable)
-                    .map(this::mapEnterprise);
+                case "RT" ->
+                        retailerRepository
+                                .findAll(pageable)
+                                .map(this::mapRetailer);
 
-            default -> Page.empty(pageable);
+                case "DT" ->
+                        distributorRepository
+                                .findAll(pageable)
+                                .map(this::mapDistributor);
+
+                case "PT" ->
+                        partnerRepository
+                                .findAll(pageable)
+                                .map(this::mapPartner);
+
+                case "SD" ->
+                        superDistributorRepository
+                                .findAll(pageable)
+                                .map(this::mapSuperDistributor);
+
+                case "WL" ->
+                        whiteLabelsRepository
+                                .findAll(pageable)
+                                .map(this::mapWhiteLabel);
+
+                case "ET" ->
+                        enterprisesRepository
+                                .findAll(pageable)
+                                .map(this::mapEnterprise);
+
+                default ->
+                        Page.empty(
+                                pageable
+                        );
+            };
+        }
+
+        /*
+         * WL / subtree
+         */
+
+        List<String> allowedIds =
+                accessHierarchyPathRepository
+                        .findDescendantsByAncestor(
+                                loginHierarchyId
+                        );
+
+        return switch (
+                hierarchyType.toUpperCase()
+                ) {
+
+            case "RT" ->
+                    retailerRepository
+                            .findByRetailerIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapRetailer
+                            );
+
+            case "DT" ->
+                    distributorRepository
+                            .findByDistributorIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapDistributor
+                            );
+
+            case "PT" ->
+                    partnerRepository
+                            .findByPartnerIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapPartner
+                            );
+
+            case "SD" ->
+                    superDistributorRepository
+                            .findBySuperDistributorIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapSuperDistributor
+                            );
+
+            case "WL" ->
+                    whiteLabelsRepository
+                            .findByWhiteLabelIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapWhiteLabel
+                            );
+
+            case "ET" ->
+                    enterprisesRepository
+                            .findByEnterpriseIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapEnterprise
+                            );
+
+            default ->
+                    Page.empty(
+                            pageable
+                    );
         };
     }
 
