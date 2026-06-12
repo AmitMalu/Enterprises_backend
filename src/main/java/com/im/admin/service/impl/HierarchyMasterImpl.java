@@ -7,6 +7,7 @@ import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.service.HierarchyMasterService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -49,7 +50,13 @@ public class HierarchyMasterImpl implements HierarchyMasterService {
     private  RetailerRepository retailerRepository;
 
     @Autowired
-    CommonMethods commonMethods;
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private CommonMethods commonMethods;
+
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
 
 
     @Override
@@ -62,56 +69,155 @@ public class HierarchyMasterImpl implements HierarchyMasterService {
 
     @Override
     public List<HierarchyResponseDto> getHierarchyDetails(String hierarchyCode) {
-        // Step 1: Fetch hierarchy_ids for given code
-        List<String> hierarchyIds = userDetailsRepository.findHierarchyIdsByHierarchyCode(hierarchyCode);
+
+        String loginHierarchyId = tokenUtil.extractHierarchyId();
+        String loginType = commonMethods.extractHierarchyType(loginHierarchyId);
+
+        List<String> hierarchyIds;
+
+        // Admin can see all records
+        if ("AD".equalsIgnoreCase(loginType)) {
+
+            hierarchyIds =
+                    userDetailsRepository.findHierarchyIdsByHierarchyCode(
+                            hierarchyCode);
+
+        } else {
+
+            hierarchyIds =
+                    accessHierarchyPathRepository
+                            .findDescendantsByAncestorAndType(
+                                    loginHierarchyId,
+                                    hierarchyCode
+                            );
+        }
 
         List<HierarchyResponseDto> result = new ArrayList<>();
 
         for (String hierarchyId : hierarchyIds) {
-            String type = commonMethods.extractHierarchyType(hierarchyId);
+
+            String type =
+                    commonMethods.extractHierarchyType(hierarchyId);
 
             switch (type) {
+
                 case "RT" -> {
                     Retailer rt = retailerRepository.findById(hierarchyId)
-                            .orElseThrow(() -> new RuntimeException("Retailer not found: " + hierarchyId));
-                    result.add(buildDto(rt.getRetailerId(), rt.getName(), rt.getMobileNumber(),rt.getEmailId()));
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Retailer not found: " + hierarchyId));
+
+                    result.add(
+                            buildDto(
+                                    rt.getRetailerId(),
+                                    rt.getName(),
+                                    rt.getMobileNumber(),
+                                    rt.getEmailId()
+                            )
+                    );
                 }
+
                 case "AD" -> {
                     Admin ad = adminRepository.findById(hierarchyId)
-                            .orElseThrow(() -> new RuntimeException("Admin not found: " + hierarchyId));
-                    result.add(buildDto(ad.getId(), ad.getName(), ad.getMobileNumber(),ad.getEmailId()));
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Admin not found: " + hierarchyId));
+
+                    result.add(
+                            buildDto(
+                                    ad.getId(),
+                                    ad.getName(),
+                                    ad.getMobileNumber(),
+                                    ad.getEmailId()
+                            )
+                    );
                 }
 
                 case "DT" -> {
                     Distributor dt = distributorRepository.findById(hierarchyId)
-                            .orElseThrow(() -> new RuntimeException("Distributor not found: " + hierarchyId));
-                    result.add(buildDto(dt.getDistributorId(), dt.getName(), dt.getMobileNumber(),dt.getEmailId()));
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Distributor not found: " + hierarchyId));
+
+                    result.add(
+                            buildDto(
+                                    dt.getDistributorId(),
+                                    dt.getName(),
+                                    dt.getMobileNumber(),
+                                    dt.getEmailId()
+                            )
+                    );
                 }
 
                 case "PT" -> {
                     Partner pt = partnerRepository.findById(hierarchyId)
-                            .orElseThrow(() -> new RuntimeException("Partner not found: " + hierarchyId));
-                    result.add(buildDto(pt.getPartnerId(), pt.getName(), pt.getMobileNumber(),pt.getEmailId()));
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Partner not found: " + hierarchyId));
+
+                    result.add(
+                            buildDto(
+                                    pt.getPartnerId(),
+                                    pt.getName(),
+                                    pt.getMobileNumber(),
+                                    pt.getEmailId()
+                            )
+                    );
                 }
 
                 case "SD" -> {
-                    SuperDistributor sd = superDistributorRepository.findById(hierarchyId)
-                            .orElseThrow(() -> new RuntimeException("Super Distributor not found: " + hierarchyId));
-                    result.add(buildDto(sd.getSuperDistributorId(), sd.getName(), sd.getMobileNumber(),sd.getEmailId()));
+                    SuperDistributor sd =
+                            superDistributorRepository.findById(hierarchyId)
+                                    .orElseThrow(() ->
+                                            new RuntimeException(
+                                                    "Super Distributor not found: "
+                                                            + hierarchyId));
+
+                    result.add(
+                            buildDto(
+                                    sd.getSuperDistributorId(),
+                                    sd.getName(),
+                                    sd.getMobileNumber(),
+                                    sd.getEmailId()
+                            )
+                    );
                 }
 
                 case "WL" -> {
-                    WhiteLabels wl = whiteLabelRepository.findById(hierarchyId)
-                            .orElseThrow(() -> new RuntimeException("WhiteLabel not found: " + hierarchyId));
-                    result.add(buildDto(wl.getWhiteLabelId(), wl.getName(), wl.getMobileNumber(),wl.getEmailId()));
+                    WhiteLabels wl =
+                            whiteLabelRepository.findById(hierarchyId)
+                                    .orElseThrow(() ->
+                                            new RuntimeException(
+                                                    "WhiteLabel not found: "
+                                                            + hierarchyId));
+
+                    result.add(
+                            buildDto(
+                                    wl.getWhiteLabelId(),
+                                    wl.getName(),
+                                    wl.getMobileNumber(),
+                                    wl.getEmailId()
+                            )
+                    );
                 }
 
                 case "ET" -> {
-                    Enterprises et = enterprisesRepository.findById(hierarchyId)
-                            .orElseThrow(() -> new RuntimeException("Enterprise not found: " + hierarchyId));
-                    result.add(buildDto(et.getEnterpriseId(), et.getName(), et.getMobileNumber(),et.getEmailId()));
-                }
+                    Enterprises et =
+                            enterprisesRepository.findById(hierarchyId)
+                                    .orElseThrow(() ->
+                                            new RuntimeException(
+                                                    "Enterprise not found: "
+                                                            + hierarchyId));
 
+                    result.add(
+                            buildDto(
+                                    et.getEnterpriseId(),
+                                    et.getName(),
+                                    et.getMobileNumber(),
+                                    et.getEmailId()
+                            )
+                    );
+                }
             }
         }
 

@@ -3126,10 +3126,10 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                             .orElseThrow(() -> new RuntimeException("Prepaid transaction not found"));
 
                     //old logic chk SETTLEMENT PENDING with tranStatus field
-//                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(prepaidTxn.getTranStatus())) {
-//                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(prepaidTxn.getTranStatus()).append("\n");
-//                        continue;
-//                    }
+                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(prepaidTxn.getTranStatus())) {
+                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(prepaidTxn.getTranStatus()).append("\n");
+                        continue;
+                    }
 
                     //new logic chk SETTLEMENT PENDING with actionOnBalanceAmount field
                     String action = prepaidTxn.getActionOnBalanceAmount();
@@ -3151,10 +3151,10 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                             .orElseThrow(() -> new RuntimeException("Postpaid transaction not found"));
 
                     //old logic chk SETTLEMENT PENDING with tranStatus field
-//                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(postpaidTxn.getTranStatus())) {
-//                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(postpaidTxn.getTranStatus()).append("\n");
-//                        continue;
-//                    }
+                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(postpaidTxn.getTranStatus())) {
+                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(postpaidTxn.getTranStatus()).append("\n");
+                        continue;
+                    }
 
                     //new logic chk SETTLEMENT PENDING with actionOnBalanceAmount field
                     String action = postpaidTxn.getActionOnBalanceAmount();
@@ -3190,7 +3190,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 newRequest.setAmount(amount.doubleValue());
                 newRequest.setConfirmAmount(amount.doubleValue());
 
-                SubProducts subProduct = subProductsRepository.findBySubProductTitle(subProductName)
+                SubProducts subProduct = subProductsRepository.findBySubProductCode(subProductName)
                         .orElseThrow(() -> new RuntimeException("SubProduct not found: " + subProductName));
 
                 Operators operator = operatorsRepository
@@ -3358,7 +3358,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         // Save wallet changes
         saveWallet(walletType, wallet);
         // CLEANUP OLD SETTLEMENT PENDING ENTRY
-        deleteOldSettlementPendingEntry("TXN" + baseTransactionId, walletType);
+        //deleteOldSettlementPendingEntry("TXN" + baseTransactionId, walletType);
         return "Transaction Successful";
     }
 
