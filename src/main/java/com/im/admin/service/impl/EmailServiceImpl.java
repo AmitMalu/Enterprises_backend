@@ -45,20 +45,18 @@ public class EmailServiceImpl implements EmailService {
         try {
 
             JavaMailSenderImpl dynamicSender = new JavaMailSenderImpl();
-//            dynamicSender.setHost("smtp.gmail.com");
 
-            dynamicSender.setHost("smtp.rediffmailpro.com");
-            dynamicSender.setPort(587);
+            dynamicSender.setHost("mail.networkfuturetech.co.in");
+            dynamicSender.setPort(465);
 
-            dynamicSender.setUsername(fromEmail);      // email
-            dynamicSender.setPassword(fromPassword);   // password
-//            dynamicSender.setHost(credentials.getSmtpHost());
-//            dynamicSender.setPort(credentials.getSmtpPort());
+            dynamicSender.setUsername(fromEmail);
+            dynamicSender.setPassword(fromPassword);
 
             Properties props = dynamicSender.getJavaMailProperties();
             props.put("mail.smtp.auth", "true");
-            props.put("mail.smtp.starttls.enable", "true");
-            props.put("mail.smtp.ssl.trust", "smtp.rediffmailpro.com");
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.starttls.enable", "false");
+            props.put("mail.smtp.ssl.trust", "mail.networkfuturetech.co.in");
             props.put("mail.debug", "true");
 
             SimpleMailMessage message = new SimpleMailMessage();
@@ -95,7 +93,7 @@ public class EmailServiceImpl implements EmailService {
                 "We’re delighted to welcome you to NFT!\n" +
                 "Your account has been successfully created, and you can now log in to your dashboard to start doing business with us.\n\n" +
                 "Below are your login credentials:\n\n" +
-                "Portal Link: https://uat.decipay.in/enterprise-portal/login\n\n" +
+                "Portal Link: https://admin.nfttech.in/enterprise-portal/login\n\n" +
                 "User ID: " + mobileNo + "\n" +
                 "Password: " + password + "\n\n" +
                 "For security reasons, we recommend changing your password after your first login.\n\n" +
@@ -118,3 +116,4 @@ public class EmailServiceImpl implements EmailService {
         return body;
     }
 }
+

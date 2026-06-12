@@ -5,6 +5,7 @@ import com.im.admin.entities.UserDetails;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
+import com.im.admin.repositories.AccessHierarchyPathRepository;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.UserDetailsRepository;
@@ -58,6 +59,9 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
     @Autowired
     private TokenUtil tokenUtil;
 
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
+
 
     @Override
     public CommonResponse<Page<MyTransactionReportResponse>> getReport(
@@ -70,11 +74,22 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                 Sort.by("transactionDate").descending()
         );
 
+//        String loggedInHierarchyId =
+//                (request.getHierarchyId() != null
+//                        && !request.getHierarchyId().trim().isEmpty())
+//                        ? request.getHierarchyId()
+//                        : tokenUtil.extractHierarchyId();
+
         String loggedInHierarchyId =
                 (request.getHierarchyId() != null
                         && !request.getHierarchyId().trim().isEmpty())
                         ? request.getHierarchyId()
                         : tokenUtil.extractHierarchyId();
+
+        String hierarchyIdsCsv =
+                getHierarchyIdsCsv(loggedInHierarchyId);
+
+
 
         LocalDate from = StringUtils.hasText(request.getFromDate())
                 ? LocalDate.parse(request.getFromDate())
@@ -127,6 +142,17 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         for (WalletType walletType : walletTypes) {
 
             Map<String, Object> walletData =
+//                    fetchTransactionsForWalletWithCount(
+//                            walletType,
+//                            request,
+//                            from,
+//                            to,
+//                            subProductsParam,
+//                            productParam,
+//                            pageable,
+//                            loggedInHierarchyId
+//                    );
+
                     fetchTransactionsForWalletWithCount(
                             walletType,
                             request,
@@ -135,6 +161,7 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                             subProductsParam,
                             productParam,
                             pageable,
+                            hierarchyIdsCsv,
                             loggedInHierarchyId
                     );
 
@@ -178,8 +205,10 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             String subProducts,
             String products,
             Pageable pageable,
+            String hierarchyIdsCsv,
             String loggedInHierarchyId
-    ) {
+    )
+    {
 
         StoredProcedureQuery query =
                 entityManager.createStoredProcedureQuery("my_transaction_report");
@@ -209,12 +238,23 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         // ===== SET PARAMS =====
         query.setParameter("p_table_name", walletType.name());
 
+//        query.setParameter(
+//                "p_hierarchy_type",
+//                commonMethods.extractHierarchyType(loggedInHierarchyId)
+//        );
+
         query.setParameter(
                 "p_hierarchy_type",
                 commonMethods.extractHierarchyType(loggedInHierarchyId)
         );
 
-        query.setParameter("p_hierarchy_id", loggedInHierarchyId);
+//        query.setParameter("p_hierarchy_id", loggedInHierarchyId);
+
+
+        query.setParameter(
+                "p_hierarchy_id",
+                hierarchyIdsCsv
+        );
 
         query.setParameter("p_from_date", from);
         query.setParameter("p_to_date", to);
@@ -311,6 +351,19 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         map.put("results", results);
         map.put("totalCount", totalCount);
         return map;
+    }
+
+    private String getHierarchyIdsCsv(String hierarchyId) {
+
+        List<String> hierarchyIds =
+                accessHierarchyPathRepository
+                        .findDescendantsByAncestor(hierarchyId);
+
+        if (hierarchyIds == null || hierarchyIds.isEmpty()) {
+            return hierarchyId;
+        }
+
+        return String.join(",", hierarchyIds);
     }
 
     @Override
