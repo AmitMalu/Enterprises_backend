@@ -6,6 +6,7 @@ import com.im.admin.entities.AccessHierarchyPathId;
 import com.im.admin.repositories.AccessHierarchyNodeRepository;
 import com.im.admin.repositories.AccessHierarchyPathRepository;
 import com.im.admin.request.HierarchyRegistrationRequest;
+import com.im.admin.util.CommonMethods;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ public class HierarchyAccessService {
 
     private final AccessHierarchyNodeRepository nodeRepository;
     private final AccessHierarchyPathRepository pathRepository;
+    private final CommonMethods commonMethods;
 
     @Transactional
     public void registerHierarchyNode(
@@ -98,5 +100,35 @@ public class HierarchyAccessService {
         path.setDepth(depth);
 
         return path;
+    }
+
+    public boolean hasAccessToHierarchy(
+            String loginHierarchyId,
+            String targetHierarchyId
+    ) {
+
+        if (loginHierarchyId == null
+                || targetHierarchyId == null) {
+            return false;
+        }
+
+        String loginType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        // Admin → full access
+        if ("AD".equalsIgnoreCase(
+                loginType
+        )) {
+            return true;
+        }
+
+        return pathRepository.existsById(
+                new AccessHierarchyPathId(
+                        loginHierarchyId,
+                        targetHierarchyId
+                )
+        );
     }
 }

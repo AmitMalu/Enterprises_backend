@@ -45,4 +45,11 @@ public interface AccessHierarchyPathRepository
             @Param("ancestorId") String ancestorId,
             @Param("type") String type);
 
+    List<AccessHierarchyPath>
+    findByIdAncestorId(
+            String ancestorId
+    );
+
+    boolean existsById(AccessHierarchyPathId id);
+
 }

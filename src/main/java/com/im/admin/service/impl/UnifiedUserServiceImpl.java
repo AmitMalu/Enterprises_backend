@@ -7,8 +7,12 @@ import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
 import com.im.admin.repositories.*;
+import com.im.admin.request.HierarchyRegistrationRequest;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.UnifiedUserService;
+import com.im.admin.util.CommonMethods;
 import com.im.admin.util.IdGenerator;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -59,6 +63,10 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private PhoneNumberValidationService phoneNumberValidationService;
     @Autowired private Validator validator;
+    @Autowired private TokenUtil tokenUtil;
+    @Autowired private CommonMethods commonMethods;
+    @Autowired private AccessHierarchyPathRepository accessHierarchyPathRepository;
+    @Autowired private HierarchyAccessService hierarchyAccessService;
 
     // ─────────────────────────────────────────────────────────────────────────
     // ROUTING HELPERS
@@ -139,7 +147,7 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
             log.info("createUser request: {}", request);
 
             // Derive type and abbreviation from parentAccount
-            String userType    = typeFromParentAccount(dto.getParentAccount());
+            String userType = typeFromParentAccount(dto.getParentAccount());
             String abbreviation = dto.getParentAccount().split("-")[0];
             dto.setAbbreviation(abbreviation);
 
@@ -199,6 +207,21 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
         AdminUser saved = adminUserRepository.save(entity);
         log.info("AdminUser saved: {}", saved.getId());
 
+        hierarchyAccessService.registerHierarchyNode(
+                HierarchyRegistrationRequest
+                        .builder()
+                        .hierarchyId(
+                                saved.getId()
+                        )
+                        .hierarchyType(
+                                CODE_AD
+                        )
+                        .parentHierarchyId(
+                                saved.getParentAccount()
+                        )
+                        .build()
+        );
+
         saveUserDetails(saved.getId(), saved.getMobileNumber(), saved.getUsername(),
                 saved.getPassword(), saved.getEmailId(), saved.getCreatedBy(),
                 saved.getPermission(), CODE_AD);
@@ -248,6 +271,21 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
         WhiteLabelUser saved = whiteLabelUserRepository.save(entity);
         log.info("WhiteLabelUser saved: {}", saved.getId());
 
+        hierarchyAccessService.registerHierarchyNode(
+                HierarchyRegistrationRequest
+                        .builder()
+                        .hierarchyId(
+                                saved.getId()
+                        )
+                        .hierarchyType(
+                                CODE_WL
+                        )
+                        .parentHierarchyId(
+                                saved.getParentAccount()
+                        )
+                        .build()
+        );
+
         saveUserDetails(saved.getId(), saved.getMobileNumber(), saved.getUsername(),
                 saved.getPassword(), saved.getEmailId(), saved.getCreatedBy(),
                 saved.getPermission(), CODE_WL);
@@ -261,49 +299,185 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
 
     @Override
     public Page<UserResponseDTO> getAllUsers(
-            int page, int size, String parentAccount,
-            String id, String name, String mobileNumber, String username,
-            String emailId, Boolean status, LocalDate dob,
-            LocalDate createdOn, String createdBy,
-            LocalDate lastEditedOn, String editedBy
+            int page,
+            int size,
+            String id,
+            String name,
+            String mobileNumber,
+            String username,
+            String emailId,
+            Boolean status,
+            LocalDate dob,
+            LocalDate createdOn,
+            String createdBy,
+            LocalDate lastEditedOn,
+            String editedBy
     ) throws JsonProcessingException {
 
         LocalDateTime requestDateTime = LocalDateTime.now();
-        String request  = "getAllUsers parentAccount=" + parentAccount + " page=" + page + " size=" + size;
+
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
+
+        String request =
+                "getAllUsers hierarchy="
+                        + loginHierarchyId
+                        + " page="
+                        + page
+                        + " size="
+                        + size;
+
         String response = null;
+
         LocalDateTime responseDateTime = null;
 
         try {
-            String userType = typeFromParentAccount(parentAccount);
-            Pageable pageable = PageRequest.of(page, size, Sort.by("createdOn").descending());
+
+            String loginType =
+                    commonMethods.extractHierarchyType(
+                            loginHierarchyId
+                    );
+
+            Pageable pageable =
+                    PageRequest.of(
+                            page,
+                            size,
+                            Sort.by("createdOn")
+                                    .descending()
+                    );
 
             Page<UserResponseDTO> result;
 
-            if (TYPE_AD.equals(userType)) {
-                Specification<AdminUser> spec = buildAdminSpec(
-                        id, name, mobileNumber, username, emailId,
-                        status, dob, createdOn, createdBy, lastEditedOn, editedBy);
-                result = adminUserRepository.findAll(spec, pageable)
-                        .map(this::mapAdminToResponse);
-            } else {
-                Specification<WhiteLabelUser> spec = buildWLSpec(
-                        id, name, mobileNumber, username, emailId,
-                        status, dob, createdOn, createdBy, lastEditedOn, editedBy);
-                result = whiteLabelUserRepository.findAll(spec, pageable)
-                        .map(this::mapWhiteLabelToResponse);
+            /*
+             * ADMIN
+             */
+            if ("AD".equalsIgnoreCase(
+                    loginType)) {
+
+                Specification<AdminUser> spec =
+                        buildAdminSpec(
+                                id,
+                                name,
+                                mobileNumber,
+                                username,
+                                emailId,
+                                status,
+                                dob,
+                                createdOn,
+                                createdBy,
+                                lastEditedOn,
+                                editedBy
+                        );
+
+                result =
+                        adminUserRepository
+                                .findAll(
+                                        spec,
+                                        pageable
+                                )
+                                .map(
+                                        this::mapAdminToResponse
+                                );
+
             }
 
-            response = objectMapper.writeValueAsString(result.getContent());
-            responseDateTime = LocalDateTime.now();
+            /*
+             * SUBTREE ACCESS
+             */
+            else {
+
+                List<String> allowedHierarchyIds =
+                        accessHierarchyPathRepository
+                                .findDescendantsByAncestor(
+                                        loginHierarchyId
+                                );
+
+                if (allowedHierarchyIds == null
+                        || allowedHierarchyIds.isEmpty()) {
+
+                    return Page.empty(
+                            pageable
+                    );
+                }
+
+                Specification<WhiteLabelUser> spec =
+
+                        buildWLSpec(
+                                id,
+                                name,
+                                mobileNumber,
+                                username,
+                                emailId,
+                                status,
+                                dob,
+                                createdOn,
+                                createdBy,
+                                lastEditedOn,
+                                editedBy
+                        )
+
+                                .and(
+
+                                        (root,
+                                         query,
+                                         cb)
+
+                                                -> root
+                                                .get(
+                                                        "hierarchyId"
+                                                )
+                                                .in(
+                                                        allowedHierarchyIds
+                                                )
+                                );
+
+                result =
+                        whiteLabelUserRepository
+                                .findAll(
+                                        spec,
+                                        pageable
+                                )
+                                .map(
+                                        this::mapWhiteLabelToResponse
+                                );
+            }
+
+            response =
+                    objectMapper
+                            .writeValueAsString(
+                                    result.getContent()
+                            );
+
+            responseDateTime =
+                    LocalDateTime.now();
+
             return result;
 
         } catch (Exception ex) {
-            response = "Error: " + ex.getMessage();
-            responseDateTime = LocalDateTime.now();
-            log.error("getAllUsers failed: {}", ex.getMessage(), ex);
+
+            response =
+                    "Error: "
+                            + ex.getMessage();
+
+            responseDateTime =
+                    LocalDateTime.now();
+
+            log.error(
+                    "getAllUsers failed",
+                    ex
+            );
+
             throw ex;
+
         } finally {
-            commonFunctions.saveImLogs(request, requestDateTime, null, response, responseDateTime);
+
+            commonFunctions.saveImLogs(
+                    request,
+                    requestDateTime,
+                    null,
+                    response,
+                    responseDateTime
+            );
         }
     }
 

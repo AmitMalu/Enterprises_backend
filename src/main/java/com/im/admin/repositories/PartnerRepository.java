@@ -2,6 +2,8 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.Partner;
 import com.im.admin.entities.Retailer;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -44,5 +46,11 @@ public interface PartnerRepository extends JpaRepository<Partner, String> {
     );
 
     long countByStatus(String status);
+
+    Page<Partner>
+    findByPartnerIdIn(
+            List<String> ids,
+            Pageable pageable
+    );
 }
 

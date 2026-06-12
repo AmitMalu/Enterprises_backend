@@ -2,6 +2,8 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.Distributor;
 import com.im.admin.entities.Retailer;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -45,7 +47,11 @@ public interface DistributorRepository extends JpaRepository<Distributor, String
 
     long countByStatus(String status);
 
-//    List<String> findDistributorIdsByParent(String hierarchyId);
+    Page<Distributor>
+    findByDistributorIdIn(
+            List<String> ids,
+            Pageable pageable
+    );
 
 }
 
