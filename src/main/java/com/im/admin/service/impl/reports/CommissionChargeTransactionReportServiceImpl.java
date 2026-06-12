@@ -5,6 +5,7 @@ import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.UserDetails;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
+import com.im.admin.repositories.AccessHierarchyPathRepository;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.repositories.UserDetailsRepository;
@@ -65,6 +66,9 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
     @Autowired
     private TokenUtil tokenUtil;
 
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
+
 
     @Override
     public CommonResponse<Page<CommissionTransactionReportResponse>>  getReport(CommissionTransactionReportRequest request) {
@@ -75,11 +79,21 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                 Sort.by("transactionDate").descending()
         );
 
+//        String loggedInHierarchyId =
+//                (request.getHierarchyId() != null
+//                        && !request.getHierarchyId().trim().isEmpty())
+//                        ? request.getHierarchyId()
+//                        : tokenUtil.extractHierarchyId();
+
+
         String loggedInHierarchyId =
                 (request.getHierarchyId() != null
                         && !request.getHierarchyId().trim().isEmpty())
                         ? request.getHierarchyId()
                         : tokenUtil.extractHierarchyId();
+
+        String hierarchyIdsCsv =
+                getHierarchyIdsCsv(loggedInHierarchyId);
 
         LocalDate from = StringUtils.hasText(request.getFromDate())
                 ? LocalDate.parse(request.getFromDate())
@@ -120,6 +134,16 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         for (WalletType walletType : walletTypes) {
 
             Map<String, Object> walletData =
+//                    fetchCommissionReportForWallet(
+//                            walletType,
+//                            request,
+//                            from,
+//                            to,
+//                            subProductsParam,
+//                            productParam,
+//                            pageable,
+//                            loggedInHierarchyId
+//                    );
                     fetchCommissionReportForWallet(
                             walletType,
                             request,
@@ -128,6 +152,7 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                             subProductsParam,
                             productParam,
                             pageable,
+                            hierarchyIdsCsv,
                             loggedInHierarchyId
                     );
 
@@ -170,6 +195,16 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
 
 
     @SuppressWarnings("unchecked")
+//    private Map<String, Object> fetchCommissionReportForWallet(
+//            WalletType walletType,
+//            CommissionTransactionReportRequest request,
+//            LocalDate from,
+//            LocalDate to,
+//            String subProducts,
+//            String products,
+//            Pageable pageable,
+//            String loggedInHierarchyId)
+
     private Map<String, Object> fetchCommissionReportForWallet(
             WalletType walletType,
             CommissionTransactionReportRequest request,
@@ -178,7 +213,9 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
             String subProducts,
             String products,
             Pageable pageable,
-            String loggedInHierarchyId) {
+            String hierarchyIdsCsv,
+            String loggedInHierarchyId)
+    {
 
         StoredProcedureQuery query =
                 entityManager.createStoredProcedureQuery("commission_charge_transaction_report_v2");
@@ -219,7 +256,12 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                 commonMethods.extractHierarchyType(loggedInHierarchyId)
         );
 
-        query.setParameter("p_hierarchy_id", loggedInHierarchyId);
+//        query.setParameter("p_hierarchy_id", loggedInHierarchyId);
+
+        query.setParameter(
+                "p_hierarchy_id",
+                hierarchyIdsCsv
+        );
 
 
         query.setParameter("p_from_date", from);
@@ -326,6 +368,19 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
         map.put("totalCount", totalCount);
 
         return map;
+    }
+
+    private String getHierarchyIdsCsv(String hierarchyId) {
+
+        List<String> hierarchyIds =
+                accessHierarchyPathRepository
+                        .findDescendantsByAncestor(hierarchyId);
+
+        if (hierarchyIds == null || hierarchyIds.isEmpty()) {
+            return hierarchyId;
+        }
+
+        return String.join(",", hierarchyIds);
     }
 
     @Override

@@ -9,6 +9,7 @@ import com.im.admin.service.TenantBrandingService;
 import com.im.admin.util.ImageUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,8 +33,37 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
     @Autowired
     private ImageUtil imageUtil;
 
+    @Value("${file.access.config-assets-path}")
+    private String assetBasePath;
+
     private static final String WL_ASSET_PATH =
             "/mnt/wl-assets";
+
+//    @Override
+//    public TenantConfigResponse getTenantConfig(String hostName) {
+//
+//        TenantBranding tenant = repository
+//                .findByDomainNameAndIsActiveTrue(hostName)
+//                .orElseThrow(() ->
+//                        new RuntimeException(
+//                                "No active tenant found for domain : "
+//                                        + hostName));
+//
+//        return TenantConfigResponse.builder()
+//                .tenantCode(tenant.getTenantCode())
+//                .companyName(tenant.getCompanyName())
+//                .logoUrl(tenant.getLogoPath())
+//                .backgroundUrl(tenant.getBackgroundPath())
+//                .termsUrl(tenant.getTermsPath())
+//                .privacyUrl(tenant.getPrivacyPath())
+//                .refundUrl(tenant.getRefundPath())
+//                .primaryColor(tenant.getPrimaryColor())
+//                .secondaryColor(tenant.getSecondaryColor())
+//                .welcomeText(tenant.getWelcomeText())
+//                .favicon(tenant.getFavicon())
+//                .portalTitle(tenant.getPortalTitle())
+//                .build();
+//    }
 
     @Override
     public TenantConfigResponse getTenantConfig(String hostName) {
@@ -45,20 +75,64 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
                                 "No active tenant found for domain : "
                                         + hostName));
 
+        String tenantCode = tenant.getTenantCode();
+
         return TenantConfigResponse.builder()
-                .tenantCode(tenant.getTenantCode())
+                .tenantCode(tenantCode)
                 .companyName(tenant.getCompanyName())
-                .logoUrl(tenant.getLogoPath())
-                .backgroundUrl(tenant.getBackgroundPath())
-                .termsUrl(tenant.getTermsPath())
-                .privacyUrl(tenant.getPrivacyPath())
-                .refundUrl(tenant.getRefundPath())
+
+                .logoUrl(buildAssetUrl(
+                        hostName,
+                        tenantCode,
+                        tenant.getLogoPath()))
+
+                .backgroundUrl(buildAssetUrl(
+                        hostName,
+                        tenantCode,
+                        tenant.getBackgroundPath()))
+
+                .termsUrl(buildAssetUrl(
+                        hostName,
+                        tenantCode,
+                        tenant.getTermsPath()))
+
+                .privacyUrl(buildAssetUrl(
+                        hostName,
+                        tenantCode,
+                        tenant.getPrivacyPath()))
+
+                .refundUrl(buildAssetUrl(
+                        hostName,
+                        tenantCode,
+                        tenant.getRefundPath()))
+
+                .favicon(buildAssetUrl(
+                        hostName,
+                        tenantCode,
+                        tenant.getFavicon()))
+
                 .primaryColor(tenant.getPrimaryColor())
                 .secondaryColor(tenant.getSecondaryColor())
                 .welcomeText(tenant.getWelcomeText())
-                .favicon(tenant.getFavicon())
                 .portalTitle(tenant.getPortalTitle())
                 .build();
+    }
+
+    private String buildAssetUrl(String domain,
+                                 String tenantCode,
+                                 String fileName) {
+
+        if (fileName == null || fileName.isBlank()) {
+            return null;
+        }
+
+        return "https://"
+                + domain
+                + assetBasePath
+                + "/"
+                + tenantCode
+                + "/"
+                + fileName;
     }
 
     @Override
