@@ -5,6 +5,7 @@ import com.im.admin.entities.Ticket;
 import com.im.admin.entities.TicketComment;
 import com.im.admin.entities.UserDetails;
 import com.im.admin.entities.enums.WalletType;
+import com.im.admin.repositories.AccessHierarchyPathRepository;
 import com.im.admin.repositories.TicketCommentRepository;
 import com.im.admin.repositories.TicketRepository;
 import com.im.admin.repositories.UserDetailsRepository;
@@ -13,11 +14,13 @@ import com.im.admin.spec.GenericSpecification;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -60,6 +63,12 @@ public class TicketServiceImpl implements TicketService {
 
     @Autowired
     private ImageUtil imageUtil;
+
+    @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
 
 
 
@@ -182,33 +191,143 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
-    public Page<TicketWithTransactionDto> getAllTickets(Map<String, Object> filters, Pageable pageable) {
+    public Page<TicketWithTransactionDto> getAllTickets(
+            Map<String, Object> filters,
+            Pageable pageable
+    ) {
 
-        Specification<Ticket> ticketSpecification = new GenericSpecification<>(filters);
-        Page<Ticket> tickets = ticketRepository.findAll(ticketSpecification, pageable);
+        Specification<Ticket> spec = getTicketSpecification(filters);
+
+        Page<Ticket> tickets =
+                ticketRepository.findAll(
+                        spec,
+                        pageable
+                );
 
         return tickets.map(ticket -> {
-            TicketWithTransactionDto dto = new TicketWithTransactionDto();
-            BeanUtils.copyProperties(ticket, dto);
-            dto.setRemark(ticket.getRemark());
+
+            TicketWithTransactionDto dto =
+                    new TicketWithTransactionDto();
+
+            BeanUtils.copyProperties(
+                    ticket,
+                    dto
+            );
+
+            dto.setRemark(
+                    ticket.getRemark()
+            );
 
             try {
-                Map<String, Object> transactionDetails = getTransactionDetailsMap(ticket.getTransactionId(), ticket.getRaisedBy());
-                if (transactionDetails != null) {
-                    dto.setTranStatus((String) transactionDetails.get("tran_status"));
-                    dto.setBalBeforeTran(toBigDecimal(transactionDetails.get("bal_before_tran")));
-                    dto.setBalAfterTran(toBigDecimal(transactionDetails.get("bal_after_tran")));
-                    dto.setDateOfTransaction(toLocalDate(transactionDetails.get("date_of_transaction")));
-                    dto.setAmount(toBigDecimal(transactionDetails.get("amount")));
-                    dto.setService((String) transactionDetails.get("service"));
-                    dto.setActionOnBalanceAmount((String) transactionDetails.get("action_on_balance_amount"));
+
+                Map<String, Object>
+                        transactionDetails =
+
+                        getTransactionDetailsMap(
+                                ticket.getTransactionId(),
+                                ticket.getRaisedBy()
+                        );
+
+                if (transactionDetails
+                        != null) {
+
+                    dto.setTranStatus(
+                            (String)
+                                    transactionDetails.get(
+                                            "tran_status"
+                                    )
+                    );
+
+                    dto.setBalBeforeTran(
+                            toBigDecimal(
+                                    transactionDetails.get(
+                                            "bal_before_tran"
+                                    )
+                            )
+                    );
+
+                    dto.setBalAfterTran(
+                            toBigDecimal(
+                                    transactionDetails.get(
+                                            "bal_after_tran"
+                                    )
+                            )
+                    );
+
+                    dto.setDateOfTransaction(
+                            toLocalDate(
+                                    transactionDetails.get(
+                                            "date_of_transaction"
+                                    )
+                            )
+                    );
+
+                    dto.setAmount(
+                            toBigDecimal(
+                                    transactionDetails.get(
+                                            "amount"
+                                    )
+                            )
+                    );
+
+                    dto.setService(
+                            (String)
+                                    transactionDetails.get(
+                                            "service"
+                                    )
+                    );
+
+                    dto.setActionOnBalanceAmount(
+                            (String)
+                                    transactionDetails.get(
+                                            "action_on_balance_amount"
+                                    )
+                    );
                 }
+
             } catch (Exception e) {
-                log.warn("Transaction details not found for transactionId: {}", ticket.getTransactionId());
+
+                log.warn(
+                        "Transaction details not found {}",
+                        ticket.getTransactionId()
+                );
             }
 
             return dto;
         });
+    }
+
+    @NotNull
+    private Specification<Ticket> getTicketSpecification(Map<String, Object> filters) {
+        List<String> accessibleIds =
+                getAccessibleHierarchyIds();
+
+        Specification<Ticket> spec =
+                new GenericSpecification<>(
+                        filters
+                );
+
+        /*
+         * Apply subtree filter
+         */
+        if (accessibleIds != null) {
+
+            spec = spec.and(
+
+                    (root,
+                     query,
+                     cb)
+
+                            -> root
+                            .get(
+                                    "raisedBy"
+                            )
+                            .in(
+                                    accessibleIds
+                            )
+            );
+        }
+        return spec;
     }
 
 
@@ -290,6 +409,28 @@ public class TicketServiceImpl implements TicketService {
         ticketRepository.deleteById(id);
     }
 
+
+    private List<String> getAccessibleHierarchyIds() {
+
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
+
+        String loginType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        if ("AD".equalsIgnoreCase(
+                loginType
+        )) {
+            return null;
+        }
+
+        return accessHierarchyPathRepository
+                .findDescendantsByAncestor(
+                        loginHierarchyId
+                );
+    }
 
 }
 

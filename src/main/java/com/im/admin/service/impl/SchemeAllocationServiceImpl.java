@@ -8,16 +8,15 @@ import com.im.admin.entities.SchemeAllocation;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.UserDetails;
 import com.im.admin.exception.ResourceNotFoundException;
-import com.im.admin.repositories.SchemeAllocationRepository;
-import com.im.admin.repositories.SchemeRepository;
-import com.im.admin.repositories.SubProductsRepository;
-import com.im.admin.repositories.UserDetailsRepository;
+import com.im.admin.repositories.*;
 import com.im.admin.request.SchemeAllocationRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.RetailerSchemeAllocationResponse;
 import com.im.admin.response.SchemeDropdownListBySubProductResponse;
 import com.im.admin.response.UserSearchResponseDto;
 import com.im.admin.service.SchemeAllocationService;
+import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.Column;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -54,6 +53,14 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
     @Autowired
     private UserDetailsRepository userDetailsRepository;
 
+    @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
+
+    @Autowired
+    private CommonMethods commonMethods;
 
     @Override
     @Transactional
@@ -175,36 +182,159 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
             String lastLoginDate,
             String emailId,
             Pageable pageable,
-             String keyword
+            String keyword
     ) {
-        Page<UserDetails> page = userDetailsRepository.searchActiveRetailers(keyword,pageable); // fetch active retailers
 
-        List<UserSearchResponseDto> filteredList = page.stream()
-                .map(u -> {
-                    UserSearchResponseDto dto = new UserSearchResponseDto();
-                    dto.setMobileNumber(u.getMobileNumber());
-                    dto.setHierarchyId(u.getHierarchyId());
-                    dto.setHierarchyCode(u.getHierarchyCode());
-                    dto.setCreatedDate(u.getCreatedDate());
-                    dto.setLastLoginDate(u.getLastLoginDate());
-                    dto.setEmailId(u.getEmailId());
-                    return dto;
-                })
-                .filter(dto -> mobileNumber == null || mobileNumber.isEmpty() ||
-                        dto.getMobileNumber().toLowerCase().contains(mobileNumber.toLowerCase()))
-                .filter(dto -> hierarchyId == null || hierarchyId.isEmpty() ||
-                        dto.getHierarchyId().toLowerCase().contains(hierarchyId.toLowerCase()))
-                .filter(dto -> hierarchyCode == null || hierarchyCode.isEmpty() ||
-                        dto.getHierarchyCode().toLowerCase().contains(hierarchyCode.toLowerCase()))
-                .filter(dto -> createdDate == null || createdDate.isEmpty() ||
-                        dto.getCreatedDate().toString().contains(createdDate))
-                .filter(dto -> lastLoginDate == null || lastLoginDate.isEmpty() ||
-                        (dto.getLastLoginDate() != null && dto.getLastLoginDate().toString().contains(lastLoginDate)))
-                .filter(dto -> emailId == null || emailId.isEmpty() ||
-                        dto.getEmailId().toLowerCase().contains(emailId.toLowerCase()))
-                .toList();
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
 
-        return new PageImpl<>(filteredList, pageable, page.getTotalElements());
+        String loginType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        List<String> accessibleIds = null;
+
+        /*
+         * ADMIN
+         */
+        if (!"AD".equalsIgnoreCase(
+                loginType
+        )) {
+
+            accessibleIds =
+
+                    accessHierarchyPathRepository
+                            .findDescendantsByAncestor(
+                                    loginHierarchyId
+                            );
+
+            if (accessibleIds.isEmpty()) {
+
+                return Page.empty(
+                        pageable
+                );
+            }
+        }
+
+        Page<UserDetails> page =
+
+                userDetailsRepository
+                        .searchActiveRetailers(
+                                keyword,
+                                accessibleIds,
+                                pageable
+                        );
+
+        List<UserSearchResponseDto> filteredList =
+
+                page.getContent()
+                        .stream()
+
+                        .map(u -> {
+
+                            UserSearchResponseDto dto =
+                                    new UserSearchResponseDto();
+
+                            dto.setMobileNumber(
+                                    u.getMobileNumber()
+                            );
+
+                            dto.setHierarchyId(
+                                    u.getHierarchyId()
+                            );
+
+                            dto.setHierarchyCode(
+                                    u.getHierarchyCode()
+                            );
+
+                            dto.setCreatedDate(
+                                    u.getCreatedDate()
+                            );
+
+                            dto.setLastLoginDate(
+                                    u.getLastLoginDate()
+                            );
+
+                            dto.setEmailId(
+                                    u.getEmailId()
+                            );
+
+                            return dto;
+                        })
+
+                        .filter(dto ->
+                                mobileNumber == null
+                                        || mobileNumber.isEmpty()
+                                        || dto.getMobileNumber()
+                                        .toLowerCase()
+                                        .contains(
+                                                mobileNumber.toLowerCase()
+                                        )
+                        )
+
+                        .filter(dto ->
+                                hierarchyId == null
+                                        || hierarchyId.isEmpty()
+                                        || dto.getHierarchyId()
+                                        .toLowerCase()
+                                        .contains(
+                                                hierarchyId.toLowerCase()
+                                        )
+                        )
+
+                        .filter(dto ->
+                                hierarchyCode == null
+                                        || hierarchyCode.isEmpty()
+                                        || dto.getHierarchyCode()
+                                        .toLowerCase()
+                                        .contains(
+                                                hierarchyCode.toLowerCase()
+                                        )
+                        )
+
+                        .filter(dto ->
+                                createdDate == null
+                                        || createdDate.isEmpty()
+                                        || dto.getCreatedDate()
+                                        .toString()
+                                        .contains(
+                                                createdDate
+                                        )
+                        )
+
+                        .filter(dto ->
+                                lastLoginDate == null
+                                        || lastLoginDate.isEmpty()
+                                        || (
+                                        dto.getLastLoginDate()
+                                                != null
+                                                &&
+                                                dto.getLastLoginDate()
+                                                        .toString()
+                                                        .contains(
+                                                                lastLoginDate
+                                                        )
+                                )
+                        )
+
+                        .filter(dto ->
+                                emailId == null
+                                        || emailId.isEmpty()
+                                        || dto.getEmailId()
+                                        .toLowerCase()
+                                        .contains(
+                                                emailId.toLowerCase()
+                                        )
+                        )
+
+                        .toList();
+
+        return new PageImpl<>(
+                filteredList,
+                pageable,
+                page.getTotalElements()
+        );
     }
 
 

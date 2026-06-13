@@ -29,24 +29,57 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
     @Query("SELECT u FROM UserDetails u WHERE u.userStatus = 'Active' AND u.hierarchyId LIKE %:keyword%")
     Page<UserDetails> searchActiveUsersByHierarchyId(@Param("keyword") String keyword, Pageable pageable);
 
-    @Query("SELECT u FROM UserDetails u " +
-            "WHERE u.userStatus = 'Active' " +
-            "AND u.hierarchyCode = 'RT' " +
-            "AND (" +
-            "   :keyword IS NULL OR :keyword = '' OR " +
-            "   LOWER(u.mobileNumber) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "   LOWER(u.emailId) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "   LOWER(u.hierarchyId) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
-            ")")
-    Page<UserDetails> searchActiveRetailers(@Param("keyword") String keyword, Pageable pageable);
+    @Query("""
+            SELECT u
+            FROM UserDetails u
+            WHERE
+                u.userStatus = 'Active'
+            
+            AND u.hierarchyCode = 'RT'
+            
+            AND
+            (
+                :accessibleIds IS NULL
+                OR u.hierarchyId IN :accessibleIds
+            )
+            
+            AND
+            (
+                :keyword IS NULL
+                OR :keyword = ''
+            
+                OR LOWER(u.mobileNumber)
+                    LIKE LOWER(
+                        CONCAT('%', :keyword, '%')
+                    )
+            
+                OR LOWER(u.emailId)
+                    LIKE LOWER(
+                        CONCAT('%', :keyword, '%')
+                    )
+            
+                OR LOWER(u.hierarchyId)
+                    LIKE LOWER(
+                        CONCAT('%', :keyword, '%')
+                    )
+            )
+            """)
+    Page<UserDetails> searchActiveRetailers(
+
+            @Param("keyword")
+            String keyword,
+
+            @Param("accessibleIds")
+            List<String> accessibleIds,
+
+            Pageable pageable
+    );
 
     @Query("SELECT u.hierarchyId FROM UserDetails u WHERE u.hierarchyCode = :code")
     List<String> findHierarchyIdsByHierarchyCode(@Param("code") String code);
 
     @Query("SELECT u FROM UserDetails u WHERE u.hierarchyId = :value OR u.mobileNumber = :value")
     UserDetails findByHierarchyIdOrMobileNumber(@Param("value") String value);
-
-    Optional<UserDetails> findByLoginUserName(String loginUserName);
 
     @Modifying
     @Transactional
@@ -55,34 +88,21 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
 
     List<UserDetails> findByParentAccount(String parentId);
 
-//    @Query("""
-//       SELECT u
-//       FROM UserDetails u
-//       WHERE u.hierarchyId IN (
-//           SELECT p.id.descendantId
-//           FROM AccessHierarchyPath p
-//           WHERE p.id.ancestorId = :loginHierarchyId
-//       )
-//       """)
-//    Page<UserDetails> findAccessibleUsers(
-//            @Param("loginHierarchyId") String loginHierarchyId,
-//            Pageable pageable);
-
     @Query("""
-SELECT u
-FROM UserDetails u
-WHERE u.hierarchyId IN (
-    SELECT p.id.descendantId
-    FROM AccessHierarchyPath p
-    WHERE p.id.ancestorId = :ancestorId
-)
-AND (
-    :keyword IS NULL
-    OR :keyword = ''
-    OR LOWER(u.hierarchyId) LIKE LOWER(CONCAT('%', :keyword, '%'))
-    OR u.mobileNumber LIKE CONCAT('%', :keyword, '%')
-)
-""")
+            SELECT u
+            FROM UserDetails u
+            WHERE u.hierarchyId IN (
+                SELECT p.id.descendantId
+                FROM AccessHierarchyPath p
+                WHERE p.id.ancestorId = :ancestorId
+            )
+            AND (
+                :keyword IS NULL
+                OR :keyword = ''
+                OR LOWER(u.hierarchyId) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR u.mobileNumber LIKE CONCAT('%', :keyword, '%')
+            )
+            """)
     Page<UserDetails> findAccessibleUsers(
             @Param("ancestorId") String ancestorId,
             @Param("keyword") String keyword,
