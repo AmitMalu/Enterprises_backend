@@ -32,7 +32,9 @@ public class CorsFilterConfig {
                 "http://202.191.129.23",
                 "http://202.191.129.24",
                 "https://portal.nfttech.in",       // Portal public URL
-                "https://admin.nfttech.in"      // Admin public URL
+                "https://admin.nfttech.in",      // Admin public URL
+                "https://portal.lakshaype.com",   // Lakshaype Public URL
+                "http://192.168.1.127:4173"    //Amaan public IP
         ));
 
         // Allow all HTTP methods
