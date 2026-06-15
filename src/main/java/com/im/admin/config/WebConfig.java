@@ -21,7 +21,10 @@ public class WebConfig implements WebMvcConfigurer {
                         "http://202.191.129.23",      // Portal public IP
                         "http://202.191.129.24",       // Backend public IP
                         "https://portal.nfttech.in",       // Portal public URL
-                        "https://admin.nfttech.in"      // Admin public URL
+                        "https://admin.nfttech.in",      // Admin public URL
+                        "https://portal.lakshaype.com",   // Lakshaype Public URL
+                        "http://192.168.1.127:4173"    //Amaan public IP
+
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")

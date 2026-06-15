@@ -19,7 +19,6 @@ import java.util.function.Consumer;
 @Service
 @RequiredArgsConstructor
 @Transactional
-
 public class LocationUploadService {
 
     private final FileReaderService reader;
