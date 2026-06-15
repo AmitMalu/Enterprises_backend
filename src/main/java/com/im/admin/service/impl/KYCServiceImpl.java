@@ -3,6 +3,7 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.KYCEditRequest;
 import com.im.admin.dto.KYCRequestDto;
 import com.im.admin.entities.*;
+import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.*;
 import com.im.admin.response.KYCApprovedResponseDto;
 import com.im.admin.response.KYCResponseDto;
@@ -78,6 +79,9 @@ public class KYCServiceImpl implements KYCService {
 
     @Autowired
     private AccessHierarchyPathRepository accessHierarchyPathRepository;
+
+    @Autowired
+    private FileUrlUtil fileUrlUtil;
 
 
     @Override
@@ -1005,14 +1009,14 @@ public class KYCServiceImpl implements KYCService {
         if (entity instanceof Retailer r) {
             email = r.getEmailId();
             aadhaarNumber = r.getAadhaarNumber();
-            aadhaarFront = r.getAadhaarCardFrontImage();
-            aadhaarBack = r.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(r.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(r.getAadhaarCardBackImage());
             panNumber = r.getPanNumber();
-            panImage = r.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(r.getPanCardImage());
             shopNumber = r.getShopNumber();
-            shopImage = r.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(r.getShopImage());
             businessNumber = r.getBusinessNumber();
-            businessProofImage = r.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(r.getBusinessProofImage());
             isEmailVerified = r.getEmailVerified();
             isAadhaarVerified = r.getIsAadhaarVerified();
             aadhaarPanVerified = r.getAadhaarPanVerified();
@@ -1022,14 +1026,14 @@ public class KYCServiceImpl implements KYCService {
         else if (entity instanceof Distributor d) {
             email = d.getEmailId();
             aadhaarNumber = d.getAadhaarNumber();
-            aadhaarFront = d.getAadhaarCardFrontImage();
-            aadhaarBack = d.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(d.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(d.getAadhaarCardBackImage());
             panNumber = d.getPanNumber();
-            panImage = d.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(d.getPanCardImage());
             shopNumber = d.getShopNumber();
-            shopImage = d.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(d.getShopImage());
             businessNumber = d.getBusinessNumber();
-            businessProofImage = d.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(d.getBusinessProofImage());
             isEmailVerified = d.getEmailVerified();
             isAadhaarVerified = d.getIsAadhaarVerified();
             aadhaarPanVerified = d.getAadhaarPanVerified();
@@ -1039,14 +1043,14 @@ public class KYCServiceImpl implements KYCService {
         else if (entity instanceof Partner p) {
             email = p.getEmailId();
             aadhaarNumber = p.getAadhaarNumber();
-            aadhaarFront = p.getAadhaarCardFrontImage();
-            aadhaarBack = p.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(p.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(p.getAadhaarCardBackImage());
             panNumber = p.getPanNumber();
-            panImage = p.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(p.getPanCardImage());
             shopNumber = p.getShopNumber();
-            shopImage = p.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(p.getShopImage());
             businessNumber = p.getBusinessNumber();
-            businessProofImage = p.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(p.getBusinessProofImage());
             isEmailVerified = p.getEmailVerified();
             isAadhaarVerified = p.getIsAadhaarVerified();
             aadhaarPanVerified = p.getAadhaarPanVerified();
@@ -1056,14 +1060,14 @@ public class KYCServiceImpl implements KYCService {
         else if (entity instanceof SuperDistributor sd) {
             email = sd.getEmailId();
             aadhaarNumber = sd.getAadhaarNumber();
-            aadhaarFront = sd.getAadhaarCardFrontImage();
-            aadhaarBack = sd.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(sd.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(sd.getAadhaarCardBackImage());
             panNumber = sd.getPanNumber();
-            panImage = sd.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(sd.getPanCardImage());
             shopNumber = sd.getShopNumber();
-            shopImage = sd.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(sd.getShopImage());
             businessNumber = sd.getBusinessNumber();
-            businessProofImage = sd.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(sd.getBusinessProofImage());
             isEmailVerified = sd.getEmailVerified();
             isAadhaarVerified = sd.getIsAadhaarVerified();
             aadhaarPanVerified = sd.getAadhaarPanVerified();
@@ -1073,14 +1077,14 @@ public class KYCServiceImpl implements KYCService {
         else if (entity instanceof WhiteLabels wl) {
             email = wl.getEmailId();
             aadhaarNumber = wl.getAadhaarNumber();
-            aadhaarFront = wl.getAadhaarCardFrontImage();
-            aadhaarBack = wl.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(wl.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(wl.getAadhaarCardBackImage());
             panNumber = wl.getPanNumber();
-            panImage = wl.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(wl.getPanCardImage());
             shopNumber = wl.getShopNumber();
-            shopImage = wl.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(wl.getShopImage());
             businessNumber = wl.getBusinessNumber();
-            businessProofImage = wl.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(wl.getBusinessProofImage());
             isEmailVerified = wl.getEmailVerified();
             isAadhaarVerified = wl.getIsAadhaarVerified();
             aadhaarPanVerified = wl.getAadhaarPanVerified();
@@ -1090,14 +1094,14 @@ public class KYCServiceImpl implements KYCService {
         else if (entity instanceof Enterprises et) {
             email = et.getEmailId();
             aadhaarNumber = et.getAadhaarNumber();
-            aadhaarFront = et.getAadhaarCardFrontImage();
-            aadhaarBack = et.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(et.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(et.getAadhaarCardBackImage());
             panNumber = et.getPanNumber();
-            panImage = et.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(et.getPanCardImage());
             shopNumber = et.getShopNumber();
-            shopImage = et.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(et.getShopImage());
             businessNumber = et.getBusinessNumber();
-            businessProofImage = et.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(et.getBusinessProofImage());
             isEmailVerified = et.getEmailVerified();
             isAadhaarVerified = et.getIsAadhaarVerified();
             aadhaarPanVerified = et.getAadhaarPanVerified();
