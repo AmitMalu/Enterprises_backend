@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class NetworkBankMasterResponseDto {
-    private String bankId;
+    private Long id;
     private String bankName;
     private String ifscCode;
 }

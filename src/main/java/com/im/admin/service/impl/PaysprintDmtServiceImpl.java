@@ -441,24 +441,15 @@ public class PaysprintDmtServiceImpl implements DmtVendorService {
     public List<DmtBankList> getdmtbanklist(DmtBankListRequest request,
                                             VendorCredentials credentials) {
 
-        // Call your existing service
         List<NetworkBankMasterResponseDto> networkBanks =
                 bankService.getAllNetworkBanks();
 
-        // Convert to DmtBankList
         return networkBanks.stream()
-                .map(bank -> {
-                    DmtBankList dmtBank = new DmtBankList();
-
-                    dmtBank.setBankId(
-                            bank.getBankId() != null
-                                    ? Integer.valueOf(bank.getBankId())
-                                    : null
-                    );                    dmtBank.setBankName(bank.getBankName());
-                    dmtBank.setIfscCode(bank.getIfscCode());
-
-                    return dmtBank;
-                })
+                .map(bank -> new DmtBankList(
+                        bank.getId() != null ? Math.toIntExact(bank.getId()) : null,
+                        bank.getBankName(),
+                        bank.getIfscCode()
+                ))
                 .toList();
     }
 

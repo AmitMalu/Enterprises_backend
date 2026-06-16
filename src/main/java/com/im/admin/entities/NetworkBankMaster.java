@@ -24,23 +24,14 @@ public class NetworkBankMaster {
     @Column(name = "bank_code")
     private String bankCode;
 
-    @Column(name = "bank_id")
-    private String bankId;
-
-    @Column(name = "verification")
-    private Boolean Verification;
-
     @Column(name = "bank_code_BI")
     private String bankCodeBI;
 
     @Column(name = "bank_name")
     private String bankName;
 
-    @Column(name = "bank_branch_name")
-    private String bankBranchName;
-
-    @Column(name = "ifsc_code")
-    private String ifscCode;
+    @Column(name = "vidual_bank_code")
+    private Integer vidualBankCode;
 
     @Column(name = "imps")
     private Boolean imps;
@@ -48,14 +39,23 @@ public class NetworkBankMaster {
     @Column(name = "neft")
     private Boolean neft;
 
-    @Column(name = "rtgs")
-    private Boolean rtgs;
+    @Column(name = "logo")
+    private String logo;
+
+    @Column(name = "ifsc_code")
+    private String ifscCode;
+
+    @Column(name = "max_account_no_length")
+    private Integer maxAccountNoLength;
+
+    @Column(name = "verification")
+    private Boolean Verification;
 
     @Column(name = "active_status")
     private Boolean isActive;
 
-    @Column(name = "max_account_no_length")
-    private Integer maxAccountNoLength;
+    @Column(name = "is_blocked")
+    private Boolean isBlocked;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy HH:mm:ss")
     @CreationTimestamp
@@ -72,12 +72,6 @@ public class NetworkBankMaster {
 
     @Column(name = "edited_by")
     private String editedBy;
-
-    @Column(name = "is_blocked")
-    private Boolean isBlocked;
-
-    @Column(name = "logo")
-    private String logo;
 
     @Column(name = "unisus_mifsc_code")
     private String unisusMIfcsCode;
