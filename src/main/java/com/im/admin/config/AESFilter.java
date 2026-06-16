@@ -33,7 +33,7 @@ public class AESFilter extends OncePerRequestFilter {
 			"/api/pg/callback/razorpay", "/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials", "/api/pg/callback/cashfree",
 			"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui", "/swagger-ui/**", "/swagger-ui.html",
 			"/swagger-ui/index.html", "/swagger-ui/swagger-ui.css", "/swagger-ui/swagger-ui-bundle.js",
-			"/swagger-ui/swagger-ui-standalone-preset.js", "/enterprises/images/**");
+			"/swagger-ui/swagger-ui-standalone-preset.js", "/enterprises/images/**", "/api/vidual-pay/encrypt", "/api/vidual-pay/decrypt");
 
 	@Value("${app.security.base-secret}")
 	private String baseSecret;
