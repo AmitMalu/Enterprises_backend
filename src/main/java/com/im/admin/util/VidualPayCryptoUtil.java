@@ -27,8 +27,15 @@ public class VidualPayCryptoUtil {
 
     private final byte[] iv;
 
-    private static final String edKey = "8086289ecab4a664c8410a1e79d19090";
-    private static final String ivKey = "7cca987fb6cfeea37022977bde6e62c0";
+    //private static final String edKey = "f37701ee0778cfe1dd97b7537ae71709";
+    //private static final String ivKey = "bb13602c407b1ddd6506d59e410bafeb";
+
+    //private static final String edKey = "47cdba1911f078afe863774a8dffcb26";
+    //private static final String ivKey = "bb13602c407b1ddd6506d59e410bafeb";
+
+    private static final String edKey = "47cdba1911f078afe863774a8dffcb26";
+    private static final String ivKey = "f37701ee0778cfe1dd97b7537ae71709";
+
 
 
     public VidualPayCryptoUtil(
