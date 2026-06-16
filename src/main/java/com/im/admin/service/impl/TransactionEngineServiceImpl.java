@@ -3151,10 +3151,10 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                             .orElseThrow(() -> new RuntimeException("Postpaid transaction not found"));
 
                     //old logic chk SETTLEMENT PENDING with tranStatus field
-                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(postpaidTxn.getTranStatus())) {
-                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(postpaidTxn.getTranStatus()).append("\n");
-                        continue;
-                    }
+//                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(postpaidTxn.getTranStatus())) {
+//                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(postpaidTxn.getTranStatus()).append("\n");
+//                        continue;
+//                    }
 
                     //new logic chk SETTLEMENT PENDING with actionOnBalanceAmount field
                     String action = postpaidTxn.getActionOnBalanceAmount();

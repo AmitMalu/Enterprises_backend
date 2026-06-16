@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 public class Operators {
 
     @Id
-    @Column(name = "id", columnDefinition = "CHAR(2)")
+    @Column(name = "id", length = 10)
     private String id;
 
     @NotBlank(message = "Operator Category is required")

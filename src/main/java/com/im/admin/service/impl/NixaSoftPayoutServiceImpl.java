@@ -335,7 +335,7 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
 
         ResponseEntity<NixaSoftPayoutResponse> response =
                 restTemplate.exchange(
-                        creds.getBaseUrlUat() + "/payout",
+                        creds.getBaseUrlProd() + "/payout",
                         HttpMethod.POST,
                         entity,
                         NixaSoftPayoutResponse.class
