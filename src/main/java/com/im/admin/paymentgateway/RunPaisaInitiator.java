@@ -22,19 +22,24 @@ import java.util.Objects;
 public class RunPaisaInitiator implements PaymentGatewayInitiator {
 
     private final RunpaisaPGServiceImpl runPaisaServiceImpl;
+    private final ObjectMapper objectMapper;
 
     @Override
     public String getVendorName() {
         return "Runpaisa Payment Gateway";
     }
-
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(
+            PGCreateOrderCommand command,
+            Double latitude,
+            Double longitude) throws JsonProcessingException {
 
-        log.info("RUNPAISA initiate called. merchantRef={}, subProductId={}, amount={}",
+        log.info(
+                "RUNPAISA initiate called. merchantRef={}, subProductId={}, amount={}",
                 command.getMerchantRef(),
                 command.getSubProductId(),
-                command.getAmount());
+                command.getAmount()
+        );
 
         try {
 
@@ -49,40 +54,64 @@ public class RunPaisaInitiator implements PaymentGatewayInitiator {
             req.setCallbackUrl(command.getCallbackUrl());
             req.setTransactionScheme(command.getSchemeDetails());
 
-            log.debug("RunPaisa CreateOrderRequest built for merchantRef={}",
-                    command.getMerchantRef());
-
             ResponseEntity<CommonResponse<String>> response =
                     runPaisaServiceImpl.createOrder(req, latitude, longitude);
 
-            log.debug("RunPaisa createOrder API response received for merchantRef={}",
-                    command.getMerchantRef());
+            if (response == null) {
+                throw new RuntimeException("RunPaisa returned null response");
+            }
 
-            String rawJson = Objects.requireNonNull(response.getBody()).getData();
+            CommonResponse<String> body = response.getBody();
 
-            log.debug("RunPaisa raw response JSON: {}", rawJson);
+            if (body == null) {
+                throw new RuntimeException(
+                        "RunPaisa returned empty body"
+                );
+            }
 
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode json = mapper.readTree(rawJson);
+            String rawJson = body.getData();
 
-            PgUnifiedOrderResponse unifiedResponse = PgUnifiedOrderResponse.builder()
-                    .vendor("RUNPAISA")
-                    .orderId(json.path("order_id").asText())
-                    .paymentLink(json.path("paymentLink").asText())
-                    .orderToken(json.path("order_token").asText())
-                    .status(json.path("order_staus").asText())
-                    .build();
+            log.debug("RunPaisa raw response: {}", rawJson);
 
-            log.info("RUNPAISA initiate completed successfully. merchantRef={}, orderId={}, status={}",
+            if (rawJson == null || rawJson.isBlank()) {
+
+                log.error(
+                        "RunPaisa returned empty data. message={}", body.getMessage()
+                );
+
+                throw new RuntimeException(
+                        "RunPaisa returned empty data"
+                );
+            }
+
+            JsonNode json = objectMapper.readTree(rawJson);
+
+            PgUnifiedOrderResponse unifiedResponse =
+                    PgUnifiedOrderResponse.builder()
+                            .vendor("RUNPAISA")
+                            .orderId(json.path("order_id").asText(null))
+                            .paymentLink(json.path("paymentLink").asText(null))
+                            .orderToken(json.path("order_token").asText(null))
+                            .status(json.path("order_status").asText(null))
+                            .build();
+
+            log.info(
+                    "RUNPAISA initiate completed. merchantRef={}, orderId={}, status={}",
                     command.getMerchantRef(),
                     unifiedResponse.getOrderId(),
-                    unifiedResponse.getStatus());
+                    unifiedResponse.getStatus()
+            );
 
             return unifiedResponse;
 
         } catch (Exception e) {
-            log.error("Error during RUNPAISA initiate. merchantRef={}",
-                    command.getMerchantRef(), e);
+
+            log.error(
+                    "RUNPAISA initiate failed. merchantRef={}",
+                    command.getMerchantRef(),
+                    e
+            );
+
             throw e;
         }
     }

@@ -20,4 +20,6 @@ public interface NetworkBankMasterRepository extends JpaRepository<NetworkBankMa
     Optional<NetworkBankMaster> findByIfscCodeIgnoreCase(String ifscCode);
 
     Optional<NetworkBankMaster> findByUnisusMIfcsCodeIgnoreCase(String unisusMIfcsCode);
+
+    boolean existsByBankNameIgnoreCase(String bankName);
 }

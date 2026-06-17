@@ -3,6 +3,7 @@ package com.im.admin.repositories;
 import com.im.admin.entities.PinCode;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,6 +19,19 @@ public interface PinCodeRepository extends JpaRepository<PinCode, Long>, JpaSpec
     boolean existsByPinCode(String pinCode);
 
     boolean existsByPinCodeAndIdNot(String pinCode, Long id);
+
+    Optional<PinCode>
+    findByPinCodeAndCityId(
+            String pin,
+            Long cityId
+    );
+
+    @Query("""
+            SELECT p
+            FROM PinCode p
+            JOIN FETCH p.city
+            """)
+    List<PinCode> findAllPins();
 
 }
 

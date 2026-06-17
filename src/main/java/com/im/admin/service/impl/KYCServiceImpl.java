@@ -3,14 +3,18 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.KYCEditRequest;
 import com.im.admin.dto.KYCRequestDto;
 import com.im.admin.entities.*;
+import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.*;
 import com.im.admin.response.KYCApprovedResponseDto;
 import com.im.admin.response.KYCResponseDto;
 import com.im.admin.response.KycDocumentDto;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.KYCService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.TokenUtil;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +41,7 @@ import java.io.File;
 import java.io.IOException;
 
 @Service
+@Slf4j
 public class KYCServiceImpl implements KYCService {
 
     @Autowired
@@ -66,20 +71,85 @@ public class KYCServiceImpl implements KYCService {
     @Autowired
     private ImageUtil imageUtil;
 
+    @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private HierarchyAccessService hierarchyAccessService;
+
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
+
+    @Autowired
+    private FileUrlUtil fileUrlUtil;
+
 
     @Override
-    public KYCResponseDto searchByMobileNoAndHierarchyId(KYCRequestDto kycRequestDto) {
+    public KYCResponseDto searchByMobileNoAndHierarchyId(
+            KYCRequestDto kycRequestDto
+    ) {
 
-        String searchKeyword = kycRequestDto.getSearchKeyword();
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
 
-        // Try to extract type (RT, DT, PT, etc.)
-        String type = commonMethods.extractHierarchyType(searchKeyword);
+        String searchKeyword =
+                kycRequestDto.getSearchKeyword();
 
-        if (type != null && !"UNKNOWN".equalsIgnoreCase(type)) {
-            return getByHierarchyId(type, searchKeyword);
-        } else {
-            return getByMobileNumber(searchKeyword);
+        KYCResponseDto result;
+
+        String type =
+                commonMethods.extractHierarchyType(
+                        searchKeyword
+                );
+
+        /*
+         * Search by hierarchyId
+         */
+        if (type != null
+                && !"UNKNOWN"
+                .equalsIgnoreCase(type)) {
+
+            result =
+                    getByHierarchyId(
+                            type,
+                            searchKeyword
+                    );
+
         }
+
+        /*
+         * Search by mobile
+         */
+        else {
+
+            result =
+                    getByMobileNumber(
+                            searchKeyword
+                    );
+        }
+
+        if (result == null) {
+            return null;
+        }
+
+        /*
+         * ACCESS CHECK
+         */
+        if (!hierarchyAccessService.hasAccessToHierarchy(
+                loginHierarchyId,
+                result.getHierarchyId()
+        )) {
+
+            log.warn(
+                    "Access denied. login={} target={}",
+                    loginHierarchyId,
+                    result.getHierarchyId()
+            );
+
+            return null;
+        }
+
+        return result;
     }
 
     private KYCResponseDto getByHierarchyId(String type, String hierarchyId) {
@@ -166,27 +236,145 @@ public class KYCServiceImpl implements KYCService {
     }
 
     @Override
-    public Page<KYCResponseDto> searchByHierarchyWise(String hierarchyType, Pageable pageable) {
-        return switch (hierarchyType.toUpperCase()) {
-            case "RT" -> retailerRepository.findAll(pageable)
-                    .map(this::mapRetailer);
+    public Page<KYCResponseDto> searchByHierarchyWise(
+            String hierarchyType,
+            Pageable pageable
+    ) {
 
-            case "DT" -> distributorRepository.findAll(pageable)
-                    .map(this::mapDistributor);
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
 
-            case "PT" -> partnerRepository.findAll(pageable)
-                    .map(this::mapPartner);
+        String loginType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
 
-            case "SD" -> superDistributorRepository.findAll(pageable)
-                    .map(this::mapSuperDistributor);
+        /*
+         * ADMIN
+         */
+        if ("AD".equalsIgnoreCase(
+                loginType
+        )) {
 
-            case "WL" -> whiteLabelsRepository.findAll(pageable)
-                    .map(this::mapWhiteLabel);
+            return switch (
+                    hierarchyType.toUpperCase()
+                    ) {
 
-            case "ET" -> enterprisesRepository.findAll(pageable)
-                    .map(this::mapEnterprise);
+                case "RT" ->
+                        retailerRepository
+                                .findAll(pageable)
+                                .map(this::mapRetailer);
 
-            default -> Page.empty(pageable);
+                case "DT" ->
+                        distributorRepository
+                                .findAll(pageable)
+                                .map(this::mapDistributor);
+
+                case "PT" ->
+                        partnerRepository
+                                .findAll(pageable)
+                                .map(this::mapPartner);
+
+                case "SD" ->
+                        superDistributorRepository
+                                .findAll(pageable)
+                                .map(this::mapSuperDistributor);
+
+                case "WL" ->
+                        whiteLabelsRepository
+                                .findAll(pageable)
+                                .map(this::mapWhiteLabel);
+
+                case "ET" ->
+                        enterprisesRepository
+                                .findAll(pageable)
+                                .map(this::mapEnterprise);
+
+                default ->
+                        Page.empty(
+                                pageable
+                        );
+            };
+        }
+
+        /*
+         * WL / subtree
+         */
+
+        List<String> allowedIds =
+                accessHierarchyPathRepository
+                        .findDescendantsByAncestor(
+                                loginHierarchyId
+                        );
+
+        return switch (
+                hierarchyType.toUpperCase()
+                ) {
+
+            case "RT" ->
+                    retailerRepository
+                            .findByRetailerIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapRetailer
+                            );
+
+            case "DT" ->
+                    distributorRepository
+                            .findByDistributorIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapDistributor
+                            );
+
+            case "PT" ->
+                    partnerRepository
+                            .findByPartnerIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapPartner
+                            );
+
+            case "SD" ->
+                    superDistributorRepository
+                            .findBySuperDistributorIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapSuperDistributor
+                            );
+
+            case "WL" ->
+                    whiteLabelsRepository
+                            .findByWhiteLabelIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapWhiteLabel
+                            );
+
+            case "ET" ->
+                    enterprisesRepository
+                            .findByEnterpriseIdIn(
+                                    allowedIds,
+                                    pageable
+                            )
+                            .map(
+                                    this::mapEnterprise
+                            );
+
+            default ->
+                    Page.empty(
+                            pageable
+                    );
         };
     }
 
@@ -821,14 +1009,14 @@ public class KYCServiceImpl implements KYCService {
         if (entity instanceof Retailer r) {
             email = r.getEmailId();
             aadhaarNumber = r.getAadhaarNumber();
-            aadhaarFront = r.getAadhaarCardFrontImage();
-            aadhaarBack = r.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(r.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(r.getAadhaarCardBackImage());
             panNumber = r.getPanNumber();
-            panImage = r.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(r.getPanCardImage());
             shopNumber = r.getShopNumber();
-            shopImage = r.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(r.getShopImage());
             businessNumber = r.getBusinessNumber();
-            businessProofImage = r.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(r.getBusinessProofImage());
             isEmailVerified = r.getEmailVerified();
             isAadhaarVerified = r.getIsAadhaarVerified();
             aadhaarPanVerified = r.getAadhaarPanVerified();
@@ -838,14 +1026,14 @@ public class KYCServiceImpl implements KYCService {
         else if (entity instanceof Distributor d) {
             email = d.getEmailId();
             aadhaarNumber = d.getAadhaarNumber();
-            aadhaarFront = d.getAadhaarCardFrontImage();
-            aadhaarBack = d.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(d.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(d.getAadhaarCardBackImage());
             panNumber = d.getPanNumber();
-            panImage = d.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(d.getPanCardImage());
             shopNumber = d.getShopNumber();
-            shopImage = d.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(d.getShopImage());
             businessNumber = d.getBusinessNumber();
-            businessProofImage = d.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(d.getBusinessProofImage());
             isEmailVerified = d.getEmailVerified();
             isAadhaarVerified = d.getIsAadhaarVerified();
             aadhaarPanVerified = d.getAadhaarPanVerified();
@@ -855,14 +1043,14 @@ public class KYCServiceImpl implements KYCService {
         else if (entity instanceof Partner p) {
             email = p.getEmailId();
             aadhaarNumber = p.getAadhaarNumber();
-            aadhaarFront = p.getAadhaarCardFrontImage();
-            aadhaarBack = p.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(p.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(p.getAadhaarCardBackImage());
             panNumber = p.getPanNumber();
-            panImage = p.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(p.getPanCardImage());
             shopNumber = p.getShopNumber();
-            shopImage = p.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(p.getShopImage());
             businessNumber = p.getBusinessNumber();
-            businessProofImage = p.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(p.getBusinessProofImage());
             isEmailVerified = p.getEmailVerified();
             isAadhaarVerified = p.getIsAadhaarVerified();
             aadhaarPanVerified = p.getAadhaarPanVerified();
@@ -872,14 +1060,14 @@ public class KYCServiceImpl implements KYCService {
         else if (entity instanceof SuperDistributor sd) {
             email = sd.getEmailId();
             aadhaarNumber = sd.getAadhaarNumber();
-            aadhaarFront = sd.getAadhaarCardFrontImage();
-            aadhaarBack = sd.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(sd.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(sd.getAadhaarCardBackImage());
             panNumber = sd.getPanNumber();
-            panImage = sd.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(sd.getPanCardImage());
             shopNumber = sd.getShopNumber();
-            shopImage = sd.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(sd.getShopImage());
             businessNumber = sd.getBusinessNumber();
-            businessProofImage = sd.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(sd.getBusinessProofImage());
             isEmailVerified = sd.getEmailVerified();
             isAadhaarVerified = sd.getIsAadhaarVerified();
             aadhaarPanVerified = sd.getAadhaarPanVerified();
@@ -889,14 +1077,14 @@ public class KYCServiceImpl implements KYCService {
         else if (entity instanceof WhiteLabels wl) {
             email = wl.getEmailId();
             aadhaarNumber = wl.getAadhaarNumber();
-            aadhaarFront = wl.getAadhaarCardFrontImage();
-            aadhaarBack = wl.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(wl.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(wl.getAadhaarCardBackImage());
             panNumber = wl.getPanNumber();
-            panImage = wl.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(wl.getPanCardImage());
             shopNumber = wl.getShopNumber();
-            shopImage = wl.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(wl.getShopImage());
             businessNumber = wl.getBusinessNumber();
-            businessProofImage = wl.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(wl.getBusinessProofImage());
             isEmailVerified = wl.getEmailVerified();
             isAadhaarVerified = wl.getIsAadhaarVerified();
             aadhaarPanVerified = wl.getAadhaarPanVerified();
@@ -906,14 +1094,14 @@ public class KYCServiceImpl implements KYCService {
         else if (entity instanceof Enterprises et) {
             email = et.getEmailId();
             aadhaarNumber = et.getAadhaarNumber();
-            aadhaarFront = et.getAadhaarCardFrontImage();
-            aadhaarBack = et.getAadhaarCardBackImage();
+            aadhaarFront = fileUrlUtil.getFullUrl(et.getAadhaarCardFrontImage());
+            aadhaarBack = fileUrlUtil.getFullUrl(et.getAadhaarCardBackImage());
             panNumber = et.getPanNumber();
-            panImage = et.getPanCardImage();
+            panImage = fileUrlUtil.getFullUrl(et.getPanCardImage());
             shopNumber = et.getShopNumber();
-            shopImage = et.getShopImage();
+            shopImage = fileUrlUtil.getFullUrl(et.getShopImage());
             businessNumber = et.getBusinessNumber();
-            businessProofImage = et.getBusinessProofImage();
+            businessProofImage = fileUrlUtil.getFullUrl(et.getBusinessProofImage());
             isEmailVerified = et.getEmailVerified();
             isAadhaarVerified = et.getIsAadhaarVerified();
             aadhaarPanVerified = et.getAadhaarPanVerified();

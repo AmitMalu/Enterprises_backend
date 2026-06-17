@@ -72,7 +72,6 @@ public class AdminUserController {
      */
     @GetMapping
     public ResponseEntity<CommonResponse<Page<UserResponseDTO>>> getAllUsers(
-            @RequestParam String parentAccount,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String id,
@@ -88,10 +87,10 @@ public class AdminUserController {
             @RequestParam(required = false) String editedBy
     ) throws JsonProcessingException {
 
-        log.info("getAllUsers — parentAccount={} page={} size={}", parentAccount, page, size);
+        log.info("getAllUsers — page={} size={}",page, size);
 
         Page<UserResponseDTO> result = unifiedUserService.getAllUsers(
-                page, size, parentAccount,
+                page, size,
                 id, name, mobileNumber, username, emailId,
                 status, dob, createdOn, createdBy, lastEditedOn, editedBy
         );

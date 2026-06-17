@@ -169,4 +169,53 @@ public class NetworkBankController {
 
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // BULK UPLOAD
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Bulk upload bank master records from an .xlsx / .xls file.
+     *
+     * Expected column order (row 0 = header, data starts at row 1):
+     *   0  Bank Code       1  Bank Code BI     2  Bank Name (mandatory)
+     *   3  Vidual Bank Code 4  IMPS            5  NEFT
+     *   6  Logo            7  IFSC Code        8  Max Account No Length
+     *   9  Verification    10 Active Status    11 Blocked
+     *
+     * IMPS / NEFT / Verification / Blocked: Y or N (case-insensitive)
+     * Active Status: S (active) or H (hold/inactive)
+     *
+     * Duplicate bank names (case-insensitive) are skipped automatically.
+     * Each batch of 500 rows is committed independently — no giant rollback.
+     */
+    @PostMapping(value = "/bulk-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommonResponse<com.im.admin.service.BankBulkUploadResult>> bulkUpload(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "createdBy", required = false, defaultValue = "SYSTEM") String createdBy) {
+
+        log.info("BankMaster bulk upload request — file={} createdBy={}",
+                file.getOriginalFilename(), createdBy);
+
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(new CommonResponse<>(400, "File is empty", null));
+        }
+
+        String fileName = file.getOriginalFilename();
+        if (fileName == null || !(fileName.endsWith(".xlsx") || fileName.endsWith(".xls"))) {
+            return ResponseEntity.badRequest()
+                    .body(new CommonResponse<>(400, "Only .xlsx / .xls files are supported", null));
+        }
+
+        com.im.admin.service.BankBulkUploadResult result =
+                bankService.bulkUpload(file, createdBy);
+
+        String message = String.format(
+                "Upload complete — %d inserted, %d skipped, %d errors in %dms",
+                result.getInserted(), result.getSkipped(),
+                result.getErrorCount(), result.getElapsedMs());
+
+        return ResponseEntity.ok(new CommonResponse<>(200, message, result));
+    }
+
 }

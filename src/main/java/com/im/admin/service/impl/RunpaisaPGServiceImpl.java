@@ -147,55 +147,84 @@ public class RunpaisaPGServiceImpl {
 
     @Transactional
     public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req, Double latitude, Double longitude) {
-        log.info("Received createOrder request: {}", req);
+        // Entry log with request details
+        log.info("=== START createOrder ===");
+        log.info("Request: {}, Latitude: {}, Longitude: {}", req, latitude, longitude);
+
         String orderId = "ORD" + commonMethods.generateBaseTransactionId();
+        log.info("Generated Order ID: {}", orderId);
 
         LocalDateTime imRequestTime = LocalDateTime.now();
         String imResponseBody = null;
 
         try {
             // ====== Vendor Routing & Credentials ======
+            log.debug("Fetching vendor routing for subProductId: {}", req.getSubProductId());
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+            if (vendorRouting == null) {
+                log.error("No vendor routing found for subProductId: {}", req.getSubProductId());
+                throw new RuntimeException("Vendor routing not found");
+            }
+            log.debug("Vendor routing found: {}", vendorRouting);
+
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
+            log.info("Selected Vendor: ID={}, Name={}, Product={}",
+                    vendor.getId(), vendor.getVendorName(), vendor.getProduct() != null ? vendor.getProduct().getId() : "N/A");
 
             VendorContext.setVendorId(vendor.getVendorName());
+            log.debug("Vendor context set with ID: {}", vendor.getVendorName());
 
+            log.debug("Fetching credentials for vendorId: {} and productId: {}",
+                    vendor.getId(), vendor.getProduct().getId());
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
-                    .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+                    .orElseThrow(() -> {
+                        log.error("No credentials found for vendorId: {}, productId: {}",
+                                vendor.getId(), vendor.getProduct().getId());
+                        return new RuntimeException("No credentials found for selected vendor");
+                    });
 
-            log.debug("Vendor credentials retrieved: {}", credentials.getClientId());
+            log.info("Vendor credentials retrieved successfully for clientId: {}",
+                    credentials.getClientId());
 
             // ====== Save Transaction Mapping (Retailer Context) ======
+            log.debug("Saving transaction mapping for orderId: {}", orderId);
             PgTransactionMapping txnMap = new PgTransactionMapping();
             txnMap.setOrderId(orderId);
-            txnMap.setInitiatedBy(req.getInitiatedBy());  // <-- must come from logged-in user or request
+            txnMap.setInitiatedBy(req.getInitiatedBy());
             txnMap.setAmount(req.getAmount());
             txnMap.setStatus("PENDING");
             txnMap.setVendorName(vendor.getVendorName());
             txnMap.setSubProductId(req.getSubProductId());
-            txnMap.setCardBinNo(req.getCardBinNo()); //new
+            txnMap.setCardBinNo(req.getCardBinNo());
             txnMap.setLatitude(latitude);
             txnMap.setLongitude(longitude);
             pgTransactionMappingRepository.save(txnMap);
-
-            log.info("subProductId {} ", req.getSubProductId());
-            log.info("initiatedBy {}", req.getInitiatedBy());
-
+            log.info("Transaction mapping saved with status: PENDING, InitiatedBy: {}", req.getInitiatedBy());
+            log.info("Transaction details - SubProductId: {}, CardBinNo: {}, Location: ({}, {})",
+                    req.getSubProductId(), req.getCardBinNo(), latitude, longitude);
 
             // ====== Check Vendor Type ======
+            log.info("Vendor Token Type: {}", credentials.getTokenType());
+
             if ("AES".equalsIgnoreCase(credentials.getTokenType())) {
                 // =========================
                 // AES Flow (Admin Panel)
                 // =========================
+                log.info("=== Starting AES Flow for orderId: {} ===", orderId);
+
+                log.debug("Generating AES token for clientId: {}", credentials.getClientId());
                 String token = commonMethods.generateTokenForAES(credentials);
+                log.debug("AES token generated successfully");
 
                 // Build JSON request for AES admin panel
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 headers.set("client_id", credentials.getClientId());
                 headers.set("token", token);
-                headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
+                headers.add("Authorization", "Bearer " + token);
+                log.debug("AES headers prepared: client_id={}, token present={}",
+                        credentials.getClientId(), token != null && !token.isEmpty());
 
                 CreateOrderRequest jsonBody = new CreateOrderRequest();
                 jsonBody.setOrderId(orderId);
@@ -206,17 +235,26 @@ public class RunpaisaPGServiceImpl {
 
                 // Add transaction scheme placeholder if needed
                 TransactionSchemeDetailsRequestDto scheme = new TransactionSchemeDetailsRequestDto();
-                // TODO: fill required scheme fields
                 jsonBody.setTransactionScheme(scheme);
+                log.debug("AES request body prepared - OrderId: {}, Amount: {}, CallbackUrl: {}",
+                        orderId, req.getAmount(), credentials.getCallbackUrl());
 
                 HttpEntity<CreateOrderRequest> requestEntity = new HttpEntity<>(jsonBody, headers);
 
                 String url = credentials.getBaseUrlUat() + "/create-order";
-                log.info("AES Admin panel order URL: {}", url);
+                log.info("AES Order URL: {}", url);
+                log.info("Sending AES create order request...");
 
+                long startTime = System.currentTimeMillis();
                 ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
-                imResponseBody = response.getBody();
+                long endTime = System.currentTimeMillis();
 
+                imResponseBody = response.getBody();
+                log.info("AES response received - Status: {}, Time taken: {}ms",
+                        response.getStatusCode(), (endTime - startTime));
+                log.debug("AES Response Body: {}", imResponseBody != null ? imResponseBody : "NULL");
+
+                log.debug("Saving AES vendor logs...");
                 commonFunctions.saveVendorLogs(
                         LocalDateTime.now(),
                         "AES order request",
@@ -225,7 +263,9 @@ public class RunpaisaPGServiceImpl {
                         imResponseBody,
                         null
                 );
+                log.info("AES vendor logs saved");
 
+                log.info("=== AES Flow Completed Successfully for orderId: {} ===", orderId);
                 return ResponseEntity.status(response.getStatusCode())
                         .body(CommonResponse.success(imResponseBody, "Order created via AES"));
 
@@ -233,12 +273,18 @@ public class RunpaisaPGServiceImpl {
                 // =========================
                 // Old Vendor Flow (RunPaisa, Razorpay)
                 // =========================
+                log.info("=== Starting Legacy Vendor Flow for orderId: {} ===", orderId);
+                log.info("Vendor type: {}", credentials.getTokenType());
+
+                log.debug("Generating token for vendor: {}", credentials.getClientId());
                 String token = generateTokenForVendor(credentials);
+                log.debug("Vendor token generated successfully");
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.MULTIPART_FORM_DATA);
                 headers.set("client_id", credentials.getClientId());
                 headers.set("token", token);
+                log.debug("Vendor headers prepared: client_id={}", credentials.getClientId());
 
                 MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
                 body.add("callbackurl", credentials.getCallbackUrl());
@@ -246,39 +292,52 @@ public class RunpaisaPGServiceImpl {
                 body.add("amount", String.valueOf(req.getAmount()));
                 if (req.getMerchantRef() != null) {
                     body.add("merc_unq_ref", req.getMerchantRef());
+                    log.debug("Merchant reference added: {}", req.getMerchantRef());
                 }
+                log.debug("Vendor request body prepared - OrderId: {}, Amount: {}, CallbackUrl: {}",
+                        orderId, req.getAmount(), credentials.getCallbackUrl());
 
                 HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-                //String url = credentials.getBaseUrlUat() + "/order";
                 String url = credentials.getBaseUrlProd() + "/order";
-                log.info("Old vendor order URL: {}", url);
+                log.info("Legacy Vendor Order URL: {}", url);
+                log.info("Sending legacy vendor create order request...");
 
+                long startTime = System.currentTimeMillis();
                 ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
-                imResponseBody = response.getBody();
+                long endTime = System.currentTimeMillis();
 
+                imResponseBody = response.getBody();
+                log.info("Legacy vendor response received - Status: {}, Time taken: {}ms",
+                        response.getStatusCode(), (endTime - startTime));
+                log.debug("Legacy Vendor Response Body: {}", imResponseBody != null ? imResponseBody : "NULL");
+
+                log.debug("Updating transaction status to REQUEST_SENT for orderId: {}", orderId);
                 txnMap.setStatus("REQUEST_SENT");
                 pgTransactionMappingRepository.save(txnMap);
+                log.info("Transaction status updated to REQUEST_SENT");
 
+                log.debug("Saving legacy vendor logs...");
                 commonFunctions.saveVendorLogs(
                         LocalDateTime.now(),
-                        "Runpaisa PG ->" +requestEntity.toString(),
+                        "Runpaisa PG ->" + requestEntity.toString(),
                         vendor.getId(),
                         LocalDateTime.now(),
                         imResponseBody,
                         null
                 );
+                log.info("Legacy vendor logs saved");
 
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode json = mapper.readTree(imResponseBody);
-
                 String status = json.path("status").asText();
                 String message = json.path("message").asText();
+                log.info("Legacy vendor response parsing - Status: {}, Message: {}", status, message);
 
                 if ("SUCCESS".equalsIgnoreCase(status)) {
-                    // Success response
+                    log.info("=== Legacy Vendor Flow Completed Successfully for orderId: {} ===", orderId);
                     return ResponseEntity.ok(CommonResponse.success(imResponseBody, message));
                 } else {
-                    // Failure or any other status
+                    log.warn("Legacy vendor request returned non-success status: {} for orderId: {}", status, orderId);
                     return ResponseEntity
                             .status(HttpStatus.BAD_REQUEST)
                             .body(CommonResponse.handleErrors(message));
@@ -286,15 +345,27 @@ public class RunpaisaPGServiceImpl {
             }
 
         } catch (Exception e) {
-            log.error("Error while creating order for request: {}", req, e);
+            log.error("=== ERROR in createOrder for orderId: {} ===", orderId, e);
+            log.error("Error details - Request: {}, Message: {}, Cause: {}",
+                    req, e.getMessage(), e.getCause() != null ? e.getCause().getMessage() : "N/A");
+
             imResponseBody = "Order creation failed: " + e.getMessage();
+            log.error("Error response body: {}", imResponseBody);
 
             // Save logs for failure
+            log.debug("Saving error IM logs...");
             commonFunctions.saveImLogs(req.toString(), imRequestTime, null, imResponseBody, LocalDateTime.now());
+            log.info("Error IM logs saved for orderId: {}", orderId);
 
+            log.error("=== createOrder Failed for orderId: {} ===", orderId);
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResponse.failure(imResponseBody));
+        } finally {
+            log.info("=== END createOrder for orderId: {} ===", orderId);
+            // Clear thread-local context if needed
+            VendorContext.clear();
+            log.debug("Vendor context cleared");
         }
     }
 
@@ -303,23 +374,118 @@ public class RunpaisaPGServiceImpl {
     // =========================
 
     private String generateTokenForVendor(VendorCredentials vendorCredentials) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("username", vendorCredentials.getUsername());
-        headers.set("password", vendorCredentials.getPassword());
-        headers.set("client_id", vendorCredentials.getClientId());
+        log.info("=== START generateTokenForVendor ===");
+        log.info("Generating token for vendor clientId: {}",
+                maskSensitiveData(vendorCredentials.getClientId()));
 
-        HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-        ResponseEntity<Map> response = restTemplate.postForEntity(vendorCredentials.getTokenUrlProd(), requestEntity, Map.class);
+        long startTime = System.currentTimeMillis();
 
-        Map responseBodyMap = response.getBody();
-        if (responseBodyMap == null || !responseBodyMap.containsKey("data")) {
-            throw new RuntimeException("Old vendor token generation failed: " + responseBodyMap);
+        try {
+            // Prepare headers
+            log.debug("Preparing request headers for token generation");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("username", vendorCredentials.getUsername());
+            headers.set("password", vendorCredentials.getPassword());
+            headers.set("client_id", vendorCredentials.getClientId());
+
+            // Mask sensitive data in logs
+            log.debug("Headers prepared - username: {}, clientId: {}, password: [PROTECTED]",
+                    vendorCredentials.getUsername(),
+                    maskSensitiveData(vendorCredentials.getClientId()));
+
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+
+            String tokenUrl = vendorCredentials.getTokenUrlProd();
+            log.info("Calling token generation endpoint: {}", tokenUrl);
+
+            // Make API call
+            log.debug("Sending token generation request...");
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    tokenUrl,
+                    requestEntity,
+                    Map.class
+            );
+
+            long endTime = System.currentTimeMillis();
+            log.info("Token generation API call completed - Status Code: {}, Time taken: {}ms",
+                    response.getStatusCodeValue(), (endTime - startTime));
+
+            // Validate response
+            Map responseBodyMap = response.getBody();
+            if (responseBodyMap == null) {
+                log.error("Token generation response body is null for clientId: {}",
+                        maskSensitiveData(vendorCredentials.getClientId()));
+                throw new RuntimeException("Old vendor token generation failed: Response body is null");
+            }
+
+            log.debug("Response body received: {}", responseBodyMap);
+
+            // Check for response structure
+            if (!responseBodyMap.containsKey("data")) {
+                log.error("Response missing 'data' field for clientId: {}. Response: {}",
+                        maskSensitiveData(vendorCredentials.getClientId()),
+                        responseBodyMap);
+                throw new RuntimeException("Old vendor token generation failed: 'data' field missing in response");
+            }
+
+            // Extract token
+            @SuppressWarnings("unchecked")
+            Map<String, Object> dataMap = (Map<String, Object>) responseBodyMap.get("data");
+
+            if (dataMap == null) {
+                log.error("'data' field is null for clientId: {}",
+                        maskSensitiveData(vendorCredentials.getClientId()));
+                throw new RuntimeException("Old vendor token generation failed: 'data' field is null");
+            }
+
+            if (!dataMap.containsKey("token")) {
+                log.error("Response missing 'token' field in data for clientId: {}. Data: {}",
+                        maskSensitiveData(vendorCredentials.getClientId()),
+                        dataMap);
+                throw new RuntimeException("Old vendor token generation failed: 'token' field missing in data");
+            }
+
+            String token = (String) dataMap.get("token");
+
+            if (token == null || token.isEmpty()) {
+                log.error("Generated token is null or empty for clientId: {}",
+                        maskSensitiveData(vendorCredentials.getClientId()));
+                throw new RuntimeException("Old vendor token generation failed: Generated token is null or empty");
+            }
+
+            // Log partial token for reference (first 10 chars)
+            log.info("Token generated successfully for clientId: {}, Token: {}",
+                    maskSensitiveData(vendorCredentials.getClientId()),
+                    token.length() > 10 ? token.substring(0, 10) + "..." : token);
+
+            log.info("=== END generateTokenForVendor - Success ===");
+            return token;
+
+        } catch (Exception e) {
+            log.error("=== ERROR in generateTokenForVendor for clientId: {} ===",
+                    maskSensitiveData(vendorCredentials.getClientId()), e);
+            log.error("Error details: {}", e.getMessage());
+
+            // Log cause if available
+            if (e.getCause() != null) {
+                log.error("Cause: {}", e.getCause().getMessage());
+            }
+
+            // Rethrow with meaningful message
+            throw new RuntimeException("Old vendor token generation failed: " + e.getMessage(), e);
+        } finally {
+            log.info("=== END generateTokenForVendor ===");
         }
+    }
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> dataMap = (Map<String, Object>) responseBodyMap.get("data");
-        return (String) dataMap.get("token");
+    /**
+     * Utility method to mask sensitive data for logging
+     */
+    private String maskSensitiveData(String data) {
+        if (data == null) return "null";
+        if (data.length() <= 4) return "****";
+        return data.substring(0, 2) + "****" + data.substring(data.length() - 2);
     }
 
 
@@ -708,43 +874,6 @@ public class RunpaisaPGServiceImpl {
         log.info("---- [Callback] Callback object created: {}", callback);
         return callback;
     }
-
-//    public CommonResponse<String> validateTransaction(PgTransactionRequestDto request) {
-//
-//        ProductTransactionLimit limit = getLimit(request.getProductId(), request.getSubProductId())
-//                .orElseThrow(() -> new RuntimeException("No transaction limits configured"));
-//
-//        StoredProcedureQuery query = entityManager
-//                .createStoredProcedureQuery("check_pg_transaction_limit")
-//                .registerStoredProcedureParameter("wallet_type", String.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("in_card_bin_no", String.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("in_card_holder_mobile", String.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("transaction_amount", BigDecimal.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("daily_limit", Integer.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("monthly_transaction_limit", Integer.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("yearly_limit", Integer.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("daily_amt_limit", BigDecimal.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("result_msg", String.class, ParameterMode.OUT)
-//                .registerStoredProcedureParameter("is_valid", Boolean.class, ParameterMode.OUT);
-//
-//        query.setParameter("wallet_type", request.getWalletType());
-//        query.setParameter("in_card_bin_no", request.getCardBinNo());
-//        query.setParameter("in_card_holder_mobile", request.getCardHolderMobileNumber());
-//        query.setParameter("transaction_amount", request.getAmount());
-//        query.setParameter("daily_limit", limit.getMaxAmount());
-//        query.setParameter("monthly_transaction_limit", limit.getMonthlyTransactionLimit());
-//        query.setParameter("yearly_limit", limit.getMaxAmount());
-//        query.setParameter("daily_amt_limit", limit.getMaxAmount());
-//
-//        query.execute();
-//
-//        String resultMsg = (String) query.getOutputParameterValue("result_msg");
-//        Boolean isValid = (Boolean) query.getOutputParameterValue("is_valid");
-//
-//        return isValid
-//                ? CommonResponse.success("ALLOWED", resultMsg)
-//                : CommonResponse.failure(resultMsg);
-//    }
 
     public CommonResponse<String> validateTransaction(PgTransactionRequestDto request) {
 

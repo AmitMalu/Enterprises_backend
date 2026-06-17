@@ -32,4 +32,14 @@ public interface NetworkBankService {
 
     void saveBankList(BankListRequest request);
 
+    /**
+     * Bulk upload banks from an .xlsx / .xls / .csv file.
+     * Inserts up to 5000 records in batches for maximum performance.
+     *
+     * @param file      the uploaded Excel file
+     * @param createdBy who triggered the upload (passed as query param)
+     * @return upload summary (total rows, inserted, skipped, errors)
+     */
+    BankBulkUploadResult bulkUpload(MultipartFile file, String createdBy);
+
 }

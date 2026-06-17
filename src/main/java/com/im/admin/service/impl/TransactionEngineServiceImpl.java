@@ -1808,6 +1808,140 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 wallet.getAvailableBalance(), wallet.getTotalCash());
     }
 
+    private <T extends AbstractWalletAmountTable> void updateWalletSettlement(TransactionSchemeDetailsRequestDto dto,
+                                                                    T wallet,
+                                                                    BigDecimal requestedAmount,
+                                                                    String tranxType,
+                                                                    String baseTransactionId,
+                                                                    String tranStatus,
+                                                                    String service) {
+
+        log.info("=== [updateWalletSettlement] START ===");
+        log.info("Input Params | TranxType: {} | Status: {} | BaseTxnId: {} | Service: {} | WalletType: {} | RequestedAmount: {}",
+                tranxType, tranStatus, baseTransactionId, service, dto.getWalletType(), requestedAmount);
+
+        log.debug("updateWalletSettlement Wallet Before Update | HierarchyID: {} | AvailableBalance: {} | TotalCash: {}",
+                dto.getHierarchyId(), wallet.getAvailableBalance(), wallet.getTotalCash());
+
+        String actionOnBalance;
+
+        // Handle Pending Transaction
+        if ("PENDING".equalsIgnoreCase(tranStatus)) {
+            log.info("updateWalletSettlement Transaction marked as PENDING — delegating to handlePendingTransaction()");
+            handlePendingTransaction(wallet, tranxType, requestedAmount, baseTransactionId, service, dto);
+            log.info("=== [updateWalletSettlement] END (PENDING Transaction) ===");
+            return;
+        }
+
+        // *** Credit or Debit Operation ***
+        BigDecimal balanceBefore = wallet.getAvailableBalance();
+        log.debug("updateWalletSettlement Initial Balance Before Operation: {}", balanceBefore);
+
+        if (tranxType.equalsIgnoreCase("credit")) {
+            wallet.setTotalCash(wallet.getTotalCash().add(requestedAmount));
+            wallet.setAvailableBalance(wallet.getAvailableBalance().add(requestedAmount));
+            actionOnBalance = "Add Funds - " + dto.getWalletType().toUpperCase();
+            log.info("updateWalletSettlement Wallet CREDIT operation: Added {} | New AvailableBalance: {}", requestedAmount, wallet.getAvailableBalance());
+        } else {
+            wallet.setTotalCash(wallet.getTotalCash().subtract(requestedAmount));
+            wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(requestedAmount));
+            actionOnBalance = "Deduct Funds - " + dto.getWalletType().toUpperCase();
+            log.info("updateWalletSettlement Wallet DEBIT operation: Deducted {} | New AvailableBalance: {}", requestedAmount, wallet.getAvailableBalance());
+        }
+
+        // Update metadata
+        wallet.setLastUpdatedAmount(requestedAmount);
+        wallet.setLastUpdatedDate(LocalDate.now());
+        wallet.setLastUpdatedTime(LocalTime.now());
+
+        log.debug("updateWalletSettlement Wallet Metadata Updated | LastUpdatedAmount: {} | LastUpdatedDate: {} | LastUpdatedTime: {}",
+                wallet.getLastUpdatedAmount(), wallet.getLastUpdatedDate(), wallet.getLastUpdatedTime());
+
+        // Insert main transaction
+        log.info("updateWalletSettlement Inserting transaction record for {} | Action: {} | BalanceBefore: {} | BalanceAfter: {}",
+                tranxType.toUpperCase(), actionOnBalance, balanceBefore, wallet.getAvailableBalance());
+
+//        insertTransaction(wallet, tranStatus, requestedAmount, balanceBefore,
+//                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service, dto);
+
+        String txnId = "TXN" + baseTransactionId;
+
+        boolean settlementTxn =
+                tranStatus.equalsIgnoreCase("SUCCESS");
+
+        if (settlementTxn) {
+
+            updateExistingTransaction(
+                    txnId,
+                    dto.getWalletType(),
+                    requestedAmount,
+                    balanceBefore,
+                    wallet.getAvailableBalance(),
+                    tranStatus,
+                    actionOnBalance
+            );
+
+        } else {
+
+            insertTransaction(
+                    wallet,
+                    tranStatus,
+                    requestedAmount,
+                    balanceBefore,
+                    wallet.getAvailableBalance(),
+                    actionOnBalance,
+                    txnId,
+                    service,
+                    dto
+            );
+        }
+
+        // Begin Hierarchy Traversal for Mirroring
+        String currentId = dto.getHierarchyId();
+        boolean mirrorHandled = false;
+
+        log.info("updateWalletSettlement Starting hierarchy traversal for mirroring | Current Hierarchy ID: {}", currentId);
+
+        while (true) {
+            Optional<String> parentOpt = findParentHierarchy(currentId);
+
+            if (parentOpt.isEmpty()) {
+                log.info("updateWalletSettlement No further parent found. Stopping hierarchy traversal.");
+                break;
+            }
+
+            String parentId = parentOpt.get();
+            String parentType = extractHierarchyType(parentId);
+            log.debug("updateWalletSettlement Found Parent: {} | Type: {}", parentId, parentType);
+
+            if ("WL".equals(parentType)) {
+                Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(parentId);
+                if (wlOpt.isPresent() && Boolean.TRUE.equals(wlOpt.get().getIsAdmin())) {
+                    log.info("Mirroring to WhiteLabel (isAdmin=true) | ParentID: {}", parentId);
+                    mirrorTransactionToHierarchy(parentId, dto.getHierarchyId(), tranxType.toUpperCase(), requestedAmount,
+                            dto.getWalletType().toUpperCase(), "TXN" + baseTransactionId, "WhiteLabel Admin", tranStatus, dto);
+                    mirrorHandled = true;
+                    break;
+                } else {
+                    log.debug("WhiteLabel found but not Admin. Continuing traversal...");
+                }
+            }
+
+            if ("IM".equals(parentType) || "AD".equals(parentType)) {
+                log.info("Reached Admin hierarchy level (Type: {}).", parentType);
+                log.info("Mirroring transaction to Admin fallback | AdminID: {}", parentId);
+                mirrorTransactionToHierarchy(parentId, dto.getHierarchyId(), tranxType.toUpperCase(), requestedAmount,
+                        dto.getWalletType().toUpperCase(), "TXN" + baseTransactionId, "Admin", tranStatus, dto);
+                break;
+            }
+
+            currentId = parentId;
+        }
+
+        log.info("=== [updateWallet] END SUCCESS === | Final AvailableBalance: {} | TotalCash: {}",
+                wallet.getAvailableBalance(), wallet.getTotalCash());
+    }
+
 
     private <T extends AbstractWalletAmountTable> void handlePendingTransaction(T wallet,
                                                                                 String tranxType,
@@ -3151,10 +3285,10 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                             .orElseThrow(() -> new RuntimeException("Postpaid transaction not found"));
 
                     //old logic chk SETTLEMENT PENDING with tranStatus field
-                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(postpaidTxn.getTranStatus())) {
-                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(postpaidTxn.getTranStatus()).append("\n");
-                        continue;
-                    }
+//                    if (!"SETTLEMENT PENDING".equalsIgnoreCase(postpaidTxn.getTranStatus())) {
+//                        lastResult.append("SKIPPED: ").append(fullTxnId).append(" already processed with status: ").append(postpaidTxn.getTranStatus()).append("\n");
+//                        continue;
+//                    }
 
                     //new logic chk SETTLEMENT PENDING with actionOnBalanceAmount field
                     String action = postpaidTxn.getActionOnBalanceAmount();
@@ -3224,14 +3358,24 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                     processTransactionStatusChange(newRequest, request.getNewStatus());
                     lastResult.append("SUCCESS: Transaction ").append(fullTxnId).append(" updated to SUCCESS.\n");
 
-                } else if (("PENDING".equalsIgnoreCase(request.getOldStatus()) && "FAILURE".equalsIgnoreCase(request.getNewStatus())) ||
-                        ("SETTLEMENT PENDING".equalsIgnoreCase(request.getOldStatus()) && "FAILURE".equalsIgnoreCase(request.getNewStatus()))) {
+                } else if (
+                        ("PENDING".equalsIgnoreCase(request.getOldStatus())
+                                && "FAILURE".equalsIgnoreCase(request.getNewStatus()))
+                                ||
+                                ("SETTLEMENT PENDING".equalsIgnoreCase(request.getOldStatus())
+                                        && "FAILURE".equalsIgnoreCase(request.getNewStatus()))
+                ) {
 
-                    insertTransaction(wallet, "FAILURE", amount, wallet.getAvailableBalance(), wallet.getAvailableBalance(),
-                            "Manual Update to FAILURE", buildTransactionId("FLD", baseTransactionId), "CREDIT", newRequest);
+                    updateTransactionToFailure(
+                            fullTxnId,
+                            walletType,
+                            amount,
+                            "Manual Update to FAILURE"
+                    );
 
-                    lastResult.append("SUCCESS: Transaction ").append(fullTxnId).append(" marked as FAILURE.\n");
-
+                    lastResult.append("SUCCESS: Transaction ")
+                            .append(fullTxnId)
+                            .append(" updated to FAILURE.\n");
                 } else if ("SUCCESS".equalsIgnoreCase(request.getOldStatus()) && "FAILURE".equalsIgnoreCase(request.getNewStatus())) {
 
                     List<String> hierarchyList = List.of("retailer", "distributor", "partner", "super_distributor", "white_label", "enterprises", "admin");
@@ -3289,6 +3433,55 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         return lastResult.toString();
     }
 
+    @Transactional
+    public void updateTransactionToFailure(
+            String transactionId,
+            String walletType,
+            BigDecimal amount,
+            String remarks) {
+
+        if ("PREPAID".equalsIgnoreCase(walletType)) {
+
+            RetailerPrepaidTransactionDetails txn =
+                    retailerPrepaidTransactionDetailsRepository
+                            .findByTransactionId(transactionId)
+                            .orElseThrow(() ->
+                                    new RuntimeException("Transaction not found"));
+
+            txn.setTranStatus("FAILURE");
+
+            txn.setActionOnBalanceAmount("Manual Update to FAILURE");
+
+            txn.setRemarks(remarks);
+
+            txn.setUpdatedDateOfTransaction(LocalDate.now()); // if exists
+
+            txn.setUpdatedTimeOfTransaction(LocalTime.now());
+
+            retailerPrepaidTransactionDetailsRepository.save(txn);
+
+        } else {
+
+            RetailerPostpaidTransactionDetails txn =
+                    retailerPostpaidTransactionDetailsRepository
+                            .findByTransactionId(transactionId)
+                            .orElseThrow(() ->
+                                    new RuntimeException("Transaction not found"));
+
+            txn.setTranStatus("FAILURE");
+
+            txn.setActionOnBalanceAmount("Manual Update to FAILURE");
+
+            txn.setRemarks(remarks);
+
+            txn.setUpdatedDateOfTransaction(LocalDate.now()); // if exists
+
+            txn.setUpdatedTimeOfTransaction(LocalTime.now());
+
+            retailerPostpaidTransactionDetailsRepository.save(txn);
+        }
+    }
+
     public String getIdColumnFromTable(String tableName) {
         if (tableName.contains("_prepaid_")) {
             return tableName.substring(0, tableName.indexOf("_prepaid_")) + "_id";
@@ -3340,7 +3533,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         if (tranxType.equals("credit")) {
 
             // On Success: update wallet, mirror, then process charges/commission
-            updateWallet(dto, wallet, tranxAmount, tranxType, baseTransactionId, vendorResponse, "CREDIT");
+            updateWalletSettlement(dto, wallet, tranxAmount, tranxType, baseTransactionId, vendorResponse, "CREDIT");
             processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, vendorResponse);
         } else if (tranxType.equals("debit")) {
             // Step 1: Check balance before assuming pending
@@ -3362,6 +3555,55 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         return "Transaction Successful";
     }
 
+    @Transactional
+    public void updateExistingTransaction(
+            String transactionId,
+            String walletType,
+            BigDecimal amount,
+            BigDecimal balanceBefore,
+            BigDecimal balanceAfter,
+            String status,
+            String action) {
+
+        if ("PREPAID".equalsIgnoreCase(walletType)) {
+
+            RetailerPrepaidTransactionDetails txn =
+                    retailerPrepaidTransactionDetailsRepository
+                            .findByTransactionId(transactionId)
+                            .orElseThrow(() ->
+                                    new RuntimeException("Txn not found"));
+
+            txn.setAmount(amount);
+            txn.setBalBeforeTran(balanceBefore);
+            txn.setBalAfterTran(balanceAfter);
+            txn.setFinalBalance(balanceAfter);
+
+            txn.setTranStatus(status);
+
+            txn.setActionOnBalanceAmount(action);
+
+            retailerPrepaidTransactionDetailsRepository.save(txn);
+
+        } else {
+
+            RetailerPostpaidTransactionDetails txn =
+                    retailerPostpaidTransactionDetailsRepository
+                            .findByTransactionId(transactionId)
+                            .orElseThrow(() ->
+                                    new RuntimeException("Txn not found"));
+
+            txn.setAmount(amount);
+            txn.setBalBeforeTran(balanceBefore);
+            txn.setBalAfterTran(balanceAfter);
+            txn.setFinalBalance(balanceAfter);
+
+            txn.setTranStatus(status);
+
+            txn.setActionOnBalanceAmount(action);
+
+            retailerPostpaidTransactionDetailsRepository.save(txn);
+        }
+    }
 
     @Override
     public List<Map<String, Object>> getSettlementTransactionsByFilter(

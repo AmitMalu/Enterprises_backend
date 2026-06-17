@@ -2,6 +2,8 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.Retailer;
 import com.im.admin.entities.SuperAdmin;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,20 +19,13 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
 
     List<Retailer> findByStatus(String status);
 
-    List<Retailer> findByParentAccountContaining(String parentType);
-
     List<Retailer> findByStatusIgnoreCase(String status);
-
-    @Query("SELECT r.name FROM Retailer r WHERE r.retailerId = :hierarchyId")
-    String findNameByHierarchyId(@Param("hierarchyId") String hierarchyId);
 
     List<Retailer> findByParentAccount(String fromId);
 
     List<Retailer> findByParentAccountContainingIgnoreCase(String parentAccount);
 
     Retailer findByMobileNumber(String mobileNumber);
-
-    //boolean existsByAbbreviation(String abbrivation);
 
     @Query("""
         SELECT r.retailerId
@@ -51,7 +46,12 @@ public interface RetailerRepository extends JpaRepository<Retailer, String> {
     );
 
     long countByStatus(String status);
-//    List<String> findRetailerIdsByParent(String hierarchyId);
+
+    Page<Retailer>
+    findByRetailerIdIn(
+            List<String> ids,
+            Pageable pageable
+    );
 
 }
 

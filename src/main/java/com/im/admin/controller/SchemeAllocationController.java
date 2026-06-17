@@ -119,6 +119,4 @@ public class SchemeAllocationController {
         return ResponseEntity.ok(CommonResponse.success(result, "Retailer search successful"));
     }
 
-
-
 }

@@ -29,7 +29,6 @@ public interface UnifiedUserService {
     Page<UserResponseDTO> getAllUsers(
             int page,
             int size,
-            String parentAccount,
             String id,
             String name,
             String mobileNumber,

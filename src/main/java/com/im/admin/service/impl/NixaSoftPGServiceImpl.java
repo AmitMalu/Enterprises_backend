@@ -244,7 +244,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
         // Get raw response as String first
         ResponseEntity<String> rawResponse = restTemplate.exchange(
-                credentials.getBaseUrlUat() + "/payin/nixa-silver-1",
+                credentials.getBaseUrlProd() + "/payin/nixa-silver-1",
                 HttpMethod.POST,
                 entity,
                 String.class
