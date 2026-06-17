@@ -90,7 +90,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             String responseJson = null;
 
             String baseTransactionId = commonMethods.generateBaseTransactionId();
-            String orderId = "AEPS" + baseTransactionId;
+            String orderId = baseTransactionId;
             log.info("[AEPS BE] Start | orderId={}", orderId);
 
             String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
@@ -322,8 +322,10 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found"));
 
+            log.info("Fetching SubProduct for id={}", req.getSubProductId());
+
             String baseTransactionId = commonMethods.generateBaseTransactionId();
-            String orderId = "AEPS" + baseTransactionId;
+            String orderId = baseTransactionId;
             log.info("[AEPS BE] Start | orderId={}", orderId);
 
             String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
@@ -498,12 +500,36 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
 
             }
 
+            log.info(
+                    "Fetching Scheme Rate | SchemeCode={}, TransactionType={}, Amount={}",
+                    req.getSchemeCode(),
+                    req.getTransactionType(),
+                    req.getAmount()
+            );
+
             SchemeRate selectedScheme = schemeRateRepository
                     .findSchemeRateByCodeAndOperatorAndAmount(
                             req.getSchemeCode(),
                             req.getTransactionType(),
                             req.getAmount().doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
+                    .orElseThrow(() -> {
+
+                        log.error(
+                                "No Scheme Rate Found | SchemeCode={}, TransactionType={}, Amount={}",
+                                req.getSchemeCode(),
+                                req.getTransactionType(),
+                                req.getAmount()
+                        );
+
+                        return new RuntimeException(
+                                "No matching scheme rate found for amount: " + req.getAmount()
+                        );
+                    });
+
+            log.info(
+                    "Scheme Rate Found | OperatorCode={}",
+                    selectedScheme.getOperatorCode()
+            );
 
             // Build DTO for transaction engine
             TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();  //BE
@@ -532,6 +558,28 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             String vendorStatus = InstantpayResponseMapper.map(
                     vendorResp.getStatuscode(),
                     vendorResp.getOrderid()
+            );
+
+            log.info(
+                    "Transaction DTO Prepared | BaseTxnId={}, Amount={}, ConfirmAmount={}, OperatorName={}, OperatorCode={}, TransactionType={}, WalletType={}, ProductCode={}, SubProductCode={}, HierarchyId={}, Latitude={}, Longitude={}",
+                    dto.getBaseTranxId(),
+                    dto.getAmount(),
+                    dto.getConfirmAmount(),
+                    dto.getOperatorName(),
+                    dto.getOperatorCode(),
+                    dto.getTransactionType(),
+                    dto.getWalletType(),
+                    dto.getProductCode(),
+                    dto.getSubProductCode(),
+                    dto.getHierarchyId(),
+                    dto.getLatitude(),
+                    dto.getLongitude()
+            );
+
+            log.info(
+                    "Scheme Details | SchemeId={}, OperatorCode={}",
+                    selectedScheme.getId(),
+                    selectedScheme.getOperatorCode()
             );
 
             transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
@@ -567,7 +615,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                     .orElseThrow(() -> new RuntimeException("SubProduct not found"));
 
             String baseTransactionId = commonMethods.generateBaseTransactionId();
-            String orderId = "AEPS" + baseTransactionId;
+            String orderId = baseTransactionId;
             log.info("[AEPS BE] Start | orderId={}", orderId);
 
             String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
