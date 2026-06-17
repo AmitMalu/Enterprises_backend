@@ -28,6 +28,8 @@ public class RunPaisaInitiator implements PaymentGatewayInitiator {
     public String getVendorName() {
         return "Runpaisa Payment Gateway";
     }
+
+
     @Override
     public PgUnifiedOrderResponse initiate(
             PGCreateOrderCommand command,
@@ -53,6 +55,34 @@ public class RunPaisaInitiator implements PaymentGatewayInitiator {
             req.setUsername(command.getUsername());
             req.setCallbackUrl(command.getCallbackUrl());
             req.setTransactionScheme(command.getSchemeDetails());
+
+            // ===== LOG REQUEST BEFORE CREATE ORDER CALL =====
+            log.info("=== PREPARING TO CALL RUNPAISA CREATE ORDER ===");
+            log.info("CreateOrderRequest prepared with:");
+            log.info("  - MerchantRef: {}", req.getMerchantRef());
+            log.info("  - Amount: {}", req.getAmount());
+            log.info("  - ProductId: {}", req.getProductId());
+            log.info("  - SubProductId: {}", req.getSubProductId());
+            log.info("  - InitiatedBy: {}", req.getInitiatedBy());
+            log.info("  - CardBinNo: {}", req.getCardBinNo());
+            log.info("  - Username: {}", req.getUsername());
+            log.info("  - CallbackUrl: {}", req.getCallbackUrl());
+
+            // Log transaction scheme if present
+            if (req.getTransactionScheme() != null) {
+                log.debug("TransactionScheme: {}", req.getTransactionScheme());
+            }
+
+            // Log complete request JSON for debugging
+            try {
+                String requestJson = objectMapper.writeValueAsString(req);
+                log.debug("Complete Request JSON: {}", requestJson);
+            } catch (Exception e) {
+                log.warn("Unable to serialize request to JSON: {}", e.getMessage());
+            }
+
+            log.info("Calling RunPaisa createOrder service...");
+            long startTime = System.currentTimeMillis();
 
             ResponseEntity<CommonResponse<String>> response =
                     runPaisaServiceImpl.createOrder(req, latitude, longitude);

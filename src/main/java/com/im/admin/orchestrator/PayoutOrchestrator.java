@@ -193,7 +193,6 @@ public class PayoutOrchestrator {
                     .build();
 
         } catch (Exception e) {
-            //log.error("[PROCESS PAYOUT ORCH] Exception while processing payout orderId={}: {}", orderId, e.getMessage(), e);
 
             Throwable root = e;
 

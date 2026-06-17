@@ -58,7 +58,6 @@ public class AuthController {
     @Autowired
     private AESController aesController;
 
-
     @Autowired
     private ShivSmsService shivSmsService;
 
@@ -344,6 +343,11 @@ public class AuthController {
 
         try {
 
+            user.setOtp(otp);
+            user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
+            userDetailsRepository.save(user);
+            log.info("OTP generated for user ID: {}", user.getHierarchyId());
+
             String fromId = resolveFromEmail(
                     user.getHierarchyCode(),
                     user.getHierarchyId()
@@ -363,11 +367,6 @@ public class AuthController {
                     otp,
                     companyName
             );
-
-            user.setOtp(otp);
-            user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
-            userDetailsRepository.save(user);
-            log.info("OTP generated for user ID: {}", user.getHierarchyId());
 
             //Save SMS logs
             commonFunctions.saveSmsLogs(
