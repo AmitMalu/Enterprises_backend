@@ -67,13 +67,26 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
 
         try {
 
+            log.info("========== INSTANTPAY MERCHANT ONBOARDING STARTED ==========");
+            log.info("RetailerId : {}, SubProductId : {}",
+                    req.getRetailerId(),
+                    req.getSubProductId());
+
             // ===== STEP 1 : GET VENDOR USING SUB PRODUCT =====
+            log.info("Fetching VendorRouting using SubProductId : {}", req.getSubProductId());
+
             VendorRouting vendorRouting =
                     vendorRoutingRepository.findBySubProductId(req.getSubProductId());
 
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
+            log.info("Vendor Found : Id={}, Name={}",
+                    vendor.getId(),
+                    vendor.getVendorName());
+
             // ===== STEP 2 : GET VENDOR CREDENTIALS =====
+            log.info("Fetching Vendor Credentials");
+
             VendorCredentials credentials =
                     vendorCredentialsRepository
                             .findByVendorIdAndProductId(
@@ -87,10 +100,17 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             String clientSecret = credentials.getClientSecret();
             String saltKey = credentials.getSaltKey();
 
+            log.info("Vendor Credentials Found. BaseUrl : {}", baseUrl);
+
             // ===== STEP 3 : GET RETAILER =====
+            log.info("Fetching Retailer : {}", req.getRetailerId());
+
             Optional<Retailer> opt = retailerRepository.findById(req.getRetailerId());
 
             if (opt.isEmpty()) {
+
+                log.error("Retailer not found for RetailerId : {}", req.getRetailerId());
+
                 return CommonResponse.error(
                         400,
                         "Invalid retailerId: Retailer not found"
@@ -99,14 +119,24 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
 
             Retailer r = opt.get();
 
+            log.info("Retailer Found : Name={}, Mobile={}",
+                    r.getName(),
+                    r.getMobileNumber());
+
             String url = baseUrl + "/user/outlet/signup/minKyc";
 
+            log.info("InstantPay URL : {}", url);
+
             // ===== STEP 4 : ENCRYPT AADHAAR =====
+            log.info("Encrypting Aadhaar");
+
             String encryptedAadhaar =
                     InstantpayEncryptionUtil.encryptAadhaar(
                             r.getAadhaarNumber(),
                             saltKey
                     );
+
+            log.info("Aadhaar encrypted successfully");
 
             // ===== STEP 5 : CREATE REQUEST BODY =====
             Map<String, Object> body = new LinkedHashMap<>();
@@ -131,6 +161,8 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             ObjectMapper mapper = new ObjectMapper();
             requestJson = mapper.writeValueAsString(body);
 
+            log.info("InstantPay Request Payload : {}", requestJson);
+
             // ===== STEP 6 : HEADERS =====
             HttpHeaders headers = new HttpHeaders();
 
@@ -140,10 +172,14 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             headers.set("X-Ipay-Client-Secret", clientSecret);
             headers.set("X-Ipay-Endpoint-Ip", r.getCreatedByIPAddress());
 
+            log.info("Headers prepared successfully");
+
             HttpEntity<String> entity =
                     new HttpEntity<>(requestJson, headers);
 
             // ===== STEP 7 : CALL INSTANTPAY API =====
+            log.info("Calling InstantPay Min KYC API");
+
             ResponseEntity<InstantpayMerchantResponseDto> response =
                     restTemplate.exchange(
                             url,
@@ -152,11 +188,18 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
                             InstantpayMerchantResponseDto.class
                     );
 
+            log.info("InstantPay API Response Status : {}",
+                    response.getStatusCode());
+
             InstantpayMerchantResponseDto vendorRes = response.getBody();
 
             responseJson = mapper.writeValueAsString(vendorRes);
 
+            log.info("InstantPay Response Payload : {}", responseJson);
+
             // ===== STEP 8 : SAVE VENDOR LOGS =====
+            log.info("Saving Vendor Logs");
+
             commonFunctions.saveVendorLogs(
                     requestTime,
                     requestJson,
@@ -166,27 +209,29 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
                     null
             );
 
-            //  CHECK EXISTING MERCHANT =====
-//            Optional<AepsMerchantStatus> existing =
-//                    aepsMerchantStatusRepository.findByRetailerId(r.getRetailerId());
+            log.info("Vendor Logs Saved Successfully");
+
+            // ===== CHECK EXISTING MERCHANT =====
+            log.info("Checking Existing Merchant Status for RetailerId : {}",
+                    req.getRetailerId());
+
             Optional<AepsInstantPayMerchantStatus> existing =
                     aepsInstantPayMerchantStatusRepository
                             .findByRetailerId(req.getRetailerId());
 
             if (existing.isPresent()) {
 
-                AepsInstantPayMerchantStatus status = existing.get();
+                log.info("Existing Merchant Found. Updating Record");
 
-//                if (vendorRes.getData() != null) {
-//                    status.setMerchantLoginId(
-//                            String.valueOf(vendorRes.getData().getOutletId())
-//                    );
-//                }
+                AepsInstantPayMerchantStatus status = existing.get();
 
                 if (vendorRes.getData() != null) {
                     status.setOutletId(
                             String.valueOf(vendorRes.getData().getOutletId())
                     );
+
+                    log.info("Updated OutletId : {}",
+                            vendorRes.getData().getOutletId());
                 }
 
                 status.setUpdatedAt(LocalDateTime.now());
@@ -194,6 +239,8 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
                 status.setVendor(vendor);
 
                 aepsInstantPayMerchantStatusRepository.save(status);
+
+                log.info("Merchant Updated Successfully");
 
                 return new CommonResponse<>(
                         200,
@@ -206,16 +253,14 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             if (vendorRes != null &&
                     "TXN".equalsIgnoreCase(vendorRes.getStatuscode())) {
 
+                log.info("Merchant Onboarding Successful. Creating New Status Record");
+
                 AepsInstantPayMerchantStatus status = new AepsInstantPayMerchantStatus();
 
                 status.setRetailerId(r.getRetailerId());
 
-//                status.setMerchantLoginId(
-//                        String.valueOf(vendorRes.getData().getOutletId())
-
                 status.setOutletId(
                         String.valueOf(vendorRes.getData().getOutletId())
-
                 );
 
                 status.setOnboarded(true);
@@ -228,6 +273,9 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
 
                 aepsInstantPayMerchantStatusRepository.save(status);
 
+                log.info("Merchant Status Saved Successfully. OutletId : {}",
+                        vendorRes.getData().getOutletId());
+
                 return new CommonResponse<>(
                         200,
                         "Merchant onboarded successfully",
@@ -236,6 +284,8 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
             }
 
             // ===== STEP 11 : FAILURE =====
+            log.error("Vendor onboarding failed. Response : {}", responseJson);
+
             return new CommonResponse<>(
                     400,
                     "Vendor onboarding failed",
@@ -244,6 +294,8 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
 
         } catch (Exception e) {
 
+            log.error("Exception occurred while onboarding merchant", e);
+
             e.printStackTrace();
 
             return new CommonResponse<>(
@@ -251,6 +303,8 @@ public class AepsInstantpayServiceImpl implements AepsInstantpayService {
                     "Exception : " + e.getMessage(),
                     null
             );
+        } finally {
+            log.info("========== INSTANTPAY MERCHANT ONBOARDING ENDED ==========");
         }
     }
 
