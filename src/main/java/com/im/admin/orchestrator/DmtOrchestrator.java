@@ -642,14 +642,28 @@ public class DmtOrchestrator {
 
         try {
 
+            log.info("========== CHECK REMITTER START ==========");
+            log.info("Incoming Request : {}", objectMapper.writeValueAsString(request));
+
             String hierarchyId = tokenUtil.extractHierarchyId();
+            log.info("Hierarchy Id extracted : {}", hierarchyId);
+
             request.setRetailerId(hierarchyId);
+            log.info("Retailer Id set in request : {}", request.getRetailerId());
 
             // ===== STEP 1 Vendor Routing =====
+            log.info("Finding Vendor Routing for SubProductId : {}", request.getSubProductId());
+
             VendorRouting vendorRouting =
                     vendorRoutingRepository.findBySubProductId(request.getSubProductId());
 
+            log.info("Vendor Routing Found : {}", vendorRouting);
+
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
+
+            log.info("Vendor Selected : {} | Vendor Id : {}",
+                    vendor.getVendorName(),
+                    vendor.getId());
 
             vendorId = vendor.getId();
 
@@ -658,34 +672,53 @@ public class DmtOrchestrator {
                             .findByVendorIdAndProductId(
                                     vendor.getId(),
                                     vendor.getProduct().getId())
-                            .orElseThrow(() ->
-                                    new RuntimeException("No credentials found for selected vendor"));
+                            .orElseThrow(() -> {
+                                log.error("Vendor credentials not found for VendorId={} ProductId={}",
+                                        vendor.getId(),
+                                        vendor.getProduct().getId());
+                                return new RuntimeException("No credentials found for selected vendor");
+                            });
+
+            log.info("Vendor Credentials Found");
+            log.info("Token Type : {}", credentials.getTokenType());
+            log.info("Client Id : {}", credentials.getClientId());
 
             // ====== Check Vendor Type ======
             if ("AES".equalsIgnoreCase(credentials.getTokenType())) {
 
-                // AES Flow (Admin Panel)
+                log.info("AES Flow Started");
+
                 String token = commonMethods.generateTokenForAES(credentials);
 
-                // Build JSON request for AES admin panel
+                log.info("AES Token Generated Successfully");
+
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 headers.set("client_id", credentials.getClientId());
                 headers.set("token", token);
-                headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
+                headers.add("Authorization", "Bearer " + token);
+
+                log.info("AES Headers Prepared");
 
                 ApiPanelRemitterRequest jsonBody =
                         new ApiPanelRemitterRequest();
+
                 jsonBody.setMobileNo(request.getMobile());
 
                 jsonBody.setProductId(
                         vendor.getProduct().getId().toString());
+
                 jsonBody.setApiPartnerId(credentials.getUsername());
 
-                HttpEntity<ApiPanelRemitterRequest> requestEntity = new HttpEntity<>(jsonBody, headers);
+                log.info("AES Request Body : {}",
+                        objectMapper.writeValueAsString(jsonBody));
+
+                HttpEntity<ApiPanelRemitterRequest> requestEntity =
+                        new HttpEntity<>(jsonBody, headers);
 
                 String url = credentials.getBaseUrlUat() + "/remitter/check";
-                log.info("AES Admin panel order URL: {}", url);
+
+                log.info("AES URL : {}", url);
 
                 ResponseEntity<CommonResponse<RemitterQueryResponse>> response =
                         restTemplate.exchange(
@@ -697,6 +730,8 @@ public class DmtOrchestrator {
 
                 responseJson = String.valueOf(response.getBody());
 
+                log.info("AES Response Received : {}", responseJson);
+
                 commonFunctions.saveVendorLogs(
                         LocalDateTime.now(),
                         "AES order request",
@@ -706,18 +741,33 @@ public class DmtOrchestrator {
                         null
                 );
 
+                log.info("AES Vendor Log Saved");
+                log.info("========== CHECK REMITTER END ==========");
+
                 return response.getBody();
             }
 
             // ===== STEP 2 LOCAL DB CHECK =====
-            Optional<DmtRemitter> exist =
-                    remitterRepository.findByMobileAndVendor(request.getMobile(), vendor);
+            log.info("Checking Remitter in Local DB for Mobile={} Vendor={}",
+                    request.getMobile(),
+                    vendor.getVendorName());
 
-            //  ONLY for PAYSPRINT → use DB shortcut
+            Optional<DmtRemitter> exist =
+                    remitterRepository.findByMobileAndVendor(
+                            request.getMobile(),
+                            vendor);
+
+            log.info("Remitter Present in DB : {}", exist.isPresent());
+
+            // ONLY for PAYSPRINT → use DB shortcut
             if (!"InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
+
+                log.info("Vendor is NOT InstantPay. Checking registered remitter shortcut.");
 
                 if (exist.isPresent() &&
                         "REGISTERED".equals(exist.get().getStatus())) {
+
+                    log.info("Registered Remitter Found in Local DB");
 
                     DmtRemitter remitter = exist.get();
 
@@ -735,13 +785,21 @@ public class DmtOrchestrator {
                             ? remitter.getLimitAmount()
                             : 25000.0;
 
-                    double usedLimit = remitter.getUsedLimitForVendor(vendor.getVendorName());
+                    double usedLimit =
+                            remitter.getUsedLimitForVendor(vendor.getVendorName());
 
                     double availableLimit = totalLimit - usedLimit;
+
+                    log.info("Total Limit : {}", totalLimit);
+                    log.info("Used Limit : {}", usedLimit);
+                    log.info("Available Limit : {}", availableLimit);
 
                     data.setLimit(availableLimit);
 
                     res.setData(data);
+
+                    log.info("Returning Local DB Remitter Response");
+                    log.info("========== CHECK REMITTER END ==========");
 
                     return CommonResponse.success(
                             res,
@@ -751,19 +809,30 @@ public class DmtOrchestrator {
             }
 
             // ===== STEP 3 CALL VENDOR SERVICE =====
+            log.info("Calling Vendor API");
 
-            Map<String, Object> reqBody = Map.of("mobile", request.getMobile());
+            Map<String, Object> reqBody =
+                    Map.of("mobile", request.getMobile());
+
             requestJson = objectMapper.writeValueAsString(reqBody);
+
+            log.info("Vendor Request JSON : {}", requestJson);
 
             DmtVendorService vendorService =
                     vendorFactory.getVendor(vendor.getVendorName());
 
+            log.info("Vendor Service Loaded : {}", vendor.getVendorName());
+
             RemitterQueryResponse res =
                     vendorService.checkRemitter(request, credentials);
+
+            log.info("Vendor Response Received");
 
             res.setVendor_flow(vendor.getVendorName());
 
             responseJson = objectMapper.writeValueAsString(res);
+
+            log.info("Vendor Response JSON : {}", responseJson);
 
             // ===== SUCCESS VENDOR LOG =====
             commonFunctions.saveVendorLogs(
@@ -775,20 +844,33 @@ public class DmtOrchestrator {
                     null
             );
 
+            log.info("Vendor Log Saved Successfully");
+
             int code = res.getResponse_code();
 
-            // ===== STEP 4 SAME SWITCH LOGIC =====
+            log.info("Vendor Response Code : {}", code);
+            log.info("Vendor Response Message : {}", res.getMessage());
 
+            // ===== STEP 4 SAME SWITCH LOGIC =====
             switch (code) {
 
                 case 1:
+
+                    log.info("Response Code 1 : Remitter Exists");
+
                     saveRemitter(res, vendor);
+
+                    log.info("Remitter Saved/Updated Successfully");
+
                     return CommonResponse.success(
                             res,
-                            "Remitter exists. You can proceed"  //0
+                            "Remitter exists. You can proceed"
                     );
 
                 case 2:
+
+                    log.info("Response Code 2 : EKYC Required");
+
                     return CommonResponse.success(
                             res,
                             "EKYC_REQUIRED"
@@ -796,11 +878,18 @@ public class DmtOrchestrator {
 
                 case 3:
 
-                    // SAVE RNF (IMPORTANT)
-                    saveRemitterForRNF(request.getMobile(), res, vendor);
+                    log.info("Response Code 3 : Remitter Not Found");
 
-                    // RESPONSE BASED ON VENDOR
+                    saveRemitterForRNF(
+                            request.getMobile(),
+                            res,
+                            vendor);
+
+                    log.info("RNF Remitter Saved");
+
                     if ("InstantPay DMT".equalsIgnoreCase(vendor.getVendorName())) {
+
+                        log.info("InstantPay RNF Response");
 
                         return CommonResponse.success(
                                 res,
@@ -809,6 +898,8 @@ public class DmtOrchestrator {
 
                     } else {
 
+                        log.info("Other Vendor RNF Response");
+
                         return CommonResponse.success(
                                 res,
                                 "OTP sent. Please register remitter"
@@ -816,6 +907,9 @@ public class DmtOrchestrator {
                     }
 
                 default:
+
+                    log.warn("Unhandled Response Code : {}", code);
+
                     return CommonResponse.handleErrors(
                             res.getMessage()
                     );
@@ -823,7 +917,8 @@ public class DmtOrchestrator {
 
         } catch (Exception ex) {
 
-            // ===== FAILURE VENDOR LOG =====
+            log.error("Exception Occurred While Checking Remitter", ex);
+
             commonFunctions.saveVendorLogs(
                     requestTime,
                     requestJson,
@@ -833,7 +928,12 @@ public class DmtOrchestrator {
                     ex.getMessage()
             );
 
-            log.error("[CHECK REMITTER] Exception | mobile={}", request.getMobile(), ex);
+            log.error(
+                    "[CHECK REMITTER] Exception | mobile={}",
+                    request.getMobile(),
+                    ex
+            );
+
             throw ex;
         }
     }

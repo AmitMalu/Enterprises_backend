@@ -15,6 +15,7 @@ import com.im.admin.response.PaysprintPennyDropResponse;
 import com.im.admin.response.PaysprintSendOtpResponse;
 import com.im.admin.service.DmtVendorService;
 import com.im.admin.util.InstantpayEncryptionUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 
+@Slf4j
 @Service
 public class InstantPayDmtServiceImpl implements DmtVendorService {
 
@@ -464,131 +466,226 @@ public class InstantPayDmtServiceImpl implements DmtVendorService {
             RemitterQueryRequest request,
             VendorCredentials credentials) throws Exception {
 
-        Retailer retailer = retailerRepository
-                .findById(request.getRetailerId())
-                .orElseThrow(() -> new RuntimeException("Retailer not found"));
+        try {
 
-        // ===== STEP 1 : GET MERCHANT (OUTLET ID) =====
-        AepsInstantPayMerchantStatus merchant =
-                aepsInstantPayMerchantStatusRepository
-                        .findByRetailerId(request.getRetailerId()) // adjust if needed
-                        .orElseThrow(() ->
-                                new RuntimeException("Merchant not onboarded with InstantPay"));
+            log.info("========== INSTANTPAY CHECK REMITTER START ==========");
+            log.info("Retailer Id : {}", request.getRetailerId());
+            log.info("Mobile Number : {}", request.getMobile());
 
-        String outletId = merchant.getOutletId();
+            // ===== STEP 1 : GET RETAILER =====
+            Retailer retailer = retailerRepository
+                    .findById(request.getRetailerId())
+                    .orElseThrow(() -> {
+                        log.error("Retailer not found : {}", request.getRetailerId());
+                        return new RuntimeException("Retailer not found");
+                    });
 
-        // ===== STEP 2 : URL =====
-        String url = credentials.getBaseUrlProd()
-                + "/fi/remit/out/domestic/v2/remitterProfile";
+            log.info("Retailer Found");
+            log.info("Retailer IP : {}", retailer.getCreatedByIPAddress());
 
-        // ===== STEP 3 : HEADERS =====
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+            // ===== STEP 2 : GET MERCHANT =====
+            AepsInstantPayMerchantStatus merchant =
+                    aepsInstantPayMerchantStatusRepository
+                            .findByRetailerId(request.getRetailerId())
+                            .orElseThrow(() -> {
+                                log.error("Merchant not onboarded for Retailer : {}",
+                                        request.getRetailerId());
+                                return new RuntimeException(
+                                        "Merchant not onboarded with InstantPay");
+                            });
 
-        headers.set("X-Ipay-Auth-Code", "1");
-        headers.set("X-Ipay-Client-Id", credentials.getClientId());
-        headers.set("X-Ipay-Client-Secret", credentials.getClientSecret());
-        headers.set("X-Ipay-Outlet-Id", outletId); // IMPORTANT FIX
-        headers.set("X-Ipay-Endpoint-Ip", retailer.getCreatedByIPAddress());
+            log.info("Merchant Found Successfully");
 
-        // ===== STEP 4 : BODY =====
-        Map<String, Object> body = new HashMap<>();
-        body.put("mobileNumber", request.getMobile());
+            String outletId = merchant.getOutletId();
 
-        HttpEntity<Map<String, Object>> entity =
-                new HttpEntity<>(body, headers);
+            log.info("Outlet Id : {}", outletId);
 
-        // ===== STEP 5 : API CALL =====
-        ResponseEntity<Map> response =
-                restTemplate.exchange(
-                        url,
-                        HttpMethod.POST,
-                        entity,
-                        Map.class
+            // ===== STEP 3 : URL =====
+            String url = credentials.getBaseUrlProd()
+                    + "/fi/remit/out/domestic/v2/remitterProfile";
+
+            log.info("InstantPay URL : {}", url);
+
+            // ===== STEP 4 : HEADERS =====
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            headers.set("X-Ipay-Auth-Code", "1");
+            headers.set("X-Ipay-Client-Id", credentials.getClientId());
+            headers.set("X-Ipay-Client-Secret", credentials.getClientSecret());
+            headers.set("X-Ipay-Outlet-Id", outletId);
+            headers.set("X-Ipay-Endpoint-Ip", retailer.getCreatedByIPAddress());
+
+            log.info("Headers Prepared");
+            log.info("Client Id : {}", credentials.getClientId());
+            log.info("Outlet Id : {}", outletId);
+            log.info("Endpoint IP : {}", retailer.getCreatedByIPAddress());
+
+            // ===== STEP 5 : BODY =====
+            Map<String, Object> body = new HashMap<>();
+            body.put("mobileNumber", request.getMobile());
+
+            log.info("Request Body : {}", body);
+
+            HttpEntity<Map<String, Object>> entity =
+                    new HttpEntity<>(body, headers);
+
+            // ===== STEP 6 : API CALL =====
+            log.info("Calling InstantPay Remitter Profile API");
+
+            ResponseEntity<Map> response =
+                    restTemplate.exchange(
+                            url,
+                            HttpMethod.POST,
+                            entity,
+                            Map.class
+                    );
+
+            log.info("HTTP Status : {}", response.getStatusCode());
+
+            Map<String, Object> resp = response.getBody();
+
+            log.info("Raw Vendor Response : {}", resp);
+
+            // ===== STEP 7 : VALIDATION =====
+            if (resp == null || resp.isEmpty()) {
+
+                log.error("Empty response received from InstantPay");
+
+                throw new RuntimeException("Empty response from InstantPay");
+            }
+
+            String statusCode = (String) resp.get("statuscode");
+            String status = (String) resp.get("status");
+
+            log.info("Vendor Status Code : {}", statusCode);
+            log.info("Vendor Status : {}", status);
+
+            RemitterQueryResponse finalRes = new RemitterQueryResponse();
+
+            // ===== STEP 8 : SUCCESS =====
+            if ("TXN".equalsIgnoreCase(statusCode)
+                    && "Success".equalsIgnoreCase(status)) {
+
+                log.info("Remitter Found");
+
+                Map<String, Object> data =
+                        (Map<String, Object>) resp.get("data");
+
+                log.info("Data Object : {}", data);
+
+                if (data == null) {
+
+                    log.error("Vendor returned null data object");
+
+                    throw new RuntimeException("Invalid response: data is null");
+                }
+
+                RemitterQueryResponse.DataObj dataObj =
+                        new RemitterQueryResponse.DataObj();
+
+                dataObj.setMobile((String) data.get("mobileNumber"));
+
+                log.info("Mobile Number : {}",
+                        data.get("mobileNumber"));
+
+                // ===== LIMIT =====
+                Object limit = data.get("limitAvailable");
+
+                if (limit != null) {
+
+                    dataObj.setLimit(Double.valueOf(limit.toString()));
+
+                    log.info("Available Limit : {}", limit);
+
+                } else {
+
+                    dataObj.setLimit(0.0);
+
+                    log.warn("Limit Available not found in response");
+                }
+
+                dataObj.setReferenceKey((String) data.get("referenceKey"));
+
+                log.info("Reference Key : {}",
+                        data.get("referenceKey"));
+
+                finalRes.setStatus(true);
+                finalRes.setResponse_code(1);
+                finalRes.setMessage("Remitter found");
+                finalRes.setData(dataObj);
+
+                log.info("Returning SUCCESS response");
+                log.info("========== INSTANTPAY CHECK REMITTER END ==========");
+
+                return finalRes;
+            }
+
+            // ===== STEP 9 : RNF =====
+            else if ("RNF".equalsIgnoreCase(statusCode)) {
+
+                log.info("Remitter Not Found (RNF)");
+
+                Map<String, Object> data =
+                        (Map<String, Object>) resp.get("data");
+
+                log.info("RNF Data : {}", data);
+
+                String referenceKey = null;
+
+                if (data != null) {
+
+                    referenceKey = (String) data.get("referenceKey");
+
+                    log.info("RNF Reference Key : {}", referenceKey);
+                }
+
+                RemitterQueryResponse.DataObj dataObj =
+                        new RemitterQueryResponse.DataObj();
+
+                dataObj.setReferenceKey(referenceKey);
+
+                finalRes.setStatus(false);
+                finalRes.setResponse_code(3);
+                finalRes.setData(dataObj);
+                finalRes.setMessage("Remitter not found, registration required");
+
+                log.info("Returning RNF Response");
+                log.info("========== INSTANTPAY CHECK REMITTER END ==========");
+
+                return finalRes;
+            }
+
+            // ===== STEP 10 : ERROR =====
+            else {
+
+                log.error("Vendor Error Response");
+                log.error("Status Code : {}", statusCode);
+                log.error("Status : {}", status);
+
+                finalRes.setStatus(false);
+                finalRes.setResponse_code(0);
+                finalRes.setMessage(
+                        status != null
+                                ? status
+                                : "Vendor error occurred"
                 );
 
-        Map<String, Object> resp = response.getBody();
+                log.info("Returning Vendor Error Response");
+                log.info("========== INSTANTPAY CHECK REMITTER END ==========");
 
-        // ===== STEP 6 : VALIDATION =====
-        if (resp == null || resp.isEmpty()) {
-            throw new RuntimeException("Empty response from InstantPay");
-        }
-
-        String statusCode = (String) resp.get("statuscode");
-        String status = (String) resp.get("status");
-
-        RemitterQueryResponse finalRes = new RemitterQueryResponse();
-
-        // ===== STEP 7 : SUCCESS =====
-        if ("TXN".equalsIgnoreCase(statusCode)
-                && "Success".equalsIgnoreCase(status)) {
-
-            Map<String, Object> data =
-                    (Map<String, Object>) resp.get("data");
-
-            if (data == null) {
-                throw new RuntimeException("Invalid response: data is null");
+                return finalRes;
             }
 
-            RemitterQueryResponse.DataObj dataObj =
-                    new RemitterQueryResponse.DataObj();
+        } catch (Exception ex) {
 
-            dataObj.setMobile((String) data.get("mobileNumber"));
-
-            // ===== LIMIT =====
-            Object limit = data.get("limitAvailable");
-            if (limit != null) {
-                dataObj.setLimit(Double.valueOf(limit.toString()));
-            } else {
-                dataObj.setLimit(0.0);
-            }
-
-            dataObj.setReferenceKey((String) data.get("referenceKey"));
-
-            finalRes.setStatus(true);
-            finalRes.setResponse_code(1); // EXISTS
-            finalRes.setMessage("Remitter found");
-            finalRes.setData(dataObj);
-
-            return finalRes;
-        }
-
-        // ===== STEP 8 : REMITTER NOT FOUND =====
-        else if ("RNF".equalsIgnoreCase(statusCode)) {
-
-            Map<String, Object> data =
-                    (Map<String, Object>) resp.get("data");
-
-            String referenceKey = null;
-
-            if (data != null) {
-                referenceKey = (String) data.get("referenceKey");
-            }
-
-            // ===== SET RESPONSE =====
-            RemitterQueryResponse.DataObj dataObj =
-                    new RemitterQueryResponse.DataObj();
-
-            dataObj.setReferenceKey(referenceKey); //  IMPORTANT
-
-            finalRes.setStatus(false);
-            finalRes.setResponse_code(3); // NOT FOUND
-            finalRes.setData(dataObj);
-            finalRes.setMessage("Remitter not found, registration required");
-
-            return finalRes;
-        }
-
-        // ===== STEP 9 : VENDOR ERROR (IMPORTANT FIX) =====
-        else {
-
-            finalRes.setStatus(false);
-            finalRes.setResponse_code(0); // ERROR
-            finalRes.setMessage(
-                    status != null ? status : "Vendor error occurred"
+            log.error(
+                    "[INSTANTPAY CHECK REMITTER] Exception | Mobile={}",
+                    request.getMobile(),
+                    ex
             );
 
-            return finalRes;
+            throw ex;
         }
     }
 
