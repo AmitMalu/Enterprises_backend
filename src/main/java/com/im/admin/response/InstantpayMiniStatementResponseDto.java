@@ -20,7 +20,7 @@ public class InstantpayMiniStatementResponseDto {
     private String internalCode;
 
     @Data
-    public class InstantpayMiniStatementDataDto {
+    public static class InstantpayMiniStatementDataDto {
 
         private String externalRef;
         private String bankName;
@@ -38,16 +38,14 @@ public class InstantpayMiniStatementResponseDto {
         private String bankAccountBalance;
 
         private List<InstantpayMiniTxnDto> miniStatement;
-
     }
 
     @Data
-    public class InstantpayMiniTxnDto {
+    public static class InstantpayMiniTxnDto {
 
         private String date;
         private String txnType;
         private String amount;
         private String narration;
-
     }
 }
