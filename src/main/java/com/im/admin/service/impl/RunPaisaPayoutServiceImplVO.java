@@ -1080,7 +1080,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
         LocalDateTime requestTime = LocalDateTime.now();
         String clientIp = request.getRemoteAddr();
 
-        log.info("---- [PAYOUT CALLBACK] Payload received: {}", payload);
+        log.info("----Runpaisa Old Payout  [PAYOUT CALLBACK] Payload received: {}", payload);
 
         try {
             // Enable case-insensitive conversion just for this operation
@@ -1088,7 +1088,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
 
             // Convert directly to DTO (case-insensitive)
             RunpaisaPayoutCallback payoutCallback = objectMapper.convertValue(payload, RunpaisaPayoutCallback.class);
-            log.info("---- [PAYOUT CALLBACK] Parsed DTO: {}", payoutCallback);
+            log.info("----Runpaisa Old Payout  [PAYOUT CALLBACK] Parsed DTO: {}", payoutCallback);
 
             // Create a unified callback object
             RunPaisaCallback callback = new RunPaisaCallback();
@@ -1101,7 +1101,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
 //            callback.setBankTxnId(payoutCallback.getUtr_no());
             callback.setBankTxnId(payoutCallback.getUtrno());
 
-            log.info("<------------------ Calling Process Callback Method ------------------>");
+            log.info("<------------------Runpaisa Old Payout Calling Process Callback Method ------------------>");
             processCallback(callback);
 
             // Save callback log
@@ -1110,11 +1110,11 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
                     "Payout callback processed successfully", LocalDateTime.now());
 
-            log.info("---- [PAYOUT CALLBACK] Successfully logged callback event");
+            log.info("----Runpaisa Old Payout [PAYOUT CALLBACK] Successfully logged callback event");
             return "Payout callback processed successfully";
 
         } catch (Exception e) {
-            log.error("---- [PAYOUT CALLBACK] Error while processing payout callback: {}", e.getMessage(), e);
+            log.error("----Runpaisa Old Payout [PAYOUT CALLBACK] Error while processing payout callback: {}", e.getMessage(), e);
 //            commonFunctions.saveCallbackEventLog(payload.toString(), requestTime, clientIp,
 //                    e.getMessage(), LocalDateTime.now());
 

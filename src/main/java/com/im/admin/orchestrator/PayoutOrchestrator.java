@@ -281,12 +281,12 @@ public class PayoutOrchestrator {
 
         LocalDateTime receivedAt = LocalDateTime.now();
         String clientIp = request.getRemoteAddr();
-        log.info("[ORCH_CALLBACK] Received callback from vendor={} IP={} Payload={}", vendorCode, clientIp, payload);
+        log.info("Runpaisa Old Payout [ORCH_CALLBACK] Received callback from vendor={} IP={} Payload={}", vendorCode, clientIp, payload);
 
         try {
             Object vendorService = vendorFactory.getVendor(vendorCode);
             if (!(vendorService instanceof PayoutCallbackHandler handler)) {
-                log.error("[ORCH_CALLBACK] No callback handler implemented for vendor={}", vendorCode);
+                log.error("-Runpaisa Old Payout [ORCH_CALLBACK] No callback handler implemented for vendor={}", vendorCode);
                 return "Vendor callback handler not found";
             }
 
@@ -301,11 +301,11 @@ public class PayoutOrchestrator {
                     LocalDateTime.now()
             );
 
-            log.info("[ORCH_CALLBACK] Successfully processed callback for vendor={}", vendorCode);
+            log.info("Runpaisa Old Payout [ORCH_CALLBACK] Successfully processed callback for vendor={}", vendorCode);
             return vendorResponse;
 
         } catch (Exception e) {
-            log.error("[ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
+            log.error("Runpaisa Old Payout [ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorCode, e.getMessage(), e);
 
             commonFunctions.saveCallbackEventLog(
                     payload.toString(),

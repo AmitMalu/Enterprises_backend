@@ -23,7 +23,7 @@ public class PayoutCallbackController {
     @Autowired
     private PayoutOrchestrator payoutOrchestratorV0;
 
-    @PostMapping("/callback")
+    @PostMapping("/callback/")
     public ResponseEntity<String> payoutCallback(@RequestBody Map<String, String> payload,
                                                  HttpServletRequest request) throws JsonProcessingException {
         log.info("<---------------- Received callback request with payload: {} --------------------->", payload);
