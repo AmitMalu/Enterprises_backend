@@ -449,7 +449,6 @@ public class RunpaisaPGServiceImpl {
             headers.set("password", vendorCredentials.getPassword());
             headers.set("client_id", vendorCredentials.getClientId());
 
-
 //            log.info("Headers prepared - username: {}, clientId: {}, password: {}",
 //                    vendorCredentials.getUsername(), vendorCredentials.getClientId(), vendorCredentials.getPassword());
 

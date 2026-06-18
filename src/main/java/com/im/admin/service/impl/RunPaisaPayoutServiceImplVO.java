@@ -282,8 +282,288 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("client_id", creds.getClientId());
-        headers.set("token", generateTokenForPayout(creds));
+        headers.set("token", generateTokenForVendor(creds));
         return headers;
+    }
+
+    private String generateTokenForVendor(VendorCredentials vendorCredentials) {
+        log.info("=== START generateTokenForVendor ===");
+        log.info("Generating token for vendor clientId: {}",
+                maskSensitiveData(vendorCredentials.getClientId()));
+
+        long startTime = System.currentTimeMillis();
+        String requestBody = null;
+        String responseBody = null;
+        String tokenUrl = null;
+        int statusCode = 0;
+        LocalDateTime requestTime = LocalDateTime.now();
+        LocalDateTime responseTime = null;
+
+        try {
+            // Prepare headers
+            log.debug("Preparing request headers for token generation");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("username", vendorCredentials.getUsername());
+            headers.set("password", vendorCredentials.getPassword());
+            headers.set("client_id", vendorCredentials.getClientId());
+
+//            log.info("Headers prepared - username: {}, clientId: {}, password: {}",
+//                    vendorCredentials.getUsername(), vendorCredentials.getClientId(), vendorCredentials.getPassword());
+
+            // Mask sensitive data in logs
+            log.debug("Headers prepared - username: {}, clientId: {}, password: [PROTECTED]",
+                    vendorCredentials.getUsername(),
+                    maskSensitiveData(vendorCredentials.getClientId()));
+
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+
+            // Build request log (without sensitive data)
+            requestBody = String.format("URL: %s | Headers: username=%s, client_id=%s, password=[PROTECTED]",
+                    vendorCredentials.getTokenUrlProd(),
+                    vendorCredentials.getUsername(),
+                    maskSensitiveData(vendorCredentials.getClientId()));
+
+            tokenUrl = vendorCredentials.getTokenUrlProd();
+            log.info("Calling token generation endpoint: {}", tokenUrl);
+
+            // Make API call
+            log.debug("Sending token generation request...");
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    tokenUrl,
+                    requestEntity,
+                    Map.class
+            );
+
+            long endTime = System.currentTimeMillis();
+            statusCode = response.getStatusCodeValue();
+            responseTime = LocalDateTime.now();
+
+            log.info("Token generation API call completed - Status Code: {}, Time taken: {}ms",
+                    statusCode, (endTime - startTime));
+
+            // Get response body
+            Map responseBodyMap = response.getBody();
+            responseBody = responseBodyMap != null ? responseBodyMap.toString() : null;
+
+            // ===== SAVE VENDOR LOGS IMMEDIATELY =====
+            commonFunctions.saveVendorLogs(
+                    requestTime,                                // Request DateTime
+                    requestBody,                                // Request (headers)
+                    String.valueOf(vendorCredentials.getId()),  // Vendor ID
+                    responseTime,                               // Response DateTime
+                    responseBody,                               // Response
+                    null                                        // Request IP (optional)
+            );
+            log.info("Vendor logs saved for token generation request");
+
+            // Validate response
+            if (responseBodyMap == null) {
+                log.error("Token generation response body is null for clientId: {}",
+                        maskSensitiveData(vendorCredentials.getClientId()));
+
+                String errorMsg = "Token generation failed: Response body is null";
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody,
+                        String.valueOf(vendorCredentials.getId()),
+                        responseTime,
+                        "ERROR: " + errorMsg,
+                        null
+                );
+
+                throw new RuntimeException(errorMsg);
+            }
+
+            log.info("Response body received: {}", responseBodyMap);
+
+            // ===== CHECK FOR STATUS FIELD (Handle both success and failure) =====
+            String status = responseBodyMap.containsKey("status") ?
+                    responseBodyMap.get("status").toString() : null;
+
+            String message = responseBodyMap.containsKey("message") ?
+                    responseBodyMap.get("message").toString() : "Unknown error";
+
+            String code = responseBodyMap.containsKey("code") ?
+                    responseBodyMap.get("code").toString() : "Unknown";
+
+            // Check if response is FAIL
+            if ("FAIL".equalsIgnoreCase(status)) {
+                log.error("Token generation failed with status: {}, Message: {}, Code: {}",
+                        status, message, code);
+
+                // Handle vendor error with helper method
+                handleVendorError(responseBodyMap, vendorCredentials.getClientId());
+            }
+
+            // ===== CHECK FOR SUCCESS RESPONSE =====
+            // For success, check if status is SUCCESS (optional check)
+            if (status != null && !"SUCCESS".equalsIgnoreCase(status)) {
+                log.warn("Unexpected status value: {}, continuing...", status);
+            }
+
+            // Check for 'data' field
+            if (!responseBodyMap.containsKey("data")) {
+                log.error("Response missing 'data' field for clientId: {}. Response: {}",
+                        maskSensitiveData(vendorCredentials.getClientId()),
+                        responseBodyMap);
+
+                // Check if there's a message in the response
+                String errorMsg = responseBodyMap.containsKey("message") ?
+                        "Token generation failed: " + responseBodyMap.get("message") :
+                        "Token generation failed: 'data' field missing in response";
+
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody,
+                        String.valueOf(vendorCredentials.getId()),
+                        responseTime,
+                        "ERROR: " + errorMsg + " - Response: " + responseBody,
+                        null
+                );
+
+                throw new RuntimeException(errorMsg);
+            }
+
+            // Extract token from data
+            @SuppressWarnings("unchecked")
+            Map<String, Object> dataMap = (Map<String, Object>) responseBodyMap.get("data");
+
+            if (dataMap == null) {
+                log.error("'data' field is null for clientId: {}",
+                        maskSensitiveData(vendorCredentials.getClientId()));
+
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody,
+                        String.valueOf(vendorCredentials.getId()),
+                        responseTime,
+                        "ERROR: 'data' field is null - Response: " + responseBody,
+                        null
+                );
+
+                throw new RuntimeException("Token generation failed: 'data' field is null");
+            }
+
+            if (!dataMap.containsKey("token")) {
+                log.error("Response missing 'token' field in data for clientId: {}. Data: {}",
+                        maskSensitiveData(vendorCredentials.getClientId()),
+                        dataMap);
+
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody,
+                        String.valueOf(vendorCredentials.getId()),
+                        responseTime,
+                        "ERROR: 'token' field missing in data - Data: " + dataMap,
+                        null
+                );
+
+                throw new RuntimeException("Token generation failed: 'token' field missing in response data");
+            }
+
+            String token = (String) dataMap.get("token");
+
+            if (token == null || token.isEmpty()) {
+                log.error("Generated token is null or empty for clientId: {}",
+                        maskSensitiveData(vendorCredentials.getClientId()));
+
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody,
+                        String.valueOf(vendorCredentials.getId()),
+                        responseTime,
+                        "ERROR: Generated token is null or empty - Data: " + dataMap,
+                        null
+                );
+
+                throw new RuntimeException("Token generation failed: Generated token is null or empty");
+            }
+
+            // Log success with token expiry if available
+            String expiry = dataMap.containsKey("expiry") ?
+                    "Expiry: " + dataMap.get("expiry") + " seconds" : "No expiry info";
+
+            log.info("Token generated successfully for clientId: {}, Token: {}, {}",
+                    maskSensitiveData(vendorCredentials.getClientId()),
+                    token.length() > 10 ? token.substring(0, 10) + "..." : token,
+                    expiry);
+
+            log.info("=== END generateTokenForVendor - Success ===");
+            return token;
+
+        } catch (Exception e) {
+            log.error("=== ERROR in generateTokenForVendor for clientId: {} ===",
+                    maskSensitiveData(vendorCredentials.getClientId()), e);
+            log.error("Error details: {}", e.getMessage());
+
+            // Log cause if available
+            if (e.getCause() != null) {
+                log.error("Cause: {}", e.getCause().getMessage());
+            }
+
+            // ===== SAVE ERROR LOGS WITH FULL CONTEXT =====
+            String errorResponse = String.format(
+                    "ERROR: %s | StatusCode: %d | Response: %s",
+                    e.getMessage(),
+                    statusCode,
+                    responseBody != null ? responseBody : "No response"
+            );
+
+            try {
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody != null ? requestBody : "Request failed to build",
+                        String.valueOf(vendorCredentials.getId()),
+                        LocalDateTime.now(),
+                        errorResponse,
+                        null
+                );
+                log.info("Error logs saved for token generation failure");
+            } catch (Exception logEx) {
+                log.error("Failed to save error logs: {}", logEx.getMessage());
+            }
+
+            // Rethrow with meaningful message
+            throw new RuntimeException("Token generation failed: " + e.getMessage(), e);
+        } finally {
+            log.info("=== END generateTokenForVendor ===");
+        }
+    }
+
+    /**
+     * Handles vendor error responses and throws appropriate exceptions
+     */
+    private void handleVendorError(Map<String, Object> responseBodyMap, String clientId) {
+        String status = responseBodyMap.containsKey("status") ?
+                responseBodyMap.get("status").toString() : null;
+        String message = responseBodyMap.containsKey("message") ?
+                responseBodyMap.get("message").toString() : "Unknown error";
+        String code = responseBodyMap.containsKey("code") ?
+                responseBodyMap.get("code").toString() : "Unknown";
+
+        // Specific error handling based on error codes
+        if ("RP002".equals(code)) {
+            log.error("IP Address not whitelisted for clientId: {}", maskSensitiveData(clientId));
+            throw new RuntimeException("IP Address not whitelisted. Please contact support.");
+        } else if ("RP004".equals(code)) {
+            log.error("Authentication failed for clientId: {}", maskSensitiveData(clientId));
+            throw new RuntimeException("Authentication failed. Invalid credentials.");
+        } else if ("RP001".equals(code)) {
+            log.error("Invalid request for clientId: {}", maskSensitiveData(clientId));
+            throw new RuntimeException("Invalid request. Please check the parameters.");
+        }
+
+        // Generic error
+        throw new RuntimeException(String.format("Token generation failed: %s (Code: %s)", message, code));
+    }
+    /**
+     * Utility method to mask sensitive data for logging
+     */
+    private String maskSensitiveData(String data) {
+        if (data == null) return "null";
+        if (data.length() <= 4) return "****";
+        return data.substring(0, 2) + "****" + data.substring(data.length() - 2);
     }
 
     /* =====================================================
