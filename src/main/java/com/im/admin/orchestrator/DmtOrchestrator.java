@@ -956,6 +956,8 @@ public class DmtOrchestrator {
                 rem.setReferenceKey(res.getData().getReferenceKey());
             }
 
+            rem.setVendor(vendor);
+
             remitterRepository.save(rem);
             return;
         }
@@ -965,6 +967,9 @@ public class DmtOrchestrator {
         en.setMobile(mobile);
         en.setStatus("REGISTERED");
         en.setCreatedAt(LocalDateTime.now());
+
+        en.setVendor(vendor);
+
 
         // keep global limit if needed (optional)
         en.setLimitAmount(res.getData().getLimit());
@@ -1009,6 +1014,8 @@ public class DmtOrchestrator {
                 rem.setReferenceKey(referenceKey);
             }
 
+            rem.setVendor(vendor);
+
             rem.setStatus("NOT_REGISTERED");
             rem.setUpdatedAt(LocalDateTime.now());
 
@@ -1022,6 +1029,8 @@ public class DmtOrchestrator {
         en.setMobile(mobile);
         en.setStatus("NOT_REGISTERED");
         en.setCreatedAt(LocalDateTime.now());
+
+        en.setVendor(vendor);
 
         if (referenceKey != null) {
             en.setReferenceKey(referenceKey);
