@@ -280,7 +280,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
 
     private HttpHeaders buildPayoutHeaders(VendorCredentials creds) throws JsonProcessingException {
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
         headers.set("client_id", creds.getClientId());
         headers.set("token", generateTokenForVendor(creds));
         return headers;
@@ -578,7 +578,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("beneficiaryName", req.getBeneficiaryName());
         body.add("orderId", orderId);
-        body.add("amount", req.getAmount());
+        body.add("amount", String.valueOf(req.getAmount()));
         body.add("beneficiaryAccountNumber", req.getAccountNumber());
         body.add("beneficiaryIfscCode", req.getIfscCode());
         body.add("paymentMode", req.getPaymentMode());

@@ -38,7 +38,7 @@ public class SecurityConfig {
             "/auth/verify-forgot-mpin-otp", "/api/tenant/config",
             "/auth/register", "/api/aes/generate-token", "/api/aes/validate-token", "/api/pg/generate-token",
             "/api/pg/callback/runpaisa", "/api/pg/callback/nixasoft", "/api/pg/callback/slpe", "/api/pg/callback/unisus",
-            "/api/payout/callback", "/auth/forget-verify-otp", "/api/aes/encrypt-credentials",
+            "/api/payout/callback", "/api/payout/callback/runpaisa", "/auth/forget-verify-otp", "/api/aes/encrypt-credentials",
             "/api/aes/decrypt-credentials", "/api/pg/callback/razorpay", "/api/pg/callback/cashfree",
             "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui", "/swagger-ui/**", "/swagger-ui.html",  "/enterprises/images/**",
             "/api/vidual-pay/encrypt", "/api/vidual-pay/decrypt", "/api/vidual-pay/authorize");
