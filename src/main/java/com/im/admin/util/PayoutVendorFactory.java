@@ -18,27 +18,55 @@ public class PayoutVendorFactory {
         vendors.forEach(v -> vendorMap.put(v.getVendorName().toLowerCase(), v));
     }
 
+//    public PayoutVendorService getVendor(String vendorName) {
+//        if (vendorName == null || vendorName.trim().isEmpty()) {
+//            return null;
+//        }
+//
+//        String normalizedCode = vendorName.trim().toLowerCase();
+//
+//        // Exact match (case-insensitive)
+//        if (vendorMap.containsKey(normalizedCode)) {
+//            return vendorMap.get(normalizedCode);
+//        }
+//
+//        // Partial match
+//        for (Map.Entry<String, PayoutVendorService> entry : vendorMap.entrySet()) {
+////            if (entry.getKey().contains(normalizedCode)) {
+////                return entry.getValue();
+////            }
+//            if (normalizedCode.contains(entry.getKey())) {
+//                return entry.getValue();
+//            }
+//
+//        }
+//
+//        return null;
+//    }
+
     public PayoutVendorService getVendor(String vendorName) {
+
         if (vendorName == null || vendorName.trim().isEmpty()) {
             return null;
         }
 
-        String normalizedCode = vendorName.trim().toLowerCase();
+        String normalized = vendorName.trim().toLowerCase();
 
-        // Exact match (case-insensitive)
-        if (vendorMap.containsKey(normalizedCode)) {
-            return vendorMap.get(normalizedCode);
+        // 1. Exact match first
+        PayoutVendorService exact = vendorMap.get(normalized);
+
+        if (exact != null) {
+            return exact;
         }
 
-        // Partial match
+        // 2. Prefix match (for multiple MIDs)
         for (Map.Entry<String, PayoutVendorService> entry : vendorMap.entrySet()) {
-//            if (entry.getKey().contains(normalizedCode)) {
-//                return entry.getValue();
-//            }
-            if (normalizedCode.contains(entry.getKey())) {
+
+            String serviceKey = entry.getKey();
+
+            if (normalized.startsWith(serviceKey)) {
                 return entry.getValue();
             }
-
         }
 
         return null;
