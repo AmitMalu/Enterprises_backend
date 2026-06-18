@@ -231,7 +231,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         requestBody.put("mobileNumber", req.getMobileNo());
         requestBody.put("emailId", retailer.getEmailId());
         requestBody.put("amount", req.getAmount());
-        requestBody.put("redirectUrl", "https://uat.nfttech.in/enterprise-portal/products/pgScreen");
+        requestBody.put("redirectUrl", "https://portal.nfttech.in/enterprise/products/pgScreen");
         requestBody.put("requestId", orderId);
 
         HttpHeaders headers = new HttpHeaders();

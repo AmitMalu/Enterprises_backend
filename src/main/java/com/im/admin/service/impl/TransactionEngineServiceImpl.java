@@ -856,8 +856,15 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         if (commission.compareTo(BigDecimal.ZERO) <= 0) return;
 
+//        if (isFinalAdmin(type, hierarchyId)) {
+//            creditHierarchy(type, hierarchyId, commission, walletType, tdsRate, baseTxnId, tranStatus, request);
+//            return;
+//        }
+
+        // Admin commission will be handled separately.
         if (isFinalAdmin(type, hierarchyId)) {
-            creditHierarchy("AD", hierarchyId, commission, walletType, tdsRate, baseTxnId, tranStatus, request);
+            log.info("[COMMISSION] Final Admin reached in parent traversal | Hierarchy={}",
+                    hierarchyId);
             return;
         }
 
