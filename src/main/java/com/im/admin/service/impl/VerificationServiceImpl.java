@@ -545,6 +545,18 @@ public class VerificationServiceImpl implements VerificationService {
 
             // 2. Vendor Routing
             VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(subProduct.getId());
+
+            if (vendorRouting == null) {
+                log.warn("No vendor routing configured | subProductId={}", subProduct.getId());
+
+                return ResponseEntity.ok(
+                        CommonResponse.error(
+                                200,
+                                "Vendor routing is not configured for this service. Please contact admin."
+                        )
+                );
+            }
+
             Vendors vendor = getVendors(vendorRouting);
             vendorId = vendor.getId();
 
@@ -552,6 +564,17 @@ public class VerificationServiceImpl implements VerificationService {
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("No credentials found for selected vendor"));
+
+            if (credentials == null) {
+                log.warn("No vendor routing configured | subProductId={}", subProduct.getId());
+
+                return ResponseEntity.ok(
+                        CommonResponse.error(
+                                200,
+                                "Vendor routing is not configured for this service. Please contact admin."
+                        )
+                );
+            }
 
             String schemeCode;
 

@@ -126,7 +126,7 @@ public class RunpaisaPGServiceImpl {
 
         HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
 
-        String url = "https://dev.api.runpaisa.com/token";
+        String url = "https://api.runpaisa.com/token";
         log.info("Sending token request to URL: {}", url);
 
         ResponseEntity<PgTokenResponseDTO> response = restTemplate.postForEntity(
@@ -155,7 +155,10 @@ public class RunpaisaPGServiceImpl {
         log.info("Generated Order ID: {}", orderId);
 
         LocalDateTime imRequestTime = LocalDateTime.now();
+        LocalDateTime vendorRequestTime = LocalDateTime.now();
         String imResponseBody = null;
+        String vendorRequestLog = null;
+        String vendorResponseLog = null;
 
         try {
             // ====== Vendor Routing & Credentials ======
@@ -241,29 +244,41 @@ public class RunpaisaPGServiceImpl {
 
                 HttpEntity<CreateOrderRequest> requestEntity = new HttpEntity<>(jsonBody, headers);
 
+                // Build vendor request log
+                vendorRequestLog = String.format(
+                        "AES Order Request | URL: %s/create-order | Headers: client_id=%s, token=[PROTECTED] | Body: %s",
+                        credentials.getBaseUrlUat(),
+                        credentials.getClientId(),
+                        jsonBody.toString()
+                );
+
                 String url = credentials.getBaseUrlUat() + "/create-order";
                 log.info("AES Order URL: {}", url);
                 log.info("Sending AES create order request...");
+                vendorRequestTime = LocalDateTime.now();
 
                 long startTime = System.currentTimeMillis();
                 ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
                 long endTime = System.currentTimeMillis();
 
                 imResponseBody = response.getBody();
+                vendorResponseLog = imResponseBody;
+
                 log.info("AES response received - Status: {}, Time taken: {}ms",
                         response.getStatusCode(), (endTime - startTime));
                 log.debug("AES Response Body: {}", imResponseBody != null ? imResponseBody : "NULL");
 
+                // ===== SAVE AES VENDOR LOGS =====
                 log.debug("Saving AES vendor logs...");
                 commonFunctions.saveVendorLogs(
-                        LocalDateTime.now(),
-                        "AES order request",
-                        vendor.getId(),
-                        LocalDateTime.now(),
-                        imResponseBody,
-                        null
+                        vendorRequestTime,                  // Request DateTime
+                        vendorRequestLog,                   // Complete Request Details
+                        String.valueOf(vendor.getId()),     // Vendor ID
+                        LocalDateTime.now(),                // Response DateTime
+                        vendorResponseLog,                  // Response
+                        null                                // Request IP
                 );
-                log.info("AES vendor logs saved");
+                log.info("AES vendor logs saved with orderId: {}", orderId);
 
                 log.info("=== AES Flow Completed Successfully for orderId: {} ===", orderId);
                 return ResponseEntity.status(response.getStatusCode())
@@ -276,9 +291,9 @@ public class RunpaisaPGServiceImpl {
                 log.info("=== Starting Legacy Vendor Flow for orderId: {} ===", orderId);
                 log.info("Vendor type: {}", credentials.getTokenType());
 
-                log.debug("Generating token for vendor: {}", credentials.getClientId());
+                log.info("Generating token for vendor: {}", credentials.getClientId());
                 String token = generateTokenForVendor(credentials);
-                log.debug("Vendor token generated successfully");
+                log.info("Vendor token generated successfully");
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.MULTIPART_FORM_DATA);
@@ -294,19 +309,34 @@ public class RunpaisaPGServiceImpl {
                     body.add("merc_unq_ref", req.getMerchantRef());
                     log.debug("Merchant reference added: {}", req.getMerchantRef());
                 }
-                log.debug("Vendor request body prepared - OrderId: {}, Amount: {}, CallbackUrl: {}",
+                log.info("Vendor request body prepared - OrderId: {}, Amount: {}, CallbackUrl: {}",
                         orderId, req.getAmount(), credentials.getCallbackUrl());
 
                 HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+                // Build vendor request log
+                vendorRequestLog = String.format(
+                        "Legacy Vendor Order Request | URL: %s/order | Headers: client_id=%s, token=[PROTECTED] | Body: callbackurl=%s, order_id=%s, amount=%s%s",
+                        credentials.getBaseUrlProd(),
+                        credentials.getClientId(),
+                        credentials.getCallbackUrl(),
+                        orderId,
+                        req.getAmount(),
+                        req.getMerchantRef() != null ? ", merc_unq_ref=" + req.getMerchantRef() : ""
+                );
+
                 String url = credentials.getBaseUrlProd() + "/order";
                 log.info("Legacy Vendor Order URL: {}", url);
                 log.info("Sending legacy vendor create order request...");
+                vendorRequestTime = LocalDateTime.now();
 
                 long startTime = System.currentTimeMillis();
                 ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
                 long endTime = System.currentTimeMillis();
 
                 imResponseBody = response.getBody();
+                vendorResponseLog = imResponseBody;
+
                 log.info("Legacy vendor response received - Status: {}, Time taken: {}ms",
                         response.getStatusCode(), (endTime - startTime));
                 log.debug("Legacy Vendor Response Body: {}", imResponseBody != null ? imResponseBody : "NULL");
@@ -316,16 +346,17 @@ public class RunpaisaPGServiceImpl {
                 pgTransactionMappingRepository.save(txnMap);
                 log.info("Transaction status updated to REQUEST_SENT");
 
+                // ===== SAVE LEGACY VENDOR LOGS =====
                 log.debug("Saving legacy vendor logs...");
                 commonFunctions.saveVendorLogs(
-                        LocalDateTime.now(),
-                        "Runpaisa PG ->" + requestEntity.toString(),
-                        vendor.getId(),
-                        LocalDateTime.now(),
-                        imResponseBody,
-                        null
+                        vendorRequestTime,                  // Request DateTime
+                        vendorRequestLog,                   // Complete Request Details
+                        String.valueOf(vendor.getId()),     // Vendor ID
+                        LocalDateTime.now(),                // Response DateTime
+                        vendorResponseLog,                  // Response
+                        null                                // Request IP
                 );
-                log.info("Legacy vendor logs saved");
+                log.info("Legacy vendor logs saved with orderId: {}", orderId);
 
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode json = mapper.readTree(imResponseBody);
@@ -351,6 +382,29 @@ public class RunpaisaPGServiceImpl {
 
             imResponseBody = "Order creation failed: " + e.getMessage();
             log.error("Error response body: {}", imResponseBody);
+
+            // ===== SAVE ERROR VENDOR LOGS =====
+            try {
+                String errorVendorRequestLog = vendorRequestLog != null ? vendorRequestLog : "Request failed to build";
+                String errorVendorResponseLog = String.format(
+                        "ERROR: %s | OrderId: %s | Request: %s",
+                        e.getMessage(),
+                        orderId,
+                        req.toString()
+                );
+
+                commonFunctions.saveVendorLogs(
+                        vendorRequestTime != null ? vendorRequestTime : LocalDateTime.now(),
+                        errorVendorRequestLog,
+                        "ERROR",  // Vendor ID not available in error case
+                        LocalDateTime.now(),
+                        errorVendorResponseLog,
+                        null
+                );
+                log.info("Error vendor logs saved for orderId: {}", orderId);
+            } catch (Exception logEx) {
+                log.error("Failed to save error vendor logs: {}", logEx.getMessage());
+            }
 
             // Save logs for failure
             log.debug("Saving error IM logs...");
@@ -379,6 +433,12 @@ public class RunpaisaPGServiceImpl {
                 maskSensitiveData(vendorCredentials.getClientId()));
 
         long startTime = System.currentTimeMillis();
+        String requestBody = null;
+        String responseBody = null;
+        String tokenUrl = null;
+        int statusCode = 0;
+        LocalDateTime requestTime = LocalDateTime.now();
+        LocalDateTime responseTime = null;
 
         try {
             // Prepare headers
@@ -389,6 +449,10 @@ public class RunpaisaPGServiceImpl {
             headers.set("password", vendorCredentials.getPassword());
             headers.set("client_id", vendorCredentials.getClientId());
 
+
+//            log.info("Headers prepared - username: {}, clientId: {}, password: {}",
+//                    vendorCredentials.getUsername(), vendorCredentials.getClientId(), vendorCredentials.getPassword());
+
             // Mask sensitive data in logs
             log.debug("Headers prepared - username: {}, clientId: {}, password: [PROTECTED]",
                     vendorCredentials.getUsername(),
@@ -396,7 +460,13 @@ public class RunpaisaPGServiceImpl {
 
             HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
-            String tokenUrl = vendorCredentials.getTokenUrlProd();
+            // Build request log (without sensitive data)
+            requestBody = String.format("URL: %s | Headers: username=%s, client_id=%s, password=[PROTECTED]",
+                    vendorCredentials.getTokenUrlProd(),
+                    vendorCredentials.getUsername(),
+                    maskSensitiveData(vendorCredentials.getClientId()));
+
+            tokenUrl = vendorCredentials.getTokenUrlProd();
             log.info("Calling token generation endpoint: {}", tokenUrl);
 
             // Make API call
@@ -408,42 +478,130 @@ public class RunpaisaPGServiceImpl {
             );
 
             long endTime = System.currentTimeMillis();
+            statusCode = response.getStatusCodeValue();
+            responseTime = LocalDateTime.now();
+
             log.info("Token generation API call completed - Status Code: {}, Time taken: {}ms",
-                    response.getStatusCodeValue(), (endTime - startTime));
+                    statusCode, (endTime - startTime));
+
+            // Get response body
+            Map responseBodyMap = response.getBody();
+            responseBody = responseBodyMap != null ? responseBodyMap.toString() : null;
+
+            // ===== SAVE VENDOR LOGS IMMEDIATELY =====
+            commonFunctions.saveVendorLogs(
+                    requestTime,                                // Request DateTime
+                    requestBody,                                // Request (headers)
+                    String.valueOf(vendorCredentials.getId()),  // Vendor ID
+                    responseTime,                               // Response DateTime
+                    responseBody,                               // Response
+                    null                                        // Request IP (optional)
+            );
+            log.info("Vendor logs saved for token generation request");
 
             // Validate response
-            Map responseBodyMap = response.getBody();
             if (responseBodyMap == null) {
                 log.error("Token generation response body is null for clientId: {}",
                         maskSensitiveData(vendorCredentials.getClientId()));
-                throw new RuntimeException("Old vendor token generation failed: Response body is null");
+
+                String errorMsg = "Token generation failed: Response body is null";
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody,
+                        String.valueOf(vendorCredentials.getId()),
+                        responseTime,
+                        "ERROR: " + errorMsg,
+                        null
+                );
+
+                throw new RuntimeException(errorMsg);
             }
 
-            log.debug("Response body received: {}", responseBodyMap);
+            log.info("Response body received: {}", responseBodyMap);
 
-            // Check for response structure
+            // ===== CHECK FOR STATUS FIELD (Handle both success and failure) =====
+            String status = responseBodyMap.containsKey("status") ?
+                    responseBodyMap.get("status").toString() : null;
+
+            String message = responseBodyMap.containsKey("message") ?
+                    responseBodyMap.get("message").toString() : "Unknown error";
+
+            String code = responseBodyMap.containsKey("code") ?
+                    responseBodyMap.get("code").toString() : "Unknown";
+
+            // Check if response is FAIL
+            if ("FAIL".equalsIgnoreCase(status)) {
+                log.error("Token generation failed with status: {}, Message: {}, Code: {}",
+                        status, message, code);
+
+                // Handle vendor error with helper method
+                handleVendorError(responseBodyMap, vendorCredentials.getClientId());
+            }
+
+            // ===== CHECK FOR SUCCESS RESPONSE =====
+            // For success, check if status is SUCCESS (optional check)
+            if (status != null && !"SUCCESS".equalsIgnoreCase(status)) {
+                log.warn("Unexpected status value: {}, continuing...", status);
+            }
+
+            // Check for 'data' field
             if (!responseBodyMap.containsKey("data")) {
                 log.error("Response missing 'data' field for clientId: {}. Response: {}",
                         maskSensitiveData(vendorCredentials.getClientId()),
                         responseBodyMap);
-                throw new RuntimeException("Old vendor token generation failed: 'data' field missing in response");
+
+                // Check if there's a message in the response
+                String errorMsg = responseBodyMap.containsKey("message") ?
+                        "Token generation failed: " + responseBodyMap.get("message") :
+                        "Token generation failed: 'data' field missing in response";
+
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody,
+                        String.valueOf(vendorCredentials.getId()),
+                        responseTime,
+                        "ERROR: " + errorMsg + " - Response: " + responseBody,
+                        null
+                );
+
+                throw new RuntimeException(errorMsg);
             }
 
-            // Extract token
+            // Extract token from data
             @SuppressWarnings("unchecked")
             Map<String, Object> dataMap = (Map<String, Object>) responseBodyMap.get("data");
 
             if (dataMap == null) {
                 log.error("'data' field is null for clientId: {}",
                         maskSensitiveData(vendorCredentials.getClientId()));
-                throw new RuntimeException("Old vendor token generation failed: 'data' field is null");
+
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody,
+                        String.valueOf(vendorCredentials.getId()),
+                        responseTime,
+                        "ERROR: 'data' field is null - Response: " + responseBody,
+                        null
+                );
+
+                throw new RuntimeException("Token generation failed: 'data' field is null");
             }
 
             if (!dataMap.containsKey("token")) {
                 log.error("Response missing 'token' field in data for clientId: {}. Data: {}",
                         maskSensitiveData(vendorCredentials.getClientId()),
                         dataMap);
-                throw new RuntimeException("Old vendor token generation failed: 'token' field missing in data");
+
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody,
+                        String.valueOf(vendorCredentials.getId()),
+                        responseTime,
+                        "ERROR: 'token' field missing in data - Data: " + dataMap,
+                        null
+                );
+
+                throw new RuntimeException("Token generation failed: 'token' field missing in response data");
             }
 
             String token = (String) dataMap.get("token");
@@ -451,13 +609,27 @@ public class RunpaisaPGServiceImpl {
             if (token == null || token.isEmpty()) {
                 log.error("Generated token is null or empty for clientId: {}",
                         maskSensitiveData(vendorCredentials.getClientId()));
-                throw new RuntimeException("Old vendor token generation failed: Generated token is null or empty");
+
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody,
+                        String.valueOf(vendorCredentials.getId()),
+                        responseTime,
+                        "ERROR: Generated token is null or empty - Data: " + dataMap,
+                        null
+                );
+
+                throw new RuntimeException("Token generation failed: Generated token is null or empty");
             }
 
-            // Log partial token for reference (first 10 chars)
-            log.info("Token generated successfully for clientId: {}, Token: {}",
+            // Log success with token expiry if available
+            String expiry = dataMap.containsKey("expiry") ?
+                    "Expiry: " + dataMap.get("expiry") + " seconds" : "No expiry info";
+
+            log.info("Token generated successfully for clientId: {}, Token: {}, {}",
                     maskSensitiveData(vendorCredentials.getClientId()),
-                    token.length() > 10 ? token.substring(0, 10) + "..." : token);
+                    token.length() > 10 ? token.substring(0, 10) + "..." : token,
+                    expiry);
 
             log.info("=== END generateTokenForVendor - Success ===");
             return token;
@@ -472,13 +644,61 @@ public class RunpaisaPGServiceImpl {
                 log.error("Cause: {}", e.getCause().getMessage());
             }
 
+            // ===== SAVE ERROR LOGS WITH FULL CONTEXT =====
+            String errorResponse = String.format(
+                    "ERROR: %s | StatusCode: %d | Response: %s",
+                    e.getMessage(),
+                    statusCode,
+                    responseBody != null ? responseBody : "No response"
+            );
+
+            try {
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        requestBody != null ? requestBody : "Request failed to build",
+                        String.valueOf(vendorCredentials.getId()),
+                        LocalDateTime.now(),
+                        errorResponse,
+                        null
+                );
+                log.info("Error logs saved for token generation failure");
+            } catch (Exception logEx) {
+                log.error("Failed to save error logs: {}", logEx.getMessage());
+            }
+
             // Rethrow with meaningful message
-            throw new RuntimeException("Old vendor token generation failed: " + e.getMessage(), e);
+            throw new RuntimeException("Token generation failed: " + e.getMessage(), e);
         } finally {
             log.info("=== END generateTokenForVendor ===");
         }
     }
 
+    /**
+     * Handles vendor error responses and throws appropriate exceptions
+     */
+    private void handleVendorError(Map<String, Object> responseBodyMap, String clientId) {
+        String status = responseBodyMap.containsKey("status") ?
+                responseBodyMap.get("status").toString() : null;
+        String message = responseBodyMap.containsKey("message") ?
+                responseBodyMap.get("message").toString() : "Unknown error";
+        String code = responseBodyMap.containsKey("code") ?
+                responseBodyMap.get("code").toString() : "Unknown";
+
+        // Specific error handling based on error codes
+        if ("RP002".equals(code)) {
+            log.error("IP Address not whitelisted for clientId: {}", maskSensitiveData(clientId));
+            throw new RuntimeException("IP Address not whitelisted. Please contact support.");
+        } else if ("RP004".equals(code)) {
+            log.error("Authentication failed for clientId: {}", maskSensitiveData(clientId));
+            throw new RuntimeException("Authentication failed. Invalid credentials.");
+        } else if ("RP001".equals(code)) {
+            log.error("Invalid request for clientId: {}", maskSensitiveData(clientId));
+            throw new RuntimeException("Invalid request. Please check the parameters.");
+        }
+
+        // Generic error
+        throw new RuntimeException(String.format("Token generation failed: %s (Code: %s)", message, code));
+    }
     /**
      * Utility method to mask sensitive data for logging
      */
