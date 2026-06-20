@@ -56,7 +56,7 @@ public class RazorPayInitiator implements PaymentGatewayInitiator {
 
     @Override
     public String getVendorName() {
-        return "RazorPay Payment Gateway";
+        return "Razorpay Payment Gateway";
     }
 
     @Override

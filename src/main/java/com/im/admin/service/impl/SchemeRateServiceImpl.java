@@ -172,7 +172,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         SlabRateDto dto = new SlabRateDto();
         dto.setId(null);
         dto.setRateType(RateType.FLAT);
-        dto.setSlabType(SlabType.FIXED);
+        dto.setSlabType(SlabType.VARIABLE);
         dto.setFixedSlabValue(0.0);
         dto.setSlabStart(0.0);
         dto.setSlabEnd(0.0);

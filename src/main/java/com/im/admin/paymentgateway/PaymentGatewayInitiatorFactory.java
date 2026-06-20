@@ -48,34 +48,49 @@ public class PaymentGatewayInitiatorFactory {
                 initiatorMap.size(), initiatorMap.keySet());
     }
 
-//    public PaymentGatewayInitiator get(String vendorName) {
-//        PaymentGatewayInitiator initiator = initiatorMap.get(vendorName);
-//
-//        if (initiator == null) {
-//            throw new RuntimeException("Vendor not supported: " + vendorName);
-//        }
-//
-//        return initiator;
-//    }
-
     public PaymentGatewayInitiator get(String vendorName) {
+
         log.debug("Attempting to retrieve payment gateway initiator for vendor: {}", vendorName);
 
         if (vendorName == null || vendorName.trim().isEmpty()) {
-            log.error("Vendor name is null or empty");
             throw new IllegalArgumentException("Vendor name cannot be null or empty");
         }
 
-        PaymentGatewayInitiator initiator = initiatorMap.get(vendorName);
+        String normalized = vendorName.trim();
 
-        if (initiator == null) {
-            log.error("Vendor not supported: {}. Available vendors: {}",
-                    vendorName, initiatorMap.keySet());
-            throw new RuntimeException("Vendor not supported: " + vendorName +
-                    ". Available vendors: " + initiatorMap.keySet());
+        // 1. Exact match first
+        PaymentGatewayInitiator initiator = initiatorMap.get(normalized);
+
+        if (initiator != null) {
+            return initiator;
         }
 
-        log.debug("Successfully retrieved payment gateway initiator for vendor: {}", vendorName);
-        return initiator;
+        // 2. Match first word only
+        String firstWord = normalized.split("\\s+")[0];
+
+        for (Map.Entry<String, PaymentGatewayInitiator> entry : initiatorMap.entrySet()) {
+
+            String serviceFirstWord =
+                    entry.getKey().trim().split("\\s+")[0];
+
+            if (serviceFirstWord.equalsIgnoreCase(firstWord)) {
+
+                log.info(
+                        "Vendor matched by first word | DB={} → Service={}",
+                        vendorName,
+                        entry.getKey()
+                );
+
+                return entry.getValue();
+            }
+        }
+
+        log.error("Vendor not supported: {} Available={}",
+                vendorName,
+                initiatorMap.keySet());
+
+        throw new RuntimeException(
+                "Vendor not supported: " + vendorName
+        );
     }
 }

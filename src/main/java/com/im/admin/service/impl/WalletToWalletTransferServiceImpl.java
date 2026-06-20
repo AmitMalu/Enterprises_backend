@@ -469,23 +469,55 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
     public SchemeRate getExactSchemeRate(String schemeCode, Double txnAmount) {
 
+        log.info("Getting exact scheme rate for schemeCode: {}, txnAmount: {}", schemeCode, txnAmount);
+
         List<SchemeRate> schemeRates = schemeRateRepository.findBySchemeCode(schemeCode);
+        log.debug("Found {} scheme rate records for schemeCode: {}", schemeRates.size(), schemeCode);
 
         if (schemeRates.isEmpty()) {
+            log.error("No scheme found for code: {}", schemeCode);
             throw new RuntimeException("Scheme not found for code: " + schemeCode);
         }
 
-        for (SchemeRate rate : schemeRates) {
+        log.debug("Processing scheme rates for schemeCode: {}", schemeCode);
 
-            // VARIABLE slab
+        for (SchemeRate rate : schemeRates) {
+            log.debug("Checking rate - SlabType: {}, SlabStart: {}, SlabEnd: {}, Amount: {}",
+                    rate.getSlabType(), rate.getSlabStart(), rate.getSlabEnd(), txnAmount);
+
+            // Handle VARIABLE slab - check amount range
             if (rate.getSlabType() == SlabType.VARIABLE) {
+                log.debug("Processing VARIABLE slab - Checking if {} is between {} and {}",
+                        txnAmount, rate.getSlabStart(), rate.getSlabEnd());
 
                 if (txnAmount >= rate.getSlabStart() && txnAmount <= rate.getSlabEnd()) {
+                    log.info("Found matching VARIABLE slab for amount: {} - SlabStart: {}, SlabEnd: {}",
+                            txnAmount, rate.getSlabStart(), rate.getSlabEnd());
                     return rate;
+                } else {
+                    log.debug("Amount {} does NOT fall within VARIABLE slab range: {} - {}",
+                            txnAmount, rate.getSlabStart(), rate.getSlabEnd());
+                }
+            }
+
+            // Handle FIXED slab - applies to all amounts
+            if (rate.getSlabType() == SlabType.FIXED) {
+                log.debug("Processing FIXED slab - Checking if {} is between {} and {}",
+                        txnAmount, rate.getSlabStart(), rate.getSlabEnd());
+
+                if (txnAmount >= rate.getSlabStart() && txnAmount <= rate.getSlabEnd()) {
+                    log.info("Found matching FIXED slab for amount: {} - SlabStart: {}, SlabEnd: {}",
+                            txnAmount, rate.getSlabStart(), rate.getSlabEnd());
+                    return rate;
+                } else {
+                    log.debug("Amount {} does NOT fall within FIXED slab range: {} - {}",
+                            txnAmount, rate.getSlabStart(), rate.getSlabEnd());
                 }
             }
         }
 
+        log.error("No matching slab found for schemeCode: {}, amount: {}. Total records checked: {}",
+                schemeCode, txnAmount, schemeRates.size());
         throw new RuntimeException("No slab found for amount: " + txnAmount);
     }
 
