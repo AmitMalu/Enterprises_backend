@@ -3,6 +3,8 @@ package com.im.admin.repositories;
 import com.im.admin.entities.PayoutPendingTransactions;
 import com.im.admin.entities.PgTransactionMapping;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,6 +20,9 @@ public interface PgTransactionMappingRepository extends JpaRepository<PgTransact
     Optional<PgTransactionMapping> findByVendorSessionId(String vendorSessionId);
 
     List<PgTransactionMapping> findByStatus(String status);
+
+    @Query("SELECT p FROM PgTransactionMapping p WHERE p.orderId LIKE %:orderIdPart%")
+    Optional<PgTransactionMapping> findByOrderIdLike(@Param("orderIdPart") String orderIdPart);
 
 
 }
