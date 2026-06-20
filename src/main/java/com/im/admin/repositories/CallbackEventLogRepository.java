@@ -18,4 +18,24 @@ public interface CallbackEventLogRepository extends JpaRepository<CallbackEventL
 
     Optional<CallbackEventLog> findTopByOrderIdOrderByIdDesc(String orderId);
 
+    @Query(value = """
+        SELECT *
+        FROM callback_event_log
+        WHERE request LIKE CONCAT('%ORDERID=', :txnId, '%')
+        ORDER BY id DESC
+        LIMIT 1
+        """, nativeQuery = true)
+    Optional<CallbackEventLog> findLatestByTxnIdInRequest(
+            @Param("txnId") String txnId);
+
+    @Query(value = """
+    SELECT *
+    FROM callback_event_log
+    WHERE request LIKE CONCAT('%ORDERID=%', :txnPart, '%')
+    ORDER BY id DESC
+    LIMIT 1
+    """, nativeQuery = true)
+    Optional<CallbackEventLog> findLatestPgCallback(
+            @Param("txnPart") String txnPart);
+
 }

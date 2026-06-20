@@ -254,9 +254,19 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                 productName.trim().equalsIgnoreCase("payment gateway")) {
 
             // Step 1: Get mapping
+//            PgTransactionMapping pg =
+//                    pgTransactionMappingRepository
+//                            .findByTxnId(request.getTxnId())
+//                            .orElseThrow(() ->
+//                                    new RuntimeException("PG mapping not found"));
+
+            String txnId = request.getTxnId();
+
+            String orderIdPart = txnId.replace("TXN", "");
+
             PgTransactionMapping pg =
                     pgTransactionMappingRepository
-                            .findByTxnId(request.getTxnId())
+                            .findByOrderIdLike(orderIdPart)
                             .orElseThrow(() ->
                                     new RuntimeException("PG mapping not found"));
 
@@ -264,11 +274,21 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
             String cardBin = pg.getCardBinNo();
 
             // Step 2: Get callback log
+//            CallbackEventLog callback =
+//                    callbackEventLogRepository
+//                            .findTopByOrderIdOrderByIdDesc(orderId)
+//                            .orElseThrow(() ->
+//                                    new RuntimeException("Callback log not found"));
+
+
+            String txnPart = orderId.replace("ORD", "");
+
             CallbackEventLog callback =
                     callbackEventLogRepository
-                            .findTopByOrderIdOrderByIdDesc(orderId)
+                            .findLatestPgCallback(txnPart)
                             .orElseThrow(() ->
                                     new RuntimeException("Callback log not found"));
+
 
             Map<String, String> parsedRequest = parseRequest(callback.getRequest());
 
@@ -311,9 +331,15 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                                     new RuntimeException("Payout record not found"));
 
             // Step 2: Get callback
+//            CallbackEventLog callback =
+//                    callbackEventLogRepository
+//                            .findTopByOrderIdOrderByIdDesc(payout.getTransactionId())
+//                            .orElseThrow(() ->
+//                                    new RuntimeException("Callback log not found"));
+
             CallbackEventLog callback =
                     callbackEventLogRepository
-                            .findTopByOrderIdOrderByIdDesc(payout.getTransactionId())
+                            .findLatestByTxnIdInRequest(payout.getTransactionId())
                             .orElseThrow(() ->
                                     new RuntimeException("Callback log not found"));
 
