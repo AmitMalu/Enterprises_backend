@@ -385,17 +385,17 @@ public class BBPSRelatedTransactions {
         );
 
         // 3. Admin-level commission (dynamically fetched)
-        if (bbpsTranactionRequestDto.getSchemeRate().getIm() > 0) {
-            BigDecimal adminCommission = commonMethods.calculateCommissionAmount(
-                    bbpsTranactionRequestDto.getSchemeRate().getIm(),
-                    BigDecimal.valueOf(bbpsTranactionRequestDto.getTxnAmount()),
-                    bbpsTranactionRequestDto.getSchemeRate().getRateType().toString()
-            );
-
-            commonMethods.getAdminHierarchyId(bbpsTranactionRequestDto.getHierarchyId()).ifPresent(adminId -> {
-                distributeCommissionToHierarchy("AD", adminId, adminCommission, bbpsTranactionRequestDto);
-            });
-        }
+//        if (bbpsTranactionRequestDto.getSchemeRate().getIm() > 0) {
+//            BigDecimal adminCommission = commonMethods.calculateCommissionAmount(
+//                    bbpsTranactionRequestDto.getSchemeRate().getIm(),
+//                    BigDecimal.valueOf(bbpsTranactionRequestDto.getTxnAmount()),
+//                    bbpsTranactionRequestDto.getSchemeRate().getRateType().toString()
+//            );
+//
+//            commonMethods.getAdminHierarchyId(bbpsTranactionRequestDto.getHierarchyId()).ifPresent(adminId -> {
+//                distributeCommissionToHierarchy("AD", adminId, adminCommission, bbpsTranactionRequestDto);
+//            });
+//        }
     }
 
     private void distributeCommissionToHierarchies(BbpsTranactionRequestDto request, String hierarchyId, Set<String> processedMirrorSet) {
