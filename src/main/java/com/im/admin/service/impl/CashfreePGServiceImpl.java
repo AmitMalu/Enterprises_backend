@@ -217,7 +217,7 @@ public class CashfreePGServiceImpl implements CashfreePGService {
 
             // ===== META (IMPORTANT) =====
             body.put("link_meta", Map.of(
-                    "return_url", "https://uat.decipay.in/enterprise-portal/transaction-completed",
+                    "return_url", "https://portal.nfttech.in/enterprise/products/pgScreen",
                     "notify_url", credentials.getCallbackUrl()
             ));
 
@@ -243,7 +243,7 @@ public class CashfreePGServiceImpl implements CashfreePGService {
             RestTemplate restTemplate = new RestTemplate();
 
             ResponseEntity<Map> response = restTemplate.exchange(
-                    credentials.getBaseUrlUat() + "/links",
+                    credentials.getBaseUrlProd() + "/links",
                     HttpMethod.POST,
                     entity,
                     Map.class
