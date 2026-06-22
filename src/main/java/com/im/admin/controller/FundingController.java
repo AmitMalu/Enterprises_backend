@@ -5,10 +5,14 @@ import com.im.admin.dto.FundCreditDebitDto;
 import com.im.admin.dto.RetailerTransactionResponseDto;
 import com.im.admin.dto.RetailerTransactionResponseDtoCom;
 import com.im.admin.dto.SettlementPendingRequestDto;
+import com.im.admin.request.HierarchyWalletReportRequest;
+import com.im.admin.request.UpdateLienAmountRequest;
 import com.im.admin.response.BulkFundResponse;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.FundingService;
+import com.im.admin.service.HierarchyWalletService;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -27,6 +31,9 @@ public class FundingController {
 
     @Autowired
     private FundingService fundingService;
+
+    @Autowired
+    private HierarchyWalletService hierarchyWalletService;
 
     @PostMapping("/credit-debit")
     public ResponseEntity<CommonResponse<String>> fundsCreditDebit(@RequestBody FundCreditDebitDto dto) {
@@ -152,6 +159,48 @@ public class FundingController {
 
         return ResponseEntity.ok(
                 new CommonResponse(200, "success", retailersUnderHierarchy)
+        );
+    }
+
+    @PostMapping("/wallet-preview")
+    public ResponseEntity<?> getReport(
+            @RequestBody HierarchyWalletReportRequest request,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        request.setPageNo(page);
+        request.setPageSize(size);
+
+        log.info("API Call: getHierarchyWalletReport | page={}, size={}", page, size);
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "success", fundingService.getReport(request))
+        );
+    }
+
+    // GET /api/funding/hierarchy-wallet/{hierarchyId}
+    @GetMapping("/wallet-preview/{hierarchyId}")
+    public ResponseEntity<CommonResponse> getWalletDetails(
+            @PathVariable String hierarchyId) {
+
+        log.info("API Call: getWalletDetails | id={}", hierarchyId);
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "success",
+                        hierarchyWalletService.getWalletDetails(hierarchyId))
+        );
+    }
+
+    // PUT /api/funding/hierarchy-wallet/update-lien-amount
+    @PutMapping("/wallet-preview")
+    public ResponseEntity<CommonResponse> updateLienAmount(
+            @Valid @RequestBody UpdateLienAmountRequest request) {
+
+        log.info("API Call: updateLienAmount | id={}", request.getHierarchyId());
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "Lien amount updated successfully",
+                        hierarchyWalletService.updateLienAmount(request))
         );
     }
 

@@ -6,7 +6,9 @@ import com.im.admin.entities.enums.TransactionType;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
+import com.im.admin.request.HierarchyWalletReportRequest;
 import com.im.admin.response.BulkFundResponse;
+import com.im.admin.response.HierarchyWalletReportDto;
 import com.im.admin.service.FundingService;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.TokenUtil;
@@ -46,6 +48,9 @@ import java.util.stream.Stream;
 @Service
 @Slf4j
 public class FundingServiceImpl implements FundingService {
+
+    @Autowired
+     private HierarchyWalletReportRepository repository;
 
     @Autowired
     private SuperDistributorRepository superDistributorRepository;
@@ -1576,5 +1581,11 @@ public class FundingServiceImpl implements FundingService {
         });
     }
 
+
+    @Override
+    public Page<HierarchyWalletReportDto> getReport(HierarchyWalletReportRequest request) {
+
+        return repository.getReport(request);
+    }
 
 }
