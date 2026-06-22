@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @Getter
@@ -45,5 +46,8 @@ public class RetailerPrepaidAmount extends AbstractWalletAmountTable {
 
     @Column(name = "last_updated_amount")
     private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;
+
+    @Column(name = "remark", length = 500)
+    private String remark;
 
 }

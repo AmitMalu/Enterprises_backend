@@ -4,6 +4,7 @@ import com.im.admin.dto.AbstractWalletAmountTable;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import lombok.Getter;
@@ -43,5 +44,8 @@ public class AdminPostpaidAmount extends AbstractWalletAmountTable {
 
     @Column(name = "last_updated_amount", precision = 10, scale = 2)
     private BigDecimal lastUpdatedAmount = BigDecimal.ZERO;
+
+    @Column(name = "remark", length = 500)
+    private String remark;
 
 }

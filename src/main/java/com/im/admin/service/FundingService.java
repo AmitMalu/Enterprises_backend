@@ -4,7 +4,9 @@ import com.im.admin.dto.FundCreditDebitDto;
 import com.im.admin.dto.RetailerTransactionResponseDto;
 import com.im.admin.dto.RetailerTransactionResponseDtoCom;
 import com.im.admin.dto.SettlementPendingRequestDto;
+import com.im.admin.request.HierarchyWalletReportRequest;
 import com.im.admin.response.BulkFundResponse;
+import com.im.admin.response.HierarchyWalletReportDto;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,4 +31,7 @@ public interface FundingService {
     Page<RetailerTransactionResponseDtoCom> getTransactionReportComWise(SettlementPendingRequestDto request, int page, int size);
 
     List<String> getRetailersUnderHierarchy(String hierarchyId);
+
+
+    Page<HierarchyWalletReportDto> getReport(HierarchyWalletReportRequest request);
 }
