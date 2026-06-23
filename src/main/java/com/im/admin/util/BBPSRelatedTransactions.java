@@ -362,198 +362,528 @@ public class BBPSRelatedTransactions {
         return prefix.trim() + baseId.trim();
     }
 
-    public void processCommission(BbpsTranactionRequestDto bbpsTranactionRequestDto) {
+    public void processCommission(BbpsTranactionRequestDto request) {
 
-        // 1. Commission to Retailer
-        if (bbpsTranactionRequestDto.getSchemeRate().getRetailer() > 0) {
-            BigDecimal retailerCommission = commonMethods.calculateCommissionAmount(
-                    bbpsTranactionRequestDto.getSchemeRate().getRetailer(),
-                    BigDecimal.valueOf(bbpsTranactionRequestDto.getTxnAmount()),
-                    bbpsTranactionRequestDto.getSchemeRate().getRateType().toString()
+        log.info(
+                "[COMMISSION-START] txnId={} hierarchyId={} amount={} wallet={} vendorStatus={}",
+                request.getTransactionId(),
+                request.getHierarchyId(),
+                request.getTxnAmount(),
+                request.getWalletType(),
+                request.getVendorResponse()
+        );
+
+        // Retailer Commission
+        if (request.getSchemeRate().getRetailer() > 0) {
+
+            BigDecimal retailerCommission =
+                    commonMethods.calculateCommissionAmount(
+                            request.getSchemeRate().getRetailer(),
+                            BigDecimal.valueOf(request.getTxnAmount()),
+                            request.getSchemeRate().getRateType().toString()
+                    );
+
+            log.info(
+                    "[RETAILER-COMMISSION] hierarchy={} rate={} calculatedCommission={}",
+                    request.getHierarchyId(),
+                    request.getSchemeRate().getRetailer(),
+                    retailerCommission
             );
-            distributeCommissionToHierarchy("RT", bbpsTranactionRequestDto.getHierarchyId(), retailerCommission, bbpsTranactionRequestDto);
+
+            distributeCommissionToHierarchy(
+                    "RT",
+                    request.getHierarchyId(),
+                    retailerCommission,
+                    request
+            );
         }
 
-        // 2. Traverse and distribute to parent hierarchies
-        Retailer retailer = retailerRepository.findByRetailerId(bbpsTranactionRequestDto.getHierarchyId())
-                .orElseThrow(() -> new RuntimeException("Retailer not found: " + bbpsTranactionRequestDto.getHierarchyId()));
+        Retailer retailer = retailerRepository.findByRetailerId(request.getHierarchyId())
+                .orElseThrow(() -> {
+                    log.error("[RETAILER-NOT-FOUND] hierarchyId={}", request.getHierarchyId());
+                    return new RuntimeException("Retailer not found");
+                });
+
+        log.info(
+                "[START-HIERARCHY-TRAVERSAL] retailer={} parent={}",
+                retailer.getRetailerId(),
+                retailer.getParentAccount()
+        );
 
         distributeCommissionToHierarchies(
-                bbpsTranactionRequestDto,
+                request,
                 retailer.getParentAccount(),
                 new HashSet<>()
         );
 
-        // 3. Admin-level commission (dynamically fetched)
-//        if (bbpsTranactionRequestDto.getSchemeRate().getIm() > 0) {
-//            BigDecimal adminCommission = commonMethods.calculateCommissionAmount(
-//                    bbpsTranactionRequestDto.getSchemeRate().getIm(),
-//                    BigDecimal.valueOf(bbpsTranactionRequestDto.getTxnAmount()),
-//                    bbpsTranactionRequestDto.getSchemeRate().getRateType().toString()
-//            );
-//
-//            commonMethods.getAdminHierarchyId(bbpsTranactionRequestDto.getHierarchyId()).ifPresent(adminId -> {
-//                distributeCommissionToHierarchy("AD", adminId, adminCommission, bbpsTranactionRequestDto);
-//            });
-//        }
+        log.info("[COMMISSION-END] txnId={}", request.getTransactionId());
     }
 
-    private void distributeCommissionToHierarchies(BbpsTranactionRequestDto request, String hierarchyId, Set<String> processedMirrorSet) {
+    private void distributeCommissionToHierarchies(
+            BbpsTranactionRequestDto request,
+            String hierarchyId,
+            Set<String> processedMirrorSet) {
 
-        if (hierarchyId == null || hierarchyId.isEmpty()) return;
+        log.info(
+                "[TRAVERSAL] txnId={} currentHierarchy={}",
+                request.getTransactionId(),
+                hierarchyId
+        );
+
+        if (hierarchyId == null || hierarchyId.isEmpty()) {
+            log.warn("[STOP] hierarchyId is null/empty");
+            return;
+        }
 
         if (!processedMirrorSet.add(hierarchyId)) {
-            log.info("Skipping duplicate mirror/commission for hierarchy: {}", hierarchyId);
-            return; // already processed
+            log.warn(
+                    "[DUPLICATE-SKIPPED] hierarchy={} already processed",
+                    hierarchyId
+            );
+            return;
         }
 
-        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
-        double rate = commonMethods.getCommissionRateByType(hierarchyType, request.getSchemeRate());
-        BigDecimal commissionAmount = commonMethods.calculateCommissionAmount(rate, BigDecimal.valueOf(request.getTxnAmount()), request.getSchemeRate().getRateType().toString());
+        String hierarchyType =
+                commonMethods.extractHierarchyType(hierarchyId);
 
-        if (commissionAmount.compareTo(BigDecimal.ZERO) > 0) {
-            if ("AD".equals(hierarchyType)) {
-                log.info("Distributing commission directly to Admin: {}", hierarchyId);
-                distributeCommissionToAdmin(hierarchyId, commissionAmount, request);
-                return; // Admin reached, stop here
-            }
+        double rate =
+                commonMethods.getCommissionRateByType(
+                        hierarchyType,
+                        request.getSchemeRate()
+                );
 
-            if ("WL".equals(hierarchyType)) {
-                WhiteLabels wl = whiteLabelsRepository.findById(hierarchyId)
-                        .orElseThrow(() -> new RuntimeException("Whitelabel not found: " + hierarchyId));
+        BigDecimal commission =
+                commonMethods.calculateCommissionAmount(
+                        rate,
+                        BigDecimal.valueOf(request.getTxnAmount()),
+                        request.getSchemeRate().getRateType().toString()
+                );
 
-                if (Boolean.TRUE.equals(wl.getIsAdmin())) {
-                    log.info("Whitelabel {} isAdmin = true, full commission credited and stopping traversal", hierarchyId);
-                    distributeCommissionToHierarchy(hierarchyType, hierarchyId, commissionAmount, request);
-                    return; // Admin WL reached, stop here
-                }
-            }
+        log.info(
+                "[COMMISSION-CALCULATED] hierarchy={} type={} rate={} amount={}",
+                hierarchyId,
+                hierarchyType,
+                rate,
+                commission
+        );
 
-            // All other hierarchy levels
-            distributeCommissionToHierarchy(hierarchyType, hierarchyId, commissionAmount, request);
+        if (commission.compareTo(BigDecimal.ZERO) <= 0) {
+            log.warn(
+                    "[COMMISSION-SKIPPED] hierarchy={} reason=commission_zero",
+                    hierarchyId
+            );
         }
 
-        // Fix: Always continue traversal unless Admin is reached or Admin WL
-        Optional<String> parentIdOpt = commonMethods.findParentHierarchy(hierarchyId);
-        if (parentIdOpt.isPresent()) {
-            String parentId = parentIdOpt.get();
-            String parentType = commonMethods.extractHierarchyType(parentId);
+        if (commission.compareTo(BigDecimal.ZERO) > 0) {
 
-            // Only skip if Admin was already handled above
-            if (!"AD".equals(parentType)) {
-                distributeCommissionToHierarchies(request, parentId, processedMirrorSet);
-            } else {
-                // Admin found → still process it
-                distributeCommissionToHierarchies(request, parentId, processedMirrorSet);
-            }
+            log.info(
+                    "[COMMISSION-DISTRIBUTION] hierarchy={} type={} amount={}",
+                    hierarchyId,
+                    hierarchyType,
+                    commission
+            );
+
+            distributeCommissionToHierarchy(
+                    hierarchyType,
+                    hierarchyId,
+                    commission,
+                    request
+            );
+        }
+
+        Optional<String> parent =
+                commonMethods.findParentHierarchy(hierarchyId);
+
+        if (parent.isPresent()) {
+
+            log.info(
+                    "[MOVE-PARENT] current={} -> parent={}",
+                    hierarchyId,
+                    parent.get()
+            );
+
+            distributeCommissionToHierarchies(
+                    request,
+                    parent.get(),
+                    processedMirrorSet
+            );
+
         } else {
-            log.warn("No parent found for hierarchyId: {}", hierarchyId);
+
+            log.warn(
+                    "[TRAVERSAL-END] No parent for hierarchy={}",
+                    hierarchyId
+            );
         }
     }
 
-    private void distributeCommissionToHierarchy(String hierarchyType, String hierarchyId,
-                                                 BigDecimal commissionAmount, BbpsTranactionRequestDto request) {
-
-        log.info("Processing commission for {} | Hierarchy ID: {} | Amount (Incl. TDS): {} | Wallet Type: {} | TDS Rate: {}",
-                hierarchyType, hierarchyId, commissionAmount, request.getWalletType(), request.getTds());
+    private void distributeCommissionToHierarchy(
+            String hierarchyType,
+            String hierarchyId,
+            BigDecimal commissionAmount,
+            BbpsTranactionRequestDto request) {
 
         String walletType = request.getWalletType();
         BigDecimal tdsRate = new BigDecimal(request.getTds());
 
-        // === CASE 1: IM or AD — Credit only, no TDS or Mirror ===
-        if ("IM".equals(hierarchyType) || "AD".equals(hierarchyType)) {
-            log.info("{} hierarchy detected. Crediting full commission without TDS or mirror.", hierarchyType);
+        log.info(
+                "[COMMISSION-START] txnId={} hierarchy={} type={} amount={} wallet={} vendorStatus={} tds={}",
+                request.getTransactionId(),
+                hierarchyId,
+                hierarchyType,
+                commissionAmount,
+                walletType,
+                request.getVendorResponse(),
+                tdsRate
+        );
 
-            String transactionTable = commonMethods.getTransactionTable(hierarchyType, walletType);
-            String amountTable = commonMethods.getAmountTable(hierarchyType, walletType);
+        try {
 
-            BigDecimal beforeBalance = commonMethods.getCurrentBalance(hierarchyId, walletType);
-            BigDecimal afterBalance = beforeBalance.add(commissionAmount);
-            String txnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
+            // ================= IM / AD =================
+            if ("IM".equals(hierarchyType) || "AD".equals(hierarchyType)) {
 
+                log.info(
+                        "[DIRECT-CREDIT] hierarchy={} type={} → TDS=false MIRROR=false",
+                        hierarchyId,
+                        hierarchyType
+                );
 
-            insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
-                    "Commission credited (Direct IM/AD)", hierarchyId, walletType,
-                    beforeBalance, afterBalance,
-                    "Add Funds (Commission) - " + request.getWalletType().toUpperCase(), txnId, "SUCCESS", request);
+                String transactionTable =
+                        commonMethods.getTransactionTable(hierarchyType, walletType);
 
-            updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
+                String amountTable =
+                        commonMethods.getAmountTable(hierarchyType, walletType);
 
-            return; // Stop further processing (no TDS or mirror)
-        }
+                BigDecimal before =
+                        commonMethods.getCurrentBalance(hierarchyId, walletType);
 
-        // === CASE 2: WhiteLabel isAdmin = true — Credit only, no TDS or Mirror ===
-        boolean isAdminWL = false;
-        if ("WL".equals(hierarchyType)) {
-            isAdminWL = whiteLabelsRepository.findById(hierarchyId)
-                    .map(WhiteLabels::getIsAdmin)
-                    .orElse(false);
+                BigDecimal after =
+                        before.add(commissionAmount);
 
-            if (isAdminWL) {
-                log.info("WhiteLabel {} isAdmin = true. Crediting full commission, skipping TDS and mirror.", hierarchyId);
+                String txnId =
+                        buildTransactionId(
+                                "COM",
+                                request.getTransactionId().replaceFirst("^TXN", "")
+                        );
 
-                String transactionTable = commonMethods.getTransactionTable(hierarchyType, walletType);
-                String amountTable = commonMethods.getAmountTable(hierarchyType, walletType);
+                log.info(
+                        "[CREDIT-INSERT] table={} before={} after={} txnId={}",
+                        transactionTable,
+                        before,
+                        after,
+                        txnId
+                );
 
-                BigDecimal beforeBalance = commonMethods.getCurrentBalance(hierarchyId, walletType);
-                BigDecimal afterBalance = beforeBalance.add(commissionAmount);
-                String txnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
+                insertTransactionForHierarchy(
+                        transactionTable,
+                        "CREDIT",
+                        commissionAmount,
+                        "Commission credited (Direct IM/AD)",
+                        hierarchyId,
+                        walletType,
+                        before,
+                        after,
+                        "Add Funds (Commission)",
+                        txnId,
+                        "SUCCESS",
+                        request
+                );
 
-                insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
-                        "Commission credited (Admin WL)", hierarchyId, walletType,
-                        beforeBalance, afterBalance,
-                        "Add Funds (Commission) - " + walletType.toUpperCase(), txnId, request.getVendorResponse(), request);
+                updateAmountTable(
+                        hierarchyType,
+                        hierarchyId,
+                        amountTable,
+                        commissionAmount
+                );
 
-                updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
+                log.info(
+                        "[DIRECT-CREDIT-SUCCESS] hierarchy={} updatedAmount={}",
+                        hierarchyId,
+                        commissionAmount
+                );
 
-                return; // Stop further processing (no TDS or mirror)
+                return;
             }
-        }
 
-        // === CASE 3: All other hierarchies — Credit, Mirror, TDS (if applicable) ===
-        String transactionTable = commonMethods.getTransactionTable(hierarchyType, walletType);
-        String amountTable = commonMethods.getAmountTable(hierarchyType, walletType);
+            // ================= WL =================
+            if ("WL".equals(hierarchyType)) {
 
-        BigDecimal beforeBalance = commonMethods.getCurrentBalance(hierarchyId, walletType);
-        BigDecimal afterCreditBalance = beforeBalance.add(commissionAmount);
-        String comTxnId = buildTransactionId("COM", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
+                boolean isAdminWL =
+                        whiteLabelsRepository
+                                .findById(hierarchyId)
+                                .map(WhiteLabels::getIsAdmin)
+                                .orElse(false);
 
-        // Credit commission
-        insertTransactionForHierarchy(transactionTable, "CREDIT", commissionAmount,
-                "Commission credited", hierarchyId, walletType,
-                beforeBalance, afterCreditBalance,
-                "Add Funds (Commission) - " + walletType.toUpperCase(), comTxnId, request.getVendorResponse(), request);
+                log.info(
+                        "[WL-CHECK] hierarchy={} isAdmin={}",
+                        hierarchyId,
+                        isAdminWL
+                );
 
-        updateAmountTable(hierarchyType, hierarchyId, amountTable, commissionAmount);
+                if (isAdminWL) {
 
-        // Mirror commission (DEBIT from Admin/WL)
-        if (!"pending".equalsIgnoreCase(request.getVendorResponse())) {
-            mirrorTransactionToWhitelabelOrAdmin(hierarchyId, hierarchyType, "DEBIT", commissionAmount, walletType,
-                    comTxnId, "Deduct Funds (Commission) - " + walletType.toUpperCase(), request.getVendorResponse(), request);
-        }
+                    String transactionTable =
+                            commonMethods.getTransactionTable(
+                                    hierarchyType,
+                                    walletType
+                            );
 
-        // TDS deduction (if applicable)
-        BigDecimal tdsAmount = commissionAmount
-                .multiply(tdsRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))
-                .setScale(4, RoundingMode.HALF_UP);
+                    String amountTable =
+                            commonMethods.getAmountTable(
+                                    hierarchyType,
+                                    walletType
+                            );
 
-        if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal afterTdsBalance = afterCreditBalance.subtract(tdsAmount);
-            String tdsTxnId = buildTransactionId("TDS", request.getTransactionId().startsWith("TXN") ? request.getTransactionId().substring(3) : request.getTransactionId());
+                    BigDecimal before =
+                            commonMethods.getCurrentBalance(
+                                    hierarchyId,
+                                    walletType
+                            );
 
-            insertTransactionForHierarchy(transactionTable, "DEBIT", tdsAmount,
-                    "TDS Deduction", hierarchyId, walletType,
-                    afterCreditBalance, afterTdsBalance,
-                    "Deduct Funds (TDS) - " + walletType.toUpperCase(), tdsTxnId, request.getVendorResponse(), request);
+                    BigDecimal after =
+                            before.add(commissionAmount);
 
-            // Mirror TDS (CREDIT to Admin/WL)
+                    String txnId =
+                            buildTransactionId(
+                                    "COM",
+                                    request.getTransactionId().replaceFirst("^TXN", "")
+                            );
+
+                    log.info(
+                            "[WL-DIRECT-CREDIT] hierarchy={} before={} after={}",
+                            hierarchyId,
+                            before,
+                            after
+                    );
+
+                    insertTransactionForHierarchy(
+                            transactionTable,
+                            "CREDIT",
+                            commissionAmount,
+                            "Commission credited (Admin WL)",
+                            hierarchyId,
+                            walletType,
+                            before,
+                            after,
+                            "Add Funds (Commission)",
+                            txnId,
+                            request.getVendorResponse(),
+                            request
+                    );
+
+                    updateAmountTable(
+                            hierarchyType,
+                            hierarchyId,
+                            amountTable,
+                            commissionAmount
+                    );
+
+                    log.info(
+                            "[WL-COMMISSION-SUCCESS] hierarchy={}",
+                            hierarchyId
+                    );
+
+                    return;
+                }
+            }
+
+            // ================= NORMAL FLOW =================
+
+            String transactionTable =
+                    commonMethods.getTransactionTable(
+                            hierarchyType,
+                            walletType
+                    );
+
+            String amountTable =
+                    commonMethods.getAmountTable(
+                            hierarchyType,
+                            walletType
+                    );
+
+            BigDecimal before =
+                    commonMethods.getCurrentBalance(
+                            hierarchyId,
+                            walletType
+                    );
+
+            BigDecimal afterCredit =
+                    before.add(commissionAmount);
+
+            String comTxnId =
+                    buildTransactionId(
+                            "COM",
+                            request.getTransactionId().replaceFirst("^TXN", "")
+                    );
+
+            log.info(
+                    "[COMMISSION-CREDIT] hierarchy={} before={} credit={} after={}",
+                    hierarchyId,
+                    before,
+                    commissionAmount,
+                    afterCredit
+            );
+
+            insertTransactionForHierarchy(
+                    transactionTable,
+                    "CREDIT",
+                    commissionAmount,
+                    "Commission credited",
+                    hierarchyId,
+                    walletType,
+                    before,
+                    afterCredit,
+                    "Add Funds (Commission)",
+                    comTxnId,
+                    request.getVendorResponse(),
+                    request
+            );
+
+            updateAmountTable(
+                    hierarchyType,
+                    hierarchyId,
+                    amountTable,
+                    commissionAmount
+            );
+
+            log.info(
+                    "[COMMISSION-CREDIT-SUCCESS] hierarchy={}",
+                    hierarchyId
+            );
+
+            // MIRROR
+
             if (!"pending".equalsIgnoreCase(request.getVendorResponse())) {
-                mirrorTransactionToWhitelabelOrAdmin(hierarchyId, hierarchyType, "CREDIT", tdsAmount, walletType,
-                        tdsTxnId, "Add Funds (TDS) - " + walletType.toUpperCase(), request.getVendorResponse(), request);
+
+                log.info(
+                        "[MIRROR-DEBIT] hierarchy={} amount={}",
+                        hierarchyId,
+                        commissionAmount
+                );
+
+                mirrorTransactionToWhitelabelOrAdmin(
+                        hierarchyId,
+                        hierarchyType,
+                        "DEBIT",
+                        commissionAmount,
+                        walletType,
+                        comTxnId,
+                        "Deduct Funds (Commission)",
+                        request.getVendorResponse(),
+                        request
+                );
+
+                log.info(
+                        "[MIRROR-DEBIT-SUCCESS] hierarchy={}",
+                        hierarchyId
+                );
             }
-            updateAmountTable(hierarchyType, hierarchyId, amountTable, tdsAmount.negate());
+
+            // TDS
+
+            BigDecimal tdsAmount =
+                    commissionAmount
+                            .multiply(
+                                    tdsRate.divide(
+                                            BigDecimal.valueOf(100),
+                                            4,
+                                            RoundingMode.HALF_UP
+                                    )
+                            )
+                            .setScale(
+                                    4,
+                                    RoundingMode.HALF_UP
+                            );
+
+            log.info(
+                    "[TDS-CALCULATED] hierarchy={} commission={} tds={}",
+                    hierarchyId,
+                    commissionAmount,
+                    tdsAmount
+            );
+
+            if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
+
+                BigDecimal afterTds =
+                        afterCredit.subtract(tdsAmount);
+
+                String tdsTxnId =
+                        buildTransactionId(
+                                "TDS",
+                                request.getTransactionId().replaceFirst("^TXN", "")
+                        );
+
+                insertTransactionForHierarchy(
+                        transactionTable,
+                        "DEBIT",
+                        tdsAmount,
+                        "TDS Deduction",
+                        hierarchyId,
+                        walletType,
+                        afterCredit,
+                        afterTds,
+                        "Deduct Funds (TDS)",
+                        tdsTxnId,
+                        request.getVendorResponse(),
+                        request
+                );
+
+                updateAmountTable(
+                        hierarchyType,
+                        hierarchyId,
+                        amountTable,
+                        tdsAmount.negate()
+                );
+
+                log.info(
+                        "[TDS-SUCCESS] hierarchy={} finalBalance={}",
+                        hierarchyId,
+                        afterTds
+                );
+
+                if (!"pending".equalsIgnoreCase(
+                        request.getVendorResponse())) {
+
+                    log.info(
+                            "[MIRROR-TDS-CREDIT] hierarchy={} amount={}",
+                            hierarchyId,
+                            tdsAmount
+                    );
+
+                    mirrorTransactionToWhitelabelOrAdmin(
+                            hierarchyId,
+                            hierarchyType,
+                            "CREDIT",
+                            tdsAmount,
+                            walletType,
+                            tdsTxnId,
+                            "Add Funds (TDS)",
+                            request.getVendorResponse(),
+                            request
+                    );
+                }
+            }
+
+            log.info(
+                    "[COMMISSION-END] hierarchy={} completed",
+                    hierarchyId
+            );
+
+        } catch (Exception e) {
+
+            log.error(
+                    "[COMMISSION-FAILED] txnId={} hierarchy={} type={} error={}",
+                    request.getTransactionId(),
+                    hierarchyId,
+                    hierarchyType,
+                    e.getMessage(),
+                    e
+            );
+
+            throw e;
         }
     }
+
 
     private void distributeCommissionToAdmin(String hierarchyId, BigDecimal commissionAmount, BbpsTranactionRequestDto request) {
         String currentId = hierarchyId;
