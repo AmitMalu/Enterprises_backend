@@ -23,11 +23,11 @@ public class HierarchyWalletReportDto {
 
     private BigDecimal prepaidBalance;
     private BigDecimal prepaidCutoffAmount;
-    private String     prepaidRemark;
 
     private BigDecimal postpaidBalance;
     private BigDecimal postpaidCutoffAmount;
-    private String     postpaidRemark;
+
+    private String     remark;
 
     private LocalDateTime createdOn;
     private String        createdBy;
