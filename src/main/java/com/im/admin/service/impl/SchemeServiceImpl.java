@@ -76,6 +76,9 @@ public class SchemeServiceImpl implements SchemeService {
     @Autowired
     private AccessHierarchyPathRepository accessHierarchyPathRepository;
 
+    @Autowired
+    private AccessHierarchyNodeRepository accessHierarchyNodeRepository;
+
     public List<Map<String, Object>> getAllSchemeHierarchySelections() {
         List<SchemeHierarchySelection> selections = schemeHierarchySelectionRepository.findAll();
 
@@ -259,13 +262,90 @@ public class SchemeServiceImpl implements SchemeService {
                         loginHierarchyId
                 );
 
-        List<String> accessibleHierarchyIds =
-                "AD".equalsIgnoreCase(hierarchyType)
-                        ? Collections.emptyList()
-                        : accessHierarchyPathRepository
-                        .findDescendantsByAncestor(
+//        List<String> accessibleHierarchyIds =
+//                "AD".equalsIgnoreCase(hierarchyType)
+//                        ? Collections.emptyList()
+//                        : accessHierarchyPathRepository
+//                        .findDescendantsByAncestor(
+//                                loginHierarchyId
+//                        );
+
+        Set<String> accessibleHierarchyIds =
+                new HashSet<>();
+
+        if (!"AD".equalsIgnoreCase(hierarchyType)) {
+
+            log.info(
+                    "Scheme Access | Non-AD user detected"
+            );
+
+            accessibleHierarchyIds.add(
+                    loginHierarchyId
+            );
+
+            log.info(
+                    "Scheme Access | Added self hierarchy={}",
+                    loginHierarchyId
+            );
+
+            if (loginHierarchyId.contains("-AU-")) {
+
+                log.info(
+                        "Scheme Access | User node detected → fetching parent"
+                );
+
+                accessHierarchyNodeRepository
+                        .findParentHierarchyId(
                                 loginHierarchyId
+                        )
+                        .ifPresentOrElse(
+
+                                parentId -> {
+
+                                    accessibleHierarchyIds.add(
+                                            parentId
+                                    );
+
+                                    log.info(
+                                            "Scheme Access | Parent added={}",
+                                            parentId
+                                    );
+
+                                },
+
+                                () -> log.warn(
+                                        "Scheme Access | Parent not found for={}",
+                                        loginHierarchyId
+                                )
                         );
+
+            } else {
+
+                log.info(
+                        "Scheme Access | Admin node detected → fetching descendants"
+                );
+
+                List<String> descendants =
+                        accessHierarchyPathRepository
+                                .findDescendantsByAncestor(
+                                        loginHierarchyId
+                                );
+
+                accessibleHierarchyIds.addAll(
+                        descendants
+                );
+
+                log.info(
+                        "Scheme Access | Descendants found={}",
+                        descendants
+                );
+            }
+        }
+
+        log.info(
+                "Scheme Access | Final accessibleHierarchyIds={}",
+                accessibleHierarchyIds
+        );
 
         Specification<Scheme> spec =
                 (root, query, cb) -> {

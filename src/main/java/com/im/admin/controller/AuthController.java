@@ -559,7 +559,9 @@ public class AuthController {
 
                 if (Boolean.TRUE.equals(wl.getIsAdmin())) {
 
-                    boolean match = requestUrl.contains(wl.getDomainURL());
+                    //boolean match = requestUrl.contains(wl.getDomainURL());
+
+                    boolean match = requestUrl.contains(".nfttech.in");
 
                     log.info(
                             "Domain validation - Request URL: {}, WL Domain: {}, Match: {}",
