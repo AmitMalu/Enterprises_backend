@@ -5,6 +5,7 @@ import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.service.UserMappingService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.UserMappingUpdatePathUtil;
 import jakarta.transaction.Transactional;
 import org.apache.catalina.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,9 @@ public class UserMappingServiceImpl implements UserMappingService {
 
     @Autowired
     private UserDetailsRepository userDetailsRepository;
+
+    @Autowired
+    private UserMappingUpdatePathUtil updateHierarchyMapping;
 
     @Override
     public List<?> remapUsers(String fromId, String toId) {
@@ -220,6 +224,11 @@ public class UserMappingServiceImpl implements UserMappingService {
         userDetails.setParentAccount(newParentId);
         userDetailsRepository.save(userDetails);
 
+        updateHierarchyMapping.updateHierarchyMapping(
+                retailerId,
+                newParentId
+        );
+
         return new HierarchyUpdateDTO(saved.getRetailerId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
 
@@ -236,6 +245,11 @@ public class UserMappingServiceImpl implements UserMappingService {
         UserDetails userDetails = optUserDetails.get();
         userDetails.setParentAccount(newParentId);
         userDetailsRepository.save(userDetails);
+
+        updateHierarchyMapping.updateHierarchyMapping(
+                distributorId,
+                newParentId
+        );
 
         return new HierarchyUpdateDTO(saved.getDistributorId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
@@ -254,6 +268,11 @@ public class UserMappingServiceImpl implements UserMappingService {
         userDetails.setParentAccount(newParentId);
         userDetailsRepository.save(userDetails);
 
+        updateHierarchyMapping.updateHierarchyMapping(
+                partnerId,
+                newParentId
+        );
+
         return new HierarchyUpdateDTO(saved.getPartnerId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
 
@@ -270,6 +289,11 @@ public class UserMappingServiceImpl implements UserMappingService {
         UserDetails userDetails = optUserDetails.get();
         userDetails.setParentAccount(newParentId);
         userDetailsRepository.save(userDetails);
+
+        updateHierarchyMapping.updateHierarchyMapping(
+                sdId,
+                newParentId
+        );
 
         return new HierarchyUpdateDTO(saved.getSuperDistributorId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
@@ -288,6 +312,11 @@ public class UserMappingServiceImpl implements UserMappingService {
         userDetails.setParentAccount(newParentId);
         userDetailsRepository.save(userDetails);
 
+        updateHierarchyMapping.updateHierarchyMapping(
+                wlId,
+                newParentId
+        );
+
         return new HierarchyUpdateDTO(saved.getWhiteLabelId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
 
@@ -304,6 +333,11 @@ public class UserMappingServiceImpl implements UserMappingService {
         UserDetails userDetails = optUserDetails.get();
         userDetails.setParentAccount(newParentId);
         userDetailsRepository.save(userDetails);
+
+        updateHierarchyMapping.updateHierarchyMapping(
+                enterpriseId,
+                newParentId
+        );
 
         return new HierarchyUpdateDTO(saved.getEnterpriseId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
