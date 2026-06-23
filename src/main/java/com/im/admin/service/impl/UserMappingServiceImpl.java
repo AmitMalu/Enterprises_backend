@@ -6,11 +6,13 @@ import com.im.admin.repositories.*;
 import com.im.admin.service.UserMappingService;
 import com.im.admin.util.CommonMethods;
 import jakarta.transaction.Transactional;
+import org.apache.catalina.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class UserMappingServiceImpl implements UserMappingService {
@@ -41,6 +43,9 @@ public class UserMappingServiceImpl implements UserMappingService {
 
     @Autowired
     private SuperAdminRepository superAdminRepo;
+
+    @Autowired
+    private UserDetailsRepository userDetailsRepository;
 
     @Override
     public List<?> remapUsers(String fromId, String toId) {
@@ -204,66 +209,102 @@ public class UserMappingServiceImpl implements UserMappingService {
     /**
      * RT → change parent distributor
      */
-    private HierarchyUpdateDTO updateSingleRetailer(String retailerId, String newParentDistributorId) {
+    private HierarchyUpdateDTO updateSingleRetailer(String retailerId, String newParentId) {
         Retailer retailer = retailerRepo.findById(retailerId)
                 .orElseThrow(() -> new RuntimeException("Retailer not found with ID: " + retailerId));
-        retailer.setParentAccount(newParentDistributorId);
+        retailer.setParentAccount(newParentId);
         Retailer saved = retailerRepo.save(retailer);
+
+        Optional<UserDetails> optUserDetails = userDetailsRepository.findByHierarchyId(retailerId);
+        UserDetails userDetails = optUserDetails.get();
+        userDetails.setParentAccount(newParentId);
+        userDetailsRepository.save(userDetails);
+
         return new HierarchyUpdateDTO(saved.getRetailerId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
 
     /**
      * DT → change parent partner
      */
-    private HierarchyUpdateDTO updateSingleDistributor(String distributorId, String newParentPartnerId) {
+    private HierarchyUpdateDTO updateSingleDistributor(String distributorId, String newParentId) {
         Distributor distributor = distributorRepo.findById(distributorId)
                 .orElseThrow(() -> new RuntimeException("Distributor not found with ID: " + distributorId));
-        distributor.setParentAccount(newParentPartnerId);
+        distributor.setParentAccount(newParentId);
         Distributor saved = distributorRepo.save(distributor);
+
+        Optional<UserDetails> optUserDetails = userDetailsRepository.findByHierarchyId(distributorId);
+        UserDetails userDetails = optUserDetails.get();
+        userDetails.setParentAccount(newParentId);
+        userDetailsRepository.save(userDetails);
+
         return new HierarchyUpdateDTO(saved.getDistributorId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
 
     /**
      * PT → change parent super distributor
      */
-    private HierarchyUpdateDTO updateSinglePartner(String partnerId, String newParentSuperDistributorId) {
+    private HierarchyUpdateDTO updateSinglePartner(String partnerId, String newParentId) {
         Partner partner = partnerRepo.findById(partnerId)
                 .orElseThrow(() -> new RuntimeException("Partner not found with ID: " + partnerId));
-        partner.setParentAccount(newParentSuperDistributorId);
+        partner.setParentAccount(newParentId);
         Partner saved = partnerRepo.save(partner);
+
+        Optional<UserDetails> optUserDetails = userDetailsRepository.findByHierarchyId(partnerId);
+        UserDetails userDetails = optUserDetails.get();
+        userDetails.setParentAccount(newParentId);
+        userDetailsRepository.save(userDetails);
+
         return new HierarchyUpdateDTO(saved.getPartnerId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
 
     /**
      * SD → change parent whitelabel
      */
-    private HierarchyUpdateDTO updateSingleSuperDistributor(String sdId, String newParentWhiteLabelId) {
+    private HierarchyUpdateDTO updateSingleSuperDistributor(String sdId, String newParentId) {
         SuperDistributor sd = superDistRepo.findById(sdId)
                 .orElseThrow(() -> new RuntimeException("Super Distributor not found with ID: " + sdId));
-        sd.setParentAccount(newParentWhiteLabelId);
+        sd.setParentAccount(newParentId);
         SuperDistributor saved = superDistRepo.save(sd);
+
+        Optional<UserDetails> optUserDetails = userDetailsRepository.findByHierarchyId(sdId);
+        UserDetails userDetails = optUserDetails.get();
+        userDetails.setParentAccount(newParentId);
+        userDetailsRepository.save(userDetails);
+
         return new HierarchyUpdateDTO(saved.getSuperDistributorId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
 
     /**
      * WL → change parent enterprise
      */
-    private HierarchyUpdateDTO updateSingleWhiteLabel(String wlId, String newParentEnterpriseId) {
+    private HierarchyUpdateDTO updateSingleWhiteLabel(String wlId, String newParentId) {
         WhiteLabels wl = whitelabelRepo.findById(wlId)
                 .orElseThrow(() -> new RuntimeException("WhiteLabel not found with ID: " + wlId));
-        wl.setParentAccount(newParentEnterpriseId);
+        wl.setParentAccount(newParentId);
         WhiteLabels saved = whitelabelRepo.save(wl);
+
+        Optional<UserDetails> optUserDetails = userDetailsRepository.findByHierarchyId(wlId);
+        UserDetails userDetails = optUserDetails.get();
+        userDetails.setParentAccount(newParentId);
+        userDetailsRepository.save(userDetails);
+
         return new HierarchyUpdateDTO(saved.getWhiteLabelId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
 
     /**
      * ET → (Top level, maybe admin change)
      */
-    private HierarchyUpdateDTO updateSingleEnterprise(String enterpriseId, String newParentAdminId) {
+    private HierarchyUpdateDTO updateSingleEnterprise(String enterpriseId, String newParentId) {
         Enterprises et = enterprisesRepo.findById(enterpriseId)
                 .orElseThrow(() -> new RuntimeException("Enterprise not found with ID: " + enterpriseId));
-        et.setParentAccount(newParentAdminId);
+        et.setParentAccount(newParentId);
         Enterprises saved = enterprisesRepo.save(et);
+
+        Optional<UserDetails> optUserDetails = userDetailsRepository.findByHierarchyId(enterpriseId);
+        UserDetails userDetails = optUserDetails.get();
+        userDetails.setParentAccount(newParentId);
+        userDetailsRepository.save(userDetails);
+
         return new HierarchyUpdateDTO(saved.getEnterpriseId(), saved.getParentAccount(), saved.getName(), saved.getMobileNumber());
     }
 

@@ -12,5 +12,7 @@ public interface VendorCredentialsRepository extends JpaRepository<VendorCredent
 
     Optional<VendorCredentials> findByVendorIdAndProductId(String vendorId, Short productId);
 
+    Optional<VendorCredentials> findByVendor_Id(String vendorId);
+
 }
 

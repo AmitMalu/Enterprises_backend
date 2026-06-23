@@ -48,6 +48,7 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
 
     private static final String TYPE_AD  = "AD";
     private static final String TYPE_WL  = "WL";
+    private static final String TYPE_AU = "AU";
 
     // hierarchy codes stored in UserDetails
     private static final String CODE_AD  = "AU";
@@ -180,7 +181,7 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
         // (AdminUserRepository has no existsBy methods; DB unique constraint handles it)
         // Add existsByMobileNumber to AdminUserRepository if you want early validation.
 
-        dto.setId(idGenerator.generateHierarchyEntityId("Admin User", CODE_AD));
+        dto.setId(idGenerator.generateHierarchyEntityId("Admin User", TYPE_AD));
         log.debug("Generated AdminUser id: {}", dto.getId());
 
         // Validate parent admin exists
@@ -191,7 +192,7 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
         AdminUser entity = new AdminUser();
         entity.setId(dto.getId());
         entity.setParentAccount(dto.getParentAccount());
-        entity.setAbbreviation(dto.getAbbreviation());
+        entity.setAbbreviation(TYPE_AU);
         entity.setName(dto.getName());
         entity.setMobileNumber(dto.getMobileNumber());
         entity.setUsername(dto.getUsername());
