@@ -71,8 +71,7 @@ public class HierarchyWalletReportRepository {
             // row[12] = pp.last_updated_date (DATE from prepaid table)
             dto.setLastUpdatedDate(row[12] != null ? ((Date) row[12]).toLocalDate() : null);
 
-            dto.setPrepaidRemark((String) row[13]);
-            dto.setPostpaidRemark((String) row[14]);
+            dto.setRemark((String) row[13]);
 
             response.add(dto);
         }

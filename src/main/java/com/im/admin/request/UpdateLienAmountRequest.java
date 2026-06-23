@@ -24,7 +24,5 @@ public class UpdateLienAmountRequest {
     @DecimalMin(value = "0.0", inclusive = true, message = "postpaidCutoffAmount must be >= 0")
     private BigDecimal postpaidCutoffAmount;
 
-    private String prepaidRemark;
-
-    private String postpaidRemark;
+    private String remark;
 }

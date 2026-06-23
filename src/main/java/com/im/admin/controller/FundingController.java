@@ -178,7 +178,7 @@ public class FundingController {
         );
     }
 
-    // GET /api/funding/hierarchy-wallet/{hierarchyId}
+
     @GetMapping("/wallet-preview/{hierarchyId}")
     public ResponseEntity<CommonResponse> getWalletDetails(
             @PathVariable String hierarchyId) {
@@ -191,7 +191,7 @@ public class FundingController {
         );
     }
 
-    // PUT /api/funding/hierarchy-wallet/update-lien-amount
+
     @PutMapping("/wallet-preview")
     public ResponseEntity<CommonResponse> updateLienAmount(
             @Valid @RequestBody UpdateLienAmountRequest request) {
@@ -203,7 +203,5 @@ public class FundingController {
                         hierarchyWalletService.updateLienAmount(request))
         );
     }
-
-
 
 }

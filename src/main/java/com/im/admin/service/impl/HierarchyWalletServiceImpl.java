@@ -71,10 +71,9 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 dto.setFullName(prepaid.getRetailerId().getName());
                 dto.setPrepaidBalance(prepaid.getAvailableBalance());
                 dto.setPrepaidCutoffAmount(prepaid.getCutOfAmount());
-                dto.setPrepaidRemark(prepaid.getRemark());
+                dto.setRemark(prepaid.getRemark());
                 dto.setPostpaidBalance(postpaid.getAvailableBalance());
                 dto.setPostpaidCutoffAmount(postpaid.getCutOfAmount());
-                dto.setPostpaidRemark(postpaid.getRemark());
                 dto.setLastUpdatedDate(prepaid.getLastUpdatedDate());
             }
 
@@ -89,10 +88,9 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 dto.setFullName(prepaid.getDistributorId().getName());
                 dto.setPrepaidBalance(prepaid.getAvailableBalance());
                 dto.setPrepaidCutoffAmount(prepaid.getCutOfAmount());
-                dto.setPrepaidRemark(prepaid.getRemark());
+                dto.setRemark(prepaid.getRemark());
                 dto.setPostpaidBalance(postpaid.getAvailableBalance());
                 dto.setPostpaidCutoffAmount(postpaid.getCutOfAmount());
-                dto.setPostpaidRemark(postpaid.getRemark());
                 dto.setLastUpdatedDate(prepaid.getLastUpdatedDate());
             }
 
@@ -107,10 +105,9 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 dto.setFullName(prepaid.getPartnerId().getName());
                 dto.setPrepaidBalance(prepaid.getAvailableBalance());
                 dto.setPrepaidCutoffAmount(prepaid.getCutOfAmount());
-                dto.setPrepaidRemark(prepaid.getRemark());
+                dto.setRemark(prepaid.getRemark());
                 dto.setPostpaidBalance(postpaid.getAvailableBalance());
                 dto.setPostpaidCutoffAmount(postpaid.getCutOfAmount());
-                dto.setPostpaidRemark(postpaid.getRemark());
                 dto.setLastUpdatedDate(prepaid.getLastUpdatedDate());
             }
 
@@ -125,10 +122,9 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 dto.setFullName(prepaid.getSuperDistributorId().getName());
                 dto.setPrepaidBalance(prepaid.getAvailableBalance());
                 dto.setPrepaidCutoffAmount(prepaid.getCutOfAmount());
-                dto.setPrepaidRemark(prepaid.getRemark());
+                dto.setRemark(prepaid.getRemark());
                 dto.setPostpaidBalance(postpaid.getAvailableBalance());
                 dto.setPostpaidCutoffAmount(postpaid.getCutOfAmount());
-                dto.setPostpaidRemark(postpaid.getRemark());
                 dto.setLastUpdatedDate(prepaid.getLastUpdatedDate());
             }
 
@@ -143,10 +139,9 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 dto.setFullName(prepaid.getWhiteLabelId().getName());
                 dto.setPrepaidBalance(prepaid.getAvailableBalance());
                 dto.setPrepaidCutoffAmount(prepaid.getCutOfAmount());
-                dto.setPrepaidRemark(prepaid.getRemark());
+                dto.setRemark(prepaid.getRemark());
                 dto.setPostpaidBalance(postpaid.getAvailableBalance());
                 dto.setPostpaidCutoffAmount(postpaid.getCutOfAmount());
-                dto.setPostpaidRemark(postpaid.getRemark());
                 dto.setLastUpdatedDate(prepaid.getLastUpdatedDate());
             }
 
@@ -161,10 +156,9 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 dto.setFullName(prepaid.getEnterprise().getName());
                 dto.setPrepaidBalance(prepaid.getAvailableBalance());
                 dto.setPrepaidCutoffAmount(prepaid.getCutOfAmount());
-                dto.setPrepaidRemark(prepaid.getRemark());
+                dto.setRemark(prepaid.getRemark());
                 dto.setPostpaidBalance(postpaid.getAvailableBalance());
                 dto.setPostpaidCutoffAmount(postpaid.getCutOfAmount());
-                dto.setPostpaidRemark(postpaid.getRemark());
                 dto.setLastUpdatedDate(prepaid.getLastUpdatedDate());
             }
 
@@ -179,10 +173,9 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 dto.setFullName(prepaid.getAdminId().getName());
                 dto.setPrepaidBalance(prepaid.getAvailableBalance());
                 dto.setPrepaidCutoffAmount(prepaid.getCutOfAmount());
-                dto.setPrepaidRemark(prepaid.getRemark());
+                dto.setRemark(prepaid.getRemark());
                 dto.setPostpaidBalance(postpaid.getAvailableBalance());
                 dto.setPostpaidCutoffAmount(postpaid.getCutOfAmount());
-                dto.setPostpaidRemark(postpaid.getRemark());
                 dto.setLastUpdatedDate(prepaid.getLastUpdatedDate());
             }
 
@@ -220,11 +213,10 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
-                prepaid.setRemark(request.getPrepaidRemark());
+                prepaid.setRemark(request.getRemark());
                 prepaid.setLastUpdatedDate(today);
 
                 postpaid.setCutOfAmount(request.getPostpaidCutoffAmount());
-                postpaid.setRemark(request.getPostpaidRemark());
                 postpaid.setLastUpdatedDate(today);
 
                 retailerPrepaidRepo.save(prepaid);
@@ -243,11 +235,10 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
-                prepaid.setRemark(request.getPrepaidRemark());
+                prepaid.setRemark(request.getRemark());
                 prepaid.setLastUpdatedDate(today);
 
                 postpaid.setCutOfAmount(request.getPostpaidCutoffAmount());
-                postpaid.setRemark(request.getPostpaidRemark());
                 postpaid.setLastUpdatedDate(today);
 
                 distributorPrepaidRepo.save(prepaid);
@@ -266,11 +257,10 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
-                prepaid.setRemark(request.getPrepaidRemark());
+                prepaid.setRemark(request.getRemark());
                 prepaid.setLastUpdatedDate(today);
 
                 postpaid.setCutOfAmount(request.getPostpaidCutoffAmount());
-                postpaid.setRemark(request.getPostpaidRemark());
                 postpaid.setLastUpdatedDate(today);
 
                 partnerPrepaidRepo.save(prepaid);
@@ -289,11 +279,10 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
-                prepaid.setRemark(request.getPrepaidRemark());
+                prepaid.setRemark(request.getRemark());
                 prepaid.setLastUpdatedDate(today);
 
                 postpaid.setCutOfAmount(request.getPostpaidCutoffAmount());
-                postpaid.setRemark(request.getPostpaidRemark());
                 postpaid.setLastUpdatedDate(today);
 
                 sdPrepaidRepo.save(prepaid);
@@ -312,11 +301,10 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
-                prepaid.setRemark(request.getPrepaidRemark());
+                prepaid.setRemark(request.getRemark());
                 prepaid.setLastUpdatedDate(today);
 
                 postpaid.setCutOfAmount(request.getPostpaidCutoffAmount());
-                postpaid.setRemark(request.getPostpaidRemark());
                 postpaid.setLastUpdatedDate(today);
 
                 wlPrepaidRepo.save(prepaid);
@@ -335,11 +323,10 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
-                prepaid.setRemark(request.getPrepaidRemark());
+                prepaid.setRemark(request.getRemark());
                 prepaid.setLastUpdatedDate(today);
 
                 postpaid.setCutOfAmount(request.getPostpaidCutoffAmount());
-                postpaid.setRemark(request.getPostpaidRemark());
                 postpaid.setLastUpdatedDate(today);
 
                 etPrepaidRepo.save(prepaid);
@@ -358,11 +345,10 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                 validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
-                prepaid.setRemark(request.getPrepaidRemark());
+                prepaid.setRemark(request.getRemark());
                 prepaid.setLastUpdatedDate(today);
 
                 postpaid.setCutOfAmount(request.getPostpaidCutoffAmount());
-                postpaid.setRemark(request.getPostpaidRemark());
                 postpaid.setLastUpdatedDate(today);
 
                 adminPrepaidRepo.save(prepaid);
