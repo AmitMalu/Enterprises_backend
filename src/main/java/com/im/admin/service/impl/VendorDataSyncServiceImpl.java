@@ -355,7 +355,7 @@ public class VendorDataSyncServiceImpl implements VendorDataSyncService {
         }
     }
 
-    private String callTokenApi(VendorCredentials vendorCredentials) {
+    public String callTokenApi(VendorCredentials vendorCredentials) {
 
         log.info("===== Starting Token API call =====");
 
@@ -363,52 +363,18 @@ public class VendorDataSyncServiceImpl implements VendorDataSyncService {
 
             String url = vendorCredentials.getTokenUrlUat();
 
-            // request body
-            Map<String, Object> req = new HashMap<>();
-            req.put("requestTime", String.valueOf(System.currentTimeMillis()));
-
-            String requestJson = objectMapper.writeValueAsString(req);
-
-            log.info("Request Payload={}", requestJson);
-
-            // encrypt payload
-            String encryptedPayload =
-                    vimoPayCryptoUtil.encryptForVendor(
-                            vendorCredentials,
-                            vendorCredentials.getClientId() // encryptdecryptKey
-                    );
-
-            log.info("Encrypted payload length={}", encryptedPayload.length());
-
             HttpHeaders headers = new HttpHeaders();
 
+            headers.set("secretKey", vendorCredentials.getClientSecret());
+            headers.set("saltKey", vendorCredentials.getSaltKey());
+            headers.set("encryptdecryptKey", vendorCredentials.getClientId());
+            headers.set("userId", vendorCredentials.getUsername());
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            // REQUIRED HEADERS
-            headers.set("secretKey",
-                    vendorCredentials.getClientSecret());
-
-            headers.set("saltKey",
-                    vendorCredentials.getSaltKey());
-
-            headers.set("encryptdecryptKey",
-                    vendorCredentials.getUserField1());
-
-            headers.set("userId",
-                    vendorCredentials.getUsername());
-
-            // IMPORTANT
-            headers.set("payload", encryptedPayload);
-
-            log.info("Headers sent:");
-            log.info("secretKey={}", vendorCredentials.getClientSecret());
-            log.info("saltKey={}", vendorCredentials.getSaltKey());
-            log.info("encryptdecryptKey={}", vendorCredentials.getUserField1());
-            log.info("userId={}", vendorCredentials.getUsername());
-            log.info("payload=[ENCRYPTED]");
-
             HttpEntity<String> entity =
-                    new HttpEntity<>("", headers);
+                    new HttpEntity<>(null, headers);
+
+            log.info("[VIMOPAY] Token Header{} -----> ", headers);
 
             long start = System.currentTimeMillis();
 
@@ -420,36 +386,23 @@ public class VendorDataSyncServiceImpl implements VendorDataSyncService {
                             String.class
                     );
 
-            log.info(
-                    "API completed in {} ms",
-                    System.currentTimeMillis() - start
-            );
+            log.info("API completed in {} ms",
+                    System.currentTimeMillis() - start);
 
             String body = response.getBody();
 
-            log.info("Raw Response={}", body);
+            log.info("[VIMOPAY] Token Raw Response={}", body);
 
             JsonNode root = objectMapper.readTree(body);
 
-            boolean success =
-                    root.path("successStatus")
-                            .asBoolean(false);
-
-            if (!success) {
-
-                String msg =
-                        root.path("message")
-                                .asText("Token API failed");
-
+            if (!root.path("successStatus").asBoolean()) {
                 throw new RuntimeException(
-                        "Token API failed : " + msg
+                        "Token API failed : " +
+                                root.path("message").asText()
                 );
             }
 
-            String token =
-                    root.path("data")
-                            .path("token")
-                            .asText();
+            String token = root.path("data").asText();
 
             log.info("Token generated successfully");
 
@@ -457,17 +410,14 @@ public class VendorDataSyncServiceImpl implements VendorDataSyncService {
 
         } catch (Exception ex) {
 
-            log.error(
-                    "===== Token API call failed =====",
-                    ex
-            );
+            log.error("===== Token API call failed =====", ex);
 
             throw new RuntimeException(
                     "Token API failed",
                     ex
             );
         }
-    }    /* ------------------------ generic GET/POST helpers ------------------------ */
+    }   /* ------------------------ generic GET/POST helpers ------------------------ */
 
     private VendorApiResponse callGetEncrypted(
             VendorCredentials vendorCredentials,

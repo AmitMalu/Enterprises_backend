@@ -128,7 +128,25 @@ public class FundReversalServiceImpl implements FundReversalService {
     @Transactional
     public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, Double latitude, Double longitude) {
 
+        log.info("===== Starting Fund Reversal Action =====");
+        log.info("Request: ParentHierarchyId={}, ChildHierarchyId={}, ReversalAmount={}, WalletType={}",
+                request.getParentHierarchyId(),
+                request.getChildHierarchyId(),
+                request.getReversalAmount(),
+                request.getWalletType());
+        log.debug("Location - Latitude: {}, Longitude: {}", latitude, longitude);
+
+        long startTime = System.currentTimeMillis();
+
         try {
+            // Check balance
+            log.info("Step 1: Checking balance for ChildHierarchyId: {}, WalletType: {}, Amount: {}",
+                    request.getChildHierarchyId(),
+                    request.getWalletType(),
+                    request.getReversalAmount());
+
+            long balanceCheckStart = System.currentTimeMillis();
+
             CheckBalanceRequestDto balanceRequest = new CheckBalanceRequestDto();
             balanceRequest.setHierarchyId(request.getChildHierarchyId());
             balanceRequest.setWalletType(request.getWalletType());
@@ -136,13 +154,23 @@ public class FundReversalServiceImpl implements FundReversalService {
 
             checkBalance(balanceRequest);
 
+            long balanceCheckDuration = System.currentTimeMillis() - balanceCheckStart;
+            log.info("Balance check completed successfully in {} ms", balanceCheckDuration);
+
         } catch (RuntimeException e) {
+            log.error("Balance check failed for ChildHierarchyId: {}, Amount: {}",
+                    request.getChildHierarchyId(),
+                    request.getReversalAmount(),
+                    e);
             return new CommonResponse<>(400, e.getMessage(), null);
         }
 
+        // OTP Generation/Verification
         if (request.getOtp() == null || request.getOtp().isEmpty()) {
+            log.info("Step 2: No OTP provided. Generating new OTP...");
 
             String otp = OtpUtil.generateOtp();
+            log.debug("Generated OTP: {} for ChildHierarchyId: {}", otp, request.getChildHierarchyId());
 
             FundReversal reversal = new FundReversal();
             reversal.setParentHierarchyId(request.getParentHierarchyId());
@@ -153,84 +181,146 @@ public class FundReversalServiceImpl implements FundReversalService {
             reversal.setOtpGeneratedTime(LocalDateTime.now());
             reversal.setStatus(Status.PENDING);
 
+            log.debug("Saving FundReversal record with OTP...");
             fundReversalRepository.save(reversal);
+            log.info("FundReversal record saved with ID: {}", reversal.getId());
 
-            Optional<UserDetails> userOpt =
-                    userDetailsRepository.findByHierarchyId(request.getChildHierarchyId());
+            Optional<UserDetails> userOpt = userDetailsRepository.findByHierarchyId(request.getChildHierarchyId());
+            log.debug("User details found: {}", userOpt.isPresent() ? "Yes" : "No");
 
-            FundReversalResponseDto responseDto =
-                    new FundReversalResponseDto(reversal.getId(), otp, null);
+            FundReversalResponseDto responseDto = new FundReversalResponseDto(reversal.getId(), otp, null);
+
+            log.info("OTP generated successfully for FundReversal ID: {}", reversal.getId());
+            log.info("===== Fund Reversal OTP Generation Completed =====");
 
             return new CommonResponse<>(200,
                     "OTP sent successfully. It will expire in 5 minutes.",
                     responseDto);
         }
 
-        Optional<FundReversal> optTxn =
-                fundReversalRepository
-                        .findTopByParentHierarchyIdAndChildHierarchyIdAndStatusOrderByIdDesc(
-                                request.getParentHierarchyId(),
-                                request.getChildHierarchyId(),
-                                Status.PENDING);
+        // OTP Verification
+        log.info("Step 3: Verifying OTP for ChildHierarchyId: {}", request.getChildHierarchyId());
+        log.debug("Provided OTP: {}", request.getOtp());
+
+        Optional<FundReversal> optTxn = fundReversalRepository
+                .findTopByParentHierarchyIdAndChildHierarchyIdAndStatusOrderByIdDesc(
+                        request.getParentHierarchyId(),
+                        request.getChildHierarchyId(),
+                        Status.PENDING);
 
         if (optTxn.isEmpty()) {
+            log.warn("No pending transaction found for ParentHierarchyId: {}, ChildHierarchyId: {}",
+                    request.getParentHierarchyId(),
+                    request.getChildHierarchyId());
             return new CommonResponse<>(404, "No pending transaction found.", null);
         }
 
         FundReversal fundReversal = optTxn.get();
+        log.debug("Found FundReversal record with ID: {}, OTP generated at: {}",
+                fundReversal.getId(),
+                fundReversal.getOtpGeneratedTime());
 
+        // Validate OTP
         if (!fundReversal.getOtp().equals(request.getOtp())) {
+            log.warn("OTP mismatch for FundReversal ID: {}. Provided: {}, Expected: {}",
+                    fundReversal.getId(),
+                    request.getOtp(),
+                    fundReversal.getOtp());
             return new CommonResponse<>(400, "Invalid OTP.", null);
         }
+        log.debug("OTP verified successfully");
 
-        if (Duration.between(
-                fundReversal.getOtpGeneratedTime(),
-                LocalDateTime.now()).toMinutes() > 5) {
+        // Check OTP expiry
+        Duration otpAge = Duration.between(fundReversal.getOtpGeneratedTime(), LocalDateTime.now());
+        long minutesElapsed = otpAge.toMinutes();
+        log.debug("OTP age: {} minutes", minutesElapsed);
 
+        if (minutesElapsed > 5) {
+            log.warn("OTP expired for FundReversal ID: {}. Age: {} minutes",
+                    fundReversal.getId(),
+                    minutesElapsed);
             return new CommonResponse<>(400, "OTP expired.", null);
         }
 
+        // Process wallet transfer
         BigDecimal reverseAmount = fundReversal.getReversalAmount();
         WalletType walletType = fundReversal.getWalletType();
-
         String baseTransactionId = commonMethods.generateBaseTransactionId();
+
+        log.info("Step 4: Processing wallet transfer");
+        log.info("Transaction Details - Amount: {}, WalletType: {}, BaseTransactionId: {}",
+                reverseAmount,
+                walletType,
+                baseTransactionId);
+
+        long walletTransferStart = System.currentTimeMillis();
 
         processWalletTransfer(request, reverseAmount, walletType, baseTransactionId, latitude, longitude);
 
+        long walletTransferDuration = System.currentTimeMillis() - walletTransferStart;
+        log.info("Wallet transfer completed successfully in {} ms", walletTransferDuration);
+
+        // Update FundReversal status
+        log.info("Step 5: Updating FundReversal status to APPROVED");
         fundReversal.setStatus(Status.APPROVED);
         fundReversal.setOtpVerified(true);
         fundReversal.setActionDate(LocalDate.now());
         fundReversal.setActionTime(LocalTime.now());
 
         fundReversalRepository.save(fundReversal);
+        log.debug("FundReversal record updated with ID: {}", fundReversal.getId());
 
-        SubProducts subProduct = getSubProduct();
-        Products product = subProduct.getProduct();
+        // Process charges
+        log.info("Step 6: Processing charges");
+        long chargesStart = System.currentTimeMillis();
 
-        SchemeRate schemeRate =
-                walletToWalletTransferService
-                        .getExactSchemeRate("66", reverseAmount.doubleValue());
+        try {
+            SubProducts subProduct = getSubProduct();
+            Products product = subProduct.getProduct();
+            log.debug("Product: {}, SubProduct: {}", product.getName(), subProduct.getSubProductTitle());
 
-        BigDecimal grossCharge =
-                calculateGrossCharge(reverseAmount, schemeRate);
+            SchemeRate schemeRate = walletToWalletTransferService
+                    .getExactSchemeRate("116", reverseAmount.doubleValue());
+            log.debug("Scheme Rate obtained: {}", schemeRate);
 
-        processHierarchyCharges(
-                request,
-                fundReversal,
-                walletType,
-                product,
-                subProduct,
-                schemeRate,
-                grossCharge,
-                baseTransactionId
+            BigDecimal grossCharge = calculateGrossCharge(reverseAmount, schemeRate);
+            log.info("Gross Charge calculated: {} for Amount: {}", grossCharge, reverseAmount);
+
+            processHierarchyCharges(
+                    request,
+                    fundReversal,
+                    walletType,
+                    product,
+                    subProduct,
+                    schemeRate,
+                    grossCharge,
+                    baseTransactionId
+            );
+
+            long chargesDuration = System.currentTimeMillis() - chargesStart;
+            log.info("Charges processed successfully in {} ms", chargesDuration);
+
+        } catch (Exception e) {
+            log.error("Failed to process charges for BaseTransactionId: {}", baseTransactionId, e);
+            // Continue - the transaction is already successful, charges failure shouldn't rollback
+            // But we should log it for investigation
+        }
+
+        FundReversalResponseDto responseDto = new FundReversalResponseDto(
+                fundReversal.getId(),
+                null,
+                "TXN" + baseTransactionId
         );
 
-        FundReversalResponseDto responseDto =
-                new FundReversalResponseDto(
-                        fundReversal.getId(),
-                        null,
-                        "TXN" + baseTransactionId
-                );
+        long totalDuration = System.currentTimeMillis() - startTime;
+        log.info("===== Fund Reversal Action Completed Successfully =====");
+        log.info("Summary:");
+        log.info("  - FundReversal ID: {}", fundReversal.getId());
+        log.info("  - Base Transaction ID: {}", baseTransactionId);
+        log.info("  - Amount: {}", reverseAmount);
+        log.info("  - Wallet Type: {}", walletType);
+        log.info("  - Status: APPROVED");
+        log.info("  - Total Duration: {} ms", totalDuration);
 
         return new CommonResponse<>(200,
                 "Transaction successful. Amount debited.",

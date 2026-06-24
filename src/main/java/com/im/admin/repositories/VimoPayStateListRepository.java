@@ -17,4 +17,8 @@ public interface VimoPayStateListRepository extends JpaRepository<VimoPayStateLi
             String stateName
     );
 
+    Optional<VimoPayStateList> findByStateNameIgnoreCase(
+            String stateName
+    );
+
 }

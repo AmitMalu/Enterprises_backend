@@ -116,11 +116,43 @@ public class PayoutOrchestrator {
                     selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
                     selectedScheme.getGross(), selectedScheme.getRetailer());
 
-            BigDecimal finalDeductAmt = req.getAmount().add(BigDecimal.valueOf(selectedScheme.getGross()));
+            BigDecimal cutOfAmount = commonMethods.getLeanAmount(req.getRetailerId(), walletType.name());
 
+            BigDecimal finalDeductAmt = req.getAmount()
+                    .add(BigDecimal.valueOf(selectedScheme.getGross()));
+
+            // Balance after payout
+            BigDecimal remainingBalance = availableBalance.subtract(finalDeductAmt);
+
+            // Lean amount validation
+            if (remainingBalance.compareTo(cutOfAmount) < 0) {
+                log.warn(
+                        "[PROCESS PAYOUT ORCH] Lean amount validation failed | retailerId={} | available={} | required={} | leanAmount={}",
+                        req.getRetailerId(),
+                        availableBalance,
+                        finalDeductAmt,
+                        cutOfAmount
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        String.format(
+                                "Insufficient usable balance. ₹%s must remain locked as lean amount.",
+                                cutOfAmount
+                        ),
+                        null
+                );
+            }
+
+            // Existing balance check
             if (availableBalance.compareTo(finalDeductAmt) < 0) {
-                log.warn("[PROCESS PAYOUT ORCH] Insufficient balance for retailer {} (required={}, available={})",
-                        req.getRetailerId(), req.getAmount(), availableBalance);
+                log.warn(
+                        "[PROCESS PAYOUT ORCH] Insufficient balance | retailer={} | required={} | available={}",
+                        req.getRetailerId(),
+                        finalDeductAmt,
+                        availableBalance
+                );
+
                 return new CommonResponse<>(400, "Insufficient Balance", null);
             }
 
