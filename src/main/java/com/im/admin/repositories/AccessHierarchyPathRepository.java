@@ -6,6 +6,8 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.AccessHierarchyPath;
 import com.im.admin.entities.AccessHierarchyPathId;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -75,6 +77,17 @@ public interface AccessHierarchyPathRepository
     void deleteByDescendantExcludingSelf(
             @Param("descendantId")
             String descendantId
+    );
+
+    @Query("""
+SELECT p.descendantId
+FROM AccessHierarchyPath p
+WHERE p.ancestorId=:ancestorId
+AND p.depth>0
+""")
+    List<String> findDescendantIds(
+            @Param("ancestorId")
+            String ancestorId
     );
 
 }

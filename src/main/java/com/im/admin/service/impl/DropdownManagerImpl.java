@@ -47,178 +47,9 @@ public class DropdownManagerImpl implements DropdownManagerService {
     @Autowired
     private RetailerRepository retailerRepository;
 
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
 
-//    @Override
-//    public Page<ChildUserDto> getChildUsers(
-//            String parentHierarchyId,
-//            int page,
-//            int size,
-//            String userId,
-//            String parentAccount,
-//            String abbreviation,
-//            String title,
-//            String name,
-//            String mobileNumber,
-//            String emailId,
-//            String dob,
-//            String status,
-//            Boolean isBlocked,
-//            String network,
-//            String createdOn
-//    ) {
-//        // Extract parent type (e.g., "WL" -> WhiteLabel)
-//        String parentType = commonMethods.extractHierarchyType(parentHierarchyId);
-//        List<String> childEntities = hierarchyChildren.get(parentType);
-//
-//        if (childEntities == null || childEntities.isEmpty())
-//            throw new RuntimeException("No child entities found for hierarchy type: " + parentType);
-//
-//        List<ChildUserDto> allChildUsers = childEntities.stream()
-//                .flatMap(childEntity -> switch (childEntity) {
-//                    case "enterprises" -> enterprisesRepository.findByParentAccount(parentHierarchyId).stream()
-//                            //.filter(e -> "APPROVED".equalsIgnoreCase(e.getStatus()))
-//                            .map(e -> new ChildUserDto(
-//                                    "Enterprises",
-//                                    e.getEnterpriseId(),
-//                                    e.getParentAccount(),
-//                                    e.getAbbreviation(),
-//                                    e.getTitle(),
-//                                    e.getName(),
-//                                    e.getMobileNumber(),
-//                                    e.getEmailId(),
-//                                    e.getDob(),
-//                                    e.getStatus(),
-//                                    userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId())
-//                                            .map(UserDetails::getIsBlocked).orElse(false),
-//                                    e.getRejectionReason(),
-//                                    e.getCreatedOn()
-//                            ));
-//
-//                    case "white_labels" -> whiteLabelRepository.findByParentAccount(parentHierarchyId).stream()
-//                            //.filter(wl -> "APPROVED".equalsIgnoreCase(wl.getStatus()))
-//                            .map(wl -> new ChildUserDto(
-//                                    "White Label",
-//                                    wl.getWhiteLabelId(),
-//                                    wl.getParentAccount(),
-//                                    wl.getAbbreviation(),
-//                                    wl.getTitle(),
-//                                    wl.getName(),
-//                                    wl.getMobileNumber(),
-//                                    wl.getEmailId(),
-//                                    wl.getDob(),
-//                                    wl.getStatus(),
-//                                    userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId())
-//                                            .map(UserDetails::getIsBlocked).orElse(false),
-//                                    wl.getRejectionReason(),
-//                                    wl.getCreatedOn()
-//                            ));
-//
-//                    case "super_distributor" ->
-//                            superDistributorRepository.findByParentAccount(parentHierarchyId).stream()
-//                                    //.filter(s -> "APPROVED".equalsIgnoreCase(s.getStatus()))
-//                                    .map(s -> new ChildUserDto(
-//                                            "Super Distributor",
-//                                            s.getSuperDistributorId(),
-//                                            s.getParentAccount(),
-//                                            s.getAbbreviation(),
-//                                            s.getTitle(),
-//                                            s.getName(),
-//                                            s.getMobileNumber(),
-//                                            s.getEmailId(),
-//                                            s.getDob(),
-//                                            s.getStatus(),
-//                                            userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId())
-//                                                    .map(UserDetails::getIsBlocked).orElse(false),
-//                                            s.getRejectionReason(),
-//                                            s.getCreatedOn()
-//                                    ));
-//
-//                    case "partner" -> partnerRepository.findByParentAccount(parentHierarchyId).stream()
-//                            //.filter(p -> "APPROVED".equalsIgnoreCase(p.getStatus()))
-//                            .map(p -> new ChildUserDto(
-//                                    "Partner",
-//                                    p.getPartnerId(),
-//                                    p.getParentAccount(),
-//                                    p.getAbbreviation(),
-//                                    p.getTitle(),
-//                                    p.getName(),
-//                                    p.getMobileNumber(),
-//                                    p.getEmailId(),
-//                                    p.getDob(),
-//                                    p.getStatus(),
-//                                    userDetailsRepository.findFirstByHierarchyId(p.getPartnerId())
-//                                            .map(UserDetails::getIsBlocked).orElse(false),
-//                                    p.getRejectionReason(),
-//                                    p.getCreatedOn()
-//                            ));
-//
-//                    case "distributor" -> distributorRepository.findByParentAccount(parentHierarchyId).stream()
-//                            //.filter(d -> "APPROVED".equalsIgnoreCase(d.getStatus()))
-//                            .map(d -> new ChildUserDto(
-//                                    "Distributor",
-//                                    d.getDistributorId(),
-//                                    d.getParentAccount(),
-//                                    d.getAbbreviation(),
-//                                    d.getTitle(),
-//                                    d.getName(),
-//                                    d.getMobileNumber(),
-//                                    d.getEmailId(),
-//                                    d.getDob(),
-//                                    d.getStatus(),
-//                                    userDetailsRepository.findFirstByHierarchyId(d.getDistributorId())
-//                                            .map(UserDetails::getIsBlocked).orElse(false),
-//                                    d.getRejectionReason(),
-//                                    d.getCreatedOn()
-//                            ));
-//
-//                    case "retailer" -> retailerRepository.findByParentAccount(parentHierarchyId).stream()
-//                            //.filter(r -> "APPROVED".equalsIgnoreCase(r.getStatus()))
-//                            .map(r -> new ChildUserDto(
-//                                    "Retailer",
-//                                    r.getRetailerId(),
-//                                    r.getParentAccount(),
-//                                    r.getAbbreviation(),
-//                                    r.getTitle(),
-//                                    r.getName(),
-//                                    r.getMobileNumber(),
-//                                    r.getEmailId(),
-//                                    r.getDob(),
-//                                    r.getStatus(),
-//                                    userDetailsRepository.findFirstByHierarchyId(r.getRetailerId())
-//                                            .map(UserDetails::getIsBlocked).orElse(false),
-//                                    r.getRejectionReason(),
-//                                    r.getCreatedOn()
-//                            ));
-//
-//                    default -> Stream.empty();
-//                }).toList();
-//
-//        //  Apply filters
-//        List<ChildUserDto> filtered = allChildUsers.stream()
-//                .filter(u -> userId == null || containsIgnoreCase(u.getUserId(), userId))
-//                .filter(u -> parentAccount == null || containsIgnoreCase(u.getParentAccount(), parentAccount))
-//                .filter(u -> abbreviation == null || containsIgnoreCase(u.getAbbreviation(), abbreviation))
-//                .filter(u -> title == null || containsIgnoreCase(u.getTitle(), title))
-//                .filter(u -> name == null || containsIgnoreCase(u.getName(), name))
-//                .filter(u -> mobileNumber == null || containsIgnoreCase(u.getMobileNumber(), mobileNumber))
-//                .filter(u -> emailId == null || containsIgnoreCase(u.getEmailId(), emailId))
-//                .filter(u -> status == null || containsIgnoreCase(u.getStatus(), status))
-//                .filter(u -> dob == null || (u.getDob() != null && u.getDob().toString().equals(dob)))
-//                .filter(u -> isBlocked == null || u.getIsBlocked().equals(isBlocked))
-//                .filter(u -> network == null || containsIgnoreCase(u.getNetwork(), network))
-//                .filter(u -> createdOn == null || (u.getCreatedOn() != null && u.getCreatedOn().toLocalDate().toString().equals(createdOn)))
-//                .sorted(Comparator.comparing(ChildUserDto::getCreatedOn, Comparator.nullsLast(Comparator.reverseOrder())))
-//                .collect(Collectors.toList());
-//
-//        //  Apply pagination (with Sort metadata) Sort by createdOn (latest first)
-//        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
-//        int start = (int) pageable.getOffset();
-//        int end = Math.min(start + pageable.getPageSize(), filtered.size());
-//        List<ChildUserDto> paginated = (start >= filtered.size()) ? Collections.emptyList() : filtered.subList(start, end);
-//
-//        return new PageImpl<>(paginated, pageable, filtered.size());
-//
-//    }
 
     @Override
     public Page<ChildUserDto> getChildUsers(
@@ -275,6 +106,96 @@ public class DropdownManagerImpl implements DropdownManagerService {
 
         return new PageImpl<>(paginated, pageable, filtered.size());
     }
+
+//    @Override
+//    public Page<ChildUserDto> getChildUsers(
+//            String parentHierarchyId,
+//            int page,
+//            int size,
+//            String userId,
+//            String parentAccount,
+//            String abbreviation,
+//            String title,
+//            String name,
+//            String mobileNumber,
+//            String emailId,
+//            String dob,
+//            String status,
+//            Boolean isBlocked,
+//            String network,
+//            String createdOn
+//    ) {
+//
+//        // Fetch ALL descendants (no pagination here)
+//        List<String> descendantIds =
+//                accessHierarchyPathRepository
+//                        .findDescendantIds(parentHierarchyId);
+//
+//        // Convert hierarchy → DTO
+//        List<ChildUserDto> allChildUsers =
+//                descendantIds.stream()
+//                        .map(this::getUserByHierarchyId)
+//                        .filter(Objects::nonNull)
+//                        .toList();
+//
+//        // Apply filters
+//        List<ChildUserDto> filtered =
+//                allChildUsers.stream()
+//                        .filter(u -> userId == null || containsIgnoreCase(u.getUserId(), userId))
+//                        .filter(u -> parentAccount == null || containsIgnoreCase(u.getParentAccount(), parentAccount))
+//                        .filter(u -> abbreviation == null || containsIgnoreCase(u.getAbbreviation(), abbreviation))
+//                        .filter(u -> title == null || containsIgnoreCase(u.getTitle(), title))
+//                        .filter(u -> name == null || containsIgnoreCase(u.getName(), name))
+//                        .filter(u -> mobileNumber == null || containsIgnoreCase(u.getMobileNumber(), mobileNumber))
+//                        .filter(u -> emailId == null || containsIgnoreCase(u.getEmailId(), emailId))
+//                        .filter(u -> status == null || containsIgnoreCase(u.getStatus(), status))
+//                        .filter(u -> dob == null ||
+//                                (u.getDob() != null &&
+//                                        u.getDob().toString().equals(dob)))
+//                        .filter(u -> isBlocked == null ||
+//                                Objects.equals(u.getIsBlocked(), isBlocked))
+//                        .filter(u -> network == null ||
+//                                containsIgnoreCase(u.getNetwork(), network))
+//                        .filter(u -> createdOn == null ||
+//                                (u.getCreatedOn() != null &&
+//                                        u.getCreatedOn()
+//                                                .toLocalDate()
+//                                                .toString()
+//                                                .equals(createdOn)))
+//                        .sorted(
+//                                Comparator.comparing(
+//                                        ChildUserDto::getCreatedOn,
+//                                        Comparator.nullsLast(
+//                                                Comparator.reverseOrder()
+//                                        )
+//                                )
+//                        )
+//                        .toList();
+//
+//        // Pagination AFTER filtering
+//        Pageable pageable =
+//                PageRequest.of(page, size);
+//
+//        int start =
+//                (int) pageable.getOffset();
+//
+//        int end =
+//                Math.min(
+//                        start + pageable.getPageSize(),
+//                        filtered.size()
+//                );
+//
+//        List<ChildUserDto> paginated =
+//                start >= filtered.size()
+//                        ? Collections.emptyList()
+//                        : filtered.subList(start, end);
+//
+//        return new PageImpl<>(
+//                paginated,
+//                pageable,
+//                filtered.size()
+//        );
+//    }
 
 
     private void fetchHierarchyRecursively(
