@@ -1,6 +1,7 @@
 package com.im.admin.entities;
 
 import com.im.admin.entities.enums.WalletReportFrequency;
+import com.im.admin.entities.enums.WalletReportType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -42,6 +43,11 @@ public class WalletDownloadReport {
     @Enumerated(EnumType.STRING)
     @Column(name = "frequency", nullable = false)
     private WalletReportFrequency frequency;
+
+    /** WALLET_HISTORY or WALLET_PREVIEW */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "report_type", nullable = false)
+    private WalletReportType reportType;
 
     /** Stored filename, e.g. "wallet_history_20260623_01.xlsx" */
     @Column(name = "file_name", nullable = false)

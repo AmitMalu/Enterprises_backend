@@ -2,6 +2,7 @@ package com.im.admin.service.impl.reports;
 
 import com.im.admin.entities.WalletDownloadReport;
 import com.im.admin.entities.enums.WalletReportFrequency;
+import com.im.admin.entities.enums.WalletReportType;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.properties.ReportProperties;
 import com.im.admin.repositories.WalletDownloadReportRepository;
@@ -58,14 +59,16 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
     @Transactional
     public void generateHourlyReport(LocalDate reportDate, LocalDateTime hourEnd) throws Exception {
 
-        // Format: "Hourly Wallet History Report 12 AM - 1 AM"
+        if (reportProperties.getBaseDir() == null || reportProperties.getBaseDir().isBlank()) {
+            log.warn("reports.base-dir not configured — skipping hourly wallet history report generation");
+            return;
+        }
         String fromLabel = "12 AM";
         String toLabel   = formatHourLabel(hourEnd.getHour());
         String subject   = "Hourly Wallet History Report " + fromLabel + " - " + toLabel;
 
-        // Skip if already generated
-        if (reportRepository.findByReportDateAndFrequencyAndSubject(
-                reportDate, WalletReportFrequency.HOURLY, subject).isPresent()) {
+        if (reportRepository.findByReportTypeAndReportDateAndFrequencyAndSubject(
+                WalletReportType.WALLET_HISTORY, reportDate, WalletReportFrequency.HOURLY, subject).isPresent()) {
             log.info("Hourly wallet report already exists, skipping: {}", subject);
             return;
         }
@@ -101,6 +104,7 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
         entity.setReportTimestamp(hourEnd);
         entity.setSubject(subject);
         entity.setFrequency(WalletReportFrequency.HOURLY);
+        entity.setReportType(WalletReportType.WALLET_HISTORY);
         entity.setFileName(fname);
         entity.setFilePath(relativePath);
         entity.setRecordCount((long) data.size());
@@ -117,9 +121,14 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
     @Transactional
     public void generateDailyReport(LocalDate reportDate) throws Exception {
 
+        if (reportProperties.getBaseDir() == null || reportProperties.getBaseDir().isBlank()) {
+            log.warn("reports.base-dir not configured — skipping daily wallet history report generation");
+            return;
+        }
+
         String subject = "Daily Wallet History Report " + reportDate;
-        if (reportRepository.findByReportDateAndFrequencyAndSubject(
-                reportDate, WalletReportFrequency.DAILY, subject).isPresent()) {
+        if (reportRepository.findByReportTypeAndReportDateAndFrequencyAndSubject(
+                WalletReportType.WALLET_HISTORY, reportDate, WalletReportFrequency.DAILY, subject).isPresent()) {
             log.info("Daily wallet report already exists, skipping: {}", subject);
             return;
         }
@@ -142,6 +151,7 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
         entity.setReportTimestamp(reportDate.atTime(23, 59, 59));
         entity.setSubject(subject);
         entity.setFrequency(WalletReportFrequency.DAILY);
+        entity.setReportType(WalletReportType.WALLET_HISTORY);
         entity.setFileName(fname);
         entity.setFilePath(relativePath);
         entity.setRecordCount((long) data.size());
@@ -163,10 +173,26 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
     }
 
     @Override
+    public CommonResponse<Page<WalletDownloadReportResponse>> listReportsByType(WalletReportType reportType, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<WalletDownloadReport> entities =
+                reportRepository.findByReportTypeOrderByCreatedAtDesc(reportType, pageable);
+        return CommonResponse.success(entities.map(this::toResponse), "Reports fetched successfully");
+    }
+
+    @Override
     public CommonResponse<Page<WalletDownloadReportResponse>> listReportsByDate(LocalDate date, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<WalletDownloadReport> entities =
                 reportRepository.findByReportDateOrderByCreatedAtDesc(date, pageable);
+        return CommonResponse.success(entities.map(this::toResponse), "Reports fetched successfully");
+    }
+
+    @Override
+    public CommonResponse<Page<WalletDownloadReportResponse>> listReportsByTypeAndDate(WalletReportType reportType, LocalDate date, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<WalletDownloadReport> entities =
+                reportRepository.findByReportTypeAndReportDateOrderByCreatedAtDesc(reportType, date, pageable);
         return CommonResponse.success(entities.map(this::toResponse), "Reports fetched successfully");
     }
 
@@ -381,6 +407,7 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
                 e.getReportTimestamp(),
                 e.getSubject(),
                 e.getFrequency(),
+                e.getReportType(),
                 e.getFileName(),
                 e.getRecordCount(),
                 e.getCreatedAt()
