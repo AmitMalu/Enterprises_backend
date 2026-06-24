@@ -324,6 +324,49 @@ public class CommonMethods {
         }
     }
 
+    public BigDecimal getLeanAmount(String hierarchyId, String walletType) {
+        log.debug("[LEAN AMOUNT METHOD] Initiating balance retrieval for wallet type: {}", walletType);
+
+        try {
+            String hierarchyType = extractHierarchyType(hierarchyId);
+
+            String resolvedHierarchyId = hierarchyId;
+            String resolvedHierarchyType = hierarchyType;
+
+            // Special handling for RetailerUser
+            if ("RU".equalsIgnoreCase(hierarchyType)) {
+                log.debug("[LEAN AMOUNT METHOD] Hierarchy is RetailerUser. Resolving parent Retailer ID.");
+
+                RetailerUser retailerUser = retailerUserRepository.findByIdWithRetailer(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("RetailerUser not found with ID: " + hierarchyId));
+
+                resolvedHierarchyId = retailerUser.getRetailer().getRetailerId();
+                resolvedHierarchyType = "RT";
+            }
+
+            String amountTable = getAmountTable(resolvedHierarchyType, walletType);
+            String columnName = getHierarchyColumnName(resolvedHierarchyType);
+
+            log.trace("[LEAN AMOUNT METHOD] Preparing SQL query for balance lookup: {}", amountTable);
+
+            String sql = "SELECT cut_of_amount FROM " + amountTable + " WHERE " + columnName + " = :hierarchyId";
+
+            BigDecimal balance = (BigDecimal) entityManager.createNativeQuery(sql)
+                    .setParameter("hierarchyId", resolvedHierarchyId)  // use final variable
+                    .getSingleResult();
+
+            log.info("[LEAN AMOUNT METHOD] Balance retrieved successfully.");
+            return balance;
+
+        } catch (NoResultException e) {
+            log.warn("[LEAN AMOUNT METHOD] No balance record found for provided hierarchy.");
+            return BigDecimal.ZERO;
+        } catch (Exception e) {
+            log.error("[LEAN AMOUNT METHOD] Error occurred while retrieving balance.", e);
+            throw new RuntimeException("Unable to fetch current balance.");
+        }
+    }
+
     public String getHierarchyColumnName(String hierarchyType) {
         log.debug("Resolving column name for hierarchy type.");
 

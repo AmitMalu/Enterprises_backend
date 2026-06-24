@@ -355,7 +355,7 @@ public class VendorDataSyncServiceImpl implements VendorDataSyncService {
         }
     }
 
-    private String callTokenApi(VendorCredentials vendorCredentials) {
+    public String callTokenApi(VendorCredentials vendorCredentials) {
 
         log.info("===== Starting Token API call =====");
 
@@ -374,6 +374,8 @@ public class VendorDataSyncServiceImpl implements VendorDataSyncService {
             HttpEntity<String> entity =
                     new HttpEntity<>(null, headers);
 
+            log.info("[VIMOPAY] Token Header{} -----> ", headers);
+
             long start = System.currentTimeMillis();
 
             ResponseEntity<String> response =
@@ -389,7 +391,7 @@ public class VendorDataSyncServiceImpl implements VendorDataSyncService {
 
             String body = response.getBody();
 
-            log.info("Raw Response={}", body);
+            log.info("[VIMOPAY] Token Raw Response={}", body);
 
             JsonNode root = objectMapper.readTree(body);
 
