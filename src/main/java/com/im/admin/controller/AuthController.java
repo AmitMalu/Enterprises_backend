@@ -617,11 +617,38 @@ public class AuthController {
                                 wl.getDomainURL()
                         );
 
-                        match =
-                                requestUrl != null &&
-                                        wl.getDomainURL() != null &&
-                                        requestUrl.contains(wl.getDomainURL());
+                        String requestHost = requestUrl
+                                .replace("https://", "")
+                                .replace("http://", "")
+                                .replace("*.", "")
+                                .split("/")[0];
+
+                        String wlHost = wl.getDomainURL()
+                                .replace("https://", "")
+                                .replace("http://", "")
+                                .split("/")[0];
+
+                        String requestRoot =
+                                requestHost.substring(requestHost.indexOf('.') + 1);
+
+                        String wlRoot =
+                                wlHost.substring(wlHost.indexOf('.') + 1);
+
+                        log.info(
+                                "Normalized domains | requestHost={} | wlHost={} | requestRoot={} | wlRoot={}",
+                                requestHost,
+                                wlHost,
+                                requestRoot,
+                                wlRoot
+                        );
+
+                        match = requestRoot.equalsIgnoreCase(wlRoot);
                     }
+
+//                    Final domain validation result | hierarchyId=LPS-SD-001 | originalType=SD | requestUrl=https://*.lakshaype.com/ | wlDomain=https://portal.lakshaype.com | match=false
+//                    Original User Type=SD | Request URL=https://*.lakshaype.com/ | Parent WL Domain=https://portal.lakshaype.com
+//                    Invalid login domain for user ID: LPS-SD-001
+
 
                     log.info(
                             "Final domain validation result | hierarchyId={} | originalType={} | requestUrl={} | wlDomain={} | match={}",
@@ -634,10 +661,6 @@ public class AuthController {
 
                     return match;
                 }
-
-                //now here we have to add one more condition is if when RT want to try to login and his parent found WL admin true then check WL admin column
-                //domain name so requested url and WL admin url both should be match.RT, DT, PT, SD this will be type will found the parent WL admin
-                //then only login with oly white label domian. rest other code keep same cuase its a production code.
             }
 
             if ("IM".equals(currentType) || "AD".equals(currentType)) {
