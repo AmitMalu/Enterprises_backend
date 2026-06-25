@@ -607,7 +607,7 @@ public class AuthController {
                     } else {
 
                         log.info(
-                                "Executing child hierarchy login validation using parent WL domain"
+                                "Executing child hierarchy login validation using root domain only"
                         );
 
                         log.info(
@@ -618,31 +618,30 @@ public class AuthController {
                         );
 
                         String requestHost = requestUrl
-                                .replace("https://", "")
-                                .replace("http://", "")
+                                .replaceFirst("^https?://", "")
                                 .replace("*.", "")
                                 .split("/")[0];
 
                         String wlHost = wl.getDomainURL()
-                                .replace("https://", "")
-                                .replace("http://", "")
+                                .replaceFirst("^https?://", "")
                                 .split("/")[0];
 
-                        String requestRoot =
-                                requestHost.substring(requestHost.indexOf('.') + 1);
+                        String requestDomain =
+                                requestHost.replaceFirst("^.*?([^.]+\\.[^.]+)$", "$1");
 
-                        String wlRoot =
-                                wlHost.substring(wlHost.indexOf('.') + 1);
+                        String wlDomain =
+                                wlHost.replaceFirst("^.*?([^.]+\\.[^.]+)$", "$1");
 
                         log.info(
-                                "Normalized domains | requestHost={} | wlHost={} | requestRoot={} | wlRoot={}",
+                                "Normalized domains | requestHost={} | wlHost={} | requestDomain={} | wlDomain={}",
                                 requestHost,
                                 wlHost,
-                                requestRoot,
-                                wlRoot
+                                requestDomain,
+                                wlDomain
                         );
 
-                        match = requestRoot.equalsIgnoreCase(wlRoot);
+                        match =
+                                requestDomain.equalsIgnoreCase(wlDomain);
                     }
 
 //                    Final domain validation result | hierarchyId=LPS-SD-001 | originalType=SD | requestUrl=https://*.lakshaype.com/ | wlDomain=https://portal.lakshaype.com | match=false
