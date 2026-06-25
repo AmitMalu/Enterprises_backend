@@ -166,8 +166,13 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
                         request.getWhiteLabelId());
             }
 
+            log.info("Received Domain Name : {}", request.getDomainName());
+
+
             tenant.setDomainName(
                     request.getDomainName());
+
+
 
             tenant.setCompanyName(
                     request.getCompanyName());
@@ -352,6 +357,63 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
         }
     }
 
+//    private String saveFile(
+//            String tenantCode,
+//            MultipartFile file,
+//            String prefix
+//    ) throws IOException {
+//
+//        if (file == null || file.isEmpty()) {
+//            return null;
+//        }
+//
+//        Path tenantFolder =
+//                Paths.get(
+//                        WL_ASSET_PATH,
+//                        tenantCode
+//                );
+//
+//        Files.createDirectories(
+//                tenantFolder);
+//
+//        Files.setPosixFilePermissions(
+//                tenantFolder,
+//                PosixFilePermissions.fromString("rwxr-xr-x")
+//        );
+//
+//        String originalFileName =
+//                file.getOriginalFilename();
+//
+//        String extension = "";
+//
+//        if (originalFileName != null
+//                && originalFileName.contains(".")) {
+//
+//            extension =
+//                    originalFileName.substring(
+//                            originalFileName.lastIndexOf("."));
+//        }
+//
+//        String fileName =
+//                prefix + extension;
+//
+//        Path filePath =
+//                tenantFolder.resolve(
+//                        fileName);
+//
+//        file.transferTo(
+//                filePath.toFile());
+//
+//        Files.setPosixFilePermissions(
+//                filePath,
+//                PosixFilePermissions.fromString("rw-r--r--")
+//        );
+//
+//        return tenantCode
+//                + "/"
+//                + fileName;
+//    }
+
     private String saveFile(
             String tenantCode,
             MultipartFile file,
@@ -362,54 +424,30 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
             return null;
         }
 
-        Path tenantFolder =
-                Paths.get(
-                        WL_ASSET_PATH,
-                        tenantCode
-                );
-
-        Files.createDirectories(
-                tenantFolder);
-
-        Files.setPosixFilePermissions(
-                tenantFolder,
-                PosixFilePermissions.fromString("rwxr-xr-x")
+        Path tenantFolder = Paths.get(
+                WL_ASSET_PATH,
+                tenantCode
         );
 
-        String originalFileName =
-                file.getOriginalFilename();
+        Files.createDirectories(tenantFolder);
+
+        String originalFileName = file.getOriginalFilename();
 
         String extension = "";
 
         if (originalFileName != null
                 && originalFileName.contains(".")) {
 
-            extension =
-                    originalFileName.substring(
-                            originalFileName.lastIndexOf("."));
+            extension = originalFileName.substring(
+                    originalFileName.lastIndexOf("."));
         }
 
-        String fileName =
-                prefix + extension;
+        String fileName = prefix + extension;
 
-        Path filePath =
-                tenantFolder.resolve(
-                        fileName);
+        Path filePath = tenantFolder.resolve(fileName);
 
-        file.transferTo(
-                filePath.toFile());
+        file.transferTo(filePath.toFile());
 
-        Files.setPosixFilePermissions(
-                filePath,
-                PosixFilePermissions.fromString("rw-r--r--")
-        );
-
-        return tenantCode
-                + "/"
-                + fileName;
+        return fileName;
     }
-
-
-
-
 }
