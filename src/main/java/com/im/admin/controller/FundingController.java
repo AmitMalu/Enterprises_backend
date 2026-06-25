@@ -162,6 +162,19 @@ public class FundingController {
         );
     }
 
+    // GET /api/funding/get-networks-with-name/{hierarchyId}
+    @GetMapping("/get-networks-with-name/{hierarchyId}")
+    public ResponseEntity<CommonResponse> getNetworksWithName(
+            @PathVariable String hierarchyId) {
+
+        log.info("API Call: getNetworksWithName | hierarchyId={}", hierarchyId);
+
+        return ResponseEntity.ok(
+                new CommonResponse(200, "success",
+                        fundingService.getNetworksWithName(hierarchyId))
+        );
+    }
+
     @PostMapping("/wallet-preview")
     public ResponseEntity<?> getReport(
             @RequestBody HierarchyWalletReportRequest request,

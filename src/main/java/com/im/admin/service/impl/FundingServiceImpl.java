@@ -53,6 +53,7 @@ public class FundingServiceImpl implements FundingService {
      private HierarchyWalletReportRepository repository;
 
     @Autowired
+    private AdminRepository adminRepository;
     private SuperDistributorRepository superDistributorRepository;
 
     @Autowired
@@ -1237,43 +1238,117 @@ public class FundingServiceImpl implements FundingService {
     }
 
 
-    @Override
-    public List<String> getRetailersUnderHierarchy(
-            String hierarchyId) {
+//    @Override
+//    public List<String> getRetailersUnderHierarchy(
+//            String hierarchyId) {
+//
+//        String hierarchyType =
+//                commonMethods.extractHierarchyType(
+//                        hierarchyId);
+//
+//        // Admin sees everything
+//        if ("AD".equalsIgnoreCase(hierarchyType)) {
+//            return null;
+//        }
+//
+//        // Retailer sees only himself
+//        if ("RT".equalsIgnoreCase(hierarchyType)) {
+//            return List.of(hierarchyId);
+//        }
+//
+//        return accessHierarchyPathRepository
+//                .findRetailerDescendants(
+//                        hierarchyId);
+//    }
 
-        String hierarchyType =
-                commonMethods.extractHierarchyType(
-                        hierarchyId);
+    public List<String> getRetailersUnderHierarchy(String hierarchyId) {
 
-        // Admin sees everything
-        if ("AD".equalsIgnoreCase(hierarchyType)) {
-            return null;
-        }
+        String type = commonMethods.extractHierarchyType(hierarchyId);
 
-        // Retailer sees only himself
-        if ("RT".equalsIgnoreCase(hierarchyType)) {
+//        if ("RT".equals(type) || "RU".equals(type)) {
+//            return List.of(hierarchyId);
+//        }
+        if ("RU".equals(type)) {
             return List.of(hierarchyId);
         }
 
-        return accessHierarchyPathRepository
-                .findRetailerDescendants(
-                        hierarchyId);
+        List<String> resultIds = new ArrayList<>();
+
+        // Add itself
+        resultIds.add(hierarchyId);
+
+        List<UserDetails> allChildren = new ArrayList<>();
+
+        fetchChildrenRecursively(hierarchyId, allChildren);
+
+        log.info("All children IDs fetched: {}",
+                allChildren.stream()
+                        .map(UserDetails::getHierarchyId)
+                        .toList());
+
+
+        resultIds.addAll(
+                allChildren.stream()
+                        .filter(user ->
+                                "RT".equalsIgnoreCase(user.getHierarchyCode()) ||
+                                        "RU".equalsIgnoreCase(user.getHierarchyCode())
+                        )
+                        .map(UserDetails::getHierarchyId)
+                        .toList()
+        );
+
+        return resultIds;
     }
 
 
-//    private void fetchChildrenRecursively(
-//            String parentId,
-//            List<UserDetails> result
-//    ) {
-//
-//        List<UserDetails> children =
-//                userDetailsRepository.findByParentAccount(parentId);
-//s
-//        for (UserDetails child : children) {
-//            result.add(child);
-//            fetchChildrenRecursively(child.getHierarchyId(), result);
-//        }
-//    }
+    private void fetchChildrenRecursively(
+            String parentId,
+            List<UserDetails> result
+    ) {
+
+        List<UserDetails> children =
+                userDetailsRepository.findByParentAccount(parentId);
+
+        for (UserDetails child : children) {
+            result.add(child);
+            fetchChildrenRecursively(child.getHierarchyId(), result);
+        }
+    }
+
+    @Override
+    public List<Map<String, String>> getNetworksWithName(String hierarchyId) {
+
+        List<String> ids = getRetailersUnderHierarchy(hierarchyId);
+
+        return ids.stream().map(id -> {
+            String type = commonMethods.extractHierarchyType(id);
+            String name = resolveNameByType(type, id);
+            Map<String, String> entry = new java.util.LinkedHashMap<>();
+            entry.put("id",   id);
+            entry.put("name", name != null ? name : "");
+            return entry;
+        }).toList();
+    }
+
+    private String resolveNameByType(String type, String id) {
+        try {
+            return switch (type.toUpperCase()) {
+                case "RT" -> retailerRepository.findNameByHierarchyId(id);
+                case "DT" -> distributorRepository.findNameByHierarchyId(id);
+                case "PT" -> partnerRepository.findNameByHierarchyId(id);
+                case "SD" -> superDistributorRepository.findNameByHierarchyId(id);
+                case "WL" -> whiteLabelRepository.findNameByHierarchyId(id);
+                case "ET" -> enterprisesRepository.findNameByHierarchyId(id);
+                case "AD" -> adminRepository.findNameByHierarchyId(id);
+                default   -> null;
+            };
+        } catch (Exception e) {
+            log.warn("Could not resolve name for id={} type={}: {}", id, type, e.getMessage());
+            return null;
+        }
+    }
+
+
 
 
     @Override

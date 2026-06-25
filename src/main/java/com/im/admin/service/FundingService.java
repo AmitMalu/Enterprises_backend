@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 public interface FundingService {
 
@@ -32,6 +33,8 @@ public interface FundingService {
 
     List<String> getRetailersUnderHierarchy(String hierarchyId);
 
+    /** Returns list of {id, name} maps for each hierarchy ID */
+    List<Map<String, String>> getNetworksWithName(String hierarchyId);
 
     Page<HierarchyWalletReportDto> getReport(HierarchyWalletReportRequest request);
 }

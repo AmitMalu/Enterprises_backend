@@ -79,15 +79,15 @@ public interface AccessHierarchyPathRepository
             String descendantId
     );
 
-    @Query("""
-SELECT p.descendantId
-FROM AccessHierarchyPath p
-WHERE p.ancestorId=:ancestorId
-AND p.depth>0
-""")
-    List<String> findDescendantIds(
-            @Param("ancestorId")
-            String ancestorId
-    );
+//    @Query("""
+//SELECT p.descendantId
+//FROM AccessHierarchyPath p
+//WHERE p.ancestorId=:ancestorId
+//AND p.depth>0
+//""")
+//    List<String> findDescendantIds(
+//            @Param("ancestorId")
+//            String ancestorId
+//    );
 
 }
