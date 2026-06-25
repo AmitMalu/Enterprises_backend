@@ -557,14 +557,103 @@ public class AuthController {
                         wl.getDomainURL()
                 );
 
+//                if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+//
+//                    //boolean match = requestUrl.contains(wl.getDomainURL());
+//
+//                    boolean match = requestUrl.contains(".nfttech.in");
+//
+//                    log.info(
+//                            "Domain validation - Request URL: {}, WL Domain: {}, Match: {}",
+//                            requestUrl,
+//                            wl.getDomainURL(),
+//                            match
+//                    );
+//
+//                    return match;
+//                }
+
                 if (Boolean.TRUE.equals(wl.getIsAdmin())) {
 
-                    //boolean match = requestUrl.contains(wl.getDomainURL());
-
-                    boolean match = requestUrl.contains(".nfttech.in");
+                    String originalType =
+                            commonMethods.extractHierarchyType(hierarchyId);
 
                     log.info(
-                            "Domain validation - Request URL: {}, WL Domain: {}, Match: {}",
+                            "WL Admin detected | originalHierarchyId={} | originalType={} | currentId={} | wlId={}",
+                            hierarchyId,
+                            originalType,
+                            currentId,
+                            wl.getWhiteLabelId()
+                    );
+
+                    boolean match;
+
+                    // Existing behaviour → WL / WLAU self-login
+                    if ("WL".equals(originalType) || "WLAU".equals(originalType)) {
+
+                        log.info(
+                                "Executing WL/WLAU self-login validation using hardcoded domain"
+                        );
+
+                        log.info(
+                                "Request URL={} | Expected contains=.nfttech.in",
+                                requestUrl
+                        );
+
+                        match =
+                                requestUrl != null &&
+                                        requestUrl.contains(".nfttech.in");
+
+                    } else {
+
+                        log.info(
+                                "Executing child hierarchy login validation using parent WL domain"
+                        );
+
+                        log.info(
+                                "Original User Type={} | Request URL={} | Parent WL Domain={}",
+                                originalType,
+                                requestUrl,
+                                wl.getDomainURL()
+                        );
+
+                        String requestHost = requestUrl
+                                .replace("https://", "")
+                                .replace("http://", "")
+                                .replace("*.", "")
+                                .split("/")[0];
+
+                        String wlHost = wl.getDomainURL()
+                                .replace("https://", "")
+                                .replace("http://", "")
+                                .split("/")[0];
+
+                        String requestRoot =
+                                requestHost.substring(requestHost.indexOf('.') + 1);
+
+                        String wlRoot =
+                                wlHost.substring(wlHost.indexOf('.') + 1);
+
+                        log.info(
+                                "Normalized domains | requestHost={} | wlHost={} | requestRoot={} | wlRoot={}",
+                                requestHost,
+                                wlHost,
+                                requestRoot,
+                                wlRoot
+                        );
+
+                        match = requestRoot.equalsIgnoreCase(wlRoot);
+                    }
+
+//                    Final domain validation result | hierarchyId=LPS-SD-001 | originalType=SD | requestUrl=https://*.lakshaype.com/ | wlDomain=https://portal.lakshaype.com | match=false
+//                    Original User Type=SD | Request URL=https://*.lakshaype.com/ | Parent WL Domain=https://portal.lakshaype.com
+//                    Invalid login domain for user ID: LPS-SD-001
+
+
+                    log.info(
+                            "Final domain validation result | hierarchyId={} | originalType={} | requestUrl={} | wlDomain={} | match={}",
+                            hierarchyId,
+                            originalType,
                             requestUrl,
                             wl.getDomainURL(),
                             match
