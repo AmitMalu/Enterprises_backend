@@ -28,5 +28,10 @@ public interface SchemeAllocationRepository extends JpaRepository<SchemeAllocati
 
     Optional<SchemeAllocation> findByHierarchyIdAndSubProductCode(String hierarchyId, String subProductCode);
 
+    List<SchemeAllocation>
+    findAllByHierarchyId(
+            String hierarchyId
+    );
+
 }
 
