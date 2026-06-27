@@ -3,16 +3,16 @@ package com.im.admin.service.impl;
 import com.im.admin.dto.VendorActiveResponseDto;
 import com.im.admin.dto.VendorDropdownResponseDto;
 import com.im.admin.dto.VendorsDTO;
+import com.im.admin.entities.AccessHierarchyNode;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
-import com.im.admin.repositories.ProductsRepository;
-import com.im.admin.repositories.SubProductsRepository;
-import com.im.admin.repositories.VendorRepository;
+import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.VendorService;
 import com.im.admin.spec.VendorSpecification;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -44,6 +45,12 @@ public class VendorServiceImpl implements VendorService {
 
     @Autowired
     private ProductsRepository productsRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private AccessHierarchyNodeRepository accessHierarchyNodeRepository;
 
     @Override
     @Transactional
@@ -130,17 +137,129 @@ public class VendorServiceImpl implements VendorService {
 
     @Override
     public List<VendorActiveResponseDto> getAllActiveVendors() {
-        log.info("Fetching all active vendors");
 
-        List<Vendors> activeVendors = vendorsRepository.findByActiveTrue();
-        log.debug("Found {} active vendors", activeVendors.size());
+        long start = System.currentTimeMillis();
 
-        List<VendorActiveResponseDto> response = activeVendors.stream()
-                .map(v -> new VendorActiveResponseDto(v.getId(), v.getVendorName()))
-                .collect(Collectors.toList());
+        try {
 
-        log.info("Returning {} active vendor DTOs", response.size());
-        return response;
+            String loginHierarchy =tokenUtil.extractHierarchyId();
+
+            log.info("[VENDOR] START | loginHierarchy={}",loginHierarchy);
+
+            AccessHierarchyNode node =
+                    accessHierarchyNodeRepository
+                            .findById(loginHierarchy)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Hierarchy not found"
+                                    )
+                            );
+
+            String type = node.getHierarchyType();
+
+            List<Vendors> vendors;
+
+            /*
+             * AD
+             * AU under AD
+             */
+            if ("AD".equalsIgnoreCase(type)
+                            ||
+                            (
+                                    type.endsWith("AU") &&
+                                            node.getParentHierarchyId() != null &&
+                                            node.getParentHierarchyId().contains("-AD-")
+                            )
+            ) {
+
+                log.info("[VENDOR] FULL ACCESS");
+
+                vendors = vendorsRepository.findByActiveTrue();
+
+            }
+
+            /*
+             * WL
+             */
+            else if ("WL".equalsIgnoreCase(type)) {
+
+                log.info(
+                        "[VENDOR] WL ACCESS | wl={}",
+                        loginHierarchy
+                );
+
+                vendors =
+                        vendorsRepository
+                                .findActiveVendorsForWL(
+                                        loginHierarchy
+                                );
+
+            }
+
+            /*
+             * WLAU
+             */
+            else if (type.endsWith("AU")
+            ) {
+
+                String parent = node.getParentHierarchyId();
+
+                log.info("[VENDOR] WLAU ACCESS | parent={}",parent);
+
+                vendors =
+                        vendorsRepository
+                                .findActiveVendorsForWL(
+                                        parent
+                                );
+
+            }
+
+            else {
+
+                log.warn("[VENDOR] NO ACCESS");
+
+                vendors =
+                        Collections.emptyList();
+            }
+
+            List<VendorActiveResponseDto> response =
+
+                    vendors
+                            .stream()
+
+                            .map(v ->
+
+                                    new VendorActiveResponseDto(
+
+                                            v.getId(),
+
+                                            v.getVendorName()
+                                    )
+                            )
+
+                            .toList();
+
+            log.info(
+                    "[VENDOR] SUCCESS | total={} | time={}ms",
+                    response.size(),
+                    System.currentTimeMillis() - start
+            );
+
+            return response;
+
+        }
+
+        catch (Exception ex) {
+
+            log.error(
+                    "[VENDOR] ERROR",
+                    ex
+            );
+
+            throw new RuntimeException(
+                    "Failed to fetch active vendors"
+            );
+        }
     }
 
     public Vendors mapToEntity(VendorsDTO dto) {

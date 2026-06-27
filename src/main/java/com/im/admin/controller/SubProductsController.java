@@ -115,17 +115,17 @@ public class SubProductsController {
     @GetMapping("/dropdown/{productId}")
     public ResponseEntity<CommonResponse<List<SubProductDropdownResponseDto>>> getActiveSubProducts(
             @PathVariable("productId") Short productId,
-            @RequestParam(required = false) Boolean isSettlement) {
+            @RequestParam(required = false)Boolean isSettlement
+    ) {
 
-        log.info("Fetching active SubProducts for productId: {}, isSettlement: {}", productId, isSettlement);
-        List<SubProductDropdownResponseDto> subProducts =
+        log.info("[SUB PRODUCT] productId={} isSettlement={}", productId, isSettlement);
+
+        List<SubProductDropdownResponseDto> response =
+
                 subProductsService.getActiveSubProductsByProductId(productId, isSettlement);
 
-        log.info("Fetched {} active SubProducts for productId: {}", subProducts.size(), productId);
-        CommonResponse<List<SubProductDropdownResponseDto>> response =
-                new CommonResponse<>(200, "Active sub-products fetched successfully", subProducts);
+        return ResponseEntity.ok(CommonResponse.success(response, "Active sub-products fetched successfully"));
 
-        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/dropdown")

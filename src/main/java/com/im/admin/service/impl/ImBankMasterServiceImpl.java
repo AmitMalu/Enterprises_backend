@@ -134,6 +134,8 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
         entity.setChargesType(dto.getChargesType());
         entity.setIsActive(dto.getIsActive());
         entity.setIsBlocked(dto.getIsBlocked());
+        entity.setIsWhiteLabelAdmin(dto.getIsWhiteLabelAdmin());
+        entity.setWhiteLabelAdminId(dto.getWhiteLabelAdminId());
         entity.setCreatedBy(entity.getCreatedBy());
         entity.setEditedBy(dto.getEditedBy());
         entity.setEditedOn(LocalDateTime.now());

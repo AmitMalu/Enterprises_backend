@@ -3,10 +3,7 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.SchemeAllocationDto;
 import com.im.admin.dto.SchemeAllocationRequestDto;
-import com.im.admin.entities.Scheme;
-import com.im.admin.entities.SchemeAllocation;
-import com.im.admin.entities.SubProducts;
-import com.im.admin.entities.UserDetails;
+import com.im.admin.entities.*;
 import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.*;
 import com.im.admin.request.SchemeAllocationRequest;
@@ -32,9 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigInteger;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -61,6 +56,9 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
 
     @Autowired
     private CommonMethods commonMethods;
+
+    @Autowired
+    private AccessHierarchyNodeRepository accessHierarchyNodeRepository;
 
     @Override
     @Transactional
@@ -147,30 +145,251 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
 
     @Override
     public List<RetailerSchemeAllocationResponse> getAllocatedSchemesForRetailer(String hierarchyId) {
+        long startTime = System.currentTimeMillis();
+        String loginHierarchy = tokenUtil.extractHierarchyId();
 
-        List<SubProducts> activeSubProducts = subProductsRepository.findByIsActiveTrue();
-        List<RetailerSchemeAllocationResponse> responseList = new ArrayList<>();
+        logInfo("START", loginHierarchy, hierarchyId);
 
-        for (SubProducts subProduct : activeSubProducts) {
-            String subProductCode = subProduct.getSubProductCode();
-            String subProductName = subProduct.getSubProductTitle();
+        try {
+            AccessHierarchyNode loginNode = getLoginHierarchyNode(loginHierarchy);
+            List<SubProducts> visibleSubProducts = getVisibleSubProducts(loginNode);
 
-            String schemeName = "No scheme assigned";
+            log.info("[RETAILER ALLOCATION] visibleSubProducts={}", visibleSubProducts.size());
 
-            Optional<SchemeAllocation> allocation = schemeAllocationRepository
-                    .findByHierarchyIdAndSubProductCode(hierarchyId, subProductCode);
+            List<RetailerSchemeAllocationResponse> responses =
+                    buildAllocationResponses(hierarchyId, visibleSubProducts);
 
-            if (allocation.isPresent()) {
-                String schemeCode = allocation.get().getSchemeCode();
+            logSuccess(startTime, responses.size());
+            return responses;
 
-                Optional<Scheme> scheme = schemeRepository.findBySchemeCodeAndIsActiveTrue(schemeCode);
-                schemeName = scheme.map(Scheme::getSchemeName).orElse("No scheme assigned");
-            }
+        } catch (Exception ex) {
+            logError("Failed to fetch allocation", ex);
+            throw new RuntimeException("Failed to fetch allocation", ex);
+        }
+    }
 
-            responseList.add(new RetailerSchemeAllocationResponse(subProductName, subProductCode, schemeName));
+// ==================== PRIVATE HELPER METHODS ====================
+
+    private AccessHierarchyNode getLoginHierarchyNode(String loginHierarchy) {
+        return accessHierarchyNodeRepository
+                .findById(loginHierarchy)
+                .orElseThrow(() -> new RuntimeException("Hierarchy not found: " + loginHierarchy));
+    }
+
+    private List<SubProducts> getVisibleSubProducts(AccessHierarchyNode loginNode) {
+        String type = loginNode.getHierarchyType();
+
+        if (hasFullAccess(type, loginNode)) {
+            log.info("[RETAILER ALLOCATION] FULL ACCESS");
+            return subProductsRepository.findByIsActiveTrue();
         }
 
-        return responseList;
+        if (isWLType(type)) {
+            log.info("[RETAILER ALLOCATION] WL ACCESS");
+            return subProductsRepository.findAssignedWLSubProducts(loginNode.getHierarchyId());
+        }
+
+        if (isWLAUType(loginNode)) {
+            String parentId = loginNode.getParentHierarchyId();
+            log.info("[RETAILER ALLOCATION] WLAU → parent={}", parentId);
+            return subProductsRepository.findAssignedWLSubProducts(parentId);
+        }
+
+        log.warn("[RETAILER ALLOCATION] NO ACCESS - Unrecognized hierarchy type: {}", type);
+        return Collections.emptyList();
+    }
+
+    private List<RetailerSchemeAllocationResponse>
+    buildAllocationResponses(
+            String hierarchyId,
+            List<SubProducts> subProducts
+    ) {
+
+        Map<String, String> schemeMap =
+
+                schemeAllocationRepository
+
+                        .findAllByHierarchyId(
+                                hierarchyId
+                        )
+
+                        .stream()
+
+                        .collect(
+
+                                Collectors.toMap(
+
+                                        SchemeAllocation::getSubProductCode,
+
+                                        SchemeAllocation::getSchemeCode,
+
+                                        (a, b) -> a
+                                )
+                        );
+
+        Map<String, String> schemeNames =
+
+                schemeRepository
+
+                        .findBySchemeCodeInAndIsActiveTrue(
+
+                                new ArrayList<>(
+                                        schemeMap.values()
+                                )
+
+                        )
+
+                        .stream()
+
+                        .collect(
+
+                                Collectors.toMap(
+
+                                        Scheme::getSchemeCode,
+
+                                        Scheme::getSchemeName
+                                )
+                        );
+
+        return subProducts
+
+                .stream()
+
+                .map(sub -> {
+
+                    String schemeName =
+
+                            schemeNames.getOrDefault(
+
+                                    schemeMap.get(
+                                            sub.getSubProductCode()
+                                    ),
+
+                                    "No scheme assigned"
+                            );
+
+                    return new RetailerSchemeAllocationResponse(
+
+                            sub.getSubProductTitle(),
+
+                            sub.getSubProductCode(),
+
+                            schemeName
+                    );
+
+                })
+
+                .toList();
+    }
+
+    private RetailerSchemeAllocationResponse buildSingleResponse(
+            String hierarchyId,
+            SubProducts subProduct) {
+
+        String schemeName = findAssignedSchemeName(hierarchyId, subProduct.getSubProductCode());
+
+        return new RetailerSchemeAllocationResponse(
+                subProduct.getSubProductTitle(),
+                subProduct.getSubProductCode(),
+                schemeName
+        );
+    }
+
+    private String findAssignedSchemeName(String hierarchyId, String subProductCode) {
+        return schemeAllocationRepository
+                .findByHierarchyIdAndSubProductCode(hierarchyId, subProductCode)
+                .map(allocation -> getSchemeName(allocation.getSchemeCode()))
+                .orElse("No scheme assigned");
+    }
+
+    private String getSchemeName(String schemeCode) {
+        return schemeRepository
+                .findBySchemeCodeAndIsActiveTrue(schemeCode)
+                .map(Scheme::getSchemeName)
+                .orElse("No scheme assigned");
+    }
+
+// ==================== ACCESS TYPE CHECKS ====================
+
+    private boolean hasFullAccess(String type, AccessHierarchyNode node) {
+        return "AD".equalsIgnoreCase(type) || isUnderAD(node);
+    }
+
+    private boolean isUnderAD(
+            AccessHierarchyNode node) {
+
+        if (!"AU".equalsIgnoreCase(node.getHierarchyType())) {
+            return false;
+        }
+
+        String parentId = node.getParentHierarchyId();
+
+        if (parentId == null || "-".equals(parentId)) {
+            return false;
+        }
+
+        return accessHierarchyNodeRepository.findById(parentId)
+                .map(x -> "AD".equalsIgnoreCase(x.getHierarchyType()))
+                .orElse(false);
+    }
+
+    private boolean isWLType(String type) {
+        return "WL".equalsIgnoreCase(type);
+    }
+
+    private boolean isWLAUType(
+            AccessHierarchyNode node
+    ) {
+
+        if (
+                !"AU".equalsIgnoreCase(
+                        node.getHierarchyType()
+                )
+        ) {
+            return false;
+        }
+
+        String parent =
+                node.getParentHierarchyId();
+
+        if (
+                parent == null
+                        ||
+                        "-".equals(parent)
+        ) {
+            return false;
+        }
+
+        return accessHierarchyNodeRepository
+
+                .findById(
+                        parent
+                )
+
+                .map(
+                        x ->
+                                "WL".equalsIgnoreCase(
+                                        x.getHierarchyType()
+                                )
+                )
+
+                .orElse(false);
+    }
+
+// ==================== LOGGING HELPERS ====================
+
+    private void logInfo(String stage, String loginHierarchy, String retailerHierarchy) {
+        log.info("[RETAILER ALLOCATION] {} | login={} | retailer={}",
+                stage, loginHierarchy, retailerHierarchy);
+    }
+
+    private void logSuccess(long startTime, int responseCount) {
+        long duration = System.currentTimeMillis() - startTime;
+        log.info("[RETAILER ALLOCATION] SUCCESS total={} time={}ms", responseCount, duration);
+    }
+
+    private void logError(String message, Exception ex) {
+        log.error("[RETAILER ALLOCATION] ERROR - {}", message, ex);
     }
 
     @Override
@@ -185,156 +404,232 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
             String keyword
     ) {
 
-        String loginHierarchyId =
-                tokenUtil.extractHierarchyId();
+        long start = System.currentTimeMillis();
 
-        String loginType =
-                commonMethods.extractHierarchyType(
-                        loginHierarchyId
-                );
+        try {
 
-        List<String> accessibleIds = null;
+            String loginHierarchy = tokenUtil.extractHierarchyId();
 
-        /*
-         * ADMIN
-         */
-        if (!"AD".equalsIgnoreCase(
-                loginType
-        )) {
+            log.info("[SEARCH RETAILER] START login={} keyword={}",loginHierarchy,keyword);
 
-            accessibleIds =
-
-                    accessHierarchyPathRepository
-                            .findDescendantsByAncestor(
-                                    loginHierarchyId
+            AccessHierarchyNode loginNode =
+                    accessHierarchyNodeRepository
+                            .findById(loginHierarchy)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Hierarchy not found : "
+                                                    + loginHierarchy
+                                    )
                             );
 
-            if (accessibleIds.isEmpty()) {
+            String type = loginNode.getHierarchyType();
 
-                return Page.empty(
-                        pageable
-                );
+            List<String> accessibleIds = null;
+
+            /*
+             * AD
+             * full access
+             */
+            if ("AD".equalsIgnoreCase(type)) {
+
+                log.info("[SEARCH RETAILER] FULL ACCESS");
             }
+
+            /*
+             * WLAU
+             * use parent WL
+             */
+            else if (
+                    type.endsWith("AU")
+                            &&
+                            loginNode.getParentHierarchyId() != null
+                            &&
+                            loginNode
+                                    .getParentHierarchyId()
+                                    .contains("-WL-")
+            ) {
+
+                String parent = loginNode.getParentHierarchyId();
+
+                accessibleIds =
+                        accessHierarchyPathRepository
+                                .findDescendantsByAncestor(
+                                        parent
+                                );
+
+                accessibleIds.add(parent);
+
+                log.info("[SEARCH RETAILER] WLAU ACCESS parent={} total={}",parent,accessibleIds.size());
+            }
+
+            /*
+             * ALL OTHER USERS
+             */
+            else {
+
+                accessibleIds =
+                        accessHierarchyPathRepository
+                                .findDescendantsByAncestor(
+                                        loginHierarchy
+                                );
+
+                accessibleIds.add(loginHierarchy);
+
+                log.info("[SEARCH RETAILER] ACCESS ids={}",accessibleIds.size());
+            }
+
+            if (
+                    accessibleIds != null && accessibleIds.isEmpty()
+            ) {
+
+                log.warn("[SEARCH RETAILER] NO ACCESS");
+
+                return Page.empty(pageable);
+            }
+
+            Page<UserDetails> page =
+
+                    userDetailsRepository
+                            .searchActiveRetailers(
+                                    keyword,
+                                    accessibleIds,
+                                    pageable
+                            );
+
+            List<UserSearchResponseDto> filtered =
+
+                    page.getContent()
+
+                            .stream()
+
+                            .map(u -> {
+
+                                UserSearchResponseDto dto =
+                                        new UserSearchResponseDto();
+
+                                dto.setMobileNumber(
+                                        u.getMobileNumber()
+                                );
+
+                                dto.setHierarchyId(
+                                        u.getHierarchyId()
+                                );
+
+                                dto.setHierarchyCode(
+                                        u.getHierarchyCode()
+                                );
+
+                                dto.setCreatedDate(
+                                        u.getCreatedDate()
+                                );
+
+                                dto.setLastLoginDate(
+                                        u.getLastLoginDate()
+                                );
+
+                                dto.setEmailId(
+                                        u.getEmailId()
+                                );
+
+                                return dto;
+
+                            })
+
+                            .filter(dto ->
+                                    mobileNumber == null
+                                            || mobileNumber.isBlank()
+                                            || dto.getMobileNumber()
+                                            .toLowerCase()
+                                            .contains(
+                                                    mobileNumber.toLowerCase()
+                                            )
+                            )
+
+                            .filter(dto ->
+                                    hierarchyId == null
+                                            || hierarchyId.isBlank()
+                                            || dto.getHierarchyId()
+                                            .toLowerCase()
+                                            .contains(
+                                                    hierarchyId.toLowerCase()
+                                            )
+                            )
+
+                            .filter(dto ->
+                                    hierarchyCode == null
+                                            || hierarchyCode.isBlank()
+                                            || dto.getHierarchyCode()
+                                            .toLowerCase()
+                                            .contains(
+                                                    hierarchyCode.toLowerCase()
+                                            )
+                            )
+
+                            .filter(dto ->
+                                    createdDate == null
+                                            || createdDate.isBlank()
+                                            || dto.getCreatedDate()
+                                            .toString()
+                                            .contains(
+                                                    createdDate
+                                            )
+                            )
+
+                            .filter(dto ->
+                                    lastLoginDate == null
+                                            || lastLoginDate.isBlank()
+                                            || (
+                                            dto.getLastLoginDate()
+                                                    != null
+                                                    &&
+                                                    dto.getLastLoginDate()
+                                                            .toString()
+                                                            .contains(
+                                                                    lastLoginDate
+                                                            )
+                                    )
+                            )
+
+                            .filter(dto ->
+                                    emailId == null
+                                            || emailId.isBlank()
+                                            || (
+                                            dto.getEmailId()
+                                                    != null
+                                                    &&
+                                                    dto.getEmailId()
+                                                            .toLowerCase()
+                                                            .contains(
+                                                                    emailId.toLowerCase()
+                                                            )
+                                    )
+                            )
+
+                            .toList();
+
+            log.info(
+                    "[SEARCH RETAILER] SUCCESS total={} time={}ms",
+                    filtered.size(),
+                    System.currentTimeMillis() - start
+            );
+
+            return new PageImpl<>(
+
+                    filtered,
+
+                    pageable,
+
+                    page.getTotalElements()
+            );
+
         }
 
-        Page<UserDetails> page =
+        catch (Exception ex) {
 
-                userDetailsRepository
-                        .searchActiveRetailers(
-                                keyword,
-                                accessibleIds,
-                                pageable
-                        );
+            log.error("[SEARCH RETAILER] ERROR",ex);
 
-        List<UserSearchResponseDto> filteredList =
-
-                page.getContent()
-                        .stream()
-
-                        .map(u -> {
-
-                            UserSearchResponseDto dto =
-                                    new UserSearchResponseDto();
-
-                            dto.setMobileNumber(
-                                    u.getMobileNumber()
-                            );
-
-                            dto.setHierarchyId(
-                                    u.getHierarchyId()
-                            );
-
-                            dto.setHierarchyCode(
-                                    u.getHierarchyCode()
-                            );
-
-                            dto.setCreatedDate(
-                                    u.getCreatedDate()
-                            );
-
-                            dto.setLastLoginDate(
-                                    u.getLastLoginDate()
-                            );
-
-                            dto.setEmailId(
-                                    u.getEmailId()
-                            );
-
-                            return dto;
-                        })
-
-                        .filter(dto ->
-                                mobileNumber == null
-                                        || mobileNumber.isEmpty()
-                                        || dto.getMobileNumber()
-                                        .toLowerCase()
-                                        .contains(
-                                                mobileNumber.toLowerCase()
-                                        )
-                        )
-
-                        .filter(dto ->
-                                hierarchyId == null
-                                        || hierarchyId.isEmpty()
-                                        || dto.getHierarchyId()
-                                        .toLowerCase()
-                                        .contains(
-                                                hierarchyId.toLowerCase()
-                                        )
-                        )
-
-                        .filter(dto ->
-                                hierarchyCode == null
-                                        || hierarchyCode.isEmpty()
-                                        || dto.getHierarchyCode()
-                                        .toLowerCase()
-                                        .contains(
-                                                hierarchyCode.toLowerCase()
-                                        )
-                        )
-
-                        .filter(dto ->
-                                createdDate == null
-                                        || createdDate.isEmpty()
-                                        || dto.getCreatedDate()
-                                        .toString()
-                                        .contains(
-                                                createdDate
-                                        )
-                        )
-
-                        .filter(dto ->
-                                lastLoginDate == null
-                                        || lastLoginDate.isEmpty()
-                                        || (
-                                        dto.getLastLoginDate()
-                                                != null
-                                                &&
-                                                dto.getLastLoginDate()
-                                                        .toString()
-                                                        .contains(
-                                                                lastLoginDate
-                                                        )
-                                )
-                        )
-
-                        .filter(dto ->
-                                emailId == null
-                                        || emailId.isEmpty()
-                                        || dto.getEmailId()
-                                        .toLowerCase()
-                                        .contains(
-                                                emailId.toLowerCase()
-                                        )
-                        )
-
-                        .toList();
-
-        return new PageImpl<>(
-                filteredList,
-                pageable,
-                page.getTotalElements()
-        );
+            throw new RuntimeException("Failed to search retailers",ex);
+        }
     }
 
 
