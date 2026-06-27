@@ -1,11 +1,10 @@
 package com.im.admin.orchestrator;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
-import com.im.admin.dto.AbstractWalletAmountTable;
-import com.im.admin.dto.BeneficiaryVerifyRequestDto;
-import com.im.admin.dto.BeneficiaryVerifyResponseDto;
-import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
@@ -20,10 +19,12 @@ import com.im.admin.service.*;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.PayoutVendorFactory;
+import com.im.admin.util.VimoPayCryptoUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,6 +74,12 @@ public class PayoutOrchestrator {
 
     @Autowired
     private TransactionEngineServiceImpl transactionEngineServiceImpl;
+
+    @Autowired
+    private VimoPayCryptoUtil vimoPayCryptoUtil;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
 
     @Transactional
@@ -872,6 +879,324 @@ public class PayoutOrchestrator {
             );
 
             return "Callback processing failed: " + e.getMessage();
+        }
+    }
+
+    @Async
+    @Transactional
+    public void handleEncryptedCallbackAsync(Map<String, Object> body) {
+        try {
+            handleEncryptedCallback(body);
+        } catch (Exception ex) {
+            log.error("Callback processing failed: {}", ex.getMessage(), ex);
+            // optionally save internal log to DB
+        }
+    }
+
+    @Transactional
+    public void handleEncryptedCallback(Map<String, Object> encryptedBody) {
+
+        log.debug("Encrypted callback keys: {}", encryptedBody.keySet());
+
+        Map<String, String> payload;
+        try {
+            log.info("➡ Decrypting & parsing vendor callback");
+
+            // This method already logs encrypted/plain payload internally
+            payload  = doHandleEncryptedCallback(encryptedBody);
+
+            log.info(" Vendor callback decrypted & parsed | callbackId={}", payload.get("merchantRefId") != null ? payload.get("merchantRefId") : null);
+
+        } catch (Exception e) {
+
+            // Critical: decryption/parsing failed
+            log.error("Failed to parse/decrypt vendor callback ", e);
+
+            log.warn("Raw encrypted callback persisted | vendorId={} | reason=CALLBACK_DECRYPT_ERROR", "VIMOPAY");
+
+            return; // swallow exception → vendor still receives 200
+        }
+
+        try {
+            log.info("➡ Processing parsed vendor callback | vendorId={} | callbackId={}",
+                    "VIMOPAY",
+                    payload.get("merchantRefId"));
+
+            vimopayHandleCallback(payload);
+
+            log.info(" Vendor callback processed successfully | vendorId={} | callbackId={}",
+                    "VIMOPAY",
+                    payload.get("merchantRefId"));
+
+        } catch (Exception e) {
+            // Optional: depends on your retry/alert strategy
+            log.error(" Error while processing parsed callback | vendorId={} | callbackId={}",
+                    "VIMOPAY",
+                    payload.get("merchantRefId"),
+                    e
+            );
+        }
+    }
+
+    public Map<String, String> doHandleEncryptedCallback(
+            Map<String, Object> body
+    ) {
+
+        String rawJson = null;
+        String encryptedBlock = null;
+        String decryptedJson = null;
+
+        LocalDateTime requestTime =
+                LocalDateTime.now();
+
+        try {
+
+            /*
+             * Encrypted callback
+             */
+            if (body.containsKey("data") && body.get("data") instanceof String) {
+
+                rawJson = objectMapper.writeValueAsString(body);
+
+                encryptedBlock = String.valueOf(body.get("data"));
+
+                decryptedJson = vimoPayCryptoUtil.decryptFromVendor(null, encryptedBlock);
+
+                /*
+                 * Persist callback log
+                 */
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        rawJson,
+                        "VIMOPAY",
+                        LocalDateTime.now(),
+                        decryptedJson,
+                        null
+                );
+
+                log.info("Encrypted callback logged successfully");
+
+                return objectMapper.readValue(
+                        decryptedJson,
+                        new TypeReference<Map<String, String>>() {}
+                );
+            }
+
+            /*
+             * Plain callback
+             */
+            rawJson = objectMapper.writeValueAsString(body);
+
+            commonFunctions.saveVendorLogs(
+                    requestTime,
+                    rawJson,
+                    "VIMOPAY",
+                    LocalDateTime.now(),
+                    rawJson,
+                    null
+            );
+
+            log.info("Plain callback logged successfully");
+
+            return objectMapper.readValue(
+                    rawJson,
+                    new TypeReference<Map<String, String>>() {}
+            );
+
+        } catch (Exception ex) {
+
+            try {
+
+                commonFunctions.saveVendorLogs(
+                        requestTime,
+                        rawJson == null
+                                ? objectMapper.writeValueAsString(body)
+                                : rawJson,
+                        "VIMOPAY",
+                        LocalDateTime.now(),
+                        ex.getMessage(),
+                        null
+                );
+
+            } catch (Exception ignore) {
+                log.error(
+                        "Failed saving vendor callback error log",
+                        ignore
+                );
+            }
+
+            throw new RuntimeException("Invalid callback payload",ex
+            );
+        }
+    }
+
+    /**
+     * Handle callback from vendor with transaction status update
+     */
+    @Transactional
+    public void vimopayHandleCallback(Map<String, String> payload) {
+        log.info(
+                "Received payout callback: merchantRef={} status={} txnId={}",
+                payload.get("merchantRefId"),
+                payload.get("txnStatus"),
+                payload.get("txnId")
+        );
+
+        String trnId =
+                payload.get("merchantRefId");
+
+        try {
+            // ===== Fetch Pending Transaction =====
+            log.info("[2] VIMOPAY Fetching pending transaction using transactionId={}", trnId);
+
+            PayoutPendingTransactions pendingTxn =
+                    payoutPendingTransactionRepository.findByTransactionId(trnId)
+                            .orElseThrow(() -> {
+                                log.error("[2.1] VIMOPAY Pending transaction NOT FOUND for transactionId={}", trnId);
+                                return new RuntimeException(
+                                        "Pending transaction not found for order ID: " + trnId
+                                );
+                            });
+
+            log.info("[2.2] VIMOPAY Pending transaction found successfully");
+            log.info("    Scheme Code : {}", pendingTxn.getSchemeCode());
+            log.info("    Retailer Id : {}", pendingTxn.getRetailerId());
+            log.info("    Amount      : {}", pendingTxn.getAmount());
+
+            // ===== Already SUCCESS Check =====
+            if ("SUCCESS".equalsIgnoreCase(pendingTxn.getStatus())) {
+
+                log.warn("[3] VIMOPAY Transaction already processed successfully");
+                log.warn("TransactionId : {}", trnId);
+
+                return;
+            }
+
+            // ===== Fetch Scheme =====
+            log.info("[4] VIMOPAY Fetching scheme using schemeCode={}", pendingTxn.getSchemeCode());
+
+            Scheme scheme = schemeRepository.findBySchemeCode(pendingTxn.getSchemeCode())
+                    .orElseThrow(() -> {
+                        log.error("[4.1]VIMOPAY Scheme NOT FOUND for schemeCode={}",
+                                pendingTxn.getSchemeCode());
+
+                        return new RuntimeException(
+                                "Scheme not found for code: " + pendingTxn.getSchemeCode()
+                        );
+                    });
+
+            log.info("[4.2] VIMOPAY Scheme fetched successfully");
+            log.info("Scheme HashCode : {}", scheme.getSchemeCombinationHashCode());
+
+            // ===== Parse Hash Code =====
+            log.info("[5]VIMOPAY Parsing schemeCombinationHashCode");
+
+            String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+
+            if (hashParts.length < 5) {
+
+                log.error("[5.1]VIMOPAY Invalid schemeCombinationHashCode format");
+                log.error("Actual Hash : {}", scheme.getSchemeCombinationHashCode());
+
+                throw new RuntimeException(
+                        "Invalid schemeCombinationHashCode format: "
+                                + scheme.getSchemeCombinationHashCode()
+                );
+            }
+
+            String vendorId = hashParts[2];
+
+            log.info("[5.2] VIMOPAY Hash parsed successfully");
+            log.info("    Vendor Id   : {}", vendorId);
+
+            // ===== Fetch Vendor =====
+            log.info("[6] VIMOPAY Fetching vendor using vendorId={}", vendorId);
+
+            Vendors vendor = vendorRepository.findById(vendorId)
+                    .orElseThrow(() -> {
+
+                        log.error("[6.1] VIMOPAY Vendor NOT FOUND for vendorId={}", vendorId);
+
+                        return new RuntimeException(
+                                "Vendor not found for ID: " + vendorId
+                        );
+                    });
+
+            String vendorName = vendor.getVendorName();
+
+            log.info("[6.2] VIMOPAY Vendor fetched successfully");
+            log.info("Vendor Name : {}", vendorName);
+            log.info("Vendor Code : {}", vendor.getVendorCode());
+
+            // ===== Request Metadata =====
+            LocalDateTime receivedAt = LocalDateTime.now();
+            //String clientIp = request.getRemoteAddr();
+
+            try {
+
+                // ===== Resolve Vendor Service =====
+                log.info("[8]VIMOPAY Resolving vendor implementation for vendorName={}",
+                        vendorName);
+
+                Object vendorService = vendorFactory.getVendor(vendorName);
+
+                if (!(vendorService instanceof PayoutCallbackHandler handler)) {
+
+                    log.error("[8.1]VIMOPAY Vendor callback handler NOT implemented");
+                    log.error("Vendor Name:{}", vendorName);
+
+                    return;
+                }
+
+                log.info("[8.2] VIMOPAY Vendor callback handler resolved successfully");
+
+                // ===== Execute Vendor Callback =====
+                log.info("[9] VIMOPAY Executing vendor callback handler");
+
+                String vendorResponse = handler.handleCallback(payload, null);
+
+                log.info("[9.1] VIMOPAY Vendor callback executed successfully");
+                log.info("Vendor Response : {}", vendorResponse);
+
+                // ===== Save Callback Logs =====
+                log.info("[10] VIMOPAY Saving callback audit logs");
+
+                commonFunctions.saveCallbackEventLog(
+                        payload.toString(),
+                        receivedAt,
+                        null,
+                        "Callback processed for vendor = " + vendorName,
+                        LocalDateTime.now()
+                );
+
+                log.info("[10.1] VIMOPAY Callback audit log saved successfully");
+
+                log.info("============== VIMOPAY PAYOUT CALLBACK END SUCCESS ==============");
+
+                return;
+
+            } catch (Exception e) {
+
+                log.error("[ERROR] VIMOPAY Error while processing callback");
+                log.error("VIMOPAY Vendor Name : {}", vendorName);
+                log.error("Error Msg   : {}", e.getMessage(), e);
+
+                commonFunctions.saveCallbackEventLog(
+                        payload.toString(),
+                        receivedAt,
+                        null,
+                        "Error: " + e.getMessage(),
+                        LocalDateTime.now()
+                );
+
+                log.info("[ERROR] VIMOPAY Callback error log saved");
+
+                log.info("============== VIMOPAY PAYOUT CALLBACK END FAILED ==============");
+            }
+        } catch (Exception e) {
+            log.error("Failed to process callback for ref={}: {}",
+                    trnId, e.getMessage(), e);
+            throw new RuntimeException("Callback processing failed", e);
         }
     }
 

@@ -2,6 +2,8 @@ package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.dto.AddressDTO;
+import com.im.admin.dto.BankDetailsDTO;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
@@ -11,6 +13,7 @@ import com.im.admin.repositories.SuperDistributorPostpaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorPrepaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorRepository;
 import com.im.admin.request.HierarchyRegistrationRequest;
+import com.im.admin.response.PartnerResponseDTO;
 import com.im.admin.response.SuperDistributorResponseDTO;
 import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.SuperDistributorService;
@@ -278,29 +281,61 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
         SuperDistributorResponseDTO dto = new SuperDistributorResponseDTO();
 
         dto.setSuperDistributorId(sd.getSuperDistributorId());
-        dto.setParentAccount(sd.getParentAccount());
-        dto.setTitle(sd.getTitle());
         dto.setName(sd.getName());
         dto.setMobileNumber(sd.getMobileNumber());
         dto.setEmailId(sd.getEmailId());
+        dto.setTitle(sd.getTitle());
         dto.setAbbreviation(sd.getAbbreviation());
         dto.setDob(sd.getDob());
-        dto.setStatus(sd.getStatus());
-        dto.setRemarks(sd.getRemarks());
+
+        dto.setAddress(mapAddress(sd.getAddress()));
+        dto.setOutletAddress(mapAddress(sd.getOutletAddress()));
+
+        if (sd.getBankDetails() != null) {
+            BanksDetails bank = sd.getBankDetails();
+            BankDetailsDTO bankDto = new BankDetailsDTO();
+            bankDto.setBankName(bank.getBankName());
+            bankDto.setBankAccountNumber(bank.getBankAccountNumber());
+            bankDto.setIfscCode(bank.getIfscCode());
+            bankDto.setBankHolderName(bank.getBankHolderName());
+            bankDto.setIsVerified(bank.getIsVerified());
+            dto.setBankDetails(bankDto);
+        }
+
+
         dto.setAadhaarNumber(sd.getAadhaarNumber());
         dto.setPanNumber(sd.getPanNumber());
-        dto.setPanVerified(sd.getPanVerified());
-        dto.setAadhaarPanVerified(sd.getAadhaarPanVerified());
         dto.setShopNumber(sd.getShopNumber());
         dto.setBusinessNumber(sd.getBusinessNumber());
-        dto.setCreatedBy(sd.getCreatedBy());
-        dto.setCreatedOn(sd.getCreatedOn());
+
         dto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(sd.getAadhaarCardFrontImage()));
         dto.setAadhaarCardBackImage( fileUrlUtil.getFullUrl(sd.getAadhaarCardBackImage()));
         dto.setPanCardImage( fileUrlUtil.getFullUrl(sd.getPanCardImage()));
         dto.setShopImage( fileUrlUtil.getFullUrl(sd.getShopImage()));
         dto.setBusinessProofImage( fileUrlUtil.getFullUrl(sd.getBusinessProofImage()));
 
+        dto.setStatus(sd.getStatus());
+        dto.setRemarks(sd.getRemarks());
+        dto.setRejectionReason(sd.getRejectionReason());
+
+        dto.setCreatedBy(sd.getCreatedBy());
+        dto.setCreatedByIPAddress(sd.getCreatedByIPAddress());
+        dto.setCreatedOn(sd.getCreatedOn());
+        dto.setLastEditedOn(sd.getLastEditedOn());
+
+        return dto;
+    }
+
+    private AddressDTO mapAddress(Address address) {
+        if (address == null) return null;
+        AddressDTO dto = new AddressDTO();
+        dto.setOutletName(address.getOutletName());
+        dto.setCompanyType(address.getCompanyType());
+        dto.setCompanyName(address.getCompanyName());
+        dto.setAddress(address.getAddress());
+        dto.setCity(address.getCity());
+        dto.setState(address.getState());
+        dto.setZipCode(address.getZipCode());
         return dto;
     }
 

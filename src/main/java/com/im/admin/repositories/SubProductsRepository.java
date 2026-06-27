@@ -36,7 +36,14 @@ public interface SubProductsRepository extends JpaRepository<SubProducts, String
 
     List<SubProducts> findByProduct(Products product);
 
-//    Optional<SubProducts> findBySubProductCode(String subProductCode);
+    @Query("""
+            
+            select s from SubProducts s
+            
+            where s.isWhiteLabelAdmin=true and s.whiteLabelAdminId=:wlId
+            
+            """)
+    List<SubProducts> findAllowedWLSubProducts(@Param("wlId")String wlId);
 
 }
 

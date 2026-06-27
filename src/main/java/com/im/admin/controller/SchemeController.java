@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -84,40 +85,38 @@ public class SchemeController {
 
     @GetMapping
     public ResponseEntity<CommonResponse<Page<GetAllSchemeResponse>>> getAllSchemes(
-            @RequestParam(required = false) Long id,
-            @RequestParam(required = false) String schemeName,
-            @RequestParam(required = false) String schemeCode,
-            @RequestParam(required = false) String schemeCombinationHashCode,
-            @RequestParam(required = false) String productId,
-            @RequestParam(required = false) String productName,
-            @RequestParam(required = false) String subProductId,
-            @RequestParam(required = false) String subProductName,
-            @RequestParam(required = false) String vendorId,
-            @RequestParam(required = false) String vendorName,
-            @RequestParam(required = false) String schemeHierarchyName,
-            @RequestParam(required = false) String schemeHierarchySelectionId,
-            @RequestParam(required = false) String createdOn,
-            @RequestParam(required = false) String createdBy,
-            @RequestParam(required = false) String editedOn,
-            @RequestParam(required = false) String editedBy,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        log.info("Fetching all schemes with filters: schemeName: {}, schemeCode: {}, schemeCombinationHashCode: {}, productId: {}, productName: {}, subProductId: {}, subProductName: {}, vendorId: {}, vendorName: {}, schemeHierarchyName: {}, schemeHierarchySelectionId: {}, createdOn: {}, createdBy: {}, editedOn: {}, editedBy: {}, page: {}, size: {}",
-                schemeName, schemeCode, schemeCombinationHashCode, productId, productName, subProductId, subProductName,
-                vendorId, vendorName, schemeHierarchyName, schemeHierarchySelectionId, createdOn, createdBy, editedOn, editedBy,
-                page, size);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdOn"));
+            SchemeFilter filter,
 
-        Page<GetAllSchemeResponse> schemes = schemeService.getAllSchemes(
-                id, schemeName, schemeCode, schemeCombinationHashCode, productId, productName, subProductId,
-                subProductName, vendorId, vendorName, schemeHierarchyName, schemeHierarchySelectionId,
-                createdOn, createdBy, editedOn, editedBy, pageable
+            @PageableDefault(size = 10)
+            Pageable pageable
+
+    ) {
+
+        log.info(
+                "[GET ALL SCHEMES] Request received | filter={} | page={} | size={}",
+                filter,
+                pageable.getPageNumber(),
+                pageable.getPageSize()
         );
 
-        log.info("Fetched {} schemes", schemes.getTotalElements());
-        return ResponseEntity.ok(new CommonResponse<>(200, "Schemes fetched successfully", schemes));
+        CommonResponse<Page<GetAllSchemeResponse>> response =
+                schemeService.getAllSchemes(
+                        filter,
+                        pageable
+                );
+
+        log.info(
+                "[GET ALL SCHEMES] Completed | status={}",
+                response.getStatusCode()
+        );
+
+        return ResponseEntity.ok(
+                response
+        );
+
     }
+
+
 
 
     @GetMapping("/get-by-id/{id}")

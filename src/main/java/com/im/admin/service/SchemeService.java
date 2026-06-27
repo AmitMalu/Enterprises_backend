@@ -27,26 +27,13 @@ public interface SchemeService {
 
     List<SchemeRate> getSchemeRatesByOperatorCode(String operatorCode);;
 
-    Page<GetAllSchemeResponse> getAllSchemes(
-            Long id,
-            String schemeName,
-            String schemeCode,
-            String schemeCombinationHashCode,
-            String productId,
-            String productName,
-            String subProductId,
-            String subProductName,
-            String vendorId,
-            String vendorName,
-            String schemeHierarchyName,
-            String schemeHierarchySelectionId,
-            String createdOn,
-            String createdBy,
-            String editedOn,
-            String editedBy,
-            Pageable pageable
-    );
+    CommonResponse<Page<GetAllSchemeResponse>> getAllSchemes(
 
+            SchemeFilter filter,
+
+            Pageable pageable
+
+    );
 
     GetAllSchemeResponse getSchemeDtoById(Long id);
 

@@ -2,6 +2,8 @@ package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.dto.AddressDTO;
+import com.im.admin.dto.BankDetailsDTO;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.dto.WhiteLabelDropdownDTO;
 import com.im.admin.entities.*;
@@ -12,6 +14,7 @@ import com.im.admin.repositories.WhiteLabelPostpaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelPrepaidAmountRepository;
 import com.im.admin.repositories.WhiteLabelRepository;
 import com.im.admin.request.HierarchyRegistrationRequest;
+import com.im.admin.response.SuperDistributorResponseDTO;
 import com.im.admin.response.WhiteLabelResponseDTO;
 import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.WhiteLabelService;
@@ -375,36 +378,64 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
         WhiteLabelResponseDTO dto = new WhiteLabelResponseDTO();
 
         dto.setWhiteLabelId(wl.getWhiteLabelId());
-        dto.setTitle(wl.getTitle());
         dto.setName(wl.getName());
         dto.setMobileNumber(wl.getMobileNumber());
         dto.setEmailId(wl.getEmailId());
-        dto.setDob(wl.getDob());
-        dto.setBusinessDesc(wl.getBusinessDesc());
+        dto.setTitle(wl.getTitle());
         dto.setAbbreviation(wl.getAbbreviation());
-        dto.setParentAccount(wl.getParentAccount());
-        dto.setDomainURL(wl.getDomainURL());
-        dto.setIsAdmin(wl.getIsAdmin());
-        dto.setStatus(wl.getStatus());
-        dto.setRejectionReason(wl.getRejectionReason());
+        dto.setDob(wl.getDob());
+
+        dto.setAddress(mapAddress(wl.getAddress()));
+        dto.setOutletAddress(mapAddress(wl.getOutletAddress()));
+
+        if (wl.getBankDetails() != null) {
+            BanksDetails bank = wl.getBankDetails();
+            BankDetailsDTO bankDto = new BankDetailsDTO();
+            bankDto.setBankName(bank.getBankName());
+            bankDto.setBankAccountNumber(bank.getBankAccountNumber());
+            bankDto.setIfscCode(bank.getIfscCode());
+            bankDto.setBankHolderName(bank.getBankHolderName());
+            bankDto.setIsVerified(bank.getIsVerified());
+            dto.setBankDetails(bankDto);
+        }
+
         dto.setAadhaarNumber(wl.getAadhaarNumber());
         dto.setPanNumber(wl.getPanNumber());
-        dto.setPanVerified(wl.getPanVerified());
-        dto.setAadhaarPanVerified(wl.getAadhaarPanVerified());
-        dto.setEmailVerified(wl.getEmailVerified());
-        dto.setIsAadhaarVerified(wl.getIsAadhaarVerified());
-        dto.setGstNumberVerified(wl.getGstNumberVerified());
         dto.setShopNumber(wl.getShopNumber());
         dto.setBusinessNumber(wl.getBusinessNumber());
-        dto.setRemarks(wl.getRemarks());
-        dto.setCreatedBy(wl.getCreatedBy());
-        dto.setCreatedOn(wl.getCreatedOn());
+
         dto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(wl.getAadhaarCardFrontImage()));
         dto.setAadhaarCardBackImage( fileUrlUtil.getFullUrl(wl.getAadhaarCardBackImage()));
         dto.setPanCardImage( fileUrlUtil.getFullUrl(wl.getPanCardImage()));
         dto.setShopImage( fileUrlUtil.getFullUrl(wl.getShopImage()));
         dto.setBusinessProofImage( fileUrlUtil.getFullUrl(wl.getBusinessProofImage()));
 
+        dto.setStatus(wl.getStatus());
+        dto.setRemarks(wl.getRemarks());
+        dto.setRejectionReason(wl.getRejectionReason());
+
+        dto.setIsAdmin(wl.getIsAdmin());
+        dto.setDomainURL(wl.getDomainURL());
+        dto.setBusinessDesc(wl.getBusinessDesc());
+
+        dto.setCreatedBy(wl.getCreatedBy());
+        dto.setCreatedByIPAddress(wl.getCreatedByIPAddress());
+        dto.setCreatedOn(wl.getCreatedOn());
+        dto.setLastEditedOn(wl.getEditedOn());
+
+        return dto;
+    }
+
+    private AddressDTO mapAddress(Address address) {
+        if (address == null) return null;
+        AddressDTO dto = new AddressDTO();
+        dto.setOutletName(address.getOutletName());
+        dto.setCompanyType(address.getCompanyType());
+        dto.setCompanyName(address.getCompanyName());
+        dto.setAddress(address.getAddress());
+        dto.setCity(address.getCity());
+        dto.setState(address.getState());
+        dto.setZipCode(address.getZipCode());
         return dto;
     }
 

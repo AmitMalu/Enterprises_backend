@@ -7,11 +7,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -57,6 +55,33 @@ public class PayoutCallbackController {
         String response = payoutOrchestratorV0.slpePayoutCallback(payload, request);
         log.info("Callback response from slpe: {}", response);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/callback/vimopay")
+    public ResponseEntity<Object> vimoPayCallback(
+            @RequestBody(required = false) Map<String, Object> jsonBody,
+            @RequestParam(required = false) Map<String, String> formParams) {
+
+        log.info("<---------------- VIMOPAY callback request with payload: {} --------------------->", jsonBody);
+
+        Map<String, Object> body = new HashMap<>();
+
+        if (jsonBody != null && !jsonBody.isEmpty()) {
+            body.putAll(jsonBody);
+        } else if (formParams != null && !formParams.isEmpty()) {
+            body.putAll(formParams);
+        }
+
+        log.info("Vendor callback received");
+        log.debug("Callback body: {}", body);
+
+        payoutOrchestratorV0.handleEncryptedCallbackAsync(body);
+
+        return ResponseEntity.ok(Map.of(
+                "successStatus", true,
+                "message", "Success",
+                "responseCode", "000"
+        ));
     }
 
 }

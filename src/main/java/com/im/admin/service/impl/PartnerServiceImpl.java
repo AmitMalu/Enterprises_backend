@@ -3,6 +3,8 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.dto.AddressDTO;
+import com.im.admin.dto.BankDetailsDTO;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
@@ -12,6 +14,7 @@ import com.im.admin.repositories.PartnerPostpaidAmountRepository;
 import com.im.admin.repositories.PartnerPrepaidAmountRepository;
 import com.im.admin.repositories.PartnerRepository;
 import com.im.admin.request.HierarchyRegistrationRequest;
+import com.im.admin.response.DistributorResponseDTO;
 import com.im.admin.response.PartnerResponseDTO;
 import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.PartnerService;
@@ -365,31 +368,62 @@ public class PartnerServiceImpl implements PartnerService {
     private PartnerResponseDTO convertToDto(Partner partner) {
 
         PartnerResponseDTO dto = new PartnerResponseDTO();
-
         dto.setPartnerId(partner.getPartnerId());
-        dto.setParentAccount(partner.getParentAccount());
-        dto.setAbbreviation(partner.getAbbreviation());
-        dto.setTitle(partner.getTitle());
         dto.setName(partner.getName());
         dto.setMobileNumber(partner.getMobileNumber());
         dto.setEmailId(partner.getEmailId());
+        dto.setTitle(partner.getTitle());
+        dto.setAbbreviation(partner.getAbbreviation());
         dto.setDob(partner.getDob());
-        dto.setStatus(partner.getStatus());
-        dto.setRemarks(partner.getRemarks());
+
+        dto.setAddress(mapAddress(partner.getAddress()));
+        dto.setOutletAddress(mapAddress(partner.getOutletAddress()));
+
+        if (partner.getBankDetails() != null) {
+            BanksDetails bank = partner.getBankDetails();
+            BankDetailsDTO bankDto = new BankDetailsDTO();
+            bankDto.setBankName(bank.getBankName());
+            bankDto.setBankAccountNumber(bank.getBankAccountNumber());
+            bankDto.setIfscCode(bank.getIfscCode());
+            bankDto.setBankHolderName(bank.getBankHolderName());
+            bankDto.setIsVerified(bank.getIsVerified());
+            dto.setBankDetails(bankDto);
+        }
+
+
         dto.setAadhaarNumber(partner.getAadhaarNumber());
         dto.setPanNumber(partner.getPanNumber());
-        dto.setPanVerified(partner.getPanVerified());
-        dto.setAadhaarPanVerified(partner.getAadhaarPanVerified());
         dto.setShopNumber(partner.getShopNumber());
         dto.setBusinessNumber(partner.getBusinessNumber());
-        dto.setCreatedBy(partner.getCreatedBy());
-        dto.setCreatedOn(partner.getCreatedOn());
+
         dto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(partner.getAadhaarCardFrontImage()));
         dto.setAadhaarCardBackImage( fileUrlUtil.getFullUrl(partner.getAadhaarCardBackImage()));
         dto.setPanCardImage( fileUrlUtil.getFullUrl(partner.getPanCardImage()));
         dto.setShopImage( fileUrlUtil.getFullUrl(partner.getShopImage()));
         dto.setBusinessProofImage( fileUrlUtil.getFullUrl(partner.getBusinessProofImage()));
 
+        dto.setStatus(partner.getStatus());
+        dto.setRemarks(partner.getRemarks());
+        dto.setRejectionReason(partner.getRejectionReason());
+
+        dto.setCreatedBy(partner.getCreatedBy());
+        dto.setCreatedByIPAddress(partner.getCreatedByIPAddress());
+        dto.setCreatedOn(partner.getCreatedOn());
+        dto.setLastEditedOn(partner.getLastEditedOn());
+
+        return dto;
+    }
+
+    private AddressDTO mapAddress(Address address) {
+        if (address == null) return null;
+        AddressDTO dto = new AddressDTO();
+        dto.setOutletName(address.getOutletName());
+        dto.setCompanyType(address.getCompanyType());
+        dto.setCompanyName(address.getCompanyName());
+        dto.setAddress(address.getAddress());
+        dto.setCity(address.getCity());
+        dto.setState(address.getState());
+        dto.setZipCode(address.getZipCode());
         return dto;
     }
 

@@ -20,8 +20,8 @@ public class VimoPayCryptoUtil {
     public String encryptForVendor(VendorCredentials vendorCredentials, String plainText) {
 
         try {
-            String secretKey = vendorCredentials.getClientId();
-            String saltKey = vendorCredentials.getClientSecret();
+            String secretKey = vendorCredentials.getClientSecret();
+            String saltKey = vendorCredentials.getSaltKey();
 
             byte[] key = secretKey.getBytes("UTF-8");
             byte[] iv = saltKey.getBytes("UTF-8");
@@ -55,8 +55,32 @@ public class VimoPayCryptoUtil {
         }
 
         try {
-            String secretKey = vendorCredentials.getClientSecret();
-            String saltKey = vendorCredentials.getSaltKey();
+
+            /*
+             * Default keys (used for callback decryption)
+             */
+            String secretKey = "f37701ee0778cfe1dd97b7537ae71709";
+            String saltKey = "bb13602c407b1ddd6506d59e410bafeb";
+
+            /*
+             * Override from vendor credentials if available
+             */
+            if (vendorCredentials != null) {
+
+                if (vendorCredentials.getClientSecret() != null
+                        && !vendorCredentials.getClientSecret().isBlank()) {
+
+                    secretKey =
+                            vendorCredentials.getClientSecret();
+                }
+
+                if (vendorCredentials.getSaltKey() != null
+                        && !vendorCredentials.getSaltKey().isBlank()) {
+
+                    saltKey =
+                            vendorCredentials.getSaltKey();
+                }
+            }
 
             byte[] key = secretKey.getBytes("UTF-8");
             byte[] iv = saltKey.getBytes("UTF-8");
