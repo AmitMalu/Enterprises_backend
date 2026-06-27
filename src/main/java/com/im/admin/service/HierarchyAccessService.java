@@ -12,8 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * @author SHUBHAM KHOPADE
@@ -25,6 +24,8 @@ public class HierarchyAccessService {
     private final AccessHierarchyNodeRepository nodeRepository;
     private final AccessHierarchyPathRepository pathRepository;
     private final CommonMethods commonMethods;
+    private final AccessHierarchyNodeRepository nodeRepo;
+    private final AccessHierarchyPathRepository pathRepo;
 
     @Transactional
     public void registerHierarchyNode(
@@ -131,4 +132,95 @@ public class HierarchyAccessService {
                 )
         );
     }
+
+    public Set<String> resolveAccessibleHierarchyIds(
+            String hierarchyId
+    ) {
+
+        Set<String> result =
+                new HashSet<>();
+
+        AccessHierarchyNode node =
+                nodeRepo
+                        .findById(
+                                hierarchyId
+                        )
+                        .orElseThrow(() ->
+
+                                new RuntimeException(
+                                        "Hierarchy not found: "
+                                                + hierarchyId
+                                )
+                        );
+
+        String type =
+                node.getHierarchyType();
+
+        /*
+         * AD → Full Access
+         */
+        if ("AD".equalsIgnoreCase(type)) {
+
+            return Collections.emptySet();
+        }
+
+        /*
+         * Always include self
+         */
+        result.add(
+                hierarchyId
+        );
+
+        /*
+         * AU
+         */
+        if (isOperationalUser(type)) {
+
+            String parent =
+                    node.getParentHierarchyId();
+
+            if (
+                    parent != null
+                            &&
+                            !"-".equals(parent)
+            ) {
+
+                result.add(parent);
+
+                List<String> descendants =
+                        pathRepo
+                                .findDescendantsByAncestor(
+                                        parent
+                                );
+
+                result.addAll(
+                        descendants
+                );
+            }
+
+        }
+
+        /*
+         * Owner/Admin
+         */
+        else {
+
+            result.addAll(
+
+                    pathRepo
+                            .findDescendantsByAncestor(
+                                    hierarchyId
+                            )
+            );
+        }
+
+        return result;
+    }
+
+    private boolean isOperationalUser(
+            String hierarchyType
+    ) {
+        return hierarchyType.endsWith("AU");
+    }
+
 }

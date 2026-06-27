@@ -5,24 +5,34 @@ import com.im.admin.entities.Scheme;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /**
  * @author SHUBHAM KHOPADE
  */
+
+@Slf4j
 public class SchemeSpecification {
 
     public static Specification<Scheme> build(
+
             SchemeFilter filter,
-            Set<String> accessibleIds,
+
+            List<String> subProducts,
+
             boolean fullAccess
+
     ) {
 
-        return (root, query, cb) -> {
+        return (
+                root,
+                query,
+                cb
+        ) -> {
 
             List<Predicate> predicates =
                     new ArrayList<>();
@@ -43,31 +53,53 @@ public class SchemeSpecification {
                     filter.getSchemeCode()
             );
 
-            if (!fullAccess) {
+            if (
 
-                List<Predicate> hierarchy =
-                        accessibleIds.stream()
+                    !fullAccess
 
-                                .map(id ->
+                            &&
 
-                                        cb.like(
-                                                root.get(
-                                                        "schemeCombinationHashCode"
-                                                ),
+                            !subProducts.isEmpty()
 
-                                                "%-" + id + "-%"
-                                        )
+            ) {
 
-                                )
+                List<Predicate> access =
+                        new ArrayList<>();
 
-                                .toList();
+                for (
+                        String sub
+                        :
+                        subProducts
+                ) {
+
+                    access.add(
+
+                            cb.like(
+
+                                    root.get(
+                                            "schemeCombinationHashCode"
+                                    ),
+
+                                    "__-"
+                                            +
+                                            sub
+                                            +
+                                            "-%"
+                            )
+                    );
+
+                }
 
                 predicates.add(
+
                         cb.or(
-                                hierarchy.toArray(
+
+                                access.toArray(
                                         new Predicate[0]
                                 )
-                        ));
+                        )
+                );
+
             }
 
             return cb.and(
@@ -75,34 +107,52 @@ public class SchemeSpecification {
                             new Predicate[0]
                     )
             );
+
         };
+
     }
 
     private static void addLike(
-            List<Predicate> predicates,
+
+            List<Predicate> p,
+
             CriteriaBuilder cb,
+
             Root<Scheme> root,
+
             String field,
+
             String value
+
     ) {
 
-        if (value == null ||
-                value.isBlank()) {
+        if (
+                value == null
+                        ||
+                        value.isBlank()
+        ) {
             return;
         }
 
-        predicates.add(
+        p.add(
 
                 cb.like(
 
                         cb.lower(
-                                root.get(field)
+                                root.get(
+                                        field
+                                )
                         ),
 
                         "%"
-                                + value.toLowerCase()
-                                + "%"
+                                +
+                                value
+                                        .toLowerCase()
+                                +
+                                "%"
                 )
         );
+
     }
+
 }

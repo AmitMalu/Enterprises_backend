@@ -2,6 +2,8 @@ package com.im.admin.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.im.admin.dto.AddressDTO;
+import com.im.admin.dto.BankDetailsDTO;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -15,6 +17,10 @@ public class WhiteLabelResponseDTO {
     private String name;
     private String mobileNumber;
     private String emailId;
+
+    private AddressDTO address;
+    private AddressDTO outletAddress;
+    private BankDetailsDTO bankDetails;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dob;
@@ -55,5 +61,8 @@ public class WhiteLabelResponseDTO {
     private String panCardImage;
     private String shopImage;
     private String businessProofImage;
+
+    private String createdByIPAddress;
+    private LocalDateTime lastEditedOn;
 
 }

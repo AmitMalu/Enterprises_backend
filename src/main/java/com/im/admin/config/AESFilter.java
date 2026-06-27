@@ -33,7 +33,7 @@ public class AESFilter extends OncePerRequestFilter {
 			"/api/pg/callback/razorpay", "/api/aes/encrypt-credentials", "/api/aes/decrypt-credentials", "/api/pg/callback/cashfree",
 			"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui", "/swagger-ui/**", "/swagger-ui.html",
 			"/swagger-ui/index.html", "/swagger-ui/swagger-ui.css", "/swagger-ui/swagger-ui-bundle.js",
-			"/swagger-ui/swagger-ui-standalone-preset.js", "/enterprises/images/**", "/api/vidual-pay/encrypt", "/api/vidual-pay/decrypt",
+			"/swagger-ui/swagger-ui-standalone-preset.js", "/enterprises/images/**", "/api/payout/callback/vimopay",
 			"/api/vidual-pay/authorize");
 
 	@Value("${app.security.base-secret}")
@@ -59,7 +59,7 @@ public class AESFilter extends OncePerRequestFilter {
 		}
 		log.info("Request URI: {}", path);
 		if (this.isPathViewableWithoutAuthentication(request)) {
-			log.info("User is authorized to access this resource");
+			log.info("User is authorized to access this resource without authentication");
 			filterChain.doFilter(request, response);
 		} else {
 			String token = request.getHeader("Authorization");
@@ -78,7 +78,7 @@ public class AESFilter extends OncePerRequestFilter {
 						return;
 					}
 
-					log.info("User is authorized to access this resource");
+					log.info("User is authorized to access this resource with authentication");
 					filterChain.doFilter(request, response);
 				} catch (Exception e) {
 					log.error("Error processing token: {}", e.getMessage());

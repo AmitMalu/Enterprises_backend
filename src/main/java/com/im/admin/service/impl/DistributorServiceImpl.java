@@ -1,7 +1,10 @@
 package com.im.admin.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.dto.AddressDTO;
+import com.im.admin.dto.BankDetailsDTO;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
@@ -9,6 +12,7 @@ import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.*;
 import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.response.DistributorResponseDTO;
+import com.im.admin.response.RetailerResponseDTO;
 import com.im.admin.service.DistributorService;
 import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.util.IdGenerator;
@@ -353,81 +357,123 @@ public class DistributorServiceImpl implements DistributorService {
     }
 
     @Override
-    public DistributorResponseDTO getDistributorById(String id) {
+    public DistributorResponseDTO getDistributorById(String distributorId)
+            throws JsonProcessingException {
 
-        LocalDateTime requestTime = LocalDateTime.now();
-        String requestPayload = "Fetching distributor with ID: " + id;
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String distributorRequest = "Fetching distributor with ID: " + distributorId;
 
-        log.info("Request received at {}: {}", requestTime, requestPayload);
+        DistributorResponseDTO dto = null;
+        String distributorResponse = null;
+        LocalDateTime responseDateTime = null;
 
         try {
 
-            Distributor distributor = distributorRepository.findById(id)
+            Distributor distributor = distributorRepository.findById(distributorId)
                     .orElseThrow(() ->
-                            new EntityNotFoundException("Distributor not found with ID: " + id)
+                            new EntityNotFoundException(
+                                    "Distributor not found with ID: " + distributorId
+                            )
                     );
 
-            DistributorResponseDTO dto = convertToDto(distributor);
+            dto = convertToDto(distributor);
 
-            LocalDateTime responseTime = LocalDateTime.now();
+            // Save actual response JSON
+            distributorResponse = objectMapper.writeValueAsString(dto);
 
-            log.info("Distributor found with ID {} at {}", distributor.getDistributorId(), responseTime);
+            responseDateTime = LocalDateTime.now();
 
-            commonFunctions.saveImLogs(
-                    requestPayload,
-                    requestTime,
-                    null,
-                    "Distributor found: " + distributor.getDistributorId(),
-                    responseTime
+            log.info(
+                    "Distributor fetched successfully | distributorId={}",
+                    distributorId
             );
 
             return dto;
 
-        } catch (EntityNotFoundException e) {
+        } catch (Exception ex) {
 
-            LocalDateTime responseTime = LocalDateTime.now();
+            distributorResponse = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
 
-            log.warn("Distributor not found with ID {} at {}", id, responseTime);
-
-            commonFunctions.saveImLogs(
-                    requestPayload,
-                    requestTime,
-                    null,
-                    "Error: " + e.getMessage(),
-                    responseTime
+            log.error(
+                    "Error while fetching distributor | distributorId={} | error={}",
+                    distributorId,
+                    ex.getMessage(),
+                    ex
             );
 
-            throw e;
+            throw ex;
+
+        } finally {
+
+            commonFunctions.saveHierarchyLogs(
+                    requestDateTime,
+                    distributorRequest,
+                    null, // request IP if available
+                    responseDateTime,
+                    distributorResponse
+            );
         }
     }
 
-    private DistributorResponseDTO convertToDto(Distributor distributor) {
-
+    public DistributorResponseDTO convertToDto(Distributor distributor) {
         DistributorResponseDTO dto = new DistributorResponseDTO();
-
         dto.setDistributorId(distributor.getDistributorId());
-        dto.setParentAccount(distributor.getParentAccount());
-        dto.setTitle(distributor.getTitle());
         dto.setName(distributor.getName());
         dto.setMobileNumber(distributor.getMobileNumber());
         dto.setEmailId(distributor.getEmailId());
+        dto.setTitle(distributor.getTitle());
         dto.setAbbreviation(distributor.getAbbreviation());
         dto.setDob(distributor.getDob());
-        dto.setStatus(distributor.getStatus());
-        dto.setRemarks(distributor.getRemarks());
+
+        dto.setAddress(mapAddress(distributor.getAddress()));
+        dto.setOutletAddress(mapAddress(distributor.getOutletAddress()));
+
+        if (distributor.getBankDetails() != null) {
+            BanksDetails bank = distributor.getBankDetails();
+            BankDetailsDTO bankDto = new BankDetailsDTO();
+            bankDto.setBankName(bank.getBankName());
+            bankDto.setBankAccountNumber(bank.getBankAccountNumber());
+            bankDto.setIfscCode(bank.getIfscCode());
+            bankDto.setBankHolderName(bank.getBankHolderName());
+            bankDto.setIsVerified(bank.getIsVerified());
+            dto.setBankDetails(bankDto);
+        }
+
+
         dto.setAadhaarNumber(distributor.getAadhaarNumber());
         dto.setPanNumber(distributor.getPanNumber());
-        dto.setPanVerified(distributor.getPanVerified());
-        dto.setAadhaarPanVerified(distributor.getAadhaarPanVerified());
         dto.setShopNumber(distributor.getShopNumber());
         dto.setBusinessNumber(distributor.getBusinessNumber());
-        dto.setCreatedBy(distributor.getCreatedBy());
-        dto.setCreatedOn(distributor.getCreatedOn());
+
         dto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(distributor.getAadhaarCardFrontImage()));
         dto.setAadhaarCardBackImage( fileUrlUtil.getFullUrl(distributor.getAadhaarCardBackImage()));
         dto.setPanCardImage( fileUrlUtil.getFullUrl(distributor.getPanCardImage()));
         dto.setShopImage( fileUrlUtil.getFullUrl(distributor.getShopImage()));
         dto.setBusinessProofImage( fileUrlUtil.getFullUrl(distributor.getBusinessProofImage()));
+
+        dto.setStatus(distributor.getStatus());
+        dto.setRemarks(distributor.getRemarks());
+        dto.setRejectionReason(distributor.getRejectionReason());
+
+        dto.setCreatedBy(distributor.getCreatedBy());
+        dto.setCreatedByIPAddress(distributor.getCreatedByIPAddress());
+        dto.setCreatedOn(distributor.getCreatedOn());
+        dto.setLastEditedOn(distributor.getLastEditedOn());
+
+        return dto;
+    }
+
+    private AddressDTO mapAddress(Address address) {
+        if (address == null) return null;
+        AddressDTO dto = new AddressDTO();
+        dto.setOutletName(address.getOutletName());
+        dto.setCompanyType(address.getCompanyType());
+        dto.setCompanyName(address.getCompanyName());
+        dto.setAddress(address.getAddress());
+        dto.setCity(address.getCity());
+        dto.setState(address.getState());
+        dto.setZipCode(address.getZipCode());
         return dto;
     }
 
