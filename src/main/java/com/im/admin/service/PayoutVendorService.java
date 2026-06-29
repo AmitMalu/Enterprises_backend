@@ -10,7 +10,7 @@ public interface PayoutVendorService {
 
     String getVendorName();
 
-    PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude);
+    PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude, Object ipaddress);
 
     //BeneficiaryVerifyResponseDto verifyBeneficiary(BeneficiaryVerifyRequestDto request, VendorCredentials credentials);
 

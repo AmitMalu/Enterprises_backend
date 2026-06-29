@@ -63,7 +63,8 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
             SubProducts subProducts,
             WalletType walletType,
             Double latitude,
-            Double longitude) {
+            Double longitude,
+            Object ipAddress) {
 
         log.info("Starting SLPE payout | orderId={}, amount={}", orderId, req.getAmount());
 

@@ -59,7 +59,8 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
                                         SubProducts subProducts,
                                         WalletType walletType,
                                         Double latitude,
-                                        Double longitude) {
+                                        Double longitude,
+                                        Object ipAddress) {
         try {
             log.info("[SHADVAL] Initiating payout orderId={} retailer={} amount={}",
                     orderId, req.getRetailerId(), req.getAmount());
