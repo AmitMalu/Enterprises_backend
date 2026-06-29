@@ -83,7 +83,7 @@ public class PayoutOrchestrator {
 
 
     @Transactional
-    public CommonResponse<PayoutResponseDto> processPayout(SendPayoutRequest req, Double latitude, Double longitude) {
+    public CommonResponse<PayoutResponseDto> processPayout(SendPayoutRequest req, Double latitude, Double longitude, Object ipaddress) {
         String orderId = "TXN" + commonMethods.generateBaseTransactionId();
         log.info("[PROCESS PAYOUT ORCH] Initiating payout process for orderId={}", orderId);
 
@@ -117,50 +117,100 @@ public class PayoutOrchestrator {
                             req.getSchemeCode(),
                             req.getPaymentMode(),
                             req.getAmount().doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "No matching scheme rate found for amount: " + req.getAmount()));
 
             log.info("[2.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
-                    selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
-                    selectedScheme.getGross(), selectedScheme.getRetailer());
+                    selectedScheme.getId(),
+                    selectedScheme.getRateType(),
+                    selectedScheme.getSlabType(),
+                    selectedScheme.getGross(),
+                    selectedScheme.getRetailer());
 
-            BigDecimal cutOfAmount = commonMethods.getLeanAmount(req.getRetailerId(), walletType.name());
+            BigDecimal leanAmount =
+                    commonMethods.getLeanAmount(req.getRetailerId(), walletType.name());
 
-            BigDecimal finalDeductAmt = req.getAmount()
-                    .add(BigDecimal.valueOf(selectedScheme.getGross()));
+            BigDecimal txnAmount = req.getAmount();
 
-            // Balance after payout
-            BigDecimal remainingBalance = availableBalance.subtract(finalDeductAmt);
+            BigDecimal grossAmount =
+                    BigDecimal.valueOf(selectedScheme.getGross());
 
-            // Lean amount validation
-            if (remainingBalance.compareTo(cutOfAmount) < 0) {
+            BigDecimal finalDeductAmt =
+                    txnAmount.add(grossAmount);
+
+
+            // -------------------------------------
+            // 1. ONLY LEAN AMOUNT VALIDATION
+            // -------------------------------------
+            BigDecimal balanceAfterTxn =
+                    availableBalance.subtract(txnAmount);
+
+            if (balanceAfterTxn.compareTo(leanAmount) < 0) {
+
                 log.warn(
-                        "[PROCESS PAYOUT ORCH] Lean amount validation failed | retailerId={} | available={} | required={} | leanAmount={}",
+                        "[PROCESS PAYOUT ORCH] Lean amount failed | retailer={} | available={} | txn={} | lean={}",
                         req.getRetailerId(),
                         availableBalance,
-                        finalDeductAmt,
-                        cutOfAmount
+                        txnAmount,
+                        leanAmount
                 );
 
                 return new CommonResponse<>(
                         400,
                         String.format(
-                                "Insufficient usable balance. ₹%s must remain locked as lean amount.",
-                                cutOfAmount
+                                "Transaction not allowed. ₹%s must remain as lean balance.",
+                                leanAmount
                         ),
                         null
                 );
             }
 
-            // Existing balance check
-            if (availableBalance.compareTo(finalDeductAmt) < 0) {
+
+            // -------------------------------------
+            // 2. LEAN + GROSS VALIDATION
+            // -------------------------------------
+            BigDecimal balanceAfterGross =
+                    availableBalance.subtract(finalDeductAmt);
+
+            if (balanceAfterGross.compareTo(leanAmount) < 0) {
+
                 log.warn(
-                        "[PROCESS PAYOUT ORCH] Insufficient balance | retailer={} | required={} | available={}",
+                        "[PROCESS PAYOUT ORCH] Lean + Gross validation failed | retailer={} | available={} | finalDeduct={} | lean={}",
+                        req.getRetailerId(),
+                        availableBalance,
+                        finalDeductAmt,
+                        leanAmount
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        String.format(
+                                "Insufficient usable balance after charges. ₹%s must remain locked as lean amount.",
+                                leanAmount
+                        ),
+                        null
+                );
+            }
+
+
+            // -------------------------------------
+            // 3. INSUFFICIENT WALLET BALANCE
+            // -------------------------------------
+            if (availableBalance.compareTo(finalDeductAmt) < 0) {
+
+                log.warn(
+                        "[PROCESS PAYOUT ORCH] Insufficient wallet balance | retailer={} | required={} | available={}",
                         req.getRetailerId(),
                         finalDeductAmt,
                         availableBalance
                 );
 
-                return new CommonResponse<>(400, "Insufficient Balance", null);
+                return new CommonResponse<>(
+                        400,
+                        "Insufficient Balance In " + subProducts.getWalletType(),
+                        null
+                );
             }
 
             // 3. Resolve Vendor Routing & Credentials
@@ -206,7 +256,7 @@ public class PayoutOrchestrator {
             log.debug("[PROCESS PAYOUT ORCH] Wallet debited (PENDING) for retailer={}, amount={}", req.getRetailerId(), req.getAmount());
 
             // 6. Call vendor-specific implementation (must return PayoutResponseDto)
-            PayoutResponseDto vendorResp = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType, latitude, longitude);
+            PayoutResponseDto vendorResp = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType, latitude, longitude, ipaddress);
 
             if (vendorResp == null) {
                 // defensive fallback

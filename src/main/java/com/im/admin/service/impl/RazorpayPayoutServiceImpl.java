@@ -45,7 +45,7 @@ public class RazorpayPayoutServiceImpl  implements PayoutVendorService {
     }
 
     @Override
-    public PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude) {
+    public PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude, Object ipAddress) {
 
         log.info("[RAZORPAY] Starting payout for orderId={}", orderId);
 
