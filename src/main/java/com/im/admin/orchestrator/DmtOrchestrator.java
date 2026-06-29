@@ -109,6 +109,22 @@ public class DmtOrchestrator {
 
         try {
 
+            // ===== BALANCE CHECK (before OTP) =====
+            SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
+                    .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+
+            WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
+
+            BigDecimal availableBalance =
+                    commonMethods.getCurrentBalance(req.getRetailerId(), walletType.name());
+
+            if (availableBalance.compareTo(req.getAmount()) < 0) {
+                log.warn("[DMT SEND OTP] Insufficient balance for retailer={} (required={}, available={})",
+                        req.getRetailerId(), req.getAmount(), availableBalance);
+                return new CommonResponse<>(400, "Insufficient Balance", null);
+            }
+
+            // ===== VENDOR SELECTION =====
             VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
 
             List<Vendors> vendors = List.of(

@@ -36,7 +36,7 @@ public class BankDetailsServiceImpl implements BankDetailsService {
         // Step 1: Check existing bank count for hierarchyId
         long bankCount = repository.countByHierarchyId(request.getHierarchyId());
 
-        if (bankCount >= 2) {
+        if (bankCount >= 5) {
             log.warn("Max 2 banks already exist for HierarchyId={}", request.getHierarchyId());
             return CommonResponse.error(400, "Only 2 banks are allowed per hierarchy.");
         }

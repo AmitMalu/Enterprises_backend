@@ -17,6 +17,7 @@ public class DmtBeneficiaryFetchResponse {
     @Getter
     @Setter
     public static class BeneficiaryData {
+        private int srNo;
         private String bene_id;
         private String bankid;
         private String bankname;
