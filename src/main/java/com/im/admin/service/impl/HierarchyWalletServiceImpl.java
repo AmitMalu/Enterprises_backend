@@ -185,10 +185,7 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
         return dto;
     }
 
-    // -------------------------------------------------------------------------
     // UPDATE lien amount
-    // -------------------------------------------------------------------------
-
     @Override
     @Transactional
     public HierarchyWalletReportDto updateLienAmount(UpdateLienAmountRequest request) {
@@ -209,8 +206,8 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                         .findByRetailerId_RetailerId(id)
                         .orElseThrow(() -> new IllegalArgumentException("Retailer postpaid wallet not found: " + id));
 
-                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
-                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
+//                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
+//                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
                 prepaid.setRemark(request.getRemark());
@@ -231,8 +228,8 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                         .findByDistributorId_DistributorId(id)
                         .orElseThrow(() -> new IllegalArgumentException("Distributor postpaid wallet not found: " + id));
 
-                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
-                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
+//                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
+//                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
                 prepaid.setRemark(request.getRemark());
@@ -253,8 +250,8 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                         .findByPartnerId_PartnerId(id)
                         .orElseThrow(() -> new IllegalArgumentException("Partner postpaid wallet not found: " + id));
 
-                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
-                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
+//                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
+//                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
                 prepaid.setRemark(request.getRemark());
@@ -275,8 +272,8 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                         .findBySuperDistributorId_SuperDistributorId(id)
                         .orElseThrow(() -> new IllegalArgumentException("SuperDistributor postpaid wallet not found: " + id));
 
-                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
-                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
+//                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
+//                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
                 prepaid.setRemark(request.getRemark());
@@ -297,8 +294,8 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                         .findByWhiteLabelId_WhiteLabelId(id)
                         .orElseThrow(() -> new IllegalArgumentException("WhiteLabel postpaid wallet not found: " + id));
 
-                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
-                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
+//                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
+//                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
                 prepaid.setRemark(request.getRemark());
@@ -319,8 +316,8 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                         .findByEnterprise_EnterpriseId(id)
                         .orElseThrow(() -> new IllegalArgumentException("Enterprise postpaid wallet not found: " + id));
 
-                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
-                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
+//                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
+//                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
                 prepaid.setRemark(request.getRemark());
@@ -341,8 +338,8 @@ public class HierarchyWalletServiceImpl implements HierarchyWalletService {
                         .findByAdminId_Id(id)
                         .orElseThrow(() -> new IllegalArgumentException("Admin postpaid wallet not found: " + id));
 
-                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
-                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
+//                validateLien("Prepaid",  request.getPrepaidCutoffAmount(),  prepaid.getAvailableBalance());
+//                validateLien("Postpaid", request.getPostpaidCutoffAmount(), postpaid.getAvailableBalance());
 
                 prepaid.setCutOfAmount(request.getPrepaidCutoffAmount());
                 prepaid.setRemark(request.getRemark());
