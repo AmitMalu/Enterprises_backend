@@ -43,6 +43,12 @@ public class ImBankMaster {
     @Column(name = "is_blocked")
     private Boolean isBlocked;
 
+    @Column(name = "is_white_label_admin")
+    private Boolean isWhiteLabelAdmin;
+
+    @Column(name = "white_label_admin_id")
+    private String whiteLabelAdminId;
+
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy HH:mm:ss")
     @CreationTimestamp
     @Column(name = "created_on")

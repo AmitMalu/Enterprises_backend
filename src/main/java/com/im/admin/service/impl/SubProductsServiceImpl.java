@@ -2,13 +2,16 @@ package com.im.admin.service.impl;
 
 import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.dto.SubProductsResponseDTO;
+import com.im.admin.entities.AccessHierarchyNode;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.product.Products;
+import com.im.admin.repositories.AccessHierarchyNodeRepository;
 import com.im.admin.repositories.ProductsRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.service.SubProductsService;
 import com.im.admin.spec.SubProductSpecification;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -37,6 +40,12 @@ public class SubProductsServiceImpl implements SubProductsService {
 
     @Autowired
     private ProductsRepository productsRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private AccessHierarchyNodeRepository accessHierarchyNodeRepository;
 
     @Override
     public SubProducts saveSubProduct(SubProducts subProduct) {
@@ -69,7 +78,7 @@ public class SubProductsServiceImpl implements SubProductsService {
 
 //        subProduct.setId(commonMethods.generateNextIdForTables("sub_products", "id"));
 
-        if(!Boolean.TRUE.equals(subProduct.getIsSettlement())) {
+        if (!Boolean.TRUE.equals(subProduct.getIsSettlement())) {
             subProduct.setIsSettlement(false);
             subProduct.setSettlementTime("-");
         }
@@ -117,10 +126,10 @@ public class SubProductsServiceImpl implements SubProductsService {
         existingSubProduct.setEditedBy(subProduct.getEditedBy());
         existingSubProduct.setIsActive(subProduct.getIsActive());
 
-        if(Boolean.TRUE.equals(subProduct.getIsSettlement())) {
+        if (Boolean.TRUE.equals(subProduct.getIsSettlement())) {
             existingSubProduct.setIsSettlement(true);
             existingSubProduct.setSettlementTime(subProduct.getSettlementTime());
-        }else {
+        } else {
             existingSubProduct.setIsSettlement(false);
             existingSubProduct.setSettlementTime("-");
         }
@@ -128,7 +137,7 @@ public class SubProductsServiceImpl implements SubProductsService {
         if (Boolean.TRUE.equals(subProduct.getIsWhiteLabelAdmin())) {
             existingSubProduct.setIsWhiteLabelAdmin(true);
             existingSubProduct.setWhiteLabelAdminId(subProduct.getWhiteLabelAdminId());
-        }else {
+        } else {
             existingSubProduct.setIsWhiteLabelAdmin(false);
             existingSubProduct.setWhiteLabelAdminId("-");
         }
@@ -167,32 +176,165 @@ public class SubProductsServiceImpl implements SubProductsService {
 
 
     @Override
-    public List<SubProductDropdownResponseDto> getActiveSubProductsByProductId(
-            Short productId, Boolean isSettlement) {
-        log.info("Fetching sub-products for productId: {}, isSettlement: {}", productId, isSettlement);
+    public List<SubProductDropdownResponseDto>
+    getActiveSubProductsByProductId(Short productId, Boolean isSettlement) {
+
+        long start = System.currentTimeMillis();
 
         try {
-            List<SubProducts> subProducts;
 
-            if (isSettlement == null) {
-                subProducts = subProductsRepository.findByProductIdAndIsActiveTrue(productId);
-            } else {
-                subProducts = subProductsRepository.findByProductIdAndIsActiveTrueAndIsSettlement(productId, isSettlement);
+            String loginHierarchy = tokenUtil.extractHierarchyId();
+
+            log.info("[SUB PRODUCT] login={} product={} settlement={}", loginHierarchy, productId, isSettlement);
+
+            AccessHierarchyNode node =
+
+                    accessHierarchyNodeRepository.findById(loginHierarchy)
+                            .orElseThrow(() -> new RuntimeException("Hierarchy not found"));
+
+            String type = node.getHierarchyType();
+
+            List<SubProducts> result;
+
+            /*
+             * AD
+             * AU under AD
+             */
+
+            if (
+
+                    "AD".equalsIgnoreCase(type)
+
+                            ||
+
+                            (
+
+                                    type.endsWith("AU")
+
+                                            &&
+
+                                            node
+                                                    .getParentHierarchyId()
+
+                                                    .contains(
+                                                            "-AD-"
+                                                    )
+
+                            )
+
+            ) {
+
+                log.info("[SUB PRODUCT] FULL ACCESS");
+
+                result = isSettlement == null
+
+                        ?
+
+                        subProductsRepository
+                                .findByProductIdAndIsActiveTrue(
+                                        productId
+                                )
+
+                        :
+
+                        subProductsRepository
+                                .findByProductIdAndIsActiveTrueAndIsSettlement(
+                                        productId,
+                                        isSettlement
+                                );
+
             }
-            log.info("Found {} sub-products for productId: {}, isSettlement: {}",
-                    subProducts.size(), productId, isSettlement);
 
-            return subProducts.stream()
-                    .map(subProduct -> new SubProductDropdownResponseDto(
-                            subProduct.getId(),
-                            subProduct.getSubProductTitle(),
-                            subProduct.getSubProductCode()))
-                    .collect(Collectors.toList());
+            /*
+             * WL
+             */
 
-        } catch (Exception e) {
-            log.error("Error while fetching sub-products for productId: {}, isSettlement: {}", productId, isSettlement, e);
-            throw new RuntimeException("Error fetching sub-products", e);
+            else if (
+
+                    "WL".equalsIgnoreCase(type)
+
+            ) {
+
+                log.info("[SUBPRODUCT] WL ACCESS");
+
+                result =
+
+                        subProductsRepository
+                                .findWLSubProducts(productId, isSettlement, loginHierarchy);
+
+            }
+
+            /*
+             * WLAU
+             */
+
+            else if (
+
+                    type.endsWith("AU")
+
+            ) {
+
+                String parent = node.getParentHierarchyId();
+
+                log.info("[SUB PRODUCT] WLAU parent={}", parent
+                );
+
+                result =
+
+                        subProductsRepository
+                                .findWLSubProducts(
+
+                                        productId,
+
+                                        isSettlement,
+
+                                        parent
+                                );
+
+            } else {
+
+                result = Collections.emptyList();
+
+            }
+
+            log.info(
+                    "[SUB PRODUCT] returned={} time={}ms", result.size(), System.currentTimeMillis() - start);
+
+            return result
+
+                    .stream()
+
+                    .map(
+
+                            x ->
+
+                                    new SubProductDropdownResponseDto(
+
+                                            x.getId(),
+
+                                            x.getSubProductTitle(),
+
+                                            x.getSubProductCode()
+                                    )
+                    )
+
+                    .toList();
+
+        } catch (
+
+                Exception ex
+
+        ) {
+
+            log.error(
+                    "[SUB PRODUCT] ERROR",
+                    ex
+            );
+
+            throw new RuntimeException("Failed to fetch sub products");
+
         }
+
     }
 
     public SubProductsResponseDTO toDTO(SubProducts entity) {

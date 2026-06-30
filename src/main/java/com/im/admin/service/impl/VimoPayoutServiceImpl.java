@@ -1,11 +1,14 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.controller.AESController;
+import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
+import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
@@ -93,7 +96,7 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
 
     @Override
-    public PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude) {
+    public PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude, Object ipAddress) {
         log.info("[VIMOPAY] Starting payout for orderId={} | amount={}",
                 orderId, req.getAmount());
 
@@ -182,7 +185,7 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 creds.getBaseUrlUat()
                         + "/payoutapi/api/payment/payoutsuat";
 
-        log.info("URL {} ---> ", url);
+        log.info("URL {} ", url);
 
         /*
          * Build Headers
@@ -201,7 +204,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 buildPayoutRequestBody(
                         req,
                         orderId,
-                        creds
+                        latitude,
+                        longitude
                 );
 
         String plainJson =
@@ -257,13 +261,96 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                         Map.class
                 );
 
+        Map<String, Object> rawResponse =
+                response.getBody();
+
         log.info(
                 "Vendor Raw Response={}",
-                response.getBody()
+                rawResponse
         );
 
+        if (rawResponse == null) {
+            return failed(
+                    orderId,
+                    "Empty response from vendor"
+            );
+        }
+
+        /*
+         * Validate top-level response
+         */
+        String responseCode =
+                String.valueOf(
+                        rawResponse.getOrDefault(
+                                "responseCode",
+                                ""
+                        )
+                );
+
+        Boolean success =
+                Boolean.parseBoolean(
+                        String.valueOf(
+                                rawResponse.getOrDefault(
+                                        "successStatus",
+                                        false
+                                )
+                        )
+                );
+
+        if (!success || !"000".equals(responseCode)) {
+
+            return failed(
+                    orderId,
+                    String.valueOf(
+                            rawResponse.getOrDefault(
+                                    "message",
+                                    "Vendor request failed"
+                            )
+                    )
+            );
+        }
+
+        /*
+         * Extract encrypted data
+         */
+        String encryptedData =
+                String.valueOf(
+                        rawResponse.get("data")
+                );
+
+        log.info(
+                "Encrypted Response Data={}",
+                encryptedData
+        );
+
+        /*
+         * Decrypt
+         */
+        String decryptedJson =
+                vimoPayCryptoUtil.decryptFromVendor(
+                        creds,
+                        encryptedData
+                );
+
+        log.info(
+                "Decrypted Vendor Response={}",
+                decryptedJson
+        );
+
+        /*
+         * Convert JSON → Map
+         */
+        Map<String, Object> decryptedResponse =
+                objectMapper.readValue(
+                        decryptedJson,
+                        new TypeReference<Map<String, Object>>() {}
+                );
+
+        /*
+         * Send decrypted response
+         */
         return handleVendorResponse(
-                response.getBody(),
+                decryptedResponse,
                 req,
                 orderId,
                 latitude,
@@ -306,7 +393,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
     private Map<String, Object> buildPayoutRequestBody(
             SendPayoutRequest req,
             String orderId,
-            VendorCredentials creds) {
+            Double latitude,
+            Double longitude) {
 
         log.info("===== Building Payout Request =====");
 
@@ -446,12 +534,12 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
         body.put(
                 "lat",
-                retailer.getLatitude()
+                latitude.toString()
         );
 
         body.put(
                 "long",
-                retailer.getLongitude()
+                longitude.toString()
         );
 
         body.put("udf1", "");
@@ -469,8 +557,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
         log.info("beneficiaryLocation={}", beneficiaryLocation);
         log.info("beneficiaryName={}", req.getBeneficiaryName());
         log.info("beneficiaryMobile={}", retailer.getMobileNumber());
-        log.info("Lat={}", retailer.getLatitude());
-        log.info("Long={}", retailer.getLongitude());
+        log.info("Lat={}", latitude);
+        log.info("Long={}", longitude);
 
         return body;
     }
@@ -534,13 +622,13 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
         log.info("responseMessage={}", responseMessage);
 
         /*
-         * Vimo:
+         * Accepted states:
+         * 000 = Success
          * 004 = Queued
          */
-
         boolean accepted =
-                "004".equals(txnStatusCode)
-                        || "QUEUED".equalsIgnoreCase(txnStatus);
+                "000".equals(txnStatusCode)
+                        || "004".equals(txnStatusCode);
 
         if (!accepted) {
 
@@ -581,7 +669,9 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 )
 
                 .status(
-                        "PENDING"
+                        "000".equals(txnStatusCode)
+                                ? "SUCCESS"
+                                : "PENDING"
                 )
 
                 .message(
@@ -603,11 +693,6 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 .ifscCode(
                         req.getIfscCode()
                 )
-
-                // optional if DTO has field
-//                .vendorTransactionId(
-//                        vendorTxnId
-//                )
 
                 .build();
     }
@@ -641,7 +726,150 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
     @Override
     public String handleCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException {
-        return "";
+        log.info("NixaSoft Callback Received: {}", payload);
+
+        // ===== 1. Extract Fields =====
+        String status = payload.get("txnStatus");
+        String txnStatusCode = payload.get("txnStatusCode");
+        String orderId = payload.get("merchantRefId");
+        String vendorTxnId = payload.get("txnId");
+        String amount = payload.get("amount");
+        String rrn = payload.get("rrn");
+        String responseMessage = payload.get("responseMessage");
+
+        log.info("[1] Parsed Callback: orderId={}, requestId={}, status={}, amount={}, utr={}",
+                vendorTxnId, orderId, status, amount, rrn);
+
+        // ===== 2. Fetch Pending Transaction =====
+        PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository
+                .findByTransactionId(orderId)
+                .orElseThrow(() ->
+                        new RuntimeException("Pending transaction not found for order ID: " + orderId));
+
+        // ===== Already SUCCESS check =====
+        if ("SUCCESS".equalsIgnoreCase(pendingTxn.getStatus())) {
+            log.warn("Transaction already marked SUCCESS for orderId={}", orderId);
+            return "Transaction already processed successfully";
+        }
+
+        log.info("[2] PendingTxn fetched successfully: ID={}, SchemeCode={}, TxnType={}, Amount={}, Status={}",
+                pendingTxn.getId(), pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(),
+                pendingTxn.getAmount(), pendingTxn.getStatus());
+
+        // Sanitize amount from callback payload (remove commas)
+        String cleanCallbackAmount = amount != null ? amount.replace(",", "") : "0";
+        Double txnAmt = Double.valueOf(cleanCallbackAmount);
+
+        // ===== 3. Fetch Scheme Rate =====
+        log.info("[3] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
+                pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(), txnAmt);
+
+        SchemeRate selectedScheme = schemeRateRepository
+                .findSchemeRateByCodeAndOperatorAndAmount(
+                        pendingTxn.getSchemeCode(),
+                        pendingTxn.getTransactionType(),
+                        txnAmt)
+                .orElseThrow(() ->
+                        new RuntimeException("No matching scheme rate found for amount: " + txnAmt));
+
+        log.info("[3.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
+                selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
+                selectedScheme.getGross(), selectedScheme.getRetailer());
+
+        // ===== 4. Fetch Scheme =====
+        Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                .orElseThrow(() ->
+                        new RuntimeException("Scheme Not Found with code: " + selectedScheme.getSchemeCode()));
+
+        log.info("[4] Scheme fetched successfully: HashCode={}", scheme.getSchemeCombinationHashCode());
+
+        // ===== 5. Extract Product & SubProduct =====
+        String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+
+        if (hashParts.length < 2) {
+            throw new RuntimeException("Invalid schemeCombinationHashCode format: "
+                    + scheme.getSchemeCombinationHashCode());
+        }
+
+        short productId = Short.parseShort(hashParts[0]);
+        String subProductIdStr = hashParts[1];
+
+        Products product = productsRepository.findById(productId)
+                .orElseThrow(() ->
+                        new RuntimeException("Product not found with id: " + productId));
+
+        SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
+                .orElseThrow(() ->
+                        new RuntimeException("SubProduct not found with id: " + subProductIdStr));
+
+        log.info("[5] Product/SubProduct fetched successfully: Product={}, SubProduct={}",
+                product.getName(), subProduct.getSubProductTitle());
+
+        // ===== 6. Prepare DTO =====
+        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
+        String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+
+        dto.setBaseTranxId(baseTxnId);
+        dto.setAmount(txnAmt);
+        dto.setConfirmAmount(txnAmt);
+        dto.setOperatorName(pendingTxn.getTransactionType());
+        dto.setOperatorCode(selectedScheme.getOperatorCode());
+        dto.setSchemeRate(selectedScheme);
+        dto.setTransactionType(product.getTransactionType());
+        dto.setWalletType(subProduct.getWalletType());
+        dto.setGstValue(String.valueOf(product.getSgst()));
+        dto.setTdsRate(String.valueOf(product.getTds()));
+        dto.setProductCode(product.getProductCode());
+        dto.setSubProductCode(subProduct.getSubProductCode());
+        dto.setIsCommission(product.getIsCommissions());
+        dto.setHasCharge(product.getHasCharges());
+        dto.setHierarchyId(pendingTxn.getRetailerId());
+        dto.setVendorName("VimoPay Payout");
+        dto.setVendorTxnId(vendorTxnId);
+
+        log.info("[6] DTO ready for transaction processing: {}", dto);
+
+        // ===== 7. Map Vendor Status =====
+        String finalStatus = switch (txnStatusCode) {
+
+            case "000" -> "SUCCESS"; // Success
+
+            case "001" -> "FAILED"; // Failed
+
+            case "002" -> "PENDING"; // Pending
+
+            case "003" -> "FAILED"; // Validation Failed
+
+            case "004" -> "PENDING"; // Queued
+
+            default -> throw new RuntimeException(
+                    "Unknown vendor status code: " + txnStatusCode
+            );
+        };
+
+        log.info(
+                "[7] Status mapped | code={} description={} finalStatus={}",
+                txnStatusCode,
+                status,
+                finalStatus
+        );
+
+        log.info("[7] Status mapped from vendor: {} -> {}", status, finalStatus);
+
+        // ===== 8. Process Transaction =====
+        transactionEngineServiceImpl.processTransaction(dto, finalStatus);
+
+        log.info("[8] Transaction processed successfully for ORDER_ID: {}, STATUS={}",
+                orderId, finalStatus);
+
+        // ===== 9. Update UTR =====
+        pendingTxn.setStatus(finalStatus);
+        payoutPendingTransactionRepository.save(pendingTxn);
+
+        log.info("[9] Pending transaction updated with RRN={}, STATUS={}", rrn, finalStatus);
+
+        return "SUCCESS";
     }
 
     @Override

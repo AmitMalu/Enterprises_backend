@@ -91,7 +91,8 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             SubProducts subProducts,
             WalletType walletType,
             Double latitude,
-            Double longitude) {
+            Double longitude,
+            Object ipAddress) {
 
         log.info("Starting NixaSoft payout | orderId={} | amount={}",
                 orderId,

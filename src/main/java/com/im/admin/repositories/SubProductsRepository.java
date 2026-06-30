@@ -29,14 +29,57 @@ public interface SubProductsRepository extends JpaRepository<SubProducts, String
 
     List<SubProducts> findByIsActiveTrue();
 
-
     List<SubProducts> findByProductIdAndIsActiveTrueAndIsSettlement(Short productId, Boolean isSettlement);
 
     Optional<SubProducts> findBySubProductCodeAndIsVisibleTrue(@NotBlank(message = "Sub-product code is required") String subProductCode);
 
     List<SubProducts> findByProduct(Products product);
 
-//    Optional<SubProducts> findBySubProductCode(String subProductCode);
+    @Query("""
+            
+            select s from SubProducts s
+            
+            where s.isWhiteLabelAdmin=true and s.whiteLabelAdminId=:wlId
+            
+            """)
+    List<SubProducts> findAllowedWLSubProducts(@Param("wlId") String wlId);
+
+    @Query("""
+            
+            select s
+            
+            from SubProducts s
+            
+            where s.product.id=:productId and s.isActive=true
+            
+            and (:settlement is null or s.isSettlement=:settlement)
+            
+            and s.isWhiteLabelAdmin=true
+            
+            and s.whiteLabelAdminId=:wlId
+            
+            """)
+    List<SubProducts>
+    findWLSubProducts(@Param("productId") Short productId, @Param("settlement") Boolean settlement, @Param("wlId") String wlId);
+
+    @Query("""
+            
+            select s from SubProducts s
+            
+            where s.isActive=true
+            
+            and s.isWhiteLabelAdmin=true
+            
+            and s.whiteLabelAdminId=:wlId
+            
+            """)
+    List<SubProducts>
+    findAssignedWLSubProducts(
+
+            @Param("wlId")
+            String wlId
+    );
+
 
 }
 
