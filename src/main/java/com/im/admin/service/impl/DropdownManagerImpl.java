@@ -203,67 +203,45 @@ public class DropdownManagerImpl implements DropdownManagerService {
             String parentType,
             List<ChildUserDto> result
     ) {
+        // Fetch ALL children of this parent from user_details (type-agnostic)
+        List<UserDetails> children = userDetailsRepository.findByParentAccount(parentId);
 
-        switch (parentType) {
+        for (UserDetails child : children) {
+            String childType = child.getHierarchyCode();
+            if (childType == null) continue;
 
-//            case "SA": // SuperAdmin
-//                adminRepository.findByParentAccount(parentId)
-//                        .forEach(a -> {
-//                            result.add(mapAdmin(a));
-//                            fetchHierarchyRecursively(a.getAdminId(), "AD", result);
-//                        });
-//                break;
+            // Map the child to ChildUserDto using the correct entity repo
+            ChildUserDto dto = resolveChildDto(child.getHierarchyId(), childType);
+            if (dto != null) {
+                result.add(dto);
+                // Recurse into this child's children
+                fetchHierarchyRecursively(child.getHierarchyId(), childType, result);
+            }
+        }
+    }
 
-            case "AD": // Admin
-                enterprisesRepository.findByParentAccount(parentId)
-                        .forEach(e -> {
-                            result.add(mapEnterprise(e));
-                            fetchHierarchyRecursively(e.getEnterpriseId(), "ET", result);
-                        });
-                break;
-
-            case "ET": // Enterprise
-                whiteLabelRepository.findByParentAccount(parentId)
-                        .forEach(wl -> {
-                            result.add(mapWhiteLabel(wl));
-                            fetchHierarchyRecursively(wl.getWhiteLabelId(), "WL", result);
-                        });
-                break;
-
-            case "WL": // WhiteLabel
-                superDistributorRepository.findByParentAccount(parentId)
-                        .forEach(sd -> {
-                            result.add(mapSuperDistributor(sd));
-                            fetchHierarchyRecursively(sd.getSuperDistributorId(), "SD", result);
-                        });
-                break;
-
-            case "SD": // SuperDistributor
-                partnerRepository.findByParentAccount(parentId)
-                        .forEach(p -> {
-                            result.add(mapPartner(p));
-                            fetchHierarchyRecursively(p.getPartnerId(), "PT", result);
-                        });
-                break;
-
-            case "PT": // Partner
-                distributorRepository.findByParentAccount(parentId)
-                        .forEach(d -> {
-                            result.add(mapDistributor(d));
-                            fetchHierarchyRecursively(d.getDistributorId(), "DT", result);
-                        });
-                break;
-
-            case "DT": // Distributor
-                retailerRepository.findByParentAccount(parentId)
-                        .forEach(r -> {
-                            result.add(mapRetailer(r));
-                            fetchHierarchyRecursively(r.getRetailerId(), "RT", result);
-                        });
-                break;
-
-            default:
-                break;
+    /**
+     * Resolves a ChildUserDto for any hierarchy type by looking up the correct entity repo.
+     */
+    private ChildUserDto resolveChildDto(String hierarchyId, String hierarchyCode) {
+        try {
+            return switch (hierarchyCode.toUpperCase()) {
+                case "ET" -> enterprisesRepository.findByEnterpriseId(hierarchyId)
+                        .map(this::mapEnterprise).orElse(null);
+                case "WL" -> whiteLabelRepository.findByWhiteLabelId(hierarchyId)
+                        .map(this::mapWhiteLabel).orElse(null);
+                case "SD" -> superDistributorRepository.findBySuperDistributorId(hierarchyId)
+                        .map(this::mapSuperDistributor).orElse(null);
+                case "PT" -> partnerRepository.findByPartnerId(hierarchyId)
+                        .map(this::mapPartner).orElse(null);
+                case "DT" -> distributorRepository.findByDistributorId(hierarchyId)
+                        .map(this::mapDistributor).orElse(null);
+                case "RT" -> retailerRepository.findByRetailerId(hierarchyId)
+                        .map(this::mapRetailer).orElse(null);
+                default -> null;
+            };
+        } catch (Exception e) {
+            return null;
         }
     }
 

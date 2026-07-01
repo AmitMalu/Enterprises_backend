@@ -139,6 +139,7 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
         entity.setCreatedBy(entity.getCreatedBy());
         entity.setEditedBy(dto.getEditedBy());
         entity.setEditedOn(LocalDateTime.now());
+        entity.setWhiteLabel(dto.getWhiteLabel());
     }
 
     private ImBankMasterResponseDTO mapToDto(ImBankMaster e) {

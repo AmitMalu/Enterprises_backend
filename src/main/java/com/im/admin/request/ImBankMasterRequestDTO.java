@@ -23,5 +23,6 @@ public class ImBankMasterRequestDTO {
 
     private String createdBy;
     private String editedBy;
+    private String whiteLabel;
 
 }
