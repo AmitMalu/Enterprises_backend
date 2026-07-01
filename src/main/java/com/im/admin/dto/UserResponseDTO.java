@@ -43,4 +43,6 @@ public class UserResponseDTO {
     private String createdBy;
     private LocalDateTime lastEditedOn;
     private String editedBy;
+    private String permission;
+
 }

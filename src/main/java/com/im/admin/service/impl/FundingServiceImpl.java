@@ -149,6 +149,7 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Credit (Admin Debit)",
                     dto.getNarrationType(),
+                    userId, // inserted into hierarchy_id for AD/WL
                     null,
                     null
 
@@ -165,6 +166,7 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Credit (User Credit)",
                     dto.getNarrationType(),
+                    adminId,
                     null,
                     null
             );
@@ -184,6 +186,7 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Debit (User Debit)",
                     dto.getNarrationType(),
+                    adminId,
                     null,
                     null
             );
@@ -199,6 +202,7 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Debit (Admin Credit)",
                     dto.getNarrationType(),
+                    userId, // inserted into hierarchy_id for AD/WL
                     null,
                     null
             );

@@ -182,8 +182,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
         log.info("===== STARTING VIMOPAY PAYOUT =====");
 
         String url =
-                creds.getBaseUrlUat()
-                        + "/payoutapi/api/payment/payoutsuat";
+                creds.getBaseUrlProd()
+                        + "/payoutapi/api/Payment/payout";
 
         log.info("URL {} ", url);
 
