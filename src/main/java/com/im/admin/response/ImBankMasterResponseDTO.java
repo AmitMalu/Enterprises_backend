@@ -23,5 +23,6 @@ public class ImBankMasterResponseDTO {
     private String editedBy;
     private LocalDateTime createdOn;
     private LocalDateTime editedOn;
+    private String whiteLabel;
 
 }

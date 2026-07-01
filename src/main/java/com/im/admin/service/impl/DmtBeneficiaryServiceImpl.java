@@ -472,9 +472,9 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
             int end = Math.min(start + size, filteredList.size());
 
             List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedData =
-                    filteredList.subList(start, end);
+                    new java.util.ArrayList<>(filteredList.subList(start, end));
 
-            // Set srNo based on page + index
+            // Set srNo based on page + index (start = page * size)
             for (int i = 0; i < pagedData.size(); i++) {
                 pagedData.get(i).setSrNo(start + i + 1);
             }
@@ -541,9 +541,9 @@ public class DmtBeneficiaryServiceImpl implements DmtBeneficiaryService {
             int end = Math.min(start + size, filteredList.size());
 
             List<DmtBeneficiaryFetchResponse.BeneficiaryData> pagedList =
-                    filteredList.subList(start, end);
+                    new java.util.ArrayList<>(filteredList.subList(start, end));
 
-            // Set srNo based on page + index
+            // Set srNo based on page + index (start = page * size)
             for (int i = 0; i < pagedList.size(); i++) {
                 pagedList.get(i).setSrNo(start + i + 1);
             }

@@ -1953,11 +1953,11 @@ public class DashboardServiceImpl implements DashboardService {
                         .sumAvailableBalanceByEnterprises(allIds)
         );
 
-        //  Admin
-        totalPrepaid = totalPrepaid.add(
-                adminPrepaidAmountRepository
-                        .sumAvailableBalanceByAdmins(allIds)
-        );
+//        //  Admin
+//        totalPrepaid = totalPrepaid.add(
+//                adminPrepaidAmountRepository
+//                        .sumAvailableBalanceByAdmins(allIds)
+//        );
 
         totalPostpaid = totalPostpaid.add(
                 adminPostpaidAmountRepository
