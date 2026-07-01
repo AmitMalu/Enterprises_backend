@@ -361,7 +361,10 @@ public class VendorDataSyncServiceImpl implements VendorDataSyncService {
 
         try {
 
-            String url = vendorCredentials.getTokenUrlUat();
+            //String url = vendorCredentials.getTokenUrlUat();
+            String url = vendorCredentials.getTokenUrlProd();
+
+            log.info("URL {} ", url);
 
             HttpHeaders headers = new HttpHeaders();
 

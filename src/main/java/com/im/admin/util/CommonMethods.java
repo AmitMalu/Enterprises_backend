@@ -740,6 +740,7 @@ public class CommonMethods {
             insertTransaction(
                     walletType.name(),
                     hierarchyId,
+                    null,
                     tranStatus,
                     amount,
                     balanceBefore,
@@ -767,6 +768,7 @@ public class CommonMethods {
     private void insertTransaction(
             String walletType,
             String hierarchyId,
+            String relatedHierarchyId,
             String tranStatus,
             BigDecimal amount,
             BigDecimal beforeBalance,
@@ -784,18 +786,25 @@ public class CommonMethods {
         log.debug("Preparing to insert transaction record.");
 
         try {
+
             String hierarchyType = extractHierarchyType(hierarchyId);
             String transactionTableName = getTransactionTable(hierarchyType, walletType);
             String columnName = getHierarchyColumnName(hierarchyType);
+
+            boolean includeHierarchy = shouldInsertHierarchyColumn(hierarchyType);
 
             log.info("Transaction details: Type={}, Amount={}, Status={}, Service={}",
                     service, amount, tranStatus, walletType);
 
             String sql = "INSERT INTO " + transactionTableName +
-                    " (" + columnName + ", service, amount, date_of_transaction, time_of_transaction, " +
+                    " (" + columnName +
+                    (includeHierarchy ? ", hierarchy_id" : "") +
+                    ", service, amount, date_of_transaction, time_of_transaction, " +
                     "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status," +
-                    " sub_product_name, narration, remarks,scheme_name, latitude, longitude) " +
-                    "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
+                    " sub_product_name, narration, remarks, scheme_name, latitude, longitude) " +
+                    "VALUES (:hierarchyId" +
+                    (includeHierarchy ? ", :relatedHierarchyId" : "") +
+                    ", :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                     ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId," +
                     " :tranStatus, :subProductName, :narration, :remark, :schemeCode, :latitude, :longitude)";
 
@@ -816,10 +825,14 @@ public class CommonMethods {
                     .setParameter("remark", remark)
                     .setParameter("schemeCode", schemeCode)
                     .setParameter("latitude", latitude)
-                    .setParameter("longitude", longitude
-                    );
+                    .setParameter("longitude", longitude);
+
+            if (includeHierarchy) {
+                query.setParameter("relatedHierarchyId", relatedHierarchyId);
+            }
 
             query.executeUpdate();
+
             log.info("Transaction inserted successfully for ID: {}", tranxId);
 
         } catch (Exception e) {
@@ -926,7 +939,9 @@ public class CommonMethods {
 
     public <T extends AbstractWalletAmountTable> void performWalletUpdate(
             T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-            TransactionType type, String baseTxnId, String remarks, String subProductName, String narration, Double latitude, Double longitude) {
+            TransactionType type, String baseTxnId, String remarks, String subProductName, String narration,
+            String relatedHierarchyId,
+            Double latitude, Double longitude) {
 
         BigDecimal beforeBalance = wallet.getAvailableBalance();
 
@@ -945,10 +960,18 @@ public class CommonMethods {
         String action = (type == TransactionType.CREDIT ? "Add" : "Deduct") + " Funds - " + walletType.name();
 
         insertTransaction(
-                walletType.name(), hierarchyId, Status.SUCCESS.name(), amount,
+                walletType.name(), hierarchyId, relatedHierarchyId, Status.SUCCESS.name(), amount,
                 beforeBalance, wallet.getAvailableBalance(), action,
                 baseTxnId, type.name(), subProductName, narration, remarks,"", latitude,longitude
         );
+    }
+
+    private boolean shouldInsertHierarchyColumn(
+            String hierarchyType
+    ) {
+
+        return "AD".equals(hierarchyType)
+                || "WL".equals(hierarchyType);
     }
 
     public String buildTransactionId(String prefix, String baseId) {
