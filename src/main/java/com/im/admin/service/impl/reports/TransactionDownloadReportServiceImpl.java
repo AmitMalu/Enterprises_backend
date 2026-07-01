@@ -5,9 +5,10 @@ import com.im.admin.entities.enums.WalletReportFrequency;
 import com.im.admin.entities.enums.WalletReportType;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.properties.ReportProperties;
-import com.im.admin.repositories.WalletDownloadReportRepository;
+import com.im.admin.repositories.*;
 import com.im.admin.response.reports.MyTransactionReportResponse;
 import com.im.admin.service.reports.TransactionDownloadReportService;
+import com.im.admin.util.CommonMethods;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ParameterMode;
 import jakarta.persistence.StoredProcedureQuery;
@@ -24,6 +25,7 @@ import java.io.FileOutputStream;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
+import java.sql.Timestamp;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -50,6 +52,30 @@ public class TransactionDownloadReportServiceImpl implements TransactionDownload
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired
+    private CommonMethods commonMethods;
+
+    @Autowired
+    private RetailerRepository retailerRepository;
+
+    @Autowired
+    private DistributorRepository distributorRepository;
+
+    @Autowired
+    private PartnerRepository partnerRepository;
+
+    @Autowired
+    private SuperDistributorRepository superDistributorRepository;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelRepository;
+
+    @Autowired
+    private EnterprisesRepository enterprisesRepository;
+
+    @Autowired
+    private AdminRepository adminRepository;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter HOUR_FMT = DateTimeFormatter.ofPattern("yyyyMMdd_HH");
@@ -253,6 +279,26 @@ public class TransactionDownloadReportServiceImpl implements TransactionDownload
                 dto.setVendorTransactionId((String) row[15]);
                 dto.setLatitude(row[16] != null ? ((Number) row[16]).doubleValue() : null);
                 dto.setLongitude(row[17] != null ? ((Number) row[17]).doubleValue() : null);
+
+                // New columns from SP (indices 18–26)
+                dto.setRemarks((String) row[18]);
+                dto.setTransactionType((String) row[19]);
+                dto.setClientIp((String) row[20]);
+                dto.setMedium((String) row[21]);
+                dto.setRequestDomainName((String) row[22]);
+                dto.setMobileNo((String) row[23]);
+                dto.setUpdatedDateOfTransaction(row[24] != null ? ((Date) row[24]).toLocalDate() : null);
+                dto.setUpdatedTimeOfTransaction(row[25] != null ? ((Time) row[25]).toLocalTime() : null);
+                dto.setOperatorName((String) row[26]);
+
+                // Resolve outletName and createdBy from hierarchy table
+                String hierarchyId = (String) row[13];
+                if (hierarchyId != null) {
+                    String[] outletAndCreatedBy = resolveOutletAndCreatedBy(hierarchyId);
+                    dto.setOutletName(outletAndCreatedBy[0]);
+                    dto.setCreatedBy(outletAndCreatedBy[1]);
+                }
+
                 dto.setWalletType(walletType);
                 all.add(dto);
             }
@@ -267,6 +313,59 @@ public class TransactionDownloadReportServiceImpl implements TransactionDownload
 
         log.info("fetchTxnData: TXN records after filter = {}", all.size());
         return all;
+    }
+
+    // -------------------------------------------------------------------------
+    // Resolve outletName and createdBy from hierarchy table
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns [outletName, createdBy] for the given hierarchyId.
+     * Looks up the correct entity table based on the hierarchy type prefix.
+     */
+    private String[] resolveOutletAndCreatedBy(String hierarchyId) {
+        String type = commonMethods.extractHierarchyType(hierarchyId);
+        try {
+            return switch (type.toUpperCase()) {
+                case "RT" -> retailerRepository.findByRetailerId(hierarchyId)
+                        .map(r -> new String[]{
+                                r.getOutletAddress() != null ? r.getOutletAddress().getCompanyName() : null,
+                                r.getCreatedBy()})
+                        .orElse(new String[]{null, null});
+                case "DT" -> distributorRepository.findByDistributorId(hierarchyId)
+                        .map(d -> new String[]{
+                                d.getOutletAddress() != null ? d.getOutletAddress().getCompanyName() : null,
+                                d.getCreatedBy()})
+                        .orElse(new String[]{null, null});
+                case "PT" -> partnerRepository.findByPartnerId(hierarchyId)
+                        .map(p -> new String[]{
+                                p.getOutletAddress() != null ? p.getOutletAddress().getCompanyName() : null,
+                                p.getCreatedBy()})
+                        .orElse(new String[]{null, null});
+                case "SD" -> superDistributorRepository.findBySuperDistributorId(hierarchyId)
+                        .map(sd -> new String[]{
+                                sd.getOutletAddress() != null ? sd.getOutletAddress().getCompanyName() : null,
+                                sd.getCreatedBy()})
+                        .orElse(new String[]{null, null});
+                case "WL" -> whiteLabelRepository.findByWhiteLabelId(hierarchyId)
+                        .map(wl -> new String[]{
+                                wl.getOutletAddress() != null ? wl.getOutletAddress().getCompanyName() : null,
+                                wl.getCreatedBy()})
+                        .orElse(new String[]{null, null});
+                case "ET" -> enterprisesRepository.findByEnterpriseId(hierarchyId)
+                        .map(e -> new String[]{
+                                e.getOutletAddress() != null ? e.getOutletAddress().getCompanyName() : null,
+                                e.getCreatedBy()})
+                        .orElse(new String[]{null, null});
+                case "AD" -> adminRepository.findById(hierarchyId)
+                        .map(a -> new String[]{null, a.getCreatedBy()})
+                        .orElse(new String[]{null, null});
+                default -> new String[]{null, null};
+            };
+        } catch (Exception e) {
+            log.warn("Could not resolve outletName/createdBy for hierarchyId={}: {}", hierarchyId, e.getMessage());
+            return new String[]{null, null};
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -291,7 +390,12 @@ public class TransactionDownloadReportServiceImpl implements TransactionDownload
                 "Sub Product", "Product", "Scheme",
                 "Balance Before", "Amount", "Balance After",
                 "Action Type", "Status", "Transaction ID", "Narration",
-                "Vendor Name", "Vendor TxID", "Latitude", "Longitude"
+                "Vendor Name", "Vendor TxID", "Latitude", "Longitude",
+                // New columns
+                "Remarks", "Transaction Type", "Client IP", "Medium",
+                "Request Domain Name", "Mobile No",
+                "Updated Date", "Updated Time", "Operator Name",
+                "Outlet Name", "Created By"
             };
 
             Row headerRow = sheet.createRow(0);
@@ -323,6 +427,18 @@ public class TransactionDownloadReportServiceImpl implements TransactionDownload
                 row.createCell(16).setCellValue(r.getVendorTransactionId() != null ? r.getVendorTransactionId() : "");
                 row.createCell(17).setCellValue(r.getLatitude() != null ? r.getLatitude() : 0.0);
                 row.createCell(18).setCellValue(r.getLongitude() != null ? r.getLongitude() : 0.0);
+                // New columns
+                row.createCell(19).setCellValue(r.getRemarks() != null ? r.getRemarks() : "");
+                row.createCell(20).setCellValue(r.getTransactionType() != null ? r.getTransactionType() : "");
+                row.createCell(21).setCellValue(r.getClientIp() != null ? r.getClientIp() : "");
+                row.createCell(22).setCellValue(r.getMedium() != null ? r.getMedium() : "");
+                row.createCell(23).setCellValue(r.getRequestDomainName() != null ? r.getRequestDomainName() : "");
+                row.createCell(24).setCellValue(r.getMobileNo() != null ? r.getMobileNo() : "");
+                row.createCell(25).setCellValue(r.getUpdatedDateOfTransaction() != null ? r.getUpdatedDateOfTransaction().toString() : "");
+                row.createCell(26).setCellValue(r.getUpdatedTimeOfTransaction() != null ? r.getUpdatedTimeOfTransaction().toString() : "");
+                row.createCell(27).setCellValue(r.getOperatorName() != null ? r.getOperatorName() : "");
+                row.createCell(28).setCellValue(r.getOutletName() != null ? r.getOutletName() : "");
+                row.createCell(29).setCellValue(r.getCreatedBy() != null ? r.getCreatedBy() : "");
             }
 
             workbook.write(fos);

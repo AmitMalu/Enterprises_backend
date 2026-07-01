@@ -308,6 +308,16 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
                 dto.setVendorTransactionId((String) row[15]);
                 dto.setLatitude(row[16] != null ? ((Number) row[16]).doubleValue() : null);
                 dto.setLongitude(row[17] != null ? ((Number) row[17]).doubleValue() : null);
+                // New columns from SP (indices 18–26)
+                dto.setRemarks((String) row[18]);
+                dto.setTransactionType((String) row[19]);
+                dto.setClientIp((String) row[20]);
+                dto.setMedium((String) row[21]);
+                dto.setRequestDomainName((String) row[22]);
+                dto.setMobileNo((String) row[23]);
+                dto.setUpdatedDateOfTransaction(row[24] != null ? ((Date) row[24]).toLocalDate() : null);
+                dto.setUpdatedTimeOfTransaction(row[25] != null ? ((Time) row[25]).toLocalTime() : null);
+                dto.setOperatorName((String) row[26]);
                 dto.setWalletType(walletType);
                 all.add(dto);
             }
@@ -346,7 +356,10 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
                 "Sub Product", "Product", "Scheme",
                 "Balance Before", "Amount", "Balance After",
                 "Action Type", "Status", "Transaction ID", "Narration",
-                "Vendor Name", "Vendor TxID", "Latitude", "Longitude"
+                "Vendor Name", "Vendor TxID", "Latitude", "Longitude",
+                "Remarks", "Transaction Type", "Client IP", "Medium",
+                "Request Domain Name", "Mobile No",
+                "Updated Date", "Updated Time", "Operator Name"
             };
 
             Row headerRow = sheet.createRow(0);
@@ -378,6 +391,15 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
                 row.createCell(16).setCellValue(r.getVendorTransactionId() != null ? r.getVendorTransactionId() : "");
                 row.createCell(17).setCellValue(r.getLatitude() != null ? r.getLatitude() : 0.0);
                 row.createCell(18).setCellValue(r.getLongitude() != null ? r.getLongitude() : 0.0);
+                row.createCell(19).setCellValue(r.getRemarks() != null ? r.getRemarks() : "");
+                row.createCell(20).setCellValue(r.getTransactionType() != null ? r.getTransactionType() : "");
+                row.createCell(21).setCellValue(r.getClientIp() != null ? r.getClientIp() : "");
+                row.createCell(22).setCellValue(r.getMedium() != null ? r.getMedium() : "");
+                row.createCell(23).setCellValue(r.getRequestDomainName() != null ? r.getRequestDomainName() : "");
+                row.createCell(24).setCellValue(r.getMobileNo() != null ? r.getMobileNo() : "");
+                row.createCell(25).setCellValue(r.getUpdatedDateOfTransaction() != null ? r.getUpdatedDateOfTransaction().toString() : "");
+                row.createCell(26).setCellValue(r.getUpdatedTimeOfTransaction() != null ? r.getUpdatedTimeOfTransaction().toString() : "");
+                row.createCell(27).setCellValue(r.getOperatorName() != null ? r.getOperatorName() : "");
             }
 
             workbook.write(fos);
