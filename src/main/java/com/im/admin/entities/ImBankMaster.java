@@ -66,6 +66,6 @@ public class ImBankMaster {
     private String editedBy;
 
     @Column(name = "white_label_id")
-    private String whiteLabel;
+    private String whitelabelId;
 
 }

@@ -38,6 +38,19 @@ public class MyTransactionReportResponse {
     private Double latitude;
     private Double longitude;
 
+    // Extended fields for Transaction Download Report
+    private String remarks;
+    private String transactionType;
+    private String clientIp;
+    private String medium;
+    private String requestDomainName;
+    private String mobileNo;
+    private LocalDate updatedDateOfTransaction;
+    private LocalTime updatedTimeOfTransaction;
+    private String operatorName;
+    private String outletName;    // from hierarchy table
+    private String createdBy;     // from hierarchy table
+
 
 
 }
