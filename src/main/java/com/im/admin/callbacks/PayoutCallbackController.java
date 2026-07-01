@@ -57,7 +57,7 @@ public class PayoutCallbackController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/callback/vimopay")
+    @PostMapping("/callback/vimopay")
     public ResponseEntity<Object> vimoPayCallback(
             @RequestBody(required = false) Map<String, Object> jsonBody,
             @RequestParam(required = false) Map<String, String> formParams) {

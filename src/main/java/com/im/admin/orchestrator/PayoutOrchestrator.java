@@ -139,6 +139,25 @@ public class PayoutOrchestrator {
             BigDecimal finalDeductAmt =
                     txnAmount.add(grossAmount);
 
+            // -------------------------------------
+            // 3. INSUFFICIENT WALLET BALANCE
+            // -------------------------------------
+            if (availableBalance.compareTo(finalDeductAmt) < 0) {
+
+                log.warn(
+                        "[PROCESS PAYOUT ORCH] Insufficient wallet balance | retailer={} | required={} | available={}",
+                        req.getRetailerId(),
+                        finalDeductAmt,
+                        availableBalance
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        "Insufficient Balance In " + subProducts.getWalletType(),
+                        null
+                );
+            }
+
 
             // -------------------------------------
             // 1. ONLY LEAN AMOUNT VALIDATION
@@ -189,26 +208,6 @@ public class PayoutOrchestrator {
                                 "Insufficient usable balance after charges. ₹%s must remain locked as lean amount.",
                                 leanAmount
                         ),
-                        null
-                );
-            }
-
-
-            // -------------------------------------
-            // 3. INSUFFICIENT WALLET BALANCE
-            // -------------------------------------
-            if (availableBalance.compareTo(finalDeductAmt) < 0) {
-
-                log.warn(
-                        "[PROCESS PAYOUT ORCH] Insufficient wallet balance | retailer={} | required={} | available={}",
-                        req.getRetailerId(),
-                        finalDeductAmt,
-                        availableBalance
-                );
-
-                return new CommonResponse<>(
-                        400,
-                        "Insufficient Balance In " + subProducts.getWalletType(),
                         null
                 );
             }

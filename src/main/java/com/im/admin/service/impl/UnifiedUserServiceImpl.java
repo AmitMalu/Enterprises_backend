@@ -97,19 +97,19 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
 
     /**
      * Extracts "AD" or "WL" from a record id.
-     * id format from IdGenerator:  "MAY-AU-0001"  or  "MAY-WAU-0001"
-     * "-WAU-" → WL,  "-AU-" → AD
+     * id format from IdGenerator:  "MAY-AU-0001"  or  "MAY-WLAU-0001"
+     * "-WLAU-" → WL,  "-AU-" → AD
      */
     private String typeFromId(String id) {
         if (id == null) {
             throw new IllegalArgumentException("id must not be null");
         }
         // WAU check must come before AU because "WAU" contains "AU"
-        if (id.contains("-WAU-")) return TYPE_WL;
+        if (id.contains("-WAU-") || id.contains("-WLAU-")) return TYPE_WL;
         if (id.contains("-AU-"))  return TYPE_AD;
         throw new IllegalArgumentException(
                 "Cannot determine user type from id '" + id
-                + "'. Expected id containing '-AU-' (Admin User) or '-WAU-' (White Label User).");
+                + "'. Expected id containing '-AU-' (Admin User) or '-WLAU-' (White Label User).");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -223,7 +223,7 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
                         .build()
         );
 
-        saveUserDetails(saved.getId(), saved.getMobileNumber(), saved.getUsername(),
+        saveUserDetails(saved.getId(), saved.getParentAccount(), saved.getMobileNumber(), saved.getUsername(),
                 saved.getPassword(), saved.getEmailId(), saved.getCreatedBy(),
                 saved.getPermission(), CODE_AD);
 
@@ -287,7 +287,7 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
                         .build()
         );
 
-        saveUserDetails(saved.getId(), saved.getMobileNumber(), saved.getUsername(),
+        saveUserDetails(saved.getId(), saved.getParentAccount(), saved.getMobileNumber(), saved.getUsername(),
                 saved.getPassword(), saved.getEmailId(), saved.getCreatedBy(),
                 saved.getPermission(), CODE_WL);
 
@@ -425,12 +425,28 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
 
                                                 -> root
                                                 .get(
-                                                        "hierarchyId"
+                                                        "id"
                                                 )
                                                 .in(
                                                         allowedHierarchyIds
                                                 )
                                 );
+
+
+//                                .and(
+//
+//                                        (root,
+//                                         query,
+//                                         cb)
+//
+//                                                -> root
+//                                                .get(
+//                                                        "hierarchyId"
+//                                                )
+//                                                .in(
+//                                                        allowedHierarchyIds
+//                                                )
+//                                );
 
                 result =
                         whiteLabelUserRepository
@@ -490,37 +506,83 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
     public UserResponseDTO getUserById(String id) throws JsonProcessingException {
 
         LocalDateTime requestDateTime = LocalDateTime.now();
-        String request  = "getUserById id=" + id;
+        String request = "getUserById id=" + id;
         String response = null;
         LocalDateTime responseDateTime = null;
 
+        log.info("======= START: getUserById =======");
+        log.info("Request: {}", request);
+        log.info("Request timestamp: {}", requestDateTime);
+
         try {
+            // Log the ID being searched
+            log.debug("Searching for user with ID: {}", id);
+
             String userType = typeFromId(id);
+            log.info("User type determined: {} for ID: {}", userType, id);
+
             UserResponseDTO dto;
 
             if (TYPE_AD.equals(userType)) {
+                log.debug("Fetching Admin User from repository with ID: {}", id);
+
                 AdminUser user = adminUserRepository.findById(id)
-                        .orElseThrow(() -> new RuntimeException(
-                                "Admin User not found with id: " + id));
+                        .orElseThrow(() -> {
+                            log.error("Admin User not found with ID: {}", id);
+                            return new RuntimeException("Admin User not found with id: " + id);
+                        });
+
+                log.debug("Admin User found: {}", user.getUsername());
+                log.info("Mapping Admin User to response DTO");
                 dto = mapAdminToResponse(user);
+
             } else {
+                log.debug("Fetching White Label User from repository with ID: {}", id);
+
                 WhiteLabelUser user = whiteLabelUserRepository.findById(id)
-                        .orElseThrow(() -> new RuntimeException(
-                                "White Label User not found with id: " + id));
+                        .orElseThrow(() -> {
+                            log.error("White Label User not found with ID: {}", id);
+                            return new RuntimeException("White Label User not found with id: " + id);
+                        });
+
+                log.debug("White Label User found: {}", user.getUsername());
+                log.info("Mapping White Label User to response DTO");
                 dto = mapWhiteLabelToResponse(user);
             }
 
+            // Log successful retrieval
+            log.info("User retrieved successfully - ID: {}, Type: {}, Name: {}",
+                    dto.getId(), dto.getUserType(), dto.getName());
+
             response = objectMapper.writeValueAsString(dto);
             responseDateTime = LocalDateTime.now();
+
+            log.debug("Response JSON: {}", response);
+            log.info("Response timestamp: {}", responseDateTime);
+            log.info("Total processing time: {} ms",
+                    java.time.Duration.between(requestDateTime, responseDateTime).toMillis());
+            log.info("======= END: getUserById - SUCCESS =======");
+
             return dto;
 
         } catch (Exception ex) {
             response = "Error: " + ex.getMessage();
             responseDateTime = LocalDateTime.now();
-            log.error("getUserById failed id={}: {}", id, ex.getMessage(), ex);
+
+            log.error("======= getUserById FAILED =======");
+            log.error("User ID: {}", id);
+            log.error("Error Type: {}", ex.getClass().getSimpleName());
+            log.error("Error Message: {}", ex.getMessage());
+            log.error("Timestamp: {}", responseDateTime);
+            log.error("Stack trace: ", ex);
+
             throw ex;
+
         } finally {
+            // Always log the request/response details
+            log.debug("Saving IM logs for request: {}", request);
             commonFunctions.saveImLogs(request, requestDateTime, null, response, responseDateTime);
+            log.debug("IM logs saved successfully");
         }
     }
 
@@ -621,11 +683,12 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
     // USERDETAILS HELPERS
     // ─────────────────────────────────────────────────────────────────────────
 
-    private void saveUserDetails(String hierarchyId, String mobile, String username,
+    private void saveUserDetails(String hierarchyId, String parentAccount, String mobile, String username,
                                   String password, String email, String createdBy,
                                   String permission, String hierarchyCode) {
         UserDetails u = new UserDetails();
         u.setHierarchyId(hierarchyId);
+        u.setParentAccount(parentAccount);
         u.setHierarchyCode(hierarchyCode);
         u.setMobileNumber(mobile);
         u.setLoginUserName(username);
@@ -730,6 +793,9 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
     // ─────────────────────────────────────────────────────────────────────────
 
     private UserResponseDTO mapAdminToResponse(AdminUser u) {
+
+        Optional<UserDetails> userDetails = userDetailsRepository.findByHierarchyId(u.getId());
+
         return UserResponseDTO.builder()
                 .userType(TYPE_AD)
                 .id(u.getId())
@@ -747,30 +813,71 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
                 .createdBy(u.getCreatedBy())
                 .lastEditedOn(u.getLastEditedOn())
                 .editedBy(u.getEditedBy())
+                .permission(userDetails.get().getPermission())
                 .build();
     }
 
     private UserResponseDTO mapWhiteLabelToResponse(WhiteLabelUser u) {
-        return UserResponseDTO.builder()
-                .userType(TYPE_WL)
-                .id(u.getId())
-                .parentAccount(u.getParentAccount())
-                .abbreviation(u.getAbbreviation())
-                .name(u.getName())
-                .mobileNumber(u.getMobileNumber())
-                .username(u.getUsername())
-                .emailId(u.getEmailId())
-                .emailVerified(u.getEmailVerified())
-                .dob(u.getDob())
-                .add(mapToAddressDTO(u.getAdd()))
-                .status(u.getStatus())
-                .createdOn(u.getCreatedOn())
-                .createdBy(u.getCreatedBy())
-                .lastEditedOn(u.getLastEditedOn())
-                .editedBy(u.getEditedBy())
-                .build();
-    }
 
+        log.debug("======= START: mapWhiteLabelToResponse =======");
+        log.debug("Mapping WhiteLabelUser with ID: {}", u.getId());
+
+        try {
+            // Log user details before mapping
+            log.debug("WhiteLabelUser details - ID: {}, Name: {}, Username: {}, Status: {}",
+                    u.getId(), u.getName(), u.getUsername(), u.getStatus());
+
+            Optional<UserDetails> userDetails = userDetailsRepository.findByHierarchyId(u.getId());
+
+            if (userDetails.isPresent()) {
+                log.debug("UserDetails found for hierarchy ID: {}", u.getId());
+                log.debug("User permissions: {}", userDetails.get().getPermission());
+            } else {
+                log.warn("No UserDetails found for hierarchy ID: {}", u.getId());
+            }
+
+            UserResponseDTO dto = UserResponseDTO.builder()
+                    .userType(TYPE_WL)
+                    .id(u.getId())
+                    .parentAccount(u.getParentAccount())
+                    .abbreviation(u.getAbbreviation())
+                    .name(u.getName())
+                    .mobileNumber(u.getMobileNumber())
+                    .username(u.getUsername())
+                    .emailId(u.getEmailId())
+                    .emailVerified(u.getEmailVerified())
+                    .dob(u.getDob())
+                    .add(mapToAddressDTO(u.getAdd()))
+                    .status(u.getStatus())
+                    .createdOn(u.getCreatedOn())
+                    .createdBy(u.getCreatedBy())
+                    .lastEditedOn(u.getLastEditedOn())
+                    .editedBy(u.getEditedBy())
+                    .permission(userDetails.map(UserDetails::getPermission).orElse(null))
+                    .build();
+
+            log.debug("DTO built successfully for user: {}", u.getId());
+            log.debug("DTO details - UserType: {}, Name: {}, Email: {}",
+                    dto.getUserType(), dto.getName(), dto.getEmailId());
+
+            // Log if any fields are null
+            if (dto.getPermission() == null) {
+                log.warn("Permission is null for user ID: {}", u.getId());
+            }
+            if (dto.getAdd() == null) {
+                log.warn("Address is null for user ID: {}", u.getId());
+            }
+
+            log.debug("======= END: mapWhiteLabelToResponse - SUCCESS =======");
+            return dto;
+
+        } catch (Exception ex) {
+            log.error("======= mapWhiteLabelToResponse FAILED =======");
+            log.error("User ID: {}", u.getId());
+            log.error("Error: ", ex);
+            throw ex;
+        }
+    }
     private AddressDTO mapToAddressDTO(Address a) {
         if (a == null) return null;
         AddressDTO dto = new AddressDTO();
