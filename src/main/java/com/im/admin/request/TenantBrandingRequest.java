@@ -40,5 +40,7 @@ public class TenantBrandingRequest {
 
     private Boolean isActive;
 
+    private MultipartFile loginArtwork;
+
 
 }
