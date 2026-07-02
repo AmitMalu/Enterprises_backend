@@ -55,6 +55,8 @@ public class PayoutPendingTransactions {
     @Column(name = "longitude")
     private Double longitude;
 
+    private String medium;
+
 
 
 }

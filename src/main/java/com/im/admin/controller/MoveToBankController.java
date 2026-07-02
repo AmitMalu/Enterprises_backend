@@ -21,11 +21,11 @@ public class MoveToBankController {
     private PayoutOrchestrator payoutOrchestrator;
 
     @PostMapping("/send-payout-request-VO")
-    public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest, @RequestHeader Double latitude, @RequestHeader Double longitude, @RequestHeader String ipaddress) {
+    public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest, @RequestHeader Double latitude, @RequestHeader Double longitude, @RequestHeader("ipaddress") String ipAddress) {
         log.info("======= Calling payoutService.sendPayoutRequest =======");
 
         try {
-            CommonResponse<PayoutResponseDto> response = payoutOrchestrator.processPayout(sendPayoutRequest, latitude, longitude, ipaddress);
+            CommonResponse<PayoutResponseDto> response = payoutOrchestrator.processPayout(sendPayoutRequest, latitude, longitude, ipAddress);
             log.info("======= sendPayoutRequest completed at {} =======", LocalDateTime.now());
             return ResponseEntity.status(response.getStatusCode()).body(response);
         } catch (Exception e) {

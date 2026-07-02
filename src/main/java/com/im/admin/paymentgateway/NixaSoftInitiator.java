@@ -22,7 +22,12 @@ public class NixaSoftInitiator implements PaymentGatewayInitiator {
     private final NixaSoftPGService nixaSoftPGService;
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException {
+    public String getVendorName() {
+        return "NixaSoft Payment Gateway";
+    }
+
+    @Override
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude, String ipAddress) throws JsonProcessingException {
 
         NixaSoftCreateOrderRequest request = new NixaSoftCreateOrderRequest();
 
@@ -47,11 +52,6 @@ public class NixaSoftInitiator implements PaymentGatewayInitiator {
                 .status("INITIATED")
                 .build();
 
-    }
-
-    @Override
-    public String getVendorName() {
-        return "NixaSoft Payment Gateway";
     }
 
     @Override

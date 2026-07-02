@@ -1,10 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.commons.SMSGatewayAPI;
-import com.im.admin.dto.AbstractWalletAmountTable;
-import com.im.admin.dto.CheckBalanceRequestDto;
-import com.im.admin.dto.FundReversalRequestDto;
-import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.enums.Status;
@@ -126,7 +123,7 @@ public class FundReversalServiceImpl implements FundReversalService {
 
     @Override
     @Transactional
-    public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, Double latitude, Double longitude) {
+    public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, Double latitude, Double longitude, String ipAddress) {
 
         log.info("===== Starting Fund Reversal Action =====");
         log.info("Request: ParentHierarchyId={}, ChildHierarchyId={}, ReversalAmount={}, WalletType={}",
@@ -255,7 +252,7 @@ public class FundReversalServiceImpl implements FundReversalService {
 
         long walletTransferStart = System.currentTimeMillis();
 
-        processWalletTransfer(request, reverseAmount, walletType, baseTransactionId, latitude, longitude);
+        processWalletTransfer(request, reverseAmount, walletType, baseTransactionId, latitude, longitude, ipAddress);
 
         long walletTransferDuration = System.currentTimeMillis() - walletTransferStart;
         log.info("Wallet transfer completed successfully in {} ms", walletTransferDuration);
@@ -332,12 +329,22 @@ public class FundReversalServiceImpl implements FundReversalService {
             BigDecimal amount,
             WalletType walletType,
             String baseTransactionId,
-            Double latitude, Double longitude) {
+            Double latitude, Double longitude, String ipAddress) {
 
         AbstractWalletAmountTable fromWallet =
                 commonMethods.getWalletByType(
                         walletType.name(),
                         request.getChildHierarchyId());
+
+        RetailersExtraColumnsDto retailerExtraColumns =
+                RetailersExtraColumnsDto.builder()
+                        .medium(request.getMedium())
+                        .clientIp(ipAddress)
+                        .requestDomainName(request.getRequestDomainName())
+                        .latitude(latitude)
+                        .longitude(longitude)
+                        .build();
+
 
         commonMethods.updateWallet(
                 fromWallet,
@@ -352,8 +359,7 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "Payment",
                 "Fund Reverse to " + request.getParentHierarchyId(),
                 "",
-                latitude,
-                longitude
+                retailerExtraColumns
         );
 
         AbstractWalletAmountTable toWallet =
@@ -374,8 +380,7 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "Payment",
                 "Fund Reversed By " + request.getChildHierarchyId(),
                 "",
-                latitude,
-                longitude
+                retailerExtraColumns
         );
     }
 

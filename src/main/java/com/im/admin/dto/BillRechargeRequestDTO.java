@@ -32,5 +32,8 @@ public class BillRechargeRequestDTO {
     private String retailerId;
     private String subProductId;
 
+    private String medium;
+    private String requestDomainName;
+
 }
 

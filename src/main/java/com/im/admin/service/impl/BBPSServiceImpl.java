@@ -194,7 +194,7 @@ public class BBPSServiceImpl implements BBPSService {
 
     @Override
     @Transactional
-    public CommonResponse<?> processRecharge(BillRechargeRequestDTO request, Double latitude, Double longitude) {
+    public CommonResponse<?> processRecharge(BillRechargeRequestDTO request, Double latitude, Double longitude, String ipAddress) {
         log.info("Starting bill recharge process for retailerId: {}, subProductId: {}, amount: {}",
                 request.getRetailerId(), request.getSubProductId(), request.getAmount());
         try {
@@ -294,8 +294,19 @@ public class BBPSServiceImpl implements BBPSService {
 
             BbpsTranactionRequestDto bbpsTranactionRequestDto = new BbpsTranactionRequestDto(schemeRate, amount, walletType.name(), retailerId, gstValue, tdsValue, "PENDING", baseTransactionId, operator, subProducts.get().getSubProductTitle(), latitude, longitude, "A2Z", "Not Yet");
 
+            RetailersExtraColumnsDto retailerExtraColumns =
+                    RetailersExtraColumnsDto.builder()
+                            .medium(request.getMedium())
+                            .clientIp(ipAddress)
+                            .requestDomainName(request.getRequestDomainName())
+                            .latitude(latitude)
+                            .longitude(longitude)
+                            .build();
+
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
-            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.get().getSubProductTitle(), "Tx Amount for A2Z Billpay For " + operator +"#"+ bbpsProviderRecord.getSubOperator() ,"A2Z Billpay Transaction from " + walletType.name(),schemeRate.getSchemeCode(), latitude, longitude);
+            commonMethods.updateWallet(walletAmountTable, retailerId, walletType, request.getAmount(), "Debit", baseTransactionId, "PENDING", "DEBIT", subProducts.get().getSubProductTitle(),
+                    "Tx Amount for A2Z Billpay For " + operator +"#"+ bbpsProviderRecord.getSubOperator() ,
+                    "A2Z Billpay Transaction from " + walletType.name(),schemeRate.getSchemeCode(), retailerExtraColumns);
             bbpsRelatedTransactions.processCharges(bbpsTranactionRequestDto, walletAmountTable);
 
             log.info("Wallet updated and charges processed for transactionId: {}", baseTransactionId);

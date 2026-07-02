@@ -11,7 +11,7 @@ import java.util.Map;
 
 public interface PaymentGatewayInitiator {
 
-    PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException;
+    PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude, String ipAddress) throws JsonProcessingException;
 
     String getVendorName();
 

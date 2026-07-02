@@ -8,6 +8,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.BbpsTranactionRequestDto;
 import com.im.admin.dto.BillRechargeRequestDTO;
+import com.im.admin.dto.RetailersExtraColumnsDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
@@ -484,7 +485,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
 @Transactional
     @Override
-    public Object doBillPayment(BillPaymentRequest request, Double latitude, Double longitude) throws Exception {
+    public Object doBillPayment(BillPaymentRequest request, Double latitude, Double longitude, String ipAddress) throws Exception {
 
         String orderId = "TXN" + commonMethods.generateBaseTransactionId();
         log.info("[PROCESS BILL PAYMENT] Starting transaction | orderId={}", orderId);
@@ -559,6 +560,15 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                             "Not Yet"
                     );
 
+            RetailersExtraColumnsDto retailerExtraColumns =
+                    RetailersExtraColumnsDto.builder()
+                            .medium(request.getMedium())
+                            .clientIp(ipAddress)
+                            .requestDomainName(request.getRequestDomainName())
+                            .latitude(latitude)
+                            .longitude(longitude)
+                            .build();
+
             commonMethods.updateWallet(
                     walletAmountTable,
                     retailerId,
@@ -572,8 +582,7 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                     "Bill Avenue BillPay",
                     "Bill payment initiated",
                     "",
-                    latitude,
-                    longitude
+                    retailerExtraColumns
             );
 
             bbpsRelatedTransactions.processCharges(bbpsDto, walletAmountTable);

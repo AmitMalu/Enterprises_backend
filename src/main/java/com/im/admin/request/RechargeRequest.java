@@ -16,4 +16,7 @@ public class RechargeRequest {
     private String transactionRef;
     private String schemeCode;
     private String operatorName;
+
+    private String medium;
+    private String requestDomainName;
 }

@@ -38,4 +38,8 @@ public class TransactionSchemeDetailsRequestDto {
     private String vendorName;
     private String vendorTxnId;
 
+    private String medium;
+    private String clientIp;
+    private String requestDomainName;
+
 }

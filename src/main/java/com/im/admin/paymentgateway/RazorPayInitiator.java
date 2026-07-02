@@ -25,7 +25,7 @@ public class RazorPayInitiator implements PaymentGatewayInitiator {
 
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude, String ipAddress) throws JsonProcessingException {
 
         RazorPayCreateOrderRequest payCreateOrderRequest = new RazorPayCreateOrderRequest();
 

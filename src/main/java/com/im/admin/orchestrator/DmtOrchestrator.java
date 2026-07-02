@@ -302,7 +302,7 @@ public class DmtOrchestrator {
     }
 
     @Transactional
-    public CommonResponse<DmtResponseDto> processDmt(SendDmtRequest req, Double latitude, Double longitude) {
+    public CommonResponse<DmtResponseDto> processDmt(SendDmtRequest req, Double latitude, Double longitude, String ipAddress) {
 
         LocalDateTime requestTime = LocalDateTime.now();
         String requestJson = null;
@@ -383,6 +383,15 @@ public class DmtOrchestrator {
 
             String schemeCode = selectedScheme.getSchemeCode();
 
+            RetailersExtraColumnsDto retailerExtraColumns =
+                    RetailersExtraColumnsDto.builder()
+                            .medium(req.getMedium())
+                            .clientIp(ipAddress)
+                            .requestDomainName(req.getRequestDomainName())
+                            .latitude(latitude)
+                            .longitude(longitude)
+                            .build();
+
             commonMethods.updateWallet(
                     walletAmountTable,
                     req.getRetailerId(),
@@ -396,8 +405,7 @@ public class DmtOrchestrator {
                     req.getBeneficiaryName() + " #" + req.getAccountNumber(),
                     "Fund Transferred #" + req.getAccountNumber(),
                     schemeCode,
-                    latitude,
-                    longitude
+                    retailerExtraColumns
             );
 
             log.debug("[PROCESS DMT] Wallet debited (PENDING) for retailer={}, amount={}",

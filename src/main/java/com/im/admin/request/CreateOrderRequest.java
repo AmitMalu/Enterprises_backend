@@ -20,6 +20,9 @@ public class CreateOrderRequest {
     private Short productId;
     private String subProductId;
     private String cardBinNo;
+    private String medium;
+    private String clientIp;
+    private String requestDomainName;
 
     // Include full scheme details here
     private TransactionSchemeDetailsRequestDto transactionScheme;
