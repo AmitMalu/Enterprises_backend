@@ -55,6 +55,9 @@ public class TenantBranding {
     @Column(name = "welcome_text")
     private String welcomeText;
 
+    @Column(name = "login_artwork")
+    private String loginArtwork;
+
     @Column(name = "is_active")
     private Boolean isActive;
 

@@ -22,5 +22,6 @@ public class TenantConfigResponse {
     private String welcomeText;
     private String favicon;
     private String portalTitle;
+    private String loginArtwork;
 
 }

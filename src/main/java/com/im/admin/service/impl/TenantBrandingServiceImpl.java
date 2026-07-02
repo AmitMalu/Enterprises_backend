@@ -115,6 +115,12 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
                 .secondaryColor(tenant.getSecondaryColor())
                 .welcomeText(tenant.getWelcomeText())
                 .portalTitle(tenant.getPortalTitle())
+
+                .loginArtwork(
+                        buildAssetUrl(
+                                hostName,
+                                tenantCode,
+                                tenant.getLoginArtwork()))
                 .build();
     }
 
@@ -198,8 +204,7 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
                 tenant.setIsActive(true);
             }
 
-            String tenantCode =
-                    tenant.getTenantCode();
+            String tenantCode = tenant.getTenantCode();
 
             if (request.getLogo() != null
                     && !request.getLogo().isEmpty()) {
@@ -219,6 +224,17 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
                                 tenantCode,
                                 request.getBackground(),
                                 "loginBackground"));
+            }
+
+            // Login Artwork
+            if (request.getLoginArtwork() != null
+                    && !request.getLoginArtwork().isEmpty()) {
+
+                tenant.setLoginArtwork(
+                        saveFile(
+                                tenantCode,
+                                request.getLoginArtwork(),
+                                "loginArtwork"));
             }
 
             if (request.getFaviconFile() != null
