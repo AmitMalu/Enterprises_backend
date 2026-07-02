@@ -357,11 +357,25 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
 
             Map<String, String> parsed = parseRequest(callback.getRequest());
 
-            String status = parsed.get("STATUS");
-            String txnMode = parsed.get("TXN_MODE");
-            String txnAmount = parsed.get("TXN_AMOUNT");
-            String utr = parsed.get("UTRNO");
-            String processedTime = parsed.get("PROCESSED_TIME");
+            String status = parsed.containsKey("STATUS")
+                    ? parsed.get("STATUS")
+                    : parsed.get("txnStatus");
+
+            String txnMode = parsed.containsKey("TXN_MODE")
+                    ? parsed.get("TXN_MODE")
+                    : parsed.get("paymentMode");
+
+            String txnAmount = parsed.containsKey("TXN_AMOUNT")
+                    ? parsed.get("TXN_AMOUNT")
+                    : parsed.get("amount");
+
+            String utr = parsed.containsKey("UTRNO")
+                    ? parsed.get("UTRNO")
+                    : parsed.get("rrn");
+
+            String processedTime = parsed.containsKey("PROCESSED_TIME")
+                    ? parsed.get("PROCESSED_TIME")
+                    : null;
 
             return PayoutReceiptResponseDto.builder()
                     .txnId(payout.getTransactionId())

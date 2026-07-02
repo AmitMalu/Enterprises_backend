@@ -168,31 +168,35 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
 
             log.info("Received Domain Name : {}", request.getDomainName());
 
+            if (request.getDomainName() != null) {
+                tenant.setDomainName(request.getDomainName());
+            }
 
-            tenant.setDomainName(
-                    request.getDomainName());
+            if (request.getCompanyName() != null) {
+                tenant.setCompanyName(request.getCompanyName());
+            }
 
+            if (request.getPrimaryColor() != null) {
+                tenant.setPrimaryColor(request.getPrimaryColor());
+            }
 
+            if (request.getSecondaryColor() != null) {
+                tenant.setSecondaryColor(request.getSecondaryColor());
+            }
 
-            tenant.setCompanyName(
-                    request.getCompanyName());
+            if (request.getPortalTitle() != null) {
+                tenant.setPortalTitle(request.getPortalTitle());
+            }
 
-            tenant.setPrimaryColor(
-                    request.getPrimaryColor());
+            if (request.getWelcomeText() != null) {
+                tenant.setWelcomeText(request.getWelcomeText());
+            }
 
-            tenant.setSecondaryColor(
-                    request.getSecondaryColor());
-
-            tenant.setPortalTitle(
-                    request.getPortalTitle());
-
-            tenant.setWelcomeText(
-                    request.getWelcomeText());
-
-            tenant.setIsActive(
-                    request.getIsActive() == null
-                            ? true
-                            : request.getIsActive());
+            if (request.getIsActive() != null) {
+                tenant.setIsActive(request.getIsActive());
+            } else if (isNewTenant) {
+                tenant.setIsActive(true);
+            }
 
             String tenantCode =
                     tenant.getTenantCode();
