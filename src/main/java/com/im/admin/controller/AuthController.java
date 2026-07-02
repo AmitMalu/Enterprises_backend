@@ -510,191 +510,241 @@ public class AuthController {
     }
 
     public boolean isUrlValidForUserHierarchy(String hierarchyId, String requestUrl) {
+        long startTime = System.currentTimeMillis();
+
+        log.info("[URL VALIDATION] START | hierarchyId={} | requestUrl={}",
+                hierarchyId, requestUrl);
+
         String currentId = hierarchyId;
-        log.info("Validating URL '{}' for hierarchy ID '{}'", requestUrl, hierarchyId);
+        int iterationCount = 0;
 
         while (true) {
+            iterationCount++;
+            log.debug("[URL VALIDATION] Iteration {} | currentId={}", iterationCount, currentId);
+
             String currentType = commonMethods.extractHierarchyType(currentId);
-            log.debug("Current hierarchy ID: {}, Type: {}", currentId, currentType);
+            log.debug("[URL VALIDATION] Current hierarchy type: {} for ID: {}", currentType, currentId);
 
             String whiteLabelId = null;
 
+            // === WL (White Label) Processing ===
             if ("WL".equals(currentType)) {
                 whiteLabelId = currentId;
+                log.debug("[URL VALIDATION] Found WL node: {}", whiteLabelId);
             }
+            // === WLAU (White Label Admin User) Processing ===
             else if ("WLAU".equals(currentType)) {
+                log.debug("[URL VALIDATION] Processing WLAU node: {}", currentId);
 
                 Optional<WhiteLabelUser> wlauOpt =
                         whiteLabelUserRepository.findById(currentId);
 
                 if (wlauOpt.isEmpty()) {
-                    log.warn("WhiteLabel Admin User not found: {}", currentId);
+                    log.warn("[URL VALIDATION] WhiteLabel Admin User not found | currentId={}", currentId);
+                    logValidationFailure(startTime, hierarchyId, requestUrl,
+                            "WLAU not found: " + currentId);
                     return false;
                 }
 
                 WhiteLabelUser wlau = wlauOpt.get();
                 whiteLabelId = wlau.getParentAccount();
 
-                log.debug("WLAU found. Parent WL ID: {}", whiteLabelId);
+                log.debug("[URL VALIDATION] WLAU found | userId={} | parentAccount={}",
+                        currentId, whiteLabelId);
             }
 
+            // === White Label Domain Validation ===
             if (whiteLabelId != null) {
+                log.debug("[URL VALIDATION] Processing WhiteLabel validation | wlId={}", whiteLabelId);
 
                 Optional<WhiteLabels> wlOpt =
                         whiteLabelRepository.findById(whiteLabelId);
 
                 if (wlOpt.isEmpty()) {
-                    log.warn("WhiteLabel not found: {}", whiteLabelId);
+                    log.warn("[URL VALIDATION] WhiteLabel not found | wlId={}", whiteLabelId);
+                    logValidationFailure(startTime, hierarchyId, requestUrl,
+                            "WhiteLabel not found: " + whiteLabelId);
                     return false;
                 }
 
                 WhiteLabels wl = wlOpt.get();
 
-                log.debug(
-                        "WhiteLabel found: ID={}, isAdmin={}, domainURL={}",
+                log.debug("[URL VALIDATION] WhiteLabel details | id={} | isAdmin={} | domainURL={}",
                         wl.getWhiteLabelId(),
                         wl.getIsAdmin(),
                         wl.getDomainURL()
                 );
 
-//                if (Boolean.TRUE.equals(wl.getIsAdmin())) {
-//
-//                    //boolean match = requestUrl.contains(wl.getDomainURL());
-//
-//                    boolean match = requestUrl.contains(".nfttech.in");
-//
-//                    log.info(
-//                            "Domain validation - Request URL: {}, WL Domain: {}, Match: {}",
-//                            requestUrl,
-//                            wl.getDomainURL(),
-//                            match
-//                    );
-//
-//                    return match;
-//                }
-
+                // === WL Admin Validation ===
                 if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+                    String originalType = commonMethods.extractHierarchyType(hierarchyId);
 
-                    String originalType =
-                            commonMethods.extractHierarchyType(hierarchyId);
+                    log.info("[URL VALIDATION] WL Admin detected | originalHierarchyId={} | originalType={} | currentId={} | wlId={}",
+                            hierarchyId, originalType, currentId, wl.getWhiteLabelId());
 
-                    log.info(
-                            "WL Admin detected | originalHierarchyId={} | originalType={} | currentId={} | wlId={}",
+                    boolean match = validateWhiteLabelAdminAccess(
                             hierarchyId,
                             originalType,
                             currentId,
-                            wl.getWhiteLabelId()
-                    );
-
-                    boolean match;
-
-                    // Existing behaviour → WL / WLAU self-login
-                    if ("WL".equals(originalType) || "WLAU".equals(originalType)) {
-
-                        log.info(
-                                "Executing WL/WLAU self-login validation using hardcoded domain"
-                        );
-
-                        log.info(
-                                "Request URL={} | Expected contains=.nfttech.in",
-                                requestUrl
-                        );
-
-                        match =
-                                requestUrl != null &&
-                                        requestUrl.contains(".nfttech.in");
-
-                    } else {
-
-                        log.info(
-                                "Executing child hierarchy login validation using root domain only"
-                        );
-
-                        log.info(
-                                "Original User Type={} | Request URL={} | Parent WL Domain={}",
-                                originalType,
-                                requestUrl,
-                                wl.getDomainURL()
-                        );
-
-                        String requestHost = requestUrl
-                                .replaceFirst("^https?://", "")
-                                .replace("*.", "")
-                                .split("/")[0];
-
-                        String wlHost = wl.getDomainURL()
-                                .replaceFirst("^https?://", "")
-                                .split("/")[0];
-
-                        String requestDomain =
-                                requestHost.replaceFirst("^.*?([^.]+\\.[^.]+)$", "$1");
-
-                        String wlDomain =
-                                wlHost.replaceFirst("^.*?([^.]+\\.[^.]+)$", "$1");
-
-                        log.info(
-                                "Normalized domains | requestHost={} | wlHost={} | requestDomain={} | wlDomain={}",
-                                requestHost,
-                                wlHost,
-                                requestDomain,
-                                wlDomain
-                        );
-
-                        match =
-                                requestDomain.equalsIgnoreCase(wlDomain);
-                    }
-
-//                    Final domain validation result | hierarchyId=LPS-SD-001 | originalType=SD | requestUrl=https://*.lakshaype.com/ | wlDomain=https://portal.lakshaype.com | match=false
-//                    Original User Type=SD | Request URL=https://*.lakshaype.com/ | Parent WL Domain=https://portal.lakshaype.com
-//                    Invalid login domain for user ID: LPS-SD-001
-
-
-                    log.info(
-                            "Final domain validation result | hierarchyId={} | originalType={} | requestUrl={} | wlDomain={} | match={}",
-                            hierarchyId,
-                            originalType,
                             requestUrl,
-                            wl.getDomainURL(),
-                            match
+                            wl
                     );
 
+                    logValidationResult(startTime, hierarchyId, requestUrl, match);
                     return match;
                 }
             }
 
+            // === IM / AD (Admin) Validation ===
             if ("IM".equals(currentType) || "AD".equals(currentType)) {
+                log.debug("[URL VALIDATION] Processing {} node | id={}", currentType, currentId);
+
                 Optional<Admin> adminOpt = adminRepository.findById(currentId);
 
                 if (adminOpt.isPresent()) {
                     Admin admin = adminOpt.get();
 
-                    log.info("Request URL: {}", requestUrl);
-                    log.info("Admin Login URL: {}", admin.getLoginURL());
+                    log.info("[URL VALIDATION] Admin found | id={} | loginURL={} | requestUrl={}",
+                            currentId, admin.getLoginURL(), requestUrl);
 
-                    boolean match = requestUrl.contains(".nfttech.in") && admin.getLoginURL().contains(".nfttech.in");
+                    boolean match = validateAdminAccess(requestUrl, admin);
 
-                    log.info("URL match for Admin/IM: {}", match);
-
+                    log.info("[URL VALIDATION] Admin validation result | match={}", match);
+                    logValidationResult(startTime, hierarchyId, requestUrl, match);
                     return match;
-
                 } else {
-                    log.warn("Admin not found for ID: {}", currentId);
+                    log.warn("[URL VALIDATION] Admin not found for ID: {}", currentId);
+                    // Continue to parent traversal even if admin not found
                 }
             }
 
+            // === Parent Traversal ===
+            log.debug("[URL VALIDATION] Attempting to traverse to parent | currentId={}", currentId);
+
             Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
             if (parentOpt.isEmpty()) {
-                log.info("No parent found for hierarchy ID: {}. URL validation failed.", currentId);
+                log.info("[URL VALIDATION] No parent found for hierarchy ID: {} | traversal ended", currentId);
                 break;
             }
 
             currentId = parentOpt.get();
-            log.debug("Traversing to parent hierarchy ID: {}", currentId);
+            log.debug("[URL VALIDATION] Traversed to parent hierarchy ID: {}", currentId);
         }
 
-        log.info("URL '{}' is not valid for hierarchy ID '{}'", requestUrl, hierarchyId);
+        logValidationFailure(startTime, hierarchyId, requestUrl,
+                "No matching hierarchy found after " + iterationCount + " iterations");
         return false;
     }
+
+    // ==================== PRIVATE HELPER METHODS ====================
+
+    /**
+     * Validates domain access for White Label Admin users
+     */
+    private boolean validateWhiteLabelAdminAccess(
+            String originalHierarchyId,
+            String originalType,
+            String currentId,
+            String requestUrl,
+            WhiteLabels wl) {
+
+        log.debug("[WL ADMIN VALIDATION] Starting validation | originalType={}", originalType);
+
+        boolean match;
+
+        // Case 1: WL / WLAU self-login (existing behavior)
+        if ("WL".equals(originalType) || "WLAU".equals(originalType)) {
+            log.info("[WL ADMIN VALIDATION] Executing WL/WLAU self-login validation");
+            log.info("[WL ADMIN VALIDATION] Request URL={} | Expected contains=.nfttech.in", requestUrl);
+
+            match = requestUrl != null && requestUrl.contains(".nfttech.in");
+
+            log.debug("[WL ADMIN VALIDATION] Self-login validation result | match={}", match);
+            return match;
+        }
+
+        // Case 2: Child hierarchy login (domain-based validation)
+        log.info("[WL ADMIN VALIDATION] Executing child hierarchy login validation");
+        log.info("[WL ADMIN VALIDATION] Original User Type={} | Request URL={} | Parent WL Domain={}",
+                originalType, requestUrl, wl.getDomainURL());
+
+        String[] normalizedDomains = normalizeDomains(requestUrl, wl.getDomainURL());
+        String requestHost = normalizedDomains[0];
+        String wlHost = normalizedDomains[1];
+        String requestDomain = normalizedDomains[2];
+        String wlDomain = normalizedDomains[3];
+
+        log.info("[WL ADMIN VALIDATION] Normalized domains | requestHost={} | wlHost={} | requestDomain={} | wlDomain={}",
+                requestHost, wlHost, requestDomain, wlDomain);
+
+        match = requestDomain.equalsIgnoreCase(wlDomain);
+
+        log.info("[WL ADMIN VALIDATION] Final domain validation result | hierarchyId={} | originalType={} | requestUrl={} | wlDomain={} | match={}",
+                originalHierarchyId, originalType, requestUrl, wl.getDomainURL(), match);
+
+        return match;
+    }
+
+    /**
+     * Validates admin (AD/IM) access
+     */
+    private boolean validateAdminAccess(String requestUrl, Admin admin) {
+        log.debug("[ADMIN VALIDATION] Validating admin access | requestUrl={} | adminLoginURL={}",
+                requestUrl, admin.getLoginURL());
+
+        // Both requestUrl and admin login URL must contain .nfttech.in
+        boolean requestUrlContainsTech = requestUrl != null && requestUrl.contains(".nfttech.in");
+        boolean adminUrlContainsTech = admin.getLoginURL() != null && admin.getLoginURL().contains(".nfttech.in");
+        boolean match = requestUrlContainsTech && adminUrlContainsTech;
+
+        log.debug("[ADMIN VALIDATION] Validation details | requestContainsTech={} | adminContainsTech={} | match={}",
+                requestUrlContainsTech, adminUrlContainsTech, match);
+
+        return match;
+    }
+
+    /**
+     * Normalizes domain URLs for comparison
+     */
+    private String[] normalizeDomains(String requestUrl, String wlDomainUrl) {
+        log.trace("[DOMAIN NORMALIZATION] Normalizing requestUrl={} and wlDomainUrl={}",
+                requestUrl, wlDomainUrl);
+
+        // Normalize request URL
+        String requestHost = requestUrl
+                .replaceFirst("^https?://", "")
+                .replace("*.", "")
+                .split("/")[0];
+
+        // Normalize WL domain URL
+        String wlHost = wlDomainUrl
+                .replaceFirst("^https?://", "")
+                .split("/")[0];
+
+        // Extract primary domain (last two parts)
+        String requestDomain = requestHost.replaceFirst("^.*?([^.]+\\.[^.]+)$", "$1");
+        String wlDomain = wlHost.replaceFirst("^.*?([^.]+\\.[^.]+)$", "$1");
+
+        log.trace("[DOMAIN NORMALIZATION] Results | requestHost={} | wlHost={} | requestDomain={} | wlDomain={}",
+                requestHost, wlHost, requestDomain, wlDomain);
+
+        return new String[]{requestHost, wlHost, requestDomain, wlDomain};
+    }
+
+    // ==================== LOGGING HELPERS ====================
+
+    private void logValidationResult(long startTime, String hierarchyId, String requestUrl, boolean match) {
+        long duration = System.currentTimeMillis() - startTime;
+        log.info("[URL VALIDATION] RESULT | hierarchyId={} | requestUrl={} | match={} | time={}ms",
+                hierarchyId, requestUrl, match, duration);
+    }
+
+    private void logValidationFailure(long startTime, String hierarchyId, String requestUrl, String reason) {
+        long duration = System.currentTimeMillis() - startTime;
+        log.warn("[URL VALIDATION] FAILED | hierarchyId={} | requestUrl={} | reason={} | time={}ms",
+                hierarchyId, requestUrl, reason, duration);
+    }
+
 
     private boolean isUserLocked(UserDetails user) {
         if (user.getLockTime() == null) {
