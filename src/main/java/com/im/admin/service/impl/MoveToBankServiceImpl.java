@@ -5,6 +5,7 @@ import com.im.admin.controller.AESController;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.EncryptDecryptCredentialsDto;
 import com.im.admin.dto.PayoutTokenResponseDTO;
+import com.im.admin.dto.RetailersExtraColumnsDto;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.VendorRouting;
@@ -122,7 +123,7 @@ public class MoveToBankServiceImpl implements MoveToBankService {
             } else {
 
                 AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), sendPayoutRequest.getRetailerId());
-                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR_PENDING", "DEBIT", "Move To Bank", sendPayoutRequest.getBeneficiaryName() + "#" + sendPayoutRequest.getAccountNumber(), "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber(),"", latitude, longitude);
+                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR_PENDING", "DEBIT", "Move To Bank", sendPayoutRequest.getBeneficiaryName() + "#" + sendPayoutRequest.getAccountNumber(), "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber(),"", null);
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);

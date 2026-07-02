@@ -672,6 +672,9 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         dto.setHasCharge(product.getHasCharges());
         dto.setVendorTxnId(request.getRequestId());
         dto.setVendorName("NixaSoft PG");
+        dto.setMedium(pgTransactionMapping.getMedium());
+        dto.setClientIp(pgTransactionMapping.getClientIp());
+        dto.setRequestDomainName(pgTransactionMapping.getRequestDomainName());
 
         log.debug("---- [Callback] DTO prepared: {}", dto);
         log.info("---- [Callback] DTO prepared: {}", dto);

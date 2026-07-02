@@ -38,6 +38,9 @@ public class BillPaymentRequest {
     //  MISSING FIELD ADDED
     private AdditionalInfo additionalInfo;
 
+    private String medium;
+    private String requestDomainName;
+
     // ===================== INNER CLASSES ======================
 
     @Data

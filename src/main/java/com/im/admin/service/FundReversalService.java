@@ -7,7 +7,7 @@ import com.im.admin.response.FundReversalResponseDto;
 
 public interface FundReversalService {
 
-    CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, Double latitude, Double longitude);
+    CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, Double latitude, Double longitude, String ipAddress);
 
     CommonResponse<FundReversalResponseDto> resendOtpById(Long id);
 

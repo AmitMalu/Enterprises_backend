@@ -25,7 +25,7 @@ public class SlpeInitiator implements PaymentGatewayInitiator {
     private final SlpePGService slpePGService;
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude, String ipAddress) throws JsonProcessingException {
 
         SlpePgCreateOrderRequest req = new SlpePgCreateOrderRequest();
 

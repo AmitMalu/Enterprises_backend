@@ -17,7 +17,7 @@ public class UnisusInitiator implements PaymentGatewayInitiator {
     private final UnisusPGService unisusService;
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude) {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude, String ipAddress) {
 
         UnisusPayCreateOrderRequest req =
                 new UnisusPayCreateOrderRequest();

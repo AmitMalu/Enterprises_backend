@@ -24,12 +24,16 @@ public class SendPayoutRequest {
     private String channelType;
     private String latitude;
     private String longitude;
-    private String clientIp;
 
     private String emailId;
 
     private String bankName;
     private String schemeName;
     private String partnerId;
+
+    private String medium;
+    private String clientIp;
+    private String requestDomainName;
+
 
 }

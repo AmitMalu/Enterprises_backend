@@ -33,4 +33,7 @@ public class SendDmtRequest {
     private String ifscCode;
     private String vendorName;
 
+    private String medium;
+    private String requestDomainName;
+
 }

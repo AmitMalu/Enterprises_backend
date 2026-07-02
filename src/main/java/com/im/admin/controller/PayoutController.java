@@ -26,11 +26,11 @@ public class PayoutController {
     private PayoutOrchestrator payoutOrchestratorV0;
 
     @PostMapping("/send-payout")
-    public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest, @RequestHeader Double latitude, @RequestHeader Double longitude, @RequestHeader Object ipaddress) {
+    public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest, @RequestHeader Double latitude, @RequestHeader Double longitude, @RequestHeader("ipaddress") String ipAddress) {
         log.info("======= Calling payoutService.sendPayoutRequest =======");
 
         try {
-            CommonResponse<PayoutResponseDto> response = payoutOrchestratorV0.processPayout(sendPayoutRequest, latitude, longitude, ipaddress);
+            CommonResponse<PayoutResponseDto> response = payoutOrchestratorV0.processPayout(sendPayoutRequest, latitude, longitude, ipAddress);
             log.info("======= sendPayoutRequest completed at {} =======", LocalDateTime.now());
             return ResponseEntity.status(response.getStatusCode()).body(response);
         } catch (Exception e) {

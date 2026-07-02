@@ -83,7 +83,7 @@ public class PayoutOrchestrator {
 
 
     @Transactional
-    public CommonResponse<PayoutResponseDto> processPayout(SendPayoutRequest req, Double latitude, Double longitude, Object ipaddress) {
+    public CommonResponse<PayoutResponseDto> processPayout(SendPayoutRequest req, Double latitude, Double longitude, String ipAddress) {
         String orderId = "TXN" + commonMethods.generateBaseTransactionId();
         log.info("[PROCESS PAYOUT ORCH] Initiating payout process for orderId={}", orderId);
 
@@ -235,6 +235,15 @@ public class PayoutOrchestrator {
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), req.getRetailerId());
             String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
 
+            RetailersExtraColumnsDto retailerExtraColumns =
+                    RetailersExtraColumnsDto.builder()
+                            .medium(req.getMedium())
+                            .clientIp(ipAddress)
+                            .requestDomainName(req.getRequestDomainName())
+                            .latitude(latitude)
+                            .longitude(longitude)
+                            .build();
+
             commonMethods.updateWallet(
                     walletAmountTable,
                     req.getRetailerId(),
@@ -248,14 +257,13 @@ public class PayoutOrchestrator {
                     req.getBeneficiaryName() + " #" + req.getAccountNumber(),
                     "Fund Transferred #" + req.getAccountNumber(),
                     "",
-                    latitude,
-                    longitude
+                    retailerExtraColumns
             );
 
             log.debug("[PROCESS PAYOUT ORCH] Wallet debited (PENDING) for retailer={}, amount={}", req.getRetailerId(), req.getAmount());
 
             // 6. Call vendor-specific implementation (must return PayoutResponseDto)
-            PayoutResponseDto vendorResp = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType, latitude, longitude, ipaddress);
+            PayoutResponseDto vendorResp = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType, latitude, longitude, ipAddress);
 
             if (vendorResp == null) {
                 // defensive fallback

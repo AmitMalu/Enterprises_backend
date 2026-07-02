@@ -34,13 +34,16 @@ public class RunPaisaInitiator implements PaymentGatewayInitiator {
     public PgUnifiedOrderResponse initiate(
             PGCreateOrderCommand command,
             Double latitude,
-            Double longitude) throws JsonProcessingException {
+            Double longitude,
+            String ipAddress) throws JsonProcessingException {
 
         log.info(
-                "RUNPAISA initiate called. merchantRef={}, subProductId={}, amount={}",
+                "RUNPAISA initiate called. merchantRef={}, subProductId={}, amount={}, medium{}, ipAddress{} " ,
                 command.getMerchantRef(),
                 command.getSubProductId(),
-                command.getAmount()
+                command.getAmount(),
+                command.getMedium(),
+                ipAddress
         );
 
         try {
@@ -55,18 +58,16 @@ public class RunPaisaInitiator implements PaymentGatewayInitiator {
             req.setUsername(command.getUsername());
             req.setCallbackUrl(command.getCallbackUrl());
             req.setTransactionScheme(command.getSchemeDetails());
+            req.setMedium(command.getMedium());
+            req.setClientIp(ipAddress);
+            req.setRequestDomainName(command.getRequestDomainName());
 
             // ===== LOG REQUEST BEFORE CREATE ORDER CALL =====
             log.info("=== PREPARING TO CALL RUNPAISA CREATE ORDER ===");
             log.info("CreateOrderRequest prepared with:");
-            log.info("  - MerchantRef: {}", req.getMerchantRef());
             log.info("  - Amount: {}", req.getAmount());
-            log.info("  - ProductId: {}", req.getProductId());
             log.info("  - SubProductId: {}", req.getSubProductId());
             log.info("  - InitiatedBy: {}", req.getInitiatedBy());
-            log.info("  - CardBinNo: {}", req.getCardBinNo());
-            log.info("  - Username: {}", req.getUsername());
-            log.info("  - CallbackUrl: {}", req.getCallbackUrl());
 
             // Log transaction scheme if present
             if (req.getTransactionScheme() != null) {
