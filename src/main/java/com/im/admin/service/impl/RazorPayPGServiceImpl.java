@@ -355,6 +355,9 @@ public class RazorPayPGServiceImpl implements RazorPayPGService {
         dto.setLongitude(txn.getLongitude());
         dto.setVendorName("RAZORPAY PG");
         dto.setVendorTxnId(paymentId);
+        dto.setMedium(txn.getMedium());
+        dto.setClientIp(txn.getClientIp());
+        dto.setRequestDomainName(txn.getRequestDomainName());
 
         return dto;
     }

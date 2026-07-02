@@ -183,49 +183,49 @@ public class SlpePGServiceImpl implements SlpePGService {
             }
 
             String subProductId = pgTransactionMapping.getSubProductId();
-            log.info("---- [Callback] Fetching SubProduct using subProductId: {}", subProductId);
+            log.info("---- [SLPE Callback] Fetching SubProduct using subProductId: {}", subProductId);
 
             SubProducts subProducts = subProductsRepository.findById(subProductId).orElseThrow(() -> {
-                log.error("---- [Callback] SubProduct NOT FOUND for subProductId: {}", subProductId);
+                log.error("---- [SLPE Callback] SubProduct NOT FOUND for subProductId: {}", subProductId);
                 return new RuntimeException("SubProduct not found for subProductId: " + subProductId);
             });
 
-            log.info("---- [Callback] SubProduct fetched successfully | subProductId={}, subProductCode={}", subProducts.getId(), subProducts.getSubProductCode());
+            log.info("---- [SLPE Callback] SubProduct fetched successfully | subProductId={}, subProductCode={}", subProducts.getId(), subProducts.getSubProductCode());
 
             SchemeAllocation schemeAllocation = schemeAllocationRepository.findByHierarchyIdAndSubProductCode(pgTransactionMapping.getInitiatedBy(), subProducts.getSubProductCode()).orElseThrow(() -> new RuntimeException("SchemeAllocation not found | hierarchyId=" + pgTransactionMapping.getInitiatedBy() + ", subProductCode=" + subProducts.getSubProductCode()));
 
             String schemeCode = schemeAllocation.getSchemeCode();
 
-            log.info("---- [Callback] SchemeAllocation fetched successfully | schemeCode={}", schemeCode);
+            log.info("---- [SLPE Callback] SchemeAllocation fetched successfully | schemeCode={}", schemeCode);
 
             // Prepare base data
-            log.info("---- [Callback] Parsed transaction amount: {}", amount);
+            log.info("---- [SLPE Callback] Parsed transaction amount: {}", amount);
 
             String callbackOperatorName = toDbOperatorName(txnMode, category, pgPartner);
-            log.info("---- [Callback] Using operatorName for DB lookup: {}", callbackOperatorName);
+            log.info("---- [SLPE Callback] Using operatorName for DB lookup: {}", callbackOperatorName);
 
             List<SchemeRate> matchingSchemes = schemeRateRepository.findBySchemeCodeAndOperatorName(schemeCode, callbackOperatorName);
             if (matchingSchemes == null || matchingSchemes.isEmpty()) {
-                log.error("---- [Callback] No matching scheme found for schemeCode={} and operatorName={}", schemeCode, callbackOperatorName);
+                log.error("---- [SLPE Callback] No matching scheme found for schemeCode={} and operatorName={}", schemeCode, callbackOperatorName);
                 return;
             }
 
-            log.info("---- [Callback] Scheme(s) found: {}", matchingSchemes.size());
+            log.info("---- [SLPE Callback] Scheme(s) found: {}", matchingSchemes.size());
 
             // Pick correct scheme by amount range or fixed value
             SchemeRate selectedScheme = matchingSchemes.stream().filter(scheme -> scheme.getSlabType() == SlabType.VARIABLE && amount >= scheme.getSlabStart() && amount <= scheme.getSlabEnd()).findFirst().orElse(matchingSchemes.get(0));
-            log.info("---- [Callback] Selected scheme: {}", selectedScheme);
+            log.info("---- [SLPE Callback] Selected scheme: {}", selectedScheme);
 
             // Fetch scheme, product & subProduct details
-            log.debug("---- [Callback] Fetching scheme details for code: {}", selectedScheme.getSchemeCode());
-            log.info("---- [Callback] Fetching scheme details for code: {}", selectedScheme.getSchemeCode());
+            log.debug("---- [SLPE Callback] Fetching scheme details for code: {}", selectedScheme.getSchemeCode());
+            log.info("---- [SLPE Callback] Fetching scheme details for code: {}", selectedScheme.getSchemeCode());
             Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode()).orElseThrow(() -> new RuntimeException("Scheme Not Found for code: " + selectedScheme.getSchemeCode()));
 
             String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
             short productId = Short.parseShort(hashParts[0]);
             String subProductIdStr = hashParts[1];
-            log.debug("---- [Callback] Extracted productId: {}, subProductId: {}", productId, subProductIdStr);
-            log.info("---- [Callback] Extracted productId: {}, subProductId: {}", productId, subProductIdStr);
+            log.debug("---- [SLPE Callback] Extracted productId: {}, subProductId: {}", productId, subProductIdStr);
+            log.info("---- [SLPE Callback] Extracted productId: {}, subProductId: {}", productId, subProductIdStr);
 
             Products product = productsRepository.findById(productId).orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
             SubProducts subProduct = subProductsRepository.findById(subProductIdStr).orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
@@ -255,6 +255,9 @@ public class SlpePGServiceImpl implements SlpePGService {
             dto.setLongitude(pgTransactionMapping.getLongitude());
             dto.setVendorName("SLPE PG");
             dto.setVendorTxnId(txnId);
+            dto.setMedium(pgTransactionMapping.getMedium());
+            dto.setClientIp(pgTransactionMapping.getClientIp());
+            dto.setRequestDomainName(pgTransactionMapping.getRequestDomainName());
 
             log.debug("---- [Callback] DTO prepared: {}", dto);
             log.info("---- [Callback] DTO prepared: {}", dto);

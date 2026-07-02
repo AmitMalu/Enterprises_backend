@@ -27,5 +27,8 @@ public class FundReversalRequestDto {
     private Boolean isResendOtp = false;
     private String subProductId;
     private String schemeCode;
+
+    private String medium;
+    private String requestDomainName;
 }
 

@@ -21,4 +21,7 @@ public class FundCreditDebitDto {
     private String narrationType;
     private String remarks;
 
+    private String medium;
+    private String requestDomainName;
+
 }

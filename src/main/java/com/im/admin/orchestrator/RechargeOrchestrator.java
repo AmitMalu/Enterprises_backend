@@ -2,6 +2,7 @@ package com.im.admin.orchestrator;
 
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.AbstractWalletAmountTable;
+import com.im.admin.dto.RetailersExtraColumnsDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.vendor.Vendors;
@@ -65,9 +66,7 @@ public class RechargeOrchestrator {
     private RechargeVendorFactory vendorFactory;
 
     @Transactional
-    public RechargeResponse recharge(RechargeRequest request, Double latitude, Double longitude) {
-
-
+    public RechargeResponse recharge(RechargeRequest request, Double latitude, Double longitude, String ipAddress) {
 
         String loggedInHierarchyId = tokenUtil.extractHierarchyId();
         request.setRetailerId(loggedInHierarchyId);
@@ -126,6 +125,15 @@ public class RechargeOrchestrator {
                         request.getAmount().doubleValue())
                 .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + request.getAmount()));
 
+        RetailersExtraColumnsDto retailerExtraColumns =
+                RetailersExtraColumnsDto.builder()
+                        .medium(request.getMedium())
+                        .clientIp(ipAddress)
+                        .requestDomainName(request.getRequestDomainName())
+                        .latitude(latitude)
+                        .longitude(longitude)
+                        .build();
+
 
         commonMethods.updateWallet(
                 wallet,
@@ -140,8 +148,7 @@ public class RechargeOrchestrator {
                 request.getCustomerNumber(),
                 "Recharge for " + request.getCustomerNumber(),
                 "",
-                latitude,
-                longitude
+                retailerExtraColumns
         );
 
         return vendorService.recharge(request,orderId, credentials);

@@ -45,14 +45,61 @@ public class PaymentGatewayController {
     public ResponseEntity<CommonResponse<PgUnifiedOrderResponse>> createOrder(
             @RequestBody PGCreateOrderCommand request,
             @RequestHeader("Latitude") Double latitude,
-            @RequestHeader("Longitude") Double longitude) throws JsonProcessingException {
-        log.info("Received request to create order: {}", request);
-        PgUnifiedOrderResponse result =
-                pgOrchestrator.initiate(request, latitude, longitude);
-        log.info("Order creation response: {}", result);
-        return ResponseEntity.ok(
-                CommonResponse.success(result, "Order created successfully")
-        );
+            @RequestHeader("Longitude") Double longitude,
+            @RequestHeader("ipaddress") String ipAddress) throws JsonProcessingException {
+
+        long startTime = System.currentTimeMillis();
+        log.info("======= START: createOrder =======");
+        log.info("Request: {}", request);
+        log.info("Location: Latitude={}, Longitude={}", latitude, longitude);
+        log.info("IP Address: {}", ipAddress);
+
+        // Validate IP address format
+        if (!isValidIpAddress(ipAddress)) {
+            log.error("Invalid IP address format: {}", ipAddress);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(CommonResponse.error(400, "Invalid IP address format. Expected format: 1.22.36.186"));
+        }
+
+        // Validate location
+        if (latitude == null || longitude == null) {
+            log.error("Missing location headers");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(CommonResponse.error(400, "Latitude and Longitude are required"));
+        }
+
+        try {
+            PgUnifiedOrderResponse result = pgOrchestrator.initiate(
+                    request, latitude, longitude, ipAddress);
+
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("Order created successfully in {}ms: {}", duration, result);
+            log.info("======= END: createOrder - SUCCESS =======");
+
+            return ResponseEntity.ok(
+                    CommonResponse.success(result, "Order created successfully")
+            );
+
+        } catch (IllegalArgumentException e) {
+            log.error("Validation error: ", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(CommonResponse.error(400, e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("Unexpected error creating order: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.error(500, "Failed to create order. Please try again."));
+        }
+    }
+
+    private boolean isValidIpAddress(String ip) {
+        if (ip == null || ip.trim().isEmpty()) {
+            return false;
+        }
+
+        // IPv4 pattern (e.g., 1.22.36.186)
+        String ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
+        return ip.trim().matches(ipv4Pattern);
     }
 
 //    @PostMapping("/order-status")

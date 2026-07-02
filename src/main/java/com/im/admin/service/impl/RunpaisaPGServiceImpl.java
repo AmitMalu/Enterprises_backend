@@ -202,7 +202,12 @@ public class RunpaisaPGServiceImpl {
             txnMap.setCardBinNo(req.getCardBinNo());
             txnMap.setLatitude(latitude);
             txnMap.setLongitude(longitude);
+            txnMap.setMedium(req.getMedium());
+            txnMap.setClientIp(req.getClientIp());
+            txnMap.setRequestDomainName(req.getRequestDomainName());
+
             pgTransactionMappingRepository.save(txnMap);
+
             log.info("Transaction mapping saved with status: PENDING, InitiatedBy: {}", req.getInitiatedBy());
             log.info("Transaction details - SubProductId: {}, CardBinNo: {}, Location: ({}, {})",
                     req.getSubProductId(), req.getCardBinNo(), latitude, longitude);
@@ -1002,8 +1007,6 @@ public class RunpaisaPGServiceImpl {
 
         // Build DTO (common for all statuses)
         TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
-//        String orderId = callback.getOrderId();
-//        String baseTranxId = orderId.startsWith("ORD") ? orderId.substring(3) : orderId;
 
         dto.setBaseTranxId(baseTranxId);
         dto.setAmount(txnAmt);
@@ -1024,6 +1027,9 @@ public class RunpaisaPGServiceImpl {
         dto.setLongitude(pgTransactionMapping.getLongitude());
         dto.setVendorName("Runpaisa PG");
         dto.setVendorTxnId(callback.getBankTxnId());
+        dto.setMedium(pgTransactionMapping.getMedium());
+        dto.setClientIp(pgTransactionMapping.getClientIp());
+        dto.setRequestDomainName(pgTransactionMapping.getRequestDomainName());
 
         log.debug("---- [Callback] DTO prepared: {}", dto);
         log.info("---- [Callback] DTO prepared: {}", dto);

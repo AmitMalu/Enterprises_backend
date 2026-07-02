@@ -1,10 +1,7 @@
 package com.im.admin.util;
 
 import com.im.admin.controller.AESController;
-import com.im.admin.dto.AbstractWalletAmountTable;
-import com.im.admin.dto.BillRechargeResponseDTO;
-import com.im.admin.dto.EncryptDecryptCredentialsDto;
-import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.ServiceType;
 import com.im.admin.entities.enums.Status;
@@ -13,6 +10,7 @@ import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
+import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
@@ -706,8 +704,7 @@ public class CommonMethods {
             String narration,
             String remark,
             String schemeCode,
-            Double latitude,
-            Double longitude) { //new
+            RetailersExtraColumnsDto retailersExtraColumnsDto) { //new
 
 
         log.debug("Starting wallet update process for transaction type: {}, wallet type: {}", tranxType, walletType);
@@ -752,8 +749,7 @@ public class CommonMethods {
                     narration,
                     remark,
                     schemeCode,
-                    latitude,
-                    longitude
+                    retailersExtraColumnsDto
             );
 
             log.info("Transaction record inserted successfully.");
@@ -780,8 +776,7 @@ public class CommonMethods {
             String narration,
             String remark,
             String schemeCode,
-            Double latitude,
-            Double longitude) {
+            RetailersExtraColumnsDto retailersExtraColumnsDto) {
 
         log.debug("Preparing to insert transaction record.");
 
@@ -790,6 +785,16 @@ public class CommonMethods {
             String hierarchyType = extractHierarchyType(hierarchyId);
             String transactionTableName = getTransactionTable(hierarchyType, walletType);
             String columnName = getHierarchyColumnName(hierarchyType);
+
+            boolean isRetailer = "RT".equalsIgnoreCase(hierarchyType);
+
+            String extraColumns = "";
+            String extraValues = "";
+
+            if (isRetailer) {
+                extraColumns = ", request_domain_name, client_ip, medium";
+                extraValues = ", :requestDomainName, :clientIp, :medium";
+            }
 
             boolean includeHierarchy = shouldInsertHierarchyColumn(hierarchyType);
 
@@ -801,12 +806,12 @@ public class CommonMethods {
                     (includeHierarchy ? ", hierarchy_id" : "") +
                     ", service, amount, date_of_transaction, time_of_transaction, " +
                     "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status," +
-                    " sub_product_name, narration, remarks, scheme_name, latitude, longitude) " +
+                    " sub_product_name, narration, remarks, scheme_name, latitude, longitude" + extraColumns + ") " +
                     "VALUES (:hierarchyId" +
                     (includeHierarchy ? ", :relatedHierarchyId" : "") +
                     ", :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                     ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId," +
-                    " :tranStatus, :subProductName, :narration, :remark, :schemeCode, :latitude, :longitude)";
+                    " :tranStatus, :subProductName, :narration, :remark, :schemeCode, :latitude, :longitude" + extraValues + ")";
 
             Query query = entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
@@ -824,11 +829,17 @@ public class CommonMethods {
                     .setParameter("narration", narration)
                     .setParameter("remark", remark)
                     .setParameter("schemeCode", schemeCode)
-                    .setParameter("latitude", latitude)
-                    .setParameter("longitude", longitude);
+                    .setParameter("latitude", retailersExtraColumnsDto.getLatitude())
+                    .setParameter("longitude", retailersExtraColumnsDto.getLongitude());
 
-            if (includeHierarchy) {
-                query.setParameter("relatedHierarchyId", relatedHierarchyId);
+                    if (includeHierarchy) {
+                            query.setParameter("relatedHierarchyId", relatedHierarchyId);
+                    }
+
+            if (isRetailer) {
+                query.setParameter("requestDomainName", retailersExtraColumnsDto.getRequestDomainName())
+                        .setParameter("clientIp", retailersExtraColumnsDto.getClientIp())
+                        .setParameter("medium", retailersExtraColumnsDto.getMedium());
             }
 
             query.executeUpdate();
@@ -940,8 +951,7 @@ public class CommonMethods {
     public <T extends AbstractWalletAmountTable> void performWalletUpdate(
             T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
             TransactionType type, String baseTxnId, String remarks, String subProductName, String narration,
-            String relatedHierarchyId,
-            Double latitude, Double longitude) {
+            String relatedHierarchyId, RetailersExtraColumnsDto retailersExtraColumnsDto) {
 
         BigDecimal beforeBalance = wallet.getAvailableBalance();
 
@@ -962,7 +972,7 @@ public class CommonMethods {
         insertTransaction(
                 walletType.name(), hierarchyId, relatedHierarchyId, Status.SUCCESS.name(), amount,
                 beforeBalance, wallet.getAvailableBalance(), action,
-                baseTxnId, type.name(), subProductName, narration, remarks,"", latitude,longitude
+                baseTxnId, type.name(), subProductName, narration, remarks,"", retailersExtraColumnsDto
         );
     }
 

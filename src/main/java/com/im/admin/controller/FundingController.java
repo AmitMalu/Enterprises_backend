@@ -36,9 +36,9 @@ public class FundingController {
     private HierarchyWalletService hierarchyWalletService;
 
     @PostMapping("/credit-debit")
-    public ResponseEntity<CommonResponse<String>> fundsCreditDebit(@RequestBody FundCreditDebitDto dto) {
+    public ResponseEntity<CommonResponse<String>> fundsCreditDebit(@RequestBody FundCreditDebitDto dto, @RequestHeader Double latitude, @RequestHeader Double longitude, @RequestHeader("ipaddress") String ipAddress) {
         log.info("API Call: fundsCreditDebit with data: {}", dto);
-        String result = fundingService.fundsCreditDebit(dto);
+        String result = fundingService.fundsCreditDebit(dto, latitude, longitude, ipAddress);
         log.info("Transaction processed successfully: {}", result);
         return ResponseEntity.ok(CommonResponse.success(result, "Transaction processed successfully"));
     }
@@ -52,7 +52,8 @@ public class FundingController {
 
     @PostMapping("/upload")
     public ResponseEntity<CommonResponse<List<BulkFundResponse>>> uploadBulkFile(
-            @RequestParam("file") MultipartFile file, @RequestHeader Double latitude, @RequestHeader Double longitude) {
+            @RequestParam("file") MultipartFile file, @RequestHeader Double latitude, @RequestHeader Double longitude,
+            @RequestHeader("ipaddress") String ipAddress) {
 
         log.info("API Call: uploadBulkFile");
 
@@ -64,7 +65,7 @@ public class FundingController {
         }
 
         try {
-            List<BulkFundResponse> responses = fundingService.processBulkFile(file, latitude, longitude);
+            List<BulkFundResponse> responses = fundingService.processBulkFile(file, latitude, longitude, ipAddress);
             log.info("Bulk file processed successfully. Number of responses: {}", responses.size());
             return ResponseEntity.ok(
                     new CommonResponse<>(200, "Bulk file processed successfully", responses)

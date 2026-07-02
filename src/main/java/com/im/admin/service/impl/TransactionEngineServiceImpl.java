@@ -524,81 +524,6 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     }
 
 
-//
-//    private void processCharges(TransactionSchemeDetailsRequestDto dto, AbstractWalletAmountTable wallet,
-//                                BigDecimal grossAmountInput, String gstValue, String baseTransactionId, String tranStatus) {
-//
-//        log.info("---- [Charges] Starting processCharges | BaseTxnId: {} | WalletType: {} | Hierarchy: {} | TranStatus: {}",
-//                baseTransactionId, dto.getWalletType(), dto.getHierarchyId(), tranStatus);
-//
-//        BigDecimal grossAmount;
-//
-//        if ("PERCENTAGE".equalsIgnoreCase(dto.getSchemeRate().getRateType().toString())) {
-//            BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
-//                    //.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
-//            grossAmount = BigDecimal.valueOf(dto.getAmount())
-//                    .multiply(percentage)
-//                    .setScale(4, RoundingMode.HALF_UP);
-//            log.debug("---- [Charges] Gross calculated as percentage | RateType: {} | Percentage: {} | GrossAmount: {}",
-//                    dto.getSchemeRate().getRateType(), percentage, grossAmount);
-//        } else {
-//            grossAmount = grossAmountInput;
-//            log.debug("---- [Charges] Gross taken as fixed | GrossAmountInput: {}", grossAmount);
-//        }
-//
-//        // Step 1: Calculate GST and base
-//        BigDecimal gstRate = new BigDecimal(gstValue)
-//                .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
-//        BigDecimal divisor = BigDecimal.ONE.add(gstRate);
-//        BigDecimal baseAmount = grossAmount.divide(divisor, 10, RoundingMode.HALF_UP);
-//        BigDecimal gstAmount = grossAmount.subtract(baseAmount).setScale(4, RoundingMode.HALF_UP);
-//
-//        log.debug("---- [Charges] GST calculation | GSTValue: {} | GSTRate: {} | BaseAmount: {} | GSTAmount: {} | GrossAmount: {}",
-//                gstValue, gstRate, baseAmount, gstAmount, grossAmount);
-//
-//        // Step 2: Deduct base
-//        BigDecimal beforeBase = wallet.getAvailableBalance();
-//        wallet.setAvailableBalance(beforeBase.subtract(baseAmount));
-//        BigDecimal afterBase = wallet.getAvailableBalance();
-//        log.info("---- [Charges] Deducting BaseAmount from Wallet | Before: {} | Deduct: {} | After: {}",
-//                beforeBase, baseAmount, afterBase);
-//
-//        insertTransaction(wallet, tranStatus, baseAmount, beforeBase, afterBase,
-//                "Deduct Funds (Charge) - " + dto.getWalletType().toUpperCase(),
-//                buildTransactionId("CHG", baseTransactionId), "DEBIT", dto);
-//
-//        mirrorTransactionToAdminOrWhitelabel(dto.getHierarchyId(), "DEBIT", baseAmount, dto.getWalletType(),
-//                "CHG" + baseTransactionId, "(Charge)", tranStatus, dto);
-//
-//        // Step 3: Deduct GST
-//        BigDecimal beforeGst = wallet.getAvailableBalance();
-//        wallet.setAvailableBalance(beforeGst.subtract(gstAmount));
-//        BigDecimal afterGst = wallet.getAvailableBalance();
-//        log.info("---- [Charges] Deducting GSTAmount from Wallet | Before: {} | Deduct: {} | After: {}",
-//                beforeGst, gstAmount, afterGst);
-//
-//        insertTransaction(wallet, tranStatus, gstAmount, beforeGst, afterGst,
-//                "Deduct Funds (GST) - " + dto.getWalletType().toUpperCase(),
-//                buildTransactionId("GST", baseTransactionId), "DEBIT", dto);
-//
-//        // Step 4: Update wallet meta
-//        wallet.setUsedCash(wallet.getUsedCash().add(baseAmount.add(gstAmount)));
-//        wallet.setLastUpdatedAmount(gstAmount);
-//        wallet.setLastUpdatedDate(LocalDate.now());
-//        wallet.setLastUpdatedTime(LocalTime.now());
-//
-//        log.debug("---- [Charges] Wallet meta updated | UsedCash: {} | LastUpdatedAmount: {} | DateTime: {} {}",
-//                wallet.getUsedCash(), wallet.getLastUpdatedAmount(),
-//                wallet.getLastUpdatedDate(), wallet.getLastUpdatedTime());
-//
-//        // Step 5: Credit GST to Admin
-//        log.info("---- [Charges] Crediting GST {} to Admin for HierarchyId: {}", gstAmount, dto.getHierarchyId());
-//        creditGstToAdminOrWhitelabel(dto.getHierarchyId(), dto.getWalletType(), gstAmount,
-//                baseTransactionId, tranStatus, dto);
-//
-//        log.info("---- [Charges] Completed processCharges | BaseTxnId: {} | WalletType: {}", baseTransactionId, dto.getWalletType());
-//    }
-
     private void creditGstToAdmin(String receiverHierarchyId, String retailerId, String walletType,
                                   BigDecimal gstAmount, String baseTransactionId, String tranStatus,
                                   TransactionSchemeDetailsRequestDto request) {
@@ -645,89 +570,6 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         log.info("---- [GST] Completed creditGstToAdmin | Receiver: {} | TranxId: {}", receiverHierarchyId, gstCreditTranxId);
     }
-
-
-//    private void processCommission(TransactionSchemeDetailsRequestDto dto,
-//                                   String baseTransactionId,
-//                                   String tranStatus,
-//                                   TransactionSchemeDetailsRequestDto request) {
-//
-//        log.info("==== [processCommission] START ====");
-//        log.info("Transaction ID: {}, HierarchyId: {}, WalletType: {}, Status: {}, Amount: {}",
-//                baseTransactionId, dto.getHierarchyId(), dto.getWalletType(), tranStatus, dto.getAmount());
-//        log.info("TDS Rate: {}, SchemeRateType: {}", dto.getTdsRate(), dto.getSchemeRate().getRateType());
-//
-//        try {
-//            BigDecimal tdsRate = new BigDecimal(dto.getTdsRate());
-//
-//            // Step 1: Retailer commission
-//            if (dto.getSchemeRate().getRetailer() > 0) {
-//                log.info("---- [Commission Step 1] Processing Retailer commission for HierarchyId: {} ----", dto.getHierarchyId());
-//                BigDecimal retailerCommission = calculateCommissionAmount(
-//                        dto.getSchemeRate().getRetailer(),
-//                        BigDecimal.valueOf(dto.getAmount()),
-//                        dto.getSchemeRate().getRateType().toString()
-//                );
-//                log.info("Retailer Commission Calculated: {}", retailerCommission);
-//
-//                distributeCommissionToHierarchy(
-//                        "RT", dto.getHierarchyId(),
-//                        retailerCommission, dto.getWalletType(),
-//                        tdsRate, baseTransactionId, tranStatus, request
-//                );
-//                log.info("Retailer Commission Distributed Successfully for HierarchyId: {}", dto.getHierarchyId());
-//            } else {
-//                log.info("---- [Commission Step 1] Skipped (Retailer commission rate = 0) ----");
-//            }
-//
-//            // Step 2: Parent hierarchy commission
-//            log.info("---- [Commission Step 2] Traversing and distributing commission to parent hierarchies ----");
-//            Retailer retailer = retailerRepository.findByRetailerId(dto.getHierarchyId())
-//                    .orElseThrow(() -> new RuntimeException("Retailer not found: " + dto.getHierarchyId()));
-//
-//            distributeCommissionToHierarchies(
-//                    BigDecimal.valueOf(dto.getAmount()),
-//                    retailer.getParentAccount(),
-//                    dto.getSchemeRate(),
-//                    dto.getWalletType(),
-//                    tdsRate,
-//                    baseTransactionId,
-//                    new HashSet<>(),
-//                    tranStatus,
-//                    request
-//            );
-//            log.info("Parent Hierarchy Commission Distribution Completed for Base Transaction: {}", baseTransactionId);
-//
-//            // Step 3: Admin-level commission
-//            if (dto.getSchemeRate().getIm() > 0) {
-//                log.info("---- [Commission Step 3] Processing Admin-level commission ----");
-//                BigDecimal adminCommission = calculateCommissionAmount(
-//                        dto.getSchemeRate().getIm(),
-//                        BigDecimal.valueOf(dto.getAmount()),
-//                        dto.getSchemeRate().getRateType().toString()
-//                );
-//                log.info("Admin Commission Calculated: {}", adminCommission);
-//
-//                getAdminHierarchyId(dto.getHierarchyId()).ifPresentOrElse(adminId -> {
-//                    log.info("Admin Hierarchy Found: {}. Crediting Admin Commission...", adminId);
-//                    distributeCommissionToHierarchy(
-//                            "AD", adminId,
-//                            adminCommission, dto.getWalletType(),
-//                            tdsRate, baseTransactionId, tranStatus, request
-//                    );
-//                    log.info("Admin Commission Distributed Successfully to AdminId: {}", adminId);
-//                }, () -> log.warn("No Admin Hierarchy found for HierarchyId: {}", dto.getHierarchyId()));
-//            } else {
-//                log.info("---- [Commission Step 3] Skipped (Admin commission rate = 0) ----");
-//            }
-//
-//        } catch (Exception e) {
-//            log.error("**** [processCommission] ERROR during commission processing for Transaction ID: {} ****", baseTransactionId, e);
-//            throw e;
-//        }
-//
-//        log.info("==== [processCommission] END for Transaction ID: {} ====", baseTransactionId);
-//    }
 
     public void processCommission(TransactionSchemeDetailsRequestDto dto,
                                   String baseTransactionId,
@@ -1624,16 +1466,28 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         Double longitude = request.getLongitude();
         log.debug("[COMM_TXN_INSERT] Detected Hierarchy Type={} | ColumnName={}", hierarchyType, hierarchyColumnName);
 
+        boolean isRetailer = "RT".equalsIgnoreCase(hierarchyType);
+
+        String extraColumns = "";
+        String extraValues = "";
+
+        if (isRetailer) {
+            extraColumns = ", request_domain_name, client_ip, medium";
+            extraValues = ", :requestDomainName, :clientIp, :medium";
+        }
+
         String sql = "INSERT INTO " + transactionTable +
                 " (" + hierarchyColumnName + ", service, amount, remarks, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, sub_product_name, scheme_name, operator_name, latitude, longitude) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, " +
+                "sub_product_name, scheme_name, operator_name, latitude, longitude" + extraColumns + ") " +
                 "VALUES (:hierarchyId, :service, :amount, :remarks, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, :subProductName, :schemeName, :operatorName, :latitude, :longitude)";
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalance, :finalBalance, :tranxId, :tranStatus, " +
+                ":subProductName, :schemeName, :operatorName, :latitude, :longitude" + extraValues + ")";
 
         log.debug("[COMM_TXN_INSERT] Generated SQL: {}", sql);
 
         try {
-            entityManager.createNativeQuery(sql)
+            Query query = entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
                     .setParameter("service", service)
                     .setParameter("amount", amount)
@@ -1650,8 +1504,15 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                     .setParameter("schemeName", scheme.getSchemeName())
                     .setParameter("operatorName", operatorName)
                     .setParameter("latitude", latitude)
-                    .setParameter("longitude", longitude)
-                    .executeUpdate();
+                    .setParameter("longitude", longitude);
+
+            if (isRetailer) {
+                query.setParameter("requestDomainName", request.getRequestDomainName())
+                        .setParameter("clientIp", request.getClientIp())
+                        .setParameter("medium", request.getMedium());
+            }
+
+            query.executeUpdate();
 
             log.info("[COMM_TXN_INSERT] Successfully inserted commission transaction | HierarchyID={} | TranxID={} | Amount={} | Status={}",
                     hierarchyId, tranxId, amount, tranStatus);
@@ -1924,19 +1785,19 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
             if ("WL".equals(parentType)) {
                 Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(parentId);
                 if (wlOpt.isPresent() && Boolean.TRUE.equals(wlOpt.get().getIsAdmin())) {
-                    log.info("Mirroring to WhiteLabel (isAdmin=true) | ParentID: {}", parentId);
+                    log.info("[Transaction Engine] Mirroring to WhiteLabel (isAdmin=true) | ParentID: {}", parentId);
                     mirrorTransactionToHierarchy(parentId, dto.getHierarchyId(), tranxType.toUpperCase(), requestedAmount,
                             dto.getWalletType().toUpperCase(), "TXN" + baseTransactionId, "WhiteLabel Admin", tranStatus, dto);
                     mirrorHandled = true;
                     break;
                 } else {
-                    log.debug("WhiteLabel found but not Admin. Continuing traversal...");
+                    log.debug("[Transaction Engine] WhiteLabel found but not Admin. Continuing traversal...");
                 }
             }
 
             if ("IM".equals(parentType) || "AD".equals(parentType)) {
-                log.info("Reached Admin hierarchy level (Type: {}).", parentType);
-                log.info("Mirroring transaction to Admin fallback | AdminID: {}", parentId);
+                log.info("[Transaction Engine]Reached Admin hierarchy level (Type: {}).", parentType);
+                log.info("[Transaction Engine]Mirroring transaction to Admin fallback | AdminID: {}", parentId);
                 mirrorTransactionToHierarchy(parentId, dto.getHierarchyId(), tranxType.toUpperCase(), requestedAmount,
                         dto.getWalletType().toUpperCase(), "TXN" + baseTransactionId, "Admin", tranStatus, dto);
                 break;
@@ -1945,7 +1806,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
             currentId = parentId;
         }
 
-        log.info("=== [updateWallet] END SUCCESS === | Final AvailableBalance: {} | TotalCash: {}",
+        log.info("===[Transaction Engine] [updateWallet] END SUCCESS === | Final AvailableBalance: {} | TotalCash: {}",
                 wallet.getAvailableBalance(), wallet.getTotalCash());
     }
 
@@ -2018,6 +1879,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setLongitude(dto.getLongitude());
                 transaction.setVendorName(dto.getVendorName());
                 transaction.setVendorTransactionId(dto.getVendorTxnId());
+                transaction.setClientIp(dto.getClientIp());
+                transaction.setMedium(dto.getMedium());
+                transaction.setRequestDomainName(dto.getRequestDomainName());
 
                 retailerPrepaidTransactionDetailsRepository.save(transaction);
                 log.info("Prepaid transaction saved successfully | TranxId: {}", tranxId);
@@ -2049,6 +1913,9 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 transaction.setLongitude(dto.getLongitude());
                 transaction.setVendorName(dto.getVendorName());
                 transaction.setVendorTransactionId(dto.getVendorTxnId());
+                transaction.setClientIp(dto.getClientIp());
+                transaction.setMedium(dto.getMedium());
+                transaction.setRequestDomainName(dto.getRequestDomainName());
 
                 retailerPostpaidTransactionDetailsRepository.save(transaction);
                 log.info("Postpaid transaction saved successfully | TranxId: {}", tranxId);

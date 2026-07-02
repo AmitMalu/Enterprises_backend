@@ -27,7 +27,7 @@ public class NftCashfreeInitiator implements PaymentGatewayInitiator {
     @Override
     public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command,
                                            Double latitude,
-                                           Double longitude) throws JsonProcessingException {
+                                           Double longitude, String ipAddress) throws JsonProcessingException {
 
         log.info("Initiating Cashfree Payment Link | initiatedBy={}, subProductId={}, amount={}, lat={}, long={}",
                 command.getInitiatedBy(),

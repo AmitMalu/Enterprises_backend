@@ -19,10 +19,10 @@ public class RechargeController {
 
     @PostMapping
     public ResponseEntity<CommonResponse<RechargeResponse>> recharge(
-            @RequestBody RechargeRequest request, @RequestHeader Double latitude, @RequestHeader Double longitude) {
+            @RequestBody RechargeRequest request, @RequestHeader Double latitude, @RequestHeader Double longitude, @RequestHeader("ipaddress") String ipAddress ) {
 
         RechargeResponse response =
-                rechargeOrchestrator.recharge(request, latitude, longitude);
+                rechargeOrchestrator.recharge(request, latitude, longitude, ipAddress);
 
         return ResponseEntity.ok(
                 CommonResponse.success(response, "Recharge request submitted")

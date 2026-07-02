@@ -157,39 +157,4 @@ public class PGCallbackController {
         return ResponseEntity.ok("OK");
     }
 
-    public boolean verifySignature(String rawBody, String signature, String timestamp) {
-        try {
-
-            String secretKey = "cfsk_ma_test_c55beaca2b6adbe2630c91be6654e0ed_f9f1de22";
-
-            // ===== DATA STRING =====
-            String data = timestamp + rawBody;
-
-            log.info("DATA STRING (timestamp + payload) >>> {}", data);
-            log.info("DATA LENGTH >>> {}", data.length());
-
-            // ===== HMAC =====
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            mac.init(keySpec);
-
-            byte[] rawHmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            String generatedSignature = Base64.getEncoder().encodeToString(rawHmac);
-
-            // ===== FINAL LOGS =====
-            log.info("Generated Signature >>> {}", generatedSignature);
-            log.info("Received Signature >>> {}", signature);
-
-            boolean match = generatedSignature.equals(signature);
-
-            log.info("Signature Match Result >>> {}", match ? "MATCH" : "MISMATCH");
-
-            return match;
-
-        } catch (Exception e) {
-            log.error("Signature verification error", e);
-            throw new RuntimeException(e);
-        }
-    }
-
 }

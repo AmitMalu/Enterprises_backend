@@ -27,8 +27,8 @@ public class FundReversalController {
     }
 
     @PostMapping
-    public ResponseEntity<CommonResponse<FundReversalResponseDto>> takeActionOnFundReversal(@RequestBody FundReversalRequestDto request, @RequestHeader Double latitude, @RequestHeader Double longitude) {
-        CommonResponse<FundReversalResponseDto> response = fundReversalService.takeActionOnFundReversal(request, latitude, longitude);
+    public ResponseEntity<CommonResponse<FundReversalResponseDto>> takeActionOnFundReversal(@RequestBody FundReversalRequestDto request, @RequestHeader Double latitude, @RequestHeader Double longitude, @RequestHeader("ipaddress") String ipAddress) {
+        CommonResponse<FundReversalResponseDto> response = fundReversalService.takeActionOnFundReversal(request, latitude, longitude, ipAddress);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 

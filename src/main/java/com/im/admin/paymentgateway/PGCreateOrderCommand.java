@@ -33,6 +33,8 @@ public class PGCreateOrderCommand {
     private String narration;
     private String upiId;
     private String bankCode;
+    private String medium;                  //web or mobile
+    private String requestDomainName;
 
     private TransactionSchemeDetailsRequestDto schemeDetails;
 }

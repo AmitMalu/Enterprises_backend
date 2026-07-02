@@ -9,6 +9,7 @@ import com.im.admin.response.BulkFundResponse;
 import com.im.admin.response.HierarchyWalletReportDto;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.domain.Page;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -17,11 +18,11 @@ import java.util.Map;
 
 public interface FundingService {
 
-    String fundsCreditDebit(FundCreditDebitDto dto);
+    String fundsCreditDebit(FundCreditDebitDto dto, Double latitude, Double longitude, String ipAddress);
 
     void downloadSampleFile(HttpServletResponse response) throws IOException;
 
-    List<BulkFundResponse> processBulkFile(MultipartFile file, Double latitude, Double longitude);
+    List<BulkFundResponse> processBulkFile(MultipartFile file, Double latitude, Double longitude, String ipAddress);
 
     Page<RetailerTransactionResponseDto> getSettlementPendingTransactions(SettlementPendingRequestDto request, int page, int size);
 
