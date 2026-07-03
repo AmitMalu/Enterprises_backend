@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.LoggableVendor;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
@@ -58,9 +59,7 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
                                         String orderId,
                                         SubProducts subProducts,
                                         WalletType walletType,
-                                        Double latitude,
-                                        Double longitude,
-                                        Object ipAddress) {
+                                        RequestHeaderMetaDto requestHeaderMetaDto) {
         try {
             log.info("[SHADVAL] Initiating payout orderId={} retailer={} amount={}",
                     orderId, req.getRetailerId(), req.getAmount());
@@ -183,8 +182,8 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
             dto.setIsCommission(subProducts.getProduct().getIsCommissions());
             dto.setHasCharge(subProducts.getProduct().getHasCharges());
             dto.setHierarchyId(req.getRetailerId());
-            dto.setLatitude(latitude);
-            dto.setLongitude(longitude);
+            dto.setLatitude(requestHeaderMetaDto.getLatitude());
+            dto.setLongitude(requestHeaderMetaDto.getLongitude());
 
             log.info("[6] DTO ready for transaction processing: {}", dto);
 

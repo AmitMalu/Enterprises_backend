@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.entities.BeneficiaryBankAccount;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.VendorCredentials;
@@ -45,7 +46,7 @@ public class RazorpayPayoutServiceImpl  implements PayoutVendorService {
     }
 
     @Override
-    public PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude, Object ipAddress) {
+    public PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, RequestHeaderMetaDto requestHeaderMetaDto) {
 
         log.info("[RAZORPAY] Starting payout for orderId={}", orderId);
 
@@ -205,7 +206,8 @@ public class RazorpayPayoutServiceImpl  implements PayoutVendorService {
             }
 
             Map<String, Object> request = new HashMap<>();
-            request.put("account_number", "041905005096");
+            //request.put("account_number", "041905005096");
+            request.put("account_number", req.getAccountNumber());
             request.put("fund_account_id", fundAccountId);
             request.put("amount", amountInPaise);
             request.put("currency", "INR");

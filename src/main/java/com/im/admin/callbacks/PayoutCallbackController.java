@@ -84,4 +84,14 @@ public class PayoutCallbackController {
         ));
     }
 
+
+    @PostMapping("/callback/im")
+    public ResponseEntity<String> imCallback(@RequestBody Map<String, String> payload,
+                                                  HttpServletRequest request) throws JsonProcessingException {
+        log.info("<---------------- IM callback request with payload: {} --------------------->", payload);
+        String response = payoutOrchestratorV0.imPayoutCallback(payload, request);
+        log.info("Callback response from IM: {}", response);
+        return ResponseEntity.ok(response);
+    }
+
 }
