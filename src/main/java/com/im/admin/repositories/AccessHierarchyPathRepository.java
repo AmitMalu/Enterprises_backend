@@ -90,4 +90,15 @@ public interface AccessHierarchyPathRepository
             String descendant
     );
 
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM access_hierarchy_path
+        WHERE ancestor_id = :ancestorId
+          AND descendant_id = :descendantId
+        """, nativeQuery = true)
+    Long countHierarchyPath(
+            @Param("ancestorId") String ancestorId,
+            @Param("descendantId") String descendantId
+    );
+
 }

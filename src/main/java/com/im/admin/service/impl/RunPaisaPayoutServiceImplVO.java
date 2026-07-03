@@ -9,6 +9,7 @@ import com.im.admin.commons.LoggableVendor;
 import com.im.admin.controller.AESController;
 import com.im.admin.dto.EncryptDecryptCredentialsDto;
 import com.im.admin.dto.PayoutTokenResponseDTO;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
@@ -94,9 +95,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                                         String orderId,
                                         SubProducts subProduct,
                                         WalletType walletType,
-                                        Double latitude,
-                                        Double longitude,
-                                        Object ipAddress) {
+                                        RequestHeaderMetaDto requestHeaderMetaDto) {
         log.info("[RUNPAISA] Starting payout for orderId={} | amount={}",
                 orderId, req.getAmount());
 
@@ -109,13 +108,13 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             // Handle AES Token Flow (Admin Panel)
             // =========================================================
             if ("AES".equalsIgnoreCase(creds.getTokenType())) {
-                return processAesPayout(req, creds, orderId, latitude, longitude);
+                return processAesPayout(req, creds, orderId, requestHeaderMetaDto);
             }
 
             // =========================================================
             // Direct Vendor Payout Flow
             // =========================================================
-            return processDirectVendorPayout(req, creds, orderId, latitude, longitude);
+            return processDirectVendorPayout(req, creds, orderId, requestHeaderMetaDto);
 
         } catch (HttpStatusCodeException ex) {
             String vendorResponse = ex.getResponseBodyAsString();
@@ -182,8 +181,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             SendPayoutRequest req,
             VendorCredentials creds,
             String baseTxnId,
-            Double latitude,
-            Double longitude) throws Exception {
+            RequestHeaderMetaDto requestHeaderMetaDto) throws Exception {
 
         String token = commonMethods.generateTokenForAES(creds);
 
@@ -192,8 +190,8 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
         headers.set("client_id", creds.getClientId());
         headers.set("token", token);
         headers.setBearerAuth(token);
-        headers.set("latitude", String.valueOf(latitude));
-        headers.set("longitude", String.valueOf(longitude));
+        headers.set("latitude", String.valueOf(requestHeaderMetaDto.getLatitude()));
+        headers.set("longitude", String.valueOf(requestHeaderMetaDto.getLongitude()));
 
         // Handle TXN prefix like NixaSoft
         String orderId = baseTxnId.startsWith("TXN") ? baseTxnId.substring(3) : baseTxnId;
@@ -232,7 +230,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                 responseBody.getData().getStatus());
 
         // Save pending transaction (like NixaSoft)
-        savePendingTransaction(req, orderId, latitude, longitude);
+        savePendingTransaction(req, orderId, requestHeaderMetaDto.getLongitude(), requestHeaderMetaDto.getLatitude());
 
         return PayoutResponseDto.builder()
                 .orderId("TXN" + baseTxnId)
@@ -251,8 +249,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             SendPayoutRequest req,
             VendorCredentials creds,
             String orderId,
-            Double latitude,
-            Double longitude) throws Exception {
+            RequestHeaderMetaDto requestHeaderMetaDto) throws Exception {
 
         // Build headers
         HttpHeaders headers = buildPayoutHeaders(creds);
@@ -272,7 +269,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
         );
 
         // Handle vendor response
-        return handleVendorResponse(response.getBody(), req, orderId, latitude, longitude);
+        return handleVendorResponse(response.getBody(), req, orderId, requestHeaderMetaDto.getLatitude(), requestHeaderMetaDto.getLongitude());
     }
 
     /* =====================================================

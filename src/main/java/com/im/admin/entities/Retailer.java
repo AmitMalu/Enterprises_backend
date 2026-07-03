@@ -23,10 +23,10 @@ public class Retailer {
 
     @Id
     @Column(name = "retailer_id", nullable = false)
-    private String retailerId;
+    private String retailerId;            //example NFT-RT-001
 
     @Column(name = "parent_account", nullable = false)
-    private String parentAccount;
+    private String parentAccount;         //example NFT-DT-001
 
     @Column(name = "abbreviation", length = 3)
     @Size(min = 2, max = 3, message = "Abbreviation must be between 2 and 3 characters")

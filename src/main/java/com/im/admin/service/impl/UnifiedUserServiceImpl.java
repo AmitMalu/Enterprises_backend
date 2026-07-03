@@ -315,187 +315,175 @@ public class UnifiedUserServiceImpl implements UnifiedUserService {
             String editedBy
     ) throws JsonProcessingException {
 
+        long startTime = System.currentTimeMillis();
         LocalDateTime requestDateTime = LocalDateTime.now();
 
-        String loginHierarchyId =
-                tokenUtil.extractHierarchyId();
+        String loginHierarchyId = tokenUtil.extractHierarchyId();
 
-        String request =
-                "getAllUsers hierarchy="
-                        + loginHierarchyId
-                        + " page="
-                        + page
-                        + " size="
-                        + size;
+        log.info("[GET ALL USERS] START | loginHierarchy={} | page={} | size={} | filters=[id={}, name={}, mobile={}, username={}, email={}, status={}, dob={}, createdOn={}, createdBy={}, lastEditedOn={}, editedBy={}]",
+                loginHierarchyId, page, size, id, name, mobileNumber, username, emailId,
+                status, dob, createdOn, createdBy, lastEditedOn, editedBy);
 
+        String request = "getAllUsers hierarchy=" + loginHierarchyId + " page=" + page + " size=" + size;
         String response = null;
-
         LocalDateTime responseDateTime = null;
 
         try {
+            String loginType = commonMethods.extractHierarchyType(loginHierarchyId);
+            log.debug("[GET ALL USERS] Login hierarchy type: {}", loginType);
 
-            String loginType =
-                    commonMethods.extractHierarchyType(
-                            loginHierarchyId
-                    );
-
-            Pageable pageable =
-                    PageRequest.of(
-                            page,
-                            size,
-                            Sort.by("createdOn")
-                                    .descending()
-                    );
+            Pageable pageable = PageRequest.of(page, size, Sort.by("createdOn").descending());
+            log.debug("[GET ALL USERS] Pageable created | page={} | size={} | sort=createdOn DESC", page, size);
 
             Page<UserResponseDTO> result;
 
             /*
-             * ADMIN
+             * ADMIN ACCESS (AD)
              */
-            if ("AD".equalsIgnoreCase(
-                    loginType)) {
+            if ("AD".equalsIgnoreCase(loginType)) {
+                log.info("[GET ALL USERS] ADMIN ACCESS | loginHierarchy={}", loginHierarchyId);
 
-                Specification<AdminUser> spec =
-                        buildAdminSpec(
-                                id,
-                                name,
-                                mobileNumber,
-                                username,
-                                emailId,
-                                status,
-                                dob,
-                                createdOn,
-                                createdBy,
-                                lastEditedOn,
-                                editedBy
-                        );
+                log.debug("[GET ALL USERS] Building Admin specification with filters: [id={}, name={}, mobile={}, username={}, email={}, status={}, dob={}, createdOn={}, createdBy={}, lastEditedOn={}, editedBy={}]",
+                        id, name, mobileNumber, username, emailId, status, dob, createdOn, createdBy, lastEditedOn, editedBy);
 
-                result =
-                        adminUserRepository
-                                .findAll(
-                                        spec,
-                                        pageable
-                                )
-                                .map(
-                                        this::mapAdminToResponse
-                                );
+                long specStartTime = System.currentTimeMillis();
+                Specification<AdminUser> spec = buildAdminSpec(
+                        id, name, mobileNumber, username, emailId,
+                        status, dob, createdOn, createdBy, lastEditedOn, editedBy
+                );
+                log.debug("[GET ALL USERS] Admin specification built in {}ms", System.currentTimeMillis() - specStartTime);
+
+                long dbStartTime = System.currentTimeMillis();
+                result = adminUserRepository
+                        .findAll(spec, pageable)
+                        .map(this::mapAdminToResponse);
+                log.info("[GET ALL USERS] Admin query executed | totalElements={} | totalPages={} | time={}ms",
+                        result.getTotalElements(), result.getTotalPages(), System.currentTimeMillis() - dbStartTime);
 
             }
-
             /*
-             * SUBTREE ACCESS
+             * SUBTREE ACCESS (WL, WLAU, etc.)
              */
             else {
+                log.info("[GET ALL USERS] SUBTREE ACCESS | loginHierarchy={} | loginType={}",
+                        loginHierarchyId, loginType);
 
-                List<String> allowedHierarchyIds =
-                        accessHierarchyPathRepository
-                                .findDescendantsByAncestor(
-                                        loginHierarchyId
-                                );
+                long dbStartTime = System.currentTimeMillis();
+                List<String> allowedHierarchyIds = accessHierarchyPathRepository
+                        .findDescendantsByAncestor(loginHierarchyId);
+                log.info("[GET ALL USERS] Fetching descendants | loginHierarchy={} | found={} | time={}ms",
+                        loginHierarchyId,
+                        allowedHierarchyIds != null ? allowedHierarchyIds.size() : 0,
+                        System.currentTimeMillis() - dbStartTime);
 
-                if (allowedHierarchyIds == null
-                        || allowedHierarchyIds.isEmpty()) {
-
-                    return Page.empty(
-                            pageable
-                    );
+                if (allowedHierarchyIds == null || allowedHierarchyIds.isEmpty()) {
+                    log.warn("[GET ALL USERS] No descendants found for loginHierarchy={} | returning empty page",
+                            loginHierarchyId);
+                    Page<UserResponseDTO> emptyPage = Page.empty(pageable);
+                    log.info("[GET ALL USERS] RESULT | hierarchy={} | totalElements=0 | page={} | size={} | time={}ms",
+                            loginHierarchyId, page, size, System.currentTimeMillis() - startTime);
+                    return emptyPage;
                 }
 
-                Specification<WhiteLabelUser> spec =
+                log.debug("[GET ALL USERS] Allowed hierarchy IDs (first 10): {}",
+                        allowedHierarchyIds.stream().limit(10).collect(Collectors.toList()));
 
-                        buildWLSpec(
-                                id,
-                                name,
-                                mobileNumber,
-                                username,
-                                emailId,
-                                status,
-                                dob,
-                                createdOn,
-                                createdBy,
-                                lastEditedOn,
-                                editedBy
-                        )
+                log.debug("[GET ALL USERS] Building WhiteLabel specification with filters: [id={}, name={}, mobile={}, username={}, email={}, status={}, dob={}, createdOn={}, createdBy={}, lastEditedOn={}, editedBy={}]",
+                        id, name, mobileNumber, username, emailId, status, dob, createdOn, createdBy, lastEditedOn, editedBy);
 
-                                .and(
+                long specStartTime = System.currentTimeMillis();
+                Specification<WhiteLabelUser> spec = buildWLSpec(
+                        id, name, mobileNumber, username, emailId,
+                        status, dob, createdOn, createdBy, lastEditedOn, editedBy
+                )
+                        .and((root, query, cb) -> root.get("id").in(allowedHierarchyIds));
+                log.debug("[GET ALL USERS] WhiteLabel specification built in {}ms", System.currentTimeMillis() - specStartTime);
 
-                                        (root,
-                                         query,
-                                         cb)
-
-                                                -> root
-                                                .get(
-                                                        "id"
-                                                )
-                                                .in(
-                                                        allowedHierarchyIds
-                                                )
-                                );
-
-
-//                                .and(
-//
-//                                        (root,
-//                                         query,
-//                                         cb)
-//
-//                                                -> root
-//                                                .get(
-//                                                        "hierarchyId"
-//                                                )
-//                                                .in(
-//                                                        allowedHierarchyIds
-//                                                )
-//                                );
-
-                result =
-                        whiteLabelUserRepository
-                                .findAll(
-                                        spec,
-                                        pageable
-                                )
-                                .map(
-                                        this::mapWhiteLabelToResponse
-                                );
+                dbStartTime = System.currentTimeMillis();
+                result = whiteLabelUserRepository
+                        .findAll(spec, pageable)
+                        .map(this::mapWhiteLabelToResponse);
+                log.info("[GET ALL USERS] WhiteLabel query executed | totalElements={} | totalPages={} | time={}ms",
+                        result.getTotalElements(), result.getTotalPages(), System.currentTimeMillis() - dbStartTime);
             }
 
-            response =
-                    objectMapper
-                            .writeValueAsString(
-                                    result.getContent()
-                            );
+            // Serialize response
+            long serializeStartTime = System.currentTimeMillis();
+            response = objectMapper.writeValueAsString(result.getContent());
+            log.debug("[GET ALL USERS] Response serialized | size={} | time={}ms",
+                    result.getContent().size(), System.currentTimeMillis() - serializeStartTime);
 
-            responseDateTime =
-                    LocalDateTime.now();
+            responseDateTime = LocalDateTime.now();
+
+            log.info("[GET ALL USERS] SUCCESS | loginHierarchy={} | totalElements={} | totalPages={} | currentPage={} | pageSize={} | time={}ms",
+                    loginHierarchyId, result.getTotalElements(), result.getTotalPages(),
+                    result.getNumber(), result.getSize(), System.currentTimeMillis() - startTime);
 
             return result;
 
         } catch (Exception ex) {
+            log.error("[GET ALL USERS] ERROR | loginHierarchy={} | page={} | size={} | filters=[id={}, name={}, mobile={}] | error={} | time={}ms",
+                    loginHierarchyId, page, size, id, name, mobileNumber,
+                    ex.getMessage(), System.currentTimeMillis() - startTime, ex);
 
-            response =
-                    "Error: "
-                            + ex.getMessage();
+            response = "Error: " + ex.getMessage();
+            responseDateTime = LocalDateTime.now();
 
-            responseDateTime =
-                    LocalDateTime.now();
-
-            log.error(
-                    "getAllUsers failed",
-                    ex
-            );
-
+            log.error("[GET ALL USERS] Exception details", ex);
             throw ex;
 
         } finally {
+            // Save audit logs
+            try {
+                long auditStartTime = System.currentTimeMillis();
+                commonFunctions.saveImLogs(request, requestDateTime, null, response, responseDateTime);
+                log.debug("[GET ALL USERS] Audit logs saved | time={}ms", System.currentTimeMillis() - auditStartTime);
+            } catch (Exception e) {
+                log.error("[GET ALL USERS] Failed to save audit logs", e);
+            }
 
-            commonFunctions.saveImLogs(
-                    request,
-                    requestDateTime,
-                    null,
-                    response,
-                    responseDateTime
-            );
+            log.info("[GET ALL USERS] COMPLETE | loginHierarchy={} | totalTime={}ms",
+                    loginHierarchyId, System.currentTimeMillis() - startTime);
         }
+    }
+
+// ==================== PRIVATE HELPER METHODS FOR LOGGING ====================
+
+    /**
+     * Logs the filter parameters for debugging
+     */
+    private void logFilterParameters(String method, String id, String name, String mobileNumber,
+                                     String username, String emailId, Boolean status, LocalDate dob,
+                                     LocalDate createdOn, String createdBy, LocalDate lastEditedOn, String editedBy) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Filters: id={}, name={}, mobile={}, username={}, email={}, status={}, dob={}, createdOn={}, createdBy={}, lastEditedOn={}, editedBy={}",
+                    method, id, name, mobileNumber, username, emailId, status,
+                    dob, createdOn, createdBy, lastEditedOn, editedBy);
+        }
+    }
+
+    /**
+     * Logs query execution details
+     */
+    private void logQueryExecution(String method, String repositoryType, long totalElements,
+                                   int totalPages, long executionTime) {
+        log.info("[{}] {} query executed | totalElements={} | totalPages={} | time={}ms",
+                method, repositoryType, totalElements, totalPages, executionTime);
+    }
+
+    /**
+     * Logs pagination details
+     */
+    private void logPaginationDetails(String method, int page, int size, String sort) {
+        log.debug("[{}] Pagination: page={}, size={}, sort={}", method, page, size, sort);
+    }
+
+    /**
+     * Logs empty result scenarios
+     */
+    private void logEmptyResult(String method, String hierarchyId, String reason) {
+        log.warn("[{}] Empty result | hierarchyId={} | reason={}", method, hierarchyId, reason);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

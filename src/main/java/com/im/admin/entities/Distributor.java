@@ -23,10 +23,10 @@ public class Distributor {
 
     @Id
     @Column(name = "distributor_id", nullable = false, length = 15)
-    private String distributorId;
+    private String distributorId;         //exampple NFT-DT-001
 
     @Column(name = "parent_account", nullable = false)
-    private String parentAccount;
+    private String parentAccount;         //example NFT-PT-001
 
     @NotBlank(message = "Title is mandatory")
     private String title;

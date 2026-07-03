@@ -57,6 +57,9 @@ public class PayoutPendingTransactions {
 
     private String medium;
 
+    @Column(name = "temp_txn_id")
+    private String tempTxnId;
+
 
 
 }

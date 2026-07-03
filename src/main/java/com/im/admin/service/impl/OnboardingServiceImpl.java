@@ -95,6 +95,9 @@ public class OnboardingServiceImpl implements OnboardingService {
     @Autowired
     private TokenUtil tokenUtil;
 
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
+
     @Override
     @Transactional(readOnly = true)
     public Page<GenericPendingRecordDto> getAllRecordsByStatus(
@@ -111,12 +114,33 @@ public class OnboardingServiceImpl implements OnboardingService {
             String parentAccount,
             String rejectionReason) {
 
-        // 1. USER CONTEXT
-        UserContext ctx = tokenUtil.getUserContext();
-        String userRoot = ctx.getHierarchyId();
-        boolean isAdmin = ctx.isAdmin();
+        log.info("===== FETCHING PENDING RECORDS =====");
+        log.info("Status: {}, Page: {}, Size: {}", status, page, size);
 
-        // 2. ASYNC FETCH
+        UserContext ctx = tokenUtil.getUserContext();
+
+        String loginHierarchyId = ctx.getHierarchyId();
+        String loginHierarchyType = commonMethods.extractHierarchyType(loginHierarchyId);
+
+        String accessRoot = loginHierarchyId;
+
+        if ("AU".equalsIgnoreCase(loginHierarchyType)
+                || "WLAU".equalsIgnoreCase(loginHierarchyType)) {
+
+            accessRoot = hierarchyAccessValidator
+                    .findParentHierarchy(loginHierarchyId)
+                    .orElse(loginHierarchyId);
+
+            log.info("{} Login detected. LoginHierarchyId={}, AccessRoot={}",
+                    loginHierarchyType,
+                    loginHierarchyId,
+                    accessRoot);
+        }
+
+        log.info("Logged In User Hierarchy Id : {}", loginHierarchyId);
+        log.info("Logged In User Hierarchy Type : {}", loginHierarchyType);
+        log.info("Final Access Root : {}", accessRoot);
+
         CompletableFuture<List<Retailer>> retailersFuture =
                 asyncPendingFetcher.fetchRetailers(status);
 
@@ -144,7 +168,13 @@ public class OnboardingServiceImpl implements OnboardingService {
                 enterprisesFuture
         ).join();
 
-        // 3. FIXED FLAT LIST (NO GENERICS ISSUE)
+        log.info("Retailers fetched : {}", retailersFuture.join().size());
+        log.info("Distributors fetched : {}", distributorsFuture.join().size());
+        log.info("Partners fetched : {}", partnersFuture.join().size());
+        log.info("SuperDistributors fetched : {}", superDistributorsFuture.join().size());
+        log.info("WhiteLabels fetched : {}", whiteLabelsFuture.join().size());
+        log.info("Enterprises fetched : {}", enterprisesFuture.join().size());
+
         List<Object> allEntities = Stream.of(
                         (List<?>) retailersFuture.join(),
                         (List<?>) distributorsFuture.join(),
@@ -157,26 +187,64 @@ public class OnboardingServiceImpl implements OnboardingService {
                 .map(o -> (Object) o)
                 .toList();
 
-        // 4. HIERARCHY FILTER (CORE LOGIC FIX)
+        log.info("Total entities before hierarchy filtering : {}", allEntities.size());
+
+        final String finalAccessRoot = accessRoot;
+
         List<GenericPendingRecordDto> records = allEntities.stream()
                 .filter(entity -> {
 
-                    if (isAdmin) return true;
+                    String recordHierarchyId = extractId(entity);
 
-                    String recordId = extractId(entity);
+                    if (recordHierarchyId == null
+                            || loginHierarchyId == null
+                            || loginHierarchyType == null
+                            || finalAccessRoot == null) {
 
-                    return belongsToHierarchy(recordId, userRoot);
+                        log.warn("Hierarchy check failed due to null values. recordHierarchyId={}, loginHierarchyId={}, loginHierarchyType={}, accessRoot={}",
+                                recordHierarchyId,
+                                loginHierarchyId,
+                                loginHierarchyType,
+                                finalAccessRoot);
+
+                        return false;
+                    }
+
+                    if ("AD".equalsIgnoreCase(loginHierarchyType)) {
+                        log.info("AD Access Granted. Record={}", recordHierarchyId);
+                        return true;
+                    }
+
+                    Long pathCount = accessHierarchyPathRepository.countHierarchyPath(
+                            finalAccessRoot,
+                            recordHierarchyId
+                    );
+
+                    boolean belongs = pathCount != null && pathCount > 0;
+
+                    log.info("Hierarchy Check: Login={}, Type={}, AccessRoot={}, Record={}, Count={}, Result={}",
+                            loginHierarchyId,
+                            loginHierarchyType,
+                            finalAccessRoot,
+                            recordHierarchyId,
+                            pathCount,
+                            belongs);
+
+                    return belongs;
                 })
                 .map(this::mapToDto)
                 .toList();
 
+        log.info("Records after hierarchy filtering : {}", records.size());
+
         if (records.isEmpty()) {
+            log.warn("No records found after hierarchy filtering.");
+
             throw new NoPendingRecordsFoundException(
                     "No " + status + " records found in your hierarchy scope."
             );
         }
 
-        // 5. BUSINESS FILTERS
         List<GenericPendingRecordDto> filteredRecords = records.stream()
 
                 .filter(r -> status == null || status.isEmpty()
@@ -207,23 +275,166 @@ public class OnboardingServiceImpl implements OnboardingService {
                         || r.getParentAccount().toLowerCase().contains(parentAccount.toLowerCase()))
 
                 .filter(r -> rejectionReason == null || rejectionReason.isEmpty()
-                        || (r.getRemarks() != null &&
-                        r.getRemarks().toLowerCase().contains(rejectionReason.toLowerCase())))
+                        || (r.getRemarks() != null
+                        && r.getRemarks().toLowerCase().contains(rejectionReason.toLowerCase())))
 
                 .sorted((a, b) -> b.getCreatedOn().compareTo(a.getCreatedOn()))
                 .toList();
 
-        // 6. PAGINATION
+        log.info("Records after applying search filters : {}", filteredRecords.size());
+
         Pageable pageable = PageRequest.of(page, size);
 
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), filteredRecords.size());
 
-        List<GenericPendingRecordDto> paginated =
-                filteredRecords.subList(start, end);
+        List<GenericPendingRecordDto> paginated;
+
+        if (start >= filteredRecords.size()) {
+            log.info("Requested page exceeds available records.");
+            paginated = List.of();
+        } else {
+            paginated = filteredRecords.subList(start, end);
+        }
+
+        log.info("Returning {} records. Total Records : {}",
+                paginated.size(),
+                filteredRecords.size());
+
+        log.info("===== FETCH PENDING RECORDS COMPLETED =====");
 
         return new PageImpl<>(paginated, pageable, filteredRecords.size());
     }
+
+//    @Override
+//    @Transactional(readOnly = true)
+//    public Page<GenericPendingRecordDto> getAllRecordsByStatus(
+//            String status,
+//            int page,
+//            int size,
+//            String type,
+//            String id,
+//            String name,
+//            String createdBy,
+//            String createdOn,
+//            String mobileNumber,
+//            String emailId,
+//            String parentAccount,
+//            String rejectionReason) {
+//
+//        // 1. USER CONTEXT
+//        UserContext ctx = tokenUtil.getUserContext();
+//        String userRoot = ctx.getHierarchyId();
+//        boolean isAdmin = ctx.isAdmin();
+//
+//        // 2. ASYNC FETCH
+//        CompletableFuture<List<Retailer>> retailersFuture =
+//                asyncPendingFetcher.fetchRetailers(status);
+//
+//        CompletableFuture<List<Distributor>> distributorsFuture =
+//                asyncPendingFetcher.fetchDistributors(status);
+//
+//        CompletableFuture<List<Partner>> partnersFuture =
+//                asyncPendingFetcher.fetchPartners(status);
+//
+//        CompletableFuture<List<SuperDistributor>> superDistributorsFuture =
+//                asyncPendingFetcher.fetchSuperDistributors(status);
+//
+//        CompletableFuture<List<WhiteLabels>> whiteLabelsFuture =
+//                asyncPendingFetcher.fetchWhiteLabels(status);
+//
+//        CompletableFuture<List<Enterprises>> enterprisesFuture =
+//                asyncPendingFetcher.fetchEnterprises(status);
+//
+//        CompletableFuture.allOf(
+//                retailersFuture,
+//                distributorsFuture,
+//                partnersFuture,
+//                superDistributorsFuture,
+//                whiteLabelsFuture,
+//                enterprisesFuture
+//        ).join();
+//
+//        // 3. FIXED FLAT LIST (NO GENERICS ISSUE)
+//        List<Object> allEntities = Stream.of(
+//                        (List<?>) retailersFuture.join(),
+//                        (List<?>) distributorsFuture.join(),
+//                        (List<?>) partnersFuture.join(),
+//                        (List<?>) superDistributorsFuture.join(),
+//                        (List<?>) whiteLabelsFuture.join(),
+//                        (List<?>) enterprisesFuture.join()
+//                )
+//                .flatMap(Collection::stream)
+//                .map(o -> (Object) o)
+//                .toList();
+//
+//        // 4. HIERARCHY FILTER (CORE LOGIC FIX)
+//        List<GenericPendingRecordDto> records = allEntities.stream()
+//                .filter(entity -> {
+//
+//                    if (isAdmin) return true;
+//
+//                    String recordId = extractId(entity);
+//
+//                    return belongsToHierarchy(recordId, userRoot);
+//                })
+//                .map(this::mapToDto)
+//                .toList();
+//
+//        if (records.isEmpty()) {
+//            throw new NoPendingRecordsFoundException(
+//                    "No " + status + " records found in your hierarchy scope."
+//            );
+//        }
+//
+//        // 5. BUSINESS FILTERS
+//        List<GenericPendingRecordDto> filteredRecords = records.stream()
+//
+//                .filter(r -> status == null || status.isEmpty()
+//                        || r.getStatus().equalsIgnoreCase(status))
+//
+//                .filter(r -> type == null || type.isEmpty()
+//                        || r.getType().toLowerCase().contains(type.toLowerCase()))
+//
+//                .filter(r -> id == null || id.isEmpty()
+//                        || r.getId().toLowerCase().contains(id.toLowerCase()))
+//
+//                .filter(r -> name == null || name.isEmpty()
+//                        || r.getName().toLowerCase().contains(name.toLowerCase()))
+//
+//                .filter(r -> createdBy == null || createdBy.isEmpty()
+//                        || r.getCreatedBy().toLowerCase().contains(createdBy.toLowerCase()))
+//
+//                .filter(r -> createdOn == null || createdOn.isEmpty()
+//                        || r.getCreatedOn().contains(createdOn))
+//
+//                .filter(r -> mobileNumber == null || mobileNumber.isEmpty()
+//                        || r.getMobileNumber().contains(mobileNumber))
+//
+//                .filter(r -> emailId == null || emailId.isEmpty()
+//                        || r.getEmailId().toLowerCase().contains(emailId.toLowerCase()))
+//
+//                .filter(r -> parentAccount == null || parentAccount.isEmpty()
+//                        || r.getParentAccount().toLowerCase().contains(parentAccount.toLowerCase()))
+//
+//                .filter(r -> rejectionReason == null || rejectionReason.isEmpty()
+//                        || (r.getRemarks() != null &&
+//                        r.getRemarks().toLowerCase().contains(rejectionReason.toLowerCase())))
+//
+//                .sorted((a, b) -> b.getCreatedOn().compareTo(a.getCreatedOn()))
+//                .toList();
+//
+//        // 6. PAGINATION
+//        Pageable pageable = PageRequest.of(page, size);
+//
+//        int start = (int) pageable.getOffset();
+//        int end = Math.min(start + pageable.getPageSize(), filteredRecords.size());
+//
+//        List<GenericPendingRecordDto> paginated =
+//                filteredRecords.subList(start, end);
+//
+//        return new PageImpl<>(paginated, pageable, filteredRecords.size());
+//    }
 
     private String extractId(Object entity) {
 
@@ -252,28 +463,28 @@ public class OnboardingServiceImpl implements OnboardingService {
         return null;
     }
 
-    public boolean belongsToHierarchy(String nodeId, String targetRoot) {
-
-        String current = nodeId;
-        int maxDepth = 20;
-
-        while (current != null && maxDepth-- > 0) {
-
-            Optional<String> parentOpt = hierarchyAccessValidator.findParentHierarchy(current);
-
-            if (parentOpt.isEmpty()) {
-                break;
-            }
-
-            if (parentOpt.get().equals(targetRoot)) {
-                return true;
-            }
-
-            current = parentOpt.get();
-        }
-
-        return false;
-    }
+//    public boolean belongsToHierarchy(String nodeId, String targetRoot) {
+//
+//        String current = nodeId;
+//        int maxDepth = 20;
+//
+//        while (current != null && maxDepth-- > 0) {
+//
+//            Optional<String> parentOpt = hierarchyAccessValidator.findParentHierarchy(current);
+//
+//            if (parentOpt.isEmpty()) {
+//                break;
+//            }
+//
+//            if (parentOpt.get().equals(targetRoot)) {
+//                return true;
+//            }
+//
+//            current = parentOpt.get();
+//        }
+//
+//        return false;
+//    }
 
     @Override
     @Transactional

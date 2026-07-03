@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.LoggableVendor;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
@@ -90,9 +91,7 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             String orderId,
             SubProducts subProducts,
             WalletType walletType,
-            Double latitude,
-            Double longitude,
-            Object ipAddress) {
+            RequestHeaderMetaDto requestHeaderMetaDto) {
 
         log.info("Starting NixaSoft payout | orderId={} | amount={}",
                 orderId,
@@ -117,16 +116,14 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
                     req,
                     creds,
                     orderId,
-                    latitude,
-                    longitude
+                    requestHeaderMetaDto
             )
                     : processDirectVendorPayout(
                     req,
                     creds,
                     orderId,
                     beneficiaryBankAccount,
-                    latitude,
-                    longitude
+                    requestHeaderMetaDto
             );
 
         }
@@ -206,8 +203,7 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             SendPayoutRequest req,
             VendorCredentials creds,
             String baseTxnId,
-            Double latitude,
-            Double longitude) throws Exception {
+            RequestHeaderMetaDto requestHeaderMetaDto) throws Exception {
 
         String token = commonMethods.generateTokenForAES(creds);
 
@@ -218,8 +214,8 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         headers.set("token", token);
         headers.setBearerAuth(token);
 
-        headers.set("latitude", String.valueOf(latitude));
-        headers.set("longitude", String.valueOf(longitude));
+        headers.set("latitude", String.valueOf(requestHeaderMetaDto.getLatitude()));
+        headers.set("longitude", String.valueOf(requestHeaderMetaDto.getLongitude()));
 
        String orderId = baseTxnId.startsWith("TXN") ? baseTxnId.substring(3) : baseTxnId;
 
@@ -277,8 +273,8 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         pending.setIfscCode(req.getIfscCode());
         pending.setAccountNumber(req.getAccountNumber());
         pending.setBeneficiaryName(req.getBeneficiaryName());
-        pending.setLatitude(latitude);
-        pending.setLongitude(longitude);
+        pending.setLatitude(requestHeaderMetaDto.getLatitude());
+        pending.setLongitude(requestHeaderMetaDto.getLongitude());
 
         payoutPendingTransactionRepository.save(pending);
 
@@ -297,8 +293,7 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             VendorCredentials creds,
             String orderId,
             BeneficiaryBankAccount beneficiaryBankAccount,
-            Double latitude,
-            Double longitude) throws Exception {
+            RequestHeaderMetaDto requestHeaderMetaDto) throws Exception {
 
         Retailer retailer = retailerRepository.findByRetailerId(req.getRetailerId())
                 .orElseThrow(() ->
@@ -319,8 +314,8 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         requestBody.setBankName(beneficiaryBankAccount.getBankName());
         requestBody.setTransferMode(req.getPaymentMode());
         requestBody.setEmailId(retailer.getEmailId());
-        requestBody.setLatitude(latitude.toString());
-        requestBody.setLongitude(longitude.toString());
+        requestBody.setLatitude(requestHeaderMetaDto.getLatitude().toString());
+        requestBody.setLongitude(requestHeaderMetaDto.getLongitude().toString());
 
         // HEADERS
         HttpHeaders headers = new HttpHeaders();
@@ -368,8 +363,8 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         pending.setIfscCode(req.getIfscCode());
         pending.setAccountNumber(req.getAccountNumber());
         pending.setBeneficiaryName(req.getBeneficiaryName());
-        pending.setLatitude(latitude);
-        pending.setLongitude(longitude);
+        pending.setLatitude(requestHeaderMetaDto.getLatitude());
+        pending.setLongitude(requestHeaderMetaDto.getLongitude());
 
         payoutPendingTransactionRepository.save(pending);
 
