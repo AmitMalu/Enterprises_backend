@@ -196,7 +196,7 @@ public class AuthController {
             }
 
             if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
-                log.warn("User account is not active: ID={}", user.getHierarchyId());
+                log.warn("Login User account is not active: ID={}", user.getHierarchyId());
                 return buildErrorResponse(requestJson, requestTime, 403,
                         "User account is not active. Please contact support.");
             }
@@ -259,56 +259,68 @@ public class AuthController {
         resetFailedAttempts(user);
         String otp = generateOtpForUser(user);
 
-        // create a new map only for response
-        String hierarchyCode = user.getHierarchyCode();
-        String role = hierarchyCode;
-
-        if ("WL".equalsIgnoreCase(hierarchyCode)) {
-
-            Optional<WhiteLabels> currentWlOpt =
-                    whiteLabelsRepository.findById(user.getHierarchyId());
-
-            if (currentWlOpt.isPresent()) {
-
-                WhiteLabels currentWl = currentWlOpt.get();
-
-                // WL Admin
-                if (Boolean.TRUE.equals(currentWl.getIsAdmin())) {
-
-                    role = "WLAD";
-
-                } else {
-
-                    // Check parent account
-                    String parentAccount = currentWl.getParentAccount();
-
-                    if (parentAccount != null && !parentAccount.isBlank()) {
-
-                        Optional<WhiteLabels> parentWlOpt =
-                                whiteLabelsRepository.findById(parentAccount);
-
-                        if (parentWlOpt.isPresent()
-                                && Boolean.TRUE.equals(parentWlOpt.get().getIsAdmin())) {
-
-                            role = "WLAU";
-                        } else {
-                            role = "WL";
-                        }
-
-                    } else {
-                        role = "WL";
-                    }
-                }
-            }
-        }
+        // Determine role using the updated logic
+        String role = determineRole(user);
 
         Map<String, String> responseData = new HashMap<>();
         responseData.put("role", role);
 
         CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", responseData);
         logLoginAttempt(requestJson, requestTime, response);
-        log.info("OTP sent successfully for user ID: {}", user.getHierarchyId());
+        log.info("OTP sent successfully for user ID: {} with role: {}", user.getHierarchyId(), role);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Determines the role for a user with proper WL/WLAU/WLAD distinction.
+     *
+     * The role is determined by:
+     * 1. UserDetails.hierarchyCode - Base type (WL, AD, IM, etc.)
+     * 2. For WL users:
+     *    - isAdmin = true → WLAD
+     *    - hierarchyCode = "WLAU" → WLAU (this comes from UserDetails)
+     *    - Otherwise → WL
+     */
+    private String determineRole(UserDetails user) {
+        String hierarchyCode = user.getHierarchyCode();
+        String hierarchyId = user.getHierarchyId();
+
+        log.debug("Determining role | hierarchyId={} | hierarchyCode={}", hierarchyId, hierarchyCode);
+
+        // Case 1: Non-WL users (AD, IM, etc.)
+        if (!"WL".equalsIgnoreCase(hierarchyCode) && !"WLAU".equalsIgnoreCase(hierarchyCode)) {
+            log.debug("Non-WL user | hierarchyId={} | role={}", hierarchyId, hierarchyCode);
+            return hierarchyCode;
+        }
+
+        // Case 2: WLAU users (hierarchyCode is "WLAU")
+        if ("WLAU".equalsIgnoreCase(hierarchyCode)) {
+            log.debug("User is WLAU | hierarchyId={}", hierarchyId);
+            return "WLAU";
+        }
+
+        // Case 3: WL users (hierarchyCode is "WL")
+        // Check if this is a WL Admin or regular WL
+        Optional<WhiteLabels> currentWlOpt = whiteLabelsRepository.findById(hierarchyId);
+
+        if (currentWlOpt.isEmpty()) {
+            log.warn("WhiteLabel not found for hierarchyId: {}, defaulting to WL", hierarchyId);
+            return "WL";
+        }
+
+        WhiteLabels currentWl = currentWlOpt.get();
+        log.debug("Processing WL user | hierarchyId={} | isAdmin={} | parentAccount={}",
+                hierarchyId, currentWl.getIsAdmin(), currentWl.getParentAccount());
+
+        // Check if user is a White Label Admin
+        if (Boolean.TRUE.equals(currentWl.getIsAdmin())) {
+            log.debug("User is WL Admin | hierarchyId={}", hierarchyId);
+            return "WLAD";
+        }
+
+        // Regular WL user (non-admin)
+        log.debug("User is regular WL | hierarchyId={}", hierarchyId);
+        return "WL";
     }
 
     private ResponseEntity<?> handleFailedAttempt(UserDetails user, String requestJson, LocalDateTime requestTime) {
@@ -477,7 +489,7 @@ public class AuthController {
                         whiteLabelUserRepository.findById(hierarchyId);
 
                 if (wlauOpt.isEmpty()) {
-                return wlauOpt.get().getId();
+                    return wlauOpt.get().getId();
                 }
 
                 WhiteLabelUser wlau = wlauOpt.get();
@@ -508,6 +520,242 @@ public class AuthController {
             default -> throw new RuntimeException("Invalid hierarchy type: " + hierarchyType);
         }
     }
+
+//    public boolean isUrlValidForUserHierarchy(String hierarchyId, String requestUrl) {
+//        long startTime = System.currentTimeMillis();
+//
+//        log.info("[URL VALIDATION] START | hierarchyId={} | requestUrl={}",
+//                hierarchyId, requestUrl);
+//
+//        String currentId = hierarchyId;
+//        int iterationCount = 0;
+//
+//        while (true) {
+//            iterationCount++;
+//            log.debug("[URL VALIDATION] Iteration {} | currentId={}", iterationCount, currentId);
+//
+//            String currentType = commonMethods.extractHierarchyType(currentId);
+//            log.debug("[URL VALIDATION] Current hierarchy type: {} for ID: {}", currentType, currentId);
+//
+//            String whiteLabelId = null;
+//
+//            // === WL (White Label) Processing ===
+//            if ("WL".equals(currentType)) {
+//                whiteLabelId = currentId;
+//                log.debug("[URL VALIDATION] Found WL node: {}", whiteLabelId);
+//            }
+//            // === WLAU (White Label Admin User) Processing ===
+//            else if ("WLAU".equals(currentType)) {
+//                log.debug("[URL VALIDATION] Processing WLAU node: {}", currentId);
+//
+//                Optional<WhiteLabelUser> wlauOpt =
+//                        whiteLabelUserRepository.findById(currentId);
+//
+//                if (wlauOpt.isEmpty()) {
+//                    log.warn("[URL VALIDATION] WhiteLabel Admin User not found | currentId={}", currentId);
+//                    logValidationFailure(startTime, hierarchyId, requestUrl,
+//                            "WLAU not found: " + currentId);
+//                    return false;
+//                }
+//
+//                WhiteLabelUser wlau = wlauOpt.get();
+//                whiteLabelId = wlau.getParentAccount();
+//
+//                log.debug("[URL VALIDATION] WLAU found | userId={} | parentAccount={}",
+//                        currentId, whiteLabelId);
+//            }
+//
+//            // === White Label Domain Validation ===
+//            if (whiteLabelId != null) {
+//                log.debug("[URL VALIDATION] Processing WhiteLabel validation | wlId={}", whiteLabelId);
+//
+//                Optional<WhiteLabels> wlOpt =
+//                        whiteLabelRepository.findById(whiteLabelId);
+//
+//                if (wlOpt.isEmpty()) {
+//                    log.warn("[URL VALIDATION] WhiteLabel not found | wlId={}", whiteLabelId);
+//                    logValidationFailure(startTime, hierarchyId, requestUrl,
+//                            "WhiteLabel not found: " + whiteLabelId);
+//                    return false;
+//                }
+//
+//                WhiteLabels wl = wlOpt.get();
+//
+//                log.debug("[URL VALIDATION] WhiteLabel details | id={} | isAdmin={} | domainURL={}",
+//                        wl.getWhiteLabelId(),
+//                        wl.getIsAdmin(),
+//                        wl.getDomainURL()
+//                );
+//
+//                // === WL Admin Validation ===
+//                if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+//                    String originalType = commonMethods.extractHierarchyType(hierarchyId);
+//
+//                    log.info("[URL VALIDATION] WL Admin detected | originalHierarchyId={} | originalType={} | currentId={} | wlId={}",
+//                            hierarchyId, originalType, currentId, wl.getWhiteLabelId());
+//
+//                    boolean match = validateWhiteLabelAdminAccess(
+//                            hierarchyId,
+//                            originalType,
+//                            currentId,
+//                            requestUrl,
+//                            wl
+//                    );
+//
+//                    logValidationResult(startTime, hierarchyId, requestUrl, match);
+//                    return match;
+//                }
+//            }
+//
+//            // === IM / AD (Admin) Validation ===
+//            if ("IM".equals(currentType) || "AD".equals(currentType)) {
+//                log.debug("[URL VALIDATION] Processing {} node | id={}", currentType, currentId);
+//
+//                Optional<Admin> adminOpt = adminRepository.findById(currentId);
+//
+//                if (adminOpt.isPresent()) {
+//                    Admin admin = adminOpt.get();
+//
+//                    log.info("[URL VALIDATION] Admin found | id={} | loginURL={} | requestUrl={}",
+//                            currentId, admin.getLoginURL(), requestUrl);
+//
+//                    boolean match = validateAdminAccess(requestUrl, admin);
+//
+//                    log.info("[URL VALIDATION] Admin validation result | match={}", match);
+//                    logValidationResult(startTime, hierarchyId, requestUrl, match);
+//                    return match;
+//                } else {
+//                    log.warn("[URL VALIDATION] Admin not found for ID: {}", currentId);
+//                    // Continue to parent traversal even if admin not found
+//                }
+//            }
+//
+//            // === Parent Traversal ===
+//            log.debug("[URL VALIDATION] Attempting to traverse to parent | currentId={}", currentId);
+//
+//            Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
+//            if (parentOpt.isEmpty()) {
+//                log.info("[URL VALIDATION] No parent found for hierarchy ID: {} | traversal ended", currentId);
+//                break;
+//            }
+//
+//            currentId = parentOpt.get();
+//            log.debug("[URL VALIDATION] Traversed to parent hierarchy ID: {}", currentId);
+//        }
+//
+//        logValidationFailure(startTime, hierarchyId, requestUrl,
+//                "No matching hierarchy found after " + iterationCount + " iterations");
+//        return false;
+//    }
+//
+//    // ==================== PRIVATE HELPER METHODS ====================
+//
+//    /**
+//     * Validates domain access for White Label Admin users
+//     */
+//    private boolean validateWhiteLabelAdminAccess(
+//            String originalHierarchyId,
+//            String originalType,
+//            String currentId,
+//            String requestUrl,
+//            WhiteLabels wl) {
+//
+//        log.debug("[WL ADMIN VALIDATION] Starting validation | originalType={}", originalType);
+//
+//        boolean match;
+//
+//        // Case 1: WL / WLAU self-login (existing behavior)
+//        if ("WL".equals(originalType) || "WLAU".equals(originalType)) {
+//            log.info("[WL ADMIN VALIDATION] Executing WL/WLAU self-login validation");
+//            log.info("[WL ADMIN VALIDATION] Request URL={} | Expected contains=.nfttech.in", requestUrl);
+//
+//            match = requestUrl != null && requestUrl.contains(".nfttech.in");
+//
+//            log.debug("[WL ADMIN VALIDATION] Self-login validation result | match={}", match);
+//            return match;
+//        }
+//
+//        // Case 2: Child hierarchy login (domain-based validation)
+//        log.info("[WL ADMIN VALIDATION] Executing child hierarchy login validation");
+//        log.info("[WL ADMIN VALIDATION] Original User Type={} | Request URL={} | Parent WL Domain={}",
+//                originalType, requestUrl, wl.getDomainURL());
+//
+//        String[] normalizedDomains = normalizeDomains(requestUrl, wl.getDomainURL());
+//        String requestHost = normalizedDomains[0];
+//        String wlHost = normalizedDomains[1];
+//        String requestDomain = normalizedDomains[2];
+//        String wlDomain = normalizedDomains[3];
+//
+//        log.info("[WL ADMIN VALIDATION] Normalized domains | requestHost={} | wlHost={} | requestDomain={} | wlDomain={}",
+//                requestHost, wlHost, requestDomain, wlDomain);
+//
+//        match = requestDomain.equalsIgnoreCase(wlDomain);
+//
+//        log.info("[WL ADMIN VALIDATION] Final domain validation result | hierarchyId={} | originalType={} | requestUrl={} | wlDomain={} | match={}",
+//                originalHierarchyId, originalType, requestUrl, wl.getDomainURL(), match);
+//
+//        return match;
+//    }
+//
+//    /**
+//     * Validates admin (AD/IM) access
+//     */
+//    private boolean validateAdminAccess(String requestUrl, Admin admin) {
+//        log.debug("[ADMIN VALIDATION] Validating admin access | requestUrl={} | adminLoginURL={}",
+//                requestUrl, admin.getLoginURL());
+//
+//        // Both requestUrl and admin login URL must contain .nfttech.in
+//        boolean requestUrlContainsTech = requestUrl != null && requestUrl.contains(".nfttech.in");
+//        boolean adminUrlContainsTech = admin.getLoginURL() != null && admin.getLoginURL().contains(".nfttech.in");
+//        boolean match = requestUrlContainsTech && adminUrlContainsTech;
+//
+//        log.debug("[ADMIN VALIDATION] Validation details | requestContainsTech={} | adminContainsTech={} | match={}",
+//                requestUrlContainsTech, adminUrlContainsTech, match);
+//
+//        return match;
+//    }
+//
+//    /**
+//     * Normalizes domain URLs for comparison
+//     */
+//    private String[] normalizeDomains(String requestUrl, String wlDomainUrl) {
+//        log.trace("[DOMAIN NORMALIZATION] Normalizing requestUrl={} and wlDomainUrl={}",
+//                requestUrl, wlDomainUrl);
+//
+//        // Normalize request URL
+//        String requestHost = requestUrl
+//                .replaceFirst("^https?://", "")
+//                .replace("*.", "")
+//                .split("/")[0];
+//
+//        // Normalize WL domain URL
+//        String wlHost = wlDomainUrl
+//                .replaceFirst("^https?://", "")
+//                .split("/")[0];
+//
+//        // Extract primary domain (last two parts)
+//        String requestDomain = requestHost.replaceFirst("^.*?([^.]+\\.[^.]+)$", "$1");
+//        String wlDomain = wlHost.replaceFirst("^.*?([^.]+\\.[^.]+)$", "$1");
+//
+//        log.trace("[DOMAIN NORMALIZATION] Results | requestHost={} | wlHost={} | requestDomain={} | wlDomain={}",
+//                requestHost, wlHost, requestDomain, wlDomain);
+//
+//        return new String[]{requestHost, wlHost, requestDomain, wlDomain};
+//    }
+//
+//    // ==================== LOGGING HELPERS ====================
+//
+//    private void logValidationResult(long startTime, String hierarchyId, String requestUrl, boolean match) {
+//        long duration = System.currentTimeMillis() - startTime;
+//        log.info("[URL VALIDATION] RESULT | hierarchyId={} | requestUrl={} | match={} | time={}ms",
+//                hierarchyId, requestUrl, match, duration);
+//    }
+//
+//    private void logValidationFailure(long startTime, String hierarchyId, String requestUrl, String reason) {
+//        long duration = System.currentTimeMillis() - startTime;
+//        log.warn("[URL VALIDATION] FAILED | hierarchyId={} | requestUrl={} | reason={} | time={}ms",
+//                hierarchyId, requestUrl, reason, duration);
+//    }
 
     public boolean isUrlValidForUserHierarchy(String hierarchyId, String requestUrl) {
         long startTime = System.currentTimeMillis();
@@ -569,13 +817,24 @@ public class AuthController {
 
                 WhiteLabels wl = wlOpt.get();
 
-                log.debug("[URL VALIDATION] WhiteLabel details | id={} | isAdmin={} | domainURL={}",
+                log.debug("[URL VALIDATION] WhiteLabel details | id={} | isAdmin={} | domainURL={} | loginDomain={}",
                         wl.getWhiteLabelId(),
                         wl.getIsAdmin(),
-                        wl.getDomainURL()
+                        wl.getDomainURL(),
+                        wl.getDomainURL() // Assuming there's a loginDomain field
                 );
 
-                // === WL Admin Validation ===
+                // === Check if WhiteLabel has its own login domain (isAdmin = false) ===
+                if (!Boolean.TRUE.equals(wl.getIsAdmin()) && wl.getDomainURL() != null) {
+                    log.info("[URL VALIDATION] Non-Admin WhiteLabel detected | wlId={} | loginDomain={}",
+                            wl.getWhiteLabelId(), wl.getDomainURL());
+
+                    boolean match = validateWhiteLabelOwnLoginDomain(requestUrl, wl);
+                    logValidationResult(startTime, hierarchyId, requestUrl, match);
+                    return match;
+                }
+
+                // === WL Admin Validation (isAdmin = true) ===
                 if (Boolean.TRUE.equals(wl.getIsAdmin())) {
                     String originalType = commonMethods.extractHierarchyType(hierarchyId);
 
@@ -636,7 +895,40 @@ public class AuthController {
         return false;
     }
 
-    // ==================== PRIVATE HELPER METHODS ====================
+// ==================== PRIVATE HELPER METHODS ====================
+
+    /**
+     * Validates WhiteLabel's own login domain (for non-admin WhiteLabels)
+     */
+    private boolean validateWhiteLabelOwnLoginDomain(String requestUrl, WhiteLabels wl) {
+        log.debug("[WL OWN DOMAIN VALIDATION] Starting validation for non-admin WhiteLabel");
+
+        String wlLoginDomain = wl.getDomainURL();
+        log.info("[WL OWN DOMAIN VALIDATION] WhiteLabel loginDomain={} | requestUrl={}",
+                wlLoginDomain, requestUrl);
+
+        if (wlLoginDomain == null || wlLoginDomain.isBlank()) {
+            log.warn("[WL OWN DOMAIN VALIDATION] WhiteLabel loginDomain is null or blank | wlId={}",
+                    wl.getWhiteLabelId());
+            return false;
+        }
+
+        // Normalize both URLs for comparison
+        String normalizedRequestUrl = normalizeUrlForComparison(requestUrl);
+        String normalizedLoginDomain = normalizeUrlForComparison(wlLoginDomain);
+
+        log.debug("[WL OWN DOMAIN VALIDATION] Normalized values | requestUrl={} | loginDomain={}",
+                normalizedRequestUrl, normalizedLoginDomain);
+
+        // Check if request URL matches the WhiteLabel's login domain
+        boolean match = normalizedRequestUrl.contains(normalizedLoginDomain)
+                || normalizedLoginDomain.contains(normalizedRequestUrl);
+
+        log.info("[WL OWN DOMAIN VALIDATION] Validation result | wlId={} | match={}",
+                wl.getWhiteLabelId(), match);
+
+        return match;
+    }
 
     /**
      * Validates domain access for White Label Admin users
@@ -731,7 +1023,21 @@ public class AuthController {
         return new String[]{requestHost, wlHost, requestDomain, wlDomain};
     }
 
-    // ==================== LOGGING HELPERS ====================
+    /**
+     * Normalizes URL for comparison (removes protocol, wildcards, trailing slashes)
+     */
+    private String normalizeUrlForComparison(String url) {
+        if (url == null) {
+            return null;
+        }
+        return url
+                .replaceFirst("^https?://", "")  // Remove protocol
+                .replace("*.", "")               // Remove wildcard
+                .replaceAll("/$", "")            // Remove trailing slash
+                .toLowerCase();                   // Convert to lowercase for case-insensitive comparison
+    }
+
+// ==================== LOGGING HELPERS ====================
 
     private void logValidationResult(long startTime, String hierarchyId, String requestUrl, boolean match) {
         long duration = System.currentTimeMillis() - startTime;
@@ -908,7 +1214,7 @@ public class AuthController {
                         responseMap.put("sub_role_id", wlSubRole.getSubRoleId());
                     }
                     responseMap.put("role", "WLAD");
-                    responseMap.put("logoUrl",whiteLabel.getBusinessProofImage());
+                    responseMap.put("logoUrl", whiteLabel.getBusinessProofImage());
                 } else {
                     responseMap.put("role", "WL");
                 }
@@ -933,7 +1239,7 @@ public class AuthController {
                         && retailer.getOutletAddress() != null
                         && retailer.getOutletAddress().getOutletName() != null) {
                     responseMap.put("outletName", retailer.getOutletAddress().getOutletName());
-                    responseMap.put("logoUrl",retailer.getBusinessProofImage());
+                    responseMap.put("logoUrl", retailer.getBusinessProofImage());
 
                     responseMap.put("retailerName", retailer.getName());
                     responseMap.put("aadhaarNumber", retailer.getAadhaarNumber());
@@ -1672,6 +1978,7 @@ public class AuthController {
                 new CommonResponse<>(200, "MPIN set successfully", null)
         );
     }
+
     @PostMapping("/login-mpin")
     public ResponseEntity<?> loginWithMpin(@RequestBody LoginRequestDto req) {
 
@@ -1694,7 +2001,7 @@ public class AuthController {
 
             UserDetails user = optionalUser.get();
 
-      // Get device using USER + DEVICE
+            // Get device using USER + DEVICE
             Optional<UserDevice> optionalDevice =
                     userDeviceRepository.findByUserIdAndDeviceId(
                             user.getHierarchyId(),
