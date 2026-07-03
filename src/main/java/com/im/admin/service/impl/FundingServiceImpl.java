@@ -1667,8 +1667,26 @@ public class FundingServiceImpl implements FundingService {
 
     @Override
     public Page<HierarchyWalletReportDto> getReport(HierarchyWalletReportRequest request) {
+x
+        // Same logic as MyTransactionReport — resolve network CSV from access_hierarchy_path
+        String loggedInHierarchyId = tokenUtil.extractHierarchyId();
+        String hierarchyIdsCsv     = getWalletPreviewHierarchyIdsCsv(loggedInHierarchyId);
 
-        return repository.getReport(request);
+        log.info("getReport (wallet-preview): loggedIn={} hierarchyIdsCsv={}",
+                loggedInHierarchyId, hierarchyIdsCsv);
+
+        return repository.getReport(request, hierarchyIdsCsv);
+    }
+
+    private String getWalletPreviewHierarchyIdsCsv(String hierarchyId) {
+        List<String> hierarchyIds = accessHierarchyPathRepository
+                .findDescendantsByAncestor(hierarchyId);
+
+        if (hierarchyIds == null || hierarchyIds.isEmpty()) {
+            return hierarchyId;
+        }
+
+        return String.join(",", hierarchyIds);
     }
 
 }

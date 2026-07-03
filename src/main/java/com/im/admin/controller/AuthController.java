@@ -402,8 +402,7 @@ public class AuthController {
         // Check in WhiteLabel first
         Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(fromId);
         if (wlOpt.isPresent()) {
-            return wlOpt.get().getName(); //  company name
-        }
+            return wlOpt.get().getOutletAddress().getCompanyName();        }
 
         // Else check in Admin
         Optional<Admin> adOpt = adminRepository.findById(fromId);
@@ -422,7 +421,7 @@ public class AuthController {
         return smsCredentialsRepository
                 .findByWhitelabelId(fromId)
                 .orElseGet(() -> smsCredentialsRepository
-                        .findByWhitelabelId("IM-AD-001")
+                        .findByWhitelabelId("NFT-AD-001")
                         .orElseThrow(() -> new RuntimeException("Default SMS credentials not found")));
     }
 
