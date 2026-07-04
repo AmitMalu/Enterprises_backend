@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.LoggableVendor;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.VendorRouting;
 import com.im.admin.entities.vendor.Vendors;
@@ -80,8 +81,7 @@ public class ShadvalPGServiceImpl implements ShadvalPGService {
 
     @Override
     public String createOrder(ShadvalPayCreateOrderRequest req,
-                              Double latitude,
-                              Double longitude) {
+                              RequestHeaderMetaDto requestHeaderMetaDto) {
 
         try {
 

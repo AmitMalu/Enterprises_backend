@@ -2,6 +2,7 @@ package com.im.admin.paymentgateway;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.PgTransactionRequestDto;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.SlpePgCreateOrderRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PayoutStatusResponse;
@@ -25,7 +26,7 @@ public class SlpeInitiator implements PaymentGatewayInitiator {
     private final SlpePGService slpePGService;
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude, String ipAddress) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, RequestHeaderMetaDto requestHeaderMetaDto) throws JsonProcessingException {
 
         SlpePgCreateOrderRequest req = new SlpePgCreateOrderRequest();
 
@@ -36,7 +37,7 @@ public class SlpeInitiator implements PaymentGatewayInitiator {
         req.setCustomerMobile(command.getCardHolderMobile());
         req.setCustomerEmail(command.getEmailId());
 
-        String redirectUrl = slpePGService.createOrder(req, latitude, longitude);
+        String redirectUrl = slpePGService.createOrder(req, requestHeaderMetaDto);
 
         return PgUnifiedOrderResponse.builder()
                 .vendor("SLPE PG")

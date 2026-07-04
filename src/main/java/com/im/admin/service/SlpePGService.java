@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.SlpePgCreateOrderRequest;
 import com.im.admin.request.UnisusPayCreateOrderRequest;
 import com.im.admin.response.PgStatusResponse;
@@ -12,7 +13,7 @@ import java.util.Map;
  */
 public interface SlpePGService {
 
-    String createOrder(SlpePgCreateOrderRequest request, Double latitude, Double longitude);
+    String createOrder(SlpePgCreateOrderRequest request, RequestHeaderMetaDto requestHeaderMetaDto);
 
     void processCallback(Map<String, Object> payload);
 

@@ -27,8 +27,10 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.time.format.DateTimeFormatter;
 
@@ -210,7 +212,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         HttpHeaders headers = buildPayoutHeaders(creds);
 
         // Build request body
-        MultiValueMap<String, Object> body = buildPayoutRequestBody(req, creds, subProduct, requestHeaderMetaDto);
+        Map<String, Object> body = buildPayoutRequestBody(req, creds, subProduct, requestHeaderMetaDto);
 
         String url = creds.getBaseUrlProd() + "/payoutAPI/transfer";
         log.info("[IM PAYOUT] Sending payout request to: {}", url);
@@ -235,6 +237,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bearer "+creds.getToken());
+        log.info("<----------- Headers{} ------------>", headers);
         return headers;
     }
 
@@ -319,10 +322,6 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         String vendorData = String.valueOf(vendorResp.get("data"));
         String vendorTxRef = String.valueOf(vendorResp.get("tx_ref"));
 
-        if (vendorTxRef != null && !"null".equalsIgnoreCase(vendorTxRef)) {
-            orderId = vendorTxRef;
-        }
-
         boolean accepted = "waiting".equalsIgnoreCase(vendorStatus);
 
         if (!accepted) {
@@ -359,40 +358,41 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
        BUILD PAYOUT REQUEST BODY
        ===================================================== */
 
-    private MultiValueMap<String, Object> buildPayoutRequestBody(
+    private Map<String, Object> buildPayoutRequestBody(
             SendPayoutRequest req,
             VendorCredentials creds,
             SubProducts subProduct,
             RequestHeaderMetaDto requestHeaderMetaDto) {
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        Map<String, Object> body = new LinkedHashMap<>();
 
-        body.add("geolocation",
+        body.put("geolocation",
                 requestHeaderMetaDto.getLatitude() + "," + requestHeaderMetaDto.getLongitude());
 
-        body.add("userid", creds.getUsername());
-        body.add("clientip", requestHeaderMetaDto.getIpAddress());
-        body.add("medium", requestHeaderMetaDto.getMedium());
-        body.add("site", "mapp");
-        body.add("host", requestHeaderMetaDto.getRequestDomainName());
+        body.put("userid", creds.getUsername());
+        body.put("clientip", requestHeaderMetaDto.getIpAddress());
+        body.put("medium", requestHeaderMetaDto.getMedium() != null
+                ? requestHeaderMetaDto.getMedium()
+                : "rweb");
+        body.put("site", "mapp");
+        body.put("host", requestHeaderMetaDto.getRequestDomainName());
 
-        body.add("timestamp",
+        body.put("timestamp",
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
-        body.add("transaction_amount", req.getAmount());
-        body.add("tx_mode", req.getPaymentMode().toLowerCase());
+        body.put("transaction_amount", String.valueOf(req.getAmount()));
+        body.put("tx_mode", req.getPaymentMode().toLowerCase());
+        body.put("subproduct", subProduct.getSubProductTitle());
 
-        body.add("subproduct", subProduct.getSubProductTitle());
-
-        Map<String, Object> bankData = new HashMap<>();
+        Map<String, Object> bankData = new LinkedHashMap<>();
         bankData.put("bank_name", req.getBankName());
         bankData.put("ifsc_code", req.getIfscCode());
         bankData.put("account_name", req.getBeneficiaryName());
         bankData.put("account_no", req.getAccountNumber());
 
-        body.add("bankData", bankData);
+        body.put("bankData", bankData);
 
-        log.info("Request Body" + body.toString());
+        log.info("<------------- Request Body {} --------->", body);
 
         return body;
     }
@@ -401,29 +401,35 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
     public String handleCallback(Map<String, String> payload, HttpServletRequest request)
             throws JsonProcessingException {
 
-        log.info("NixaSoft Callback Received: {}", payload);
+//        {
+//            txid=b68f8baa1f9087319c3457c982da9377,
+//                    status=completed,
+//                    product=PAYOUT,
+//                    operator=imps,
+//                    tx_ref=0500033136510399,
+//                    failure_reason= ""
+//        }
+
+        log.info("IM Callback Received: {}", payload);
 
         // ===== 1. Extract Fields =====
         String status = payload.get("status");
-        String type = payload.get("type");
-        String orderId = payload.get("requestId");
-        String vendorTxnId = payload.get("orderId");
-        String amount = payload.get("amount");
-        String utr = payload.get("utr");
-        String description = payload.get("description");
+        String vendorTxnId = payload.get("tx_ref");
 
-        log.info("[1] Parsed Callback: orderId={}, requestId={}, status={}, amount={}, utr={}",
-                vendorTxnId, orderId, status, amount, utr);
+        log.info("[1] Parsed Callback: orderId={}, requestId={}, status={}", vendorTxnId, vendorTxnId, status);
 
         // ===== 2. Fetch Pending Transaction =====
         PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository
-                .findByTransactionId(orderId)
+                .findByTempTxnId(vendorTxnId)
                 .orElseThrow(() ->
-                        new RuntimeException("Pending transaction not found for order ID: " + orderId));
+                        new RuntimeException("Pending transaction not found for order ID: " + vendorTxnId));
+
+        BigDecimal amount = pendingTxn.getAmount();
+        String orderId = pendingTxn.getTransactionId();
 
         // ===== Already SUCCESS check =====
         if ("SUCCESS".equalsIgnoreCase(pendingTxn.getStatus())) {
-            log.warn("Transaction already marked SUCCESS for orderId={}", orderId);
+            log.warn("Transaction already marked SUCCESS for orderId={}", vendorTxnId);
             return "Transaction already processed successfully";
         }
 
@@ -432,7 +438,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                 pendingTxn.getAmount(), pendingTxn.getStatus());
 
         // Sanitize amount from callback payload (remove commas)
-        String cleanCallbackAmount = amount != null ? amount.replace(",", "") : "0";
+        String cleanCallbackAmount = String.valueOf(amount != null);
         Double txnAmt = Double.valueOf(cleanCallbackAmount);
 
         // ===== 3. Fetch Scheme Rate =====
@@ -500,19 +506,19 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         dto.setIsCommission(product.getIsCommissions());
         dto.setHasCharge(product.getHasCharges());
         dto.setHierarchyId(pendingTxn.getRetailerId());
-        dto.setVendorName("Nixasoft Payout");
-        dto.setVendorTxnId(utr);
+        dto.setVendorName("IM Payout");
+        dto.setVendorTxnId(vendorTxnId);
 
         log.info("[6] DTO ready for transaction processing: {}", dto);
 
         // ===== 7. Map Vendor Status =====
         String finalStatus = switch (status) {
 
-            case "SUCCESS" -> "SUCCESS";
+            case "completed", "SUCCESS" -> "SUCCESS";
 
             case "FAILED" -> "FAILED";
 
-            case "PENDING" -> "PENDING";
+            case "PENDING", "waiting" -> "PENDING";
 
             default -> "UNKNOWN";
         };
@@ -529,7 +535,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         pendingTxn.setStatus(finalStatus);
         payoutPendingTransactionRepository.save(pendingTxn);
 
-        log.info("[9] Pending transaction updated with UTR={}, STATUS={}", utr, finalStatus);
+        log.info("[9] Pending transaction updated with UTR={}, STATUS={}", vendorTxnId, finalStatus);
 
         return "SUCCESS";
     }

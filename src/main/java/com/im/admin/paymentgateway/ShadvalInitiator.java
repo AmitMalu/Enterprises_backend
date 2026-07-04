@@ -2,6 +2,7 @@ package com.im.admin.paymentgateway;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.PgTransactionRequestDto;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.ShadvalPayCreateOrderRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PgStatusResponse;
@@ -19,7 +20,7 @@ public class ShadvalInitiator implements PaymentGatewayInitiator {
 
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude, String ipAddress) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, RequestHeaderMetaDto requestHeaderMetaDto) throws JsonProcessingException {
 
         ShadvalPayCreateOrderRequest request = new ShadvalPayCreateOrderRequest();
 
@@ -29,7 +30,7 @@ public class ShadvalInitiator implements PaymentGatewayInitiator {
         request.setMobileNo(command.getCardHolderMobile());
         request.setRemark(command.getNarration());
 
-        String paymentUrl = shadvalPGService.createOrder(request, latitude, longitude);
+        String paymentUrl = shadvalPGService.createOrder(request, requestHeaderMetaDto);
 
         return PgUnifiedOrderResponse.builder()
                 .vendor("SHADVAL")
