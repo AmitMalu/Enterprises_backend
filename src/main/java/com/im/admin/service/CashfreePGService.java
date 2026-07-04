@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.CashfreeCreateOrderRequest;
 import com.im.admin.request.CashfreeOrderPayRequest;
 import com.im.admin.request.RazorPayCreateOrderRequest;
@@ -13,7 +14,7 @@ import org.springframework.http.ResponseEntity;
  */
 public interface CashfreePGService {
 
-    PgUnifiedOrderResponse createOrder(CashfreeCreateOrderRequest request, Double latitude, Double longitude);
+    PgUnifiedOrderResponse createOrder(CashfreeCreateOrderRequest request, RequestHeaderMetaDto requestHeaderMetaDtoMeta);
 
     void processWebhook(String payload, String idempotencyKey);
 

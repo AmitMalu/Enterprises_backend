@@ -146,10 +146,10 @@ public class RunpaisaPGServiceImpl {
     }
 
     @Transactional
-    public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req, Double latitude, Double longitude) {
+    public ResponseEntity<CommonResponse<String>> createOrder(CreateOrderRequest req, RequestHeaderMetaDto requestHeaderMetaDto) {
         // Entry log with request details
         log.info("=== START createOrder ===");
-        log.info("Request: {}, Latitude: {}, Longitude: {}", req, latitude, longitude);
+        log.info("Request: {}, Latitude: {}, Longitude: {}", req, requestHeaderMetaDto.getLatitude(), requestHeaderMetaDto.getLongitude());
 
         String orderId = "ORD" + commonMethods.generateBaseTransactionId();
         log.info("Generated Order ID: {}", orderId);
@@ -200,8 +200,8 @@ public class RunpaisaPGServiceImpl {
             txnMap.setVendorName(vendor.getVendorName());
             txnMap.setSubProductId(req.getSubProductId());
             txnMap.setCardBinNo(req.getCardBinNo());
-            txnMap.setLatitude(latitude);
-            txnMap.setLongitude(longitude);
+            txnMap.setLatitude(requestHeaderMetaDto.getLatitude());
+            txnMap.setLongitude(requestHeaderMetaDto.getLongitude());
             txnMap.setMedium(req.getMedium());
             txnMap.setClientIp(req.getClientIp());
             txnMap.setRequestDomainName(req.getRequestDomainName());
@@ -210,7 +210,7 @@ public class RunpaisaPGServiceImpl {
 
             log.info("Transaction mapping saved with status: PENDING, InitiatedBy: {}", req.getInitiatedBy());
             log.info("Transaction details - SubProductId: {}, CardBinNo: {}, Location: ({}, {})",
-                    req.getSubProductId(), req.getCardBinNo(), latitude, longitude);
+                    req.getSubProductId(), req.getCardBinNo(), requestHeaderMetaDto.getLatitude(), requestHeaderMetaDto.getLongitude());
 
             // ====== Check Vendor Type ======
             log.info("Vendor Token Type: {}", credentials.getTokenType());

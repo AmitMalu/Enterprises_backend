@@ -1,6 +1,7 @@
 package com.im.admin.orchestrator;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.entities.PgTransactionMapping;
 import com.im.admin.entities.Scheme;
 import com.im.admin.entities.VendorRouting;
@@ -36,13 +37,13 @@ public class PGOrchestrator {
     private final SchemeRateServiceImpl schemeRateServiceImpl;
 
     // CREATE ORDER
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude, String ipAddress) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, RequestHeaderMetaDto requestHeaderMetaDtoMeta) throws JsonProcessingException {
 
         log.info("PG Initiate request received. subProductId={}, amount={}, initiatedBy={}, ipAddress={}",
                 command.getSubProductId(),
                 command.getAmount(),
                 command.getInitiatedBy(),
-                ipAddress);
+                requestHeaderMetaDtoMeta.getIpAddress());
 
         try {
 
@@ -101,7 +102,7 @@ public class PGOrchestrator {
             log.debug("PaymentInitiator resolved for vendorName={}", vendorName);
 
             PgUnifiedOrderResponse response =
-                    initiator.initiate(command, latitude, longitude, ipAddress);
+                    initiator.initiate(command, requestHeaderMetaDtoMeta);
 
             log.info("PG initiate completed successfully for vendorName={}, subProductId={}",
                     vendorName,

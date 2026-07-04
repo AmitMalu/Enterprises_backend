@@ -2,6 +2,7 @@ package com.im.admin.service.impl;
 
 import com.im.admin.callbacks.UnisusCallbackAsyncProcessor;
 import com.im.admin.commons.LoggableVendor;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.entities.PgTransactionMapping;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.VendorRouting;
@@ -36,7 +37,7 @@ public class UnisusPGServiceImpl implements UnisusPGService {
     private final UnisusCallbackAsyncProcessor asyncProcessor;
 
     @Override
-    public String authenticate(UnisusPayCreateOrderRequest req, Double latitude, Double longitude) {
+    public String authenticate(UnisusPayCreateOrderRequest req, RequestHeaderMetaDto requestHeaderMetaDto) {
 
         log.info("Starting Unisus authentication for subProductId={}, initiatedBy={}, amount={}",
                 req.getSubProductId(), req.getInitiatedBy(), req.getAmount());
@@ -113,8 +114,8 @@ public class UnisusPGServiceImpl implements UnisusPGService {
             entity.setVendorSessionId(response.getSessionId());
             entity.setCardBinNo(req.getCardBinNo());
             entity.setVendorName(vendor.getVendorName());
-            entity.setLatitude(latitude);
-            entity.setLongitude(longitude);
+            entity.setLatitude(requestHeaderMetaDto.getLatitude());
+            entity.setLongitude(requestHeaderMetaDto.getLongitude());
 
             pgTransactionMappingRepository.save(entity);
 

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.LoggableVendor;
 import com.im.admin.controller.AESController;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
@@ -99,7 +100,7 @@ public class CashfreePGServiceImpl implements CashfreePGService {
     RestTemplate restTemplate = new RestTemplate();
 
     @Override
-    public PgUnifiedOrderResponse createOrder(CashfreeCreateOrderRequest req, Double latitude, Double longitude) {
+    public PgUnifiedOrderResponse createOrder(CashfreeCreateOrderRequest req, RequestHeaderMetaDto requestHeaderMetaDtoMeta) {
 
         log.info("Starting Cashfree Payment Link | subProductId={}, initiatedBy={}, amount={}",
                 req.getSubProductId(), req.getInitiatedBy(), req.getOrder_amount());
@@ -135,8 +136,8 @@ public class CashfreePGServiceImpl implements CashfreePGService {
                 headers.set("client_id", credentials.getClientId());
                 headers.set("token", token);
                 headers.add("Authorization", "Bearer " + token); // <--- ADD THIS
-                headers.add("Latitude", String.valueOf(latitude));
-                headers.add("Longitude", String.valueOf(longitude));
+                headers.add("Latitude", String.valueOf(requestHeaderMetaDtoMeta.getLatitude()));
+                headers.add("Longitude", String.valueOf(requestHeaderMetaDtoMeta.getLongitude()));
 
                 PGCreateOrderCommand command = new PGCreateOrderCommand();
 
@@ -186,8 +187,8 @@ public class CashfreePGServiceImpl implements CashfreePGService {
                 mapping.setInitiatedBy(req.getInitiatedBy());
                 mapping.setSubProductId(req.getSubProductId());
                 mapping.setVendorName(vendor.getVendorName());
-                mapping.setLatitude(latitude);
-                mapping.setLongitude(longitude);
+                mapping.setLatitude(requestHeaderMetaDtoMeta.getLatitude());
+                mapping.setLongitude(requestHeaderMetaDtoMeta.getLongitude());
 
                 pgTransactionMappingRepository.save(mapping);
 
@@ -266,8 +267,8 @@ public class CashfreePGServiceImpl implements CashfreePGService {
                 mapping.setInitiatedBy(req.getInitiatedBy());
                 mapping.setSubProductId(req.getSubProductId());
                 mapping.setVendorName(vendor.getVendorName());
-                mapping.setLatitude(latitude);
-                mapping.setLongitude(longitude);
+                mapping.setLatitude(requestHeaderMetaDtoMeta.getLatitude());
+                mapping.setLongitude(requestHeaderMetaDtoMeta.getLongitude());
 
                 pgTransactionMappingRepository.save(mapping);
 

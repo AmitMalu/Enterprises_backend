@@ -3,6 +3,7 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.LoggableVendor;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
@@ -82,7 +83,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
     RestTemplate restTemplate = new RestTemplate();
 
     @Override
-    public String createOrder(NixaSoftCreateOrderRequest req, Double latitude, Double longitude) {
+    public String createOrder(NixaSoftCreateOrderRequest req, RequestHeaderMetaDto requestHeaderMetaDto) {
 
         log.info("Starting NixaSoft Create Order for subProductId={}, initiatedBy={}, amount={}",
                 req.getSubProductId(), req.getInitiatedBy(), req.getAmount());
@@ -113,11 +114,11 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
             // ===== 3. Handle AES Flow =====
             if ("AES".equals(credentials.getTokenType())) {
-                return processAesCreateOrder(req, credentials, orderId, latitude, longitude, vendor);
+                return processAesCreateOrder(req, credentials, orderId, requestHeaderMetaDto, vendor);
             }
 
             // ===== 4. Handle Direct Vendor Flow =====
-            return processDirectCreateOrder(req, credentials, orderId, retailer, latitude, longitude, vendor);
+            return processDirectCreateOrder(req, credentials, orderId, retailer, requestHeaderMetaDto, vendor);
 
         } catch (HttpStatusCodeException ex) {
             String errorBody = ex.getResponseBodyAsString();
@@ -147,8 +148,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             NixaSoftCreateOrderRequest req,
             VendorCredentials credentials,
             String orderId,
-            Double latitude,
-            Double longitude,
+            RequestHeaderMetaDto requestHeaderMetaDto,
             Vendors vendor) throws Exception {
 
         String token = commonMethods.generateTokenForAES(credentials);
@@ -159,8 +159,8 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         headers.set("client_id", credentials.getClientId());
         headers.set("token", token);
         headers.add("Authorization", "Bearer " + token);
-        headers.add("Latitude", String.valueOf(latitude));
-        headers.add("Longitude", String.valueOf(longitude));
+        headers.add("Latitude", String.valueOf(requestHeaderMetaDto.getLatitude()));
+        headers.add("Longitude", String.valueOf(requestHeaderMetaDto.getLongitude()));
 
         PGCreateOrderCommand command = new PGCreateOrderCommand();
         command.setAmount(Double.valueOf(req.getAmount()));
@@ -207,7 +207,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         );
 
         // Save Transaction
-        savePgTransaction(orderId, req, "PENDING", orderId, latitude, longitude);
+        savePgTransaction(orderId, req, "PENDING", orderId, requestHeaderMetaDto);
 
         log.info("[NIXASOFT][AES] Order created successfully | orderId={}", orderId);
         return pgResponse.getPaymentLink();
@@ -222,8 +222,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             VendorCredentials credentials,
             String orderId,
             Retailer retailer,
-            Double latitude,
-            Double longitude,
+            RequestHeaderMetaDto requestHeaderMetaDto,
             Vendors vendor) throws Exception {
 
         Map<String, Object> requestBody = new HashMap<>();
@@ -263,7 +262,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             log.error("[NIXASOFT] Vendor returned error | orderId={} | message={}", orderId, errorMessage);
 
             // Save failed transaction
-            savePgTransaction(orderId, req, "FAILED", null, latitude, longitude);
+            savePgTransaction(orderId, req, "FAILED", null, requestHeaderMetaDto);
 
             return "ERROR: " + errorMessage;
         }
@@ -277,7 +276,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
                     orderId, successResponse.getOrderId(), successResponse.getPaymentUrl());
 
             // Save Transaction
-            savePgTransaction(orderId, req, "PENDING", successResponse.getOrderId(), latitude, longitude);
+            savePgTransaction(orderId, req, "PENDING", successResponse.getOrderId(),  requestHeaderMetaDto);
 
             return successResponse.getPaymentUrl();
         }
@@ -296,8 +295,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             NixaSoftCreateOrderRequest req,
             String status,
             String vendorSessionId,
-            Double latitude,
-            Double longitude) {
+            RequestHeaderMetaDto requestHeaderMetaDto) {
 
         PgTransactionMapping transaction = new PgTransactionMapping();
         transaction.setOrderId(orderId);
@@ -308,8 +306,8 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         transaction.setVendorName("NixaSoft Payment Gateway");
         transaction.setVendorSessionId(vendorSessionId);
         transaction.setCardBinNo(req.getCardBinNo());
-        transaction.setLatitude(latitude);
-        transaction.setLongitude(longitude);
+        transaction.setLatitude(requestHeaderMetaDto.getLatitude());
+        transaction.setLongitude(requestHeaderMetaDto.getLongitude());
 
         pgTransactionMappingRepository.save(transaction);
 

@@ -2,6 +2,7 @@ package com.im.admin.paymentgateway;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.PgTransactionRequestDto;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.CashfreeCreateOrderRequest;
 import com.im.admin.request.CashfreeOrderPayRequest;
 import com.im.admin.response.CommonResponse;
@@ -26,16 +27,14 @@ public class CashfreeInitiator implements PaymentGatewayInitiator {
     private CashfreePGService cashfreePGService;
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command,
-                                           Double latitude,
-                                           Double longitude, String ipAddress) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, RequestHeaderMetaDto requestHeaderMetaDtoMeta) throws JsonProcessingException {
 
         log.info("Initiating Cashfree Payment Link | initiatedBy={}, subProductId={}, amount={}, lat={}, long={}",
                 command.getInitiatedBy(),
                 command.getSubProductId(),
                 command.getAmount(),
-                latitude,
-                longitude);
+                requestHeaderMetaDtoMeta.getLatitude(),
+                requestHeaderMetaDtoMeta.getLongitude());
 
         // ===== 1. Prepare Request =====
         CashfreeCreateOrderRequest createOrderRequest = new CashfreeCreateOrderRequest();
@@ -67,7 +66,7 @@ public class CashfreeInitiator implements PaymentGatewayInitiator {
         // ===== 3. Create Payment Link =====
         log.info("Calling Cashfree Payment Link API...");
 
-        PgUnifiedOrderResponse apiResponse = cashfreePGService.createOrder(createOrderRequest, latitude, longitude);
+        PgUnifiedOrderResponse apiResponse = cashfreePGService.createOrder(createOrderRequest, requestHeaderMetaDtoMeta);
 
         log.info("Payment Link generated successfully | paymentUrl={}", apiResponse.getPaymentLink());
 
