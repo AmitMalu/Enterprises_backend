@@ -1,6 +1,7 @@
 package com.im.admin.repositories;
 
 import com.im.admin.entities.PayoutPendingTransactions;
+import jakarta.persistence.Column;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,5 +15,6 @@ public interface PayoutPendingTransactionRepository extends JpaRepository<Payout
 
     List<PayoutPendingTransactions> findByStatus(String status);
 
+    Optional<PayoutPendingTransactions> findByTempTxnId(String tempTxnId);
 
 }

@@ -1,5 +1,6 @@
 package com.im.admin.service;
 
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.ShadvalPayCreateOrderRequest;
 
 /**
@@ -7,6 +8,6 @@ import com.im.admin.request.ShadvalPayCreateOrderRequest;
  */
 public interface ShadvalPGService {
 
-    String createOrder(ShadvalPayCreateOrderRequest payCreateOrderRequest, Double latitude, Double longitude);
+    String createOrder(ShadvalPayCreateOrderRequest payCreateOrderRequest, RequestHeaderMetaDto requestHeaderMetaDto);
 
 }

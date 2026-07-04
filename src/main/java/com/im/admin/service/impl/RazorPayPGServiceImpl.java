@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.commons.LoggableVendor;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
@@ -69,7 +70,7 @@ public class RazorPayPGServiceImpl implements RazorPayPGService {
 
 
     @Override
-    public String createOrder(RazorPayCreateOrderRequest req, Double latitude, Double longitude) {
+    public String createOrder(RazorPayCreateOrderRequest req, RequestHeaderMetaDto requestHeaderMetaDto) {
 
         log.info("Starting Razorpay Create Order for subProductId={}, initiatedBy={}, amount={}",
                 req.getSubProductId(), req.getInitiatedBy(), req.getAmount());
@@ -152,8 +153,8 @@ public class RazorPayPGServiceImpl implements RazorPayPGService {
             transaction.setStatus(status);
             transaction.setVendorName("RazorPay PG");
             transaction.setVendorSessionId(plinkId);
-            transaction.setLatitude(latitude);
-            transaction.setLongitude(longitude);
+            transaction.setLatitude(requestHeaderMetaDto.getLatitude());
+            transaction.setLongitude(requestHeaderMetaDto.getLongitude());
 
             pgTransactionMappingRepository.save(transaction);
 

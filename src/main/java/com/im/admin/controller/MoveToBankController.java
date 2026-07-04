@@ -1,9 +1,11 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.orchestrator.PayoutOrchestrator;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -21,11 +23,13 @@ public class MoveToBankController {
     private PayoutOrchestrator payoutOrchestrator;
 
     @PostMapping("/send-payout-request-VO")
-    public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest, @RequestHeader Double latitude, @RequestHeader Double longitude, @RequestHeader("ipaddress") String ipAddress) {
+    public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest,  HttpServletRequest httpServletRequest) {
         log.info("======= Calling payoutService.sendPayoutRequest =======");
 
         try {
-            CommonResponse<PayoutResponseDto> response = payoutOrchestrator.processPayout(sendPayoutRequest, latitude, longitude, ipAddress);
+            RequestHeaderMetaDto requestHeaderMetaDtoMeta = RequestHeaderMetaDto.from(httpServletRequest);
+
+            CommonResponse<PayoutResponseDto> response = payoutOrchestrator.processPayout(sendPayoutRequest, requestHeaderMetaDtoMeta);
             log.info("======= sendPayoutRequest completed at {} =======", LocalDateTime.now());
             return ResponseEntity.status(response.getStatusCode()).body(response);
         } catch (Exception e) {

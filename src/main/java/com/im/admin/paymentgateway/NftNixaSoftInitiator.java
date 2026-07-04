@@ -2,6 +2,7 @@ package com.im.admin.paymentgateway;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.PgTransactionRequestDto;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.NixaSoftCreateOrderRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PgStatusResponse;
@@ -20,7 +21,7 @@ public class NftNixaSoftInitiator implements PaymentGatewayInitiator {
     private final NixaSoftPGService nixaSoftPGService;
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude, String ipAddress) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, RequestHeaderMetaDto requestHeaderMetaDto) throws JsonProcessingException {
 
         NixaSoftCreateOrderRequest request = new NixaSoftCreateOrderRequest();
 
@@ -35,7 +36,7 @@ public class NftNixaSoftInitiator implements PaymentGatewayInitiator {
         request.setInitiatedBy(command.getInitiatedBy());
 
 
-        String paymentLink = nixaSoftPGService.createOrder(request, latitude, longitude);
+        String paymentLink = nixaSoftPGService.createOrder(request, requestHeaderMetaDto);
 
         return PgUnifiedOrderResponse.builder()
                 .vendor("NixaSoft")

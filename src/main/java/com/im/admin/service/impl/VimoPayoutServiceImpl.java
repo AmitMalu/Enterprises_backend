@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.controller.AESController;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
@@ -96,7 +97,7 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
 
     @Override
-    public PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, Double latitude, Double longitude, Object ipAddress) {
+    public PayoutResponseDto sendPayout(SendPayoutRequest req, VendorCredentials creds, String orderId, SubProducts subProducts, WalletType walletType, RequestHeaderMetaDto requestHeaderMetaDto) {
         log.info("[VIMOPAY] Starting payout for orderId={} | amount={}",
                 orderId, req.getAmount());
 
@@ -108,11 +109,11 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
             // Handle AES Token Flow (Admin Panel)
             if ("AES".equalsIgnoreCase(creds.getTokenType())) {
-                //return processAesPayout(req, creds, orderId, latitude, longitude);
+                //return processAesPayout(req, creds, orderId, requestHeaderMetaDto);
             }
 
             // Direct Vendor Payout Flow
-            return processDirectVendorPayout(req, creds, orderId, latitude, longitude);
+            return processDirectVendorPayout(req, creds, orderId, requestHeaderMetaDto);
 
         } catch (HttpStatusCodeException ex) {
             String vendorResponse = ex.getResponseBodyAsString();
@@ -175,8 +176,7 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
             SendPayoutRequest req,
             VendorCredentials creds,
             String orderId,
-            Double latitude,
-            Double longitude
+            RequestHeaderMetaDto requestHeaderMetaDto
     ) throws Exception {
 
         log.info("===== STARTING VIMOPAY PAYOUT =====");
@@ -204,8 +204,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 buildPayoutRequestBody(
                         req,
                         orderId,
-                        latitude,
-                        longitude
+                        requestHeaderMetaDto.getLatitude(),
+                        requestHeaderMetaDto.getLongitude()
                 );
 
         String plainJson =
@@ -353,8 +353,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 decryptedResponse,
                 req,
                 orderId,
-                latitude,
-                longitude
+                requestHeaderMetaDto.getLatitude(),
+                requestHeaderMetaDto.getLongitude()
         );
     }
 

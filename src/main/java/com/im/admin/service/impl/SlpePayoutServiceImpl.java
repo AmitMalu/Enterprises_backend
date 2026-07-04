@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
@@ -62,9 +63,7 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
             String orderId,
             SubProducts subProducts,
             WalletType walletType,
-            Double latitude,
-            Double longitude,
-            Object ipAddress) {
+            RequestHeaderMetaDto requestHeaderMetaDto) {
 
         log.info("Starting SLPE payout | orderId={}, amount={}", orderId, req.getAmount());
 
@@ -135,8 +134,8 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 pending.setIfscCode(req.getIfscCode());
                 pending.setAccountNumber(req.getAccountNumber());
                 pending.setBeneficiaryName(req.getBeneficiaryName());
-                pending.setLatitude(latitude);
-                pending.setLongitude(longitude);
+                pending.setLatitude(requestHeaderMetaDto.getLatitude());
+                pending.setLongitude(requestHeaderMetaDto.getLongitude());
 
                 // ===== Map status =====
                 String mappedStatus;

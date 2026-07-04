@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.dto.PgTransactionRequestDto;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.CreateOrderRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PgStatusResponse;
@@ -33,9 +34,7 @@ public class RunPaisaInitiator implements PaymentGatewayInitiator {
     @Override
     public PgUnifiedOrderResponse initiate(
             PGCreateOrderCommand command,
-            Double latitude,
-            Double longitude,
-            String ipAddress) throws JsonProcessingException {
+            RequestHeaderMetaDto requestHeaderMetaDto) throws JsonProcessingException {
 
         log.info(
                 "RUNPAISA initiate called. merchantRef={}, subProductId={}, amount={}, medium{}, ipAddress{} " ,
@@ -43,7 +42,7 @@ public class RunPaisaInitiator implements PaymentGatewayInitiator {
                 command.getSubProductId(),
                 command.getAmount(),
                 command.getMedium(),
-                ipAddress
+                requestHeaderMetaDto.getIpAddress()
         );
 
         try {
@@ -59,7 +58,7 @@ public class RunPaisaInitiator implements PaymentGatewayInitiator {
             req.setCallbackUrl(command.getCallbackUrl());
             req.setTransactionScheme(command.getSchemeDetails());
             req.setMedium(command.getMedium());
-            req.setClientIp(ipAddress);
+            req.setClientIp(requestHeaderMetaDto.getIpAddress());
             req.setRequestDomainName(command.getRequestDomainName());
 
             // ===== LOG REQUEST BEFORE CREATE ORDER CALL =====
@@ -86,7 +85,7 @@ public class RunPaisaInitiator implements PaymentGatewayInitiator {
             long startTime = System.currentTimeMillis();
 
             ResponseEntity<CommonResponse<String>> response =
-                    runPaisaServiceImpl.createOrder(req, latitude, longitude);
+                    runPaisaServiceImpl.createOrder(req, requestHeaderMetaDto);
 
             if (response == null) {
                 throw new RuntimeException("RunPaisa returned null response");

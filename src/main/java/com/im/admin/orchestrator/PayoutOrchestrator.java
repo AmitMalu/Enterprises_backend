@@ -83,7 +83,7 @@ public class PayoutOrchestrator {
 
 
     @Transactional
-    public CommonResponse<PayoutResponseDto> processPayout(SendPayoutRequest req, Double latitude, Double longitude, String ipAddress) {
+    public CommonResponse<PayoutResponseDto> processPayout(SendPayoutRequest req, RequestHeaderMetaDto requestHeaderMetaDtoMeta) {
         String orderId = "TXN" + commonMethods.generateBaseTransactionId();
         log.info("[PROCESS PAYOUT ORCH] Initiating payout process for orderId={}", orderId);
 
@@ -238,10 +238,10 @@ public class PayoutOrchestrator {
             RetailersExtraColumnsDto retailerExtraColumns =
                     RetailersExtraColumnsDto.builder()
                             .medium(req.getMedium())
-                            .clientIp(ipAddress)
-                            .requestDomainName(req.getRequestDomainName())
-                            .latitude(latitude)
-                            .longitude(longitude)
+                            .clientIp(requestHeaderMetaDtoMeta.getIpAddress())
+                            .requestDomainName(requestHeaderMetaDtoMeta.getRequestDomainName())
+                            .latitude(requestHeaderMetaDtoMeta.getLatitude())
+                            .longitude(requestHeaderMetaDtoMeta.getLongitude())
                             .build();
 
             commonMethods.updateWallet(
@@ -263,7 +263,7 @@ public class PayoutOrchestrator {
             log.debug("[PROCESS PAYOUT ORCH] Wallet debited (PENDING) for retailer={}, amount={}", req.getRetailerId(), req.getAmount());
 
             // 6. Call vendor-specific implementation (must return PayoutResponseDto)
-            PayoutResponseDto vendorResp = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType, latitude, longitude, ipAddress);
+            PayoutResponseDto vendorResp = vendorService.sendPayout(req, credentials, orderId, subProducts, walletType, requestHeaderMetaDtoMeta);
 
             if (vendorResp == null) {
                 // defensive fallback
@@ -882,7 +882,7 @@ public class PayoutOrchestrator {
         String slpeStatus = payload.get("status");   // paid / failed / pending
         String txnId = payload.get("txn_id");
 
-        log.info("[1] Fetching pending transaction for ORDER_ID: {}", txnId);
+        log.info("[1] [SLPE] Fetching pending transaction for ORDER_ID: {}", txnId);
         PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository.findByTransactionId(txnId)
                 .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + txnId));
 
@@ -901,12 +901,12 @@ public class PayoutOrchestrator {
 
         LocalDateTime receivedAt = LocalDateTime.now();
         String clientIp = request.getRemoteAddr();
-        log.info("[ORCH_CALLBACK] Received callback from vendor={} IP={} Payload={}", vendorCode, clientIp, payload);
+        log.info("[SLPE] [ORCH_CALLBACK] Received callback from vendor={} IP={} Payload={}", vendorCode, clientIp, payload);
 
         try {
             Object vendorService = vendorFactory.getVendor(vendorCode);
             if (!(vendorService instanceof PayoutCallbackHandler handler)) {
-                log.error("[ORCH_CALLBACK] No callback handler implemented for vendor={}", vendorCode);
+                log.error("[SLPE] [ORCH_CALLBACK] No callback handler implemented for vendor={}", vendorCode);
                 return "Vendor callback handler not found";
             }
 
@@ -921,7 +921,7 @@ public class PayoutOrchestrator {
                     LocalDateTime.now()
             );
 
-            log.info("[ORCH_CALLBACK] Successfully processed callback for vendor={}", vendorCode);
+            log.info("[SLPE] [ORCH_CALLBACK] Successfully processed callback for vendor={}", vendorCode);
             return vendorResponse;
 
         } catch (Exception e) {
@@ -1257,4 +1257,75 @@ public class PayoutOrchestrator {
         }
     }
 
+    @Transactional
+    public String imPayoutCallback(Map<String, String> payload, HttpServletRequest request)
+            throws JsonProcessingException {
+
+//        {
+//            txid=b68f8baa1f9087319c3457c982da9377,
+//                    status=completed,
+//                    product=PAYOUT,
+//                    operator=imps,
+//                    tx_ref=0500033136510399,
+//                    failure_reason= ""
+//        }
+
+        String vendorTxnId = payload.get("tx_ref");
+
+        log.info("[1] [IM] Fetching pending transaction for ORDER_ID: {}", vendorTxnId);
+        PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository.findByTempTxnId(vendorTxnId)
+                .orElseThrow(() -> new RuntimeException("Pending transaction not found for order ID: " + vendorTxnId));
+
+        Optional<Scheme> scheme = schemeRepository.findBySchemeCode(pendingTxn.getSchemeCode());
+
+        // Parse scheme combination hash code
+        String[] hashParts = scheme.get().getSchemeCombinationHashCode().split("-");
+        if (hashParts.length < 2) {
+            throw new RuntimeException("Invalid schemeCombinationHashCode format: " + scheme.get().getSchemeCombinationHashCode());
+        }
+
+        String vendorId = hashParts[2];
+
+        Optional<Vendors> vendor = vendorRepository.findById(vendorId);
+        String vendorName = vendor.get().getVendorName();
+
+        LocalDateTime receivedAt = LocalDateTime.now();
+        String clientIp = request.getRemoteAddr();
+        log.info("[IM] [ORCH_CALLBACK] Received callback from vendor={} IP={} Payload={}", vendorName, clientIp, payload);
+
+        try {
+            Object vendorService = vendorFactory.getVendor(vendorName);
+            if (!(vendorService instanceof PayoutCallbackHandler handler)) {
+                log.error("[IM] [ORCH_CALLBACK] No callback handler implemented for vendor={}", vendorName);
+                return "Vendor callback handler not found";
+            }
+
+            String vendorResponse = handler.handleCallback(payload, request);
+
+            // Log callback event for auditing
+            commonFunctions.saveCallbackEventLog(
+                    payload.toString(),
+                    receivedAt,
+                    clientIp,
+                    "Callback processed for vendor = " + vendorName,
+                    LocalDateTime.now()
+            );
+
+            log.info("[IM] [ORCH_CALLBACK] Successfully processed callback for vendor={}", vendorName);
+            return vendorResponse;
+
+        } catch (Exception e) {
+            log.error("[IM] [ORCH_CALLBACK] Error processing callback for vendor={} | Error={}", vendorName, e.getMessage(), e);
+
+            commonFunctions.saveCallbackEventLog(
+                    payload.toString(),
+                    receivedAt,
+                    clientIp,
+                    "Error: " + e.getMessage(),
+                    LocalDateTime.now()
+            );
+
+            return "Callback processing failed: " + e.getMessage();
+        }
+    }
 }

@@ -2,16 +2,18 @@ package com.im.admin.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.commons.CommonFunctions;
-import com.im.admin.entities.PayoutPendingTransactions;
-import com.im.admin.entities.SubProducts;
-import com.im.admin.entities.VendorCredentials;
+import com.im.admin.dto.RequestHeaderMetaDto;
+import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
-import com.im.admin.repositories.PayoutPendingTransactionRepository;
+import com.im.admin.entities.product.Products;
+import com.im.admin.repositories.*;
 import com.im.admin.request.PayoutResponseDto;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PayoutMerchantCallbackResponse;
 import com.im.admin.response.PayoutStatusResponse;
+import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import com.im.admin.util.CommonMethods;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +27,12 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.time.format.DateTimeFormatter;
 
 /**
  * @author SHUBHAM KHOPADE
@@ -48,6 +54,22 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
     @Autowired
     private PayoutPendingTransactionRepository payoutPendingTransactionRepository;
 
+    @Autowired
+    private TransactionEngineServiceImpl transactionEngineServiceImpl;
+
+    @Autowired
+    private SchemeRepository schemeRepository;
+
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
+
+    @Autowired
+    private SubProductsRepository subProductsRepository;
+
+    @Autowired
+    private ProductsRepository productsRepository;
+
+
     @Override
     public String getVendorName() {
         return "IM Payout";
@@ -60,9 +82,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                                         String orderId,
                                         SubProducts subProduct,
                                         WalletType walletType,
-                                        Double latitude,
-                                        Double longitude,
-                                        Object ipAddress) {
+                                        RequestHeaderMetaDto requestHeaderMetaDtoMeta) {
         log.info("[IM PAYOUT] Starting payout for orderId={} | amount={}",
                 orderId, req.getAmount());
 
@@ -73,11 +93,11 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         try {
             // Handle AES Token Flow (Admin Panel)
             if ("AES".equalsIgnoreCase(creds.getTokenType())) {
-                return processAesPayout(req, creds, orderId, latitude, longitude);
+                return processAesPayout(req, creds, orderId, requestHeaderMetaDtoMeta);
             }
 
             // Direct Vendor Payout Flow
-            return processDirectVendorPayout(req, creds, orderId, latitude, longitude, ipAddress);
+            return processDirectVendorPayout(req, creds, orderId, subProduct, requestHeaderMetaDtoMeta);
 
         } catch (HttpStatusCodeException ex) {
             String vendorResponse = ex.getResponseBodyAsString();
@@ -110,15 +130,14 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
     }
 
      /* =====================================================
-       AES PAYOUT FLOW (Matching NixaSoft Pattern)
+       AES PAYOUT FLOW (Matching INSTANT MUDRA Pattern)
        ===================================================== */
 
     private PayoutResponseDto processAesPayout(
             SendPayoutRequest req,
             VendorCredentials creds,
             String baseTxnId,
-            Double latitude,
-            Double longitude) throws Exception {
+            RequestHeaderMetaDto requestHeaderMetaDtoMeta) throws Exception {
 
         String token = commonMethods.generateTokenForAES(creds);
 
@@ -127,10 +146,10 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         headers.set("client_id", creds.getClientId());
         headers.set("token", token);
         headers.setBearerAuth(token);
-        headers.set("latitude", String.valueOf(latitude));
-        headers.set("longitude", String.valueOf(longitude));
+        headers.set("latitude", String.valueOf(requestHeaderMetaDtoMeta.getLatitude()));
+        headers.set("longitude", String.valueOf(requestHeaderMetaDtoMeta.getLongitude()));
 
-        // Handle TXN prefix like NixaSoft
+        // Handle TXN prefix like Instant Mudra
         String orderId = baseTxnId.startsWith("TXN") ? baseTxnId.substring(3) : baseTxnId;
 
         SendPayoutRequest payoutRequest = new SendPayoutRequest();
@@ -167,7 +186,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                 responseBody.getData().getStatus());
 
         // Save pending transaction (like NixaSoft)
-        savePendingTransaction(req, orderId, latitude, longitude);
+        savePendingTransaction(req, orderId, requestHeaderMetaDtoMeta.getLongitude(), requestHeaderMetaDtoMeta.getLatitude(), null);
 
         return PayoutResponseDto.builder()
                 .orderId("TXN" + baseTxnId)
@@ -179,24 +198,23 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
     }
 
      /* =====================================================
-       DIRECT RUNPAISA PAYOUT FLOW
+       DIRECT INSTANT MUDRA PAYOUT FLOW
        ===================================================== */
 
     private PayoutResponseDto processDirectVendorPayout(
             SendPayoutRequest req,
             VendorCredentials creds,
             String orderId,
-            Double latitude,
-            Double longitude,
-            Object ipAddress) throws Exception {
+            SubProducts subProduct,
+            RequestHeaderMetaDto requestHeaderMetaDto) throws Exception {
 
         // Build headers
         HttpHeaders headers = buildPayoutHeaders(creds);
 
         // Build request body
-        MultiValueMap<String, Object> body = buildPayoutRequestBody(req, orderId, creds, ipAddress);
+        Map<String, Object> body = buildPayoutRequestBody(req, creds, subProduct, requestHeaderMetaDto);
 
-        String url = creds.getBaseUrlProd() + "/transfer";
+        String url = creds.getBaseUrlProd() + "/payoutAPI/transfer";
         log.info("[IM PAYOUT] Sending payout request to: {}", url);
 
         // Call vendor API
@@ -208,7 +226,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         );
 
         // Handle vendor response
-        return handleVendorResponse(response.getBody(), req, orderId, latitude, longitude);
+        return handleVendorResponse(response.getBody(), req, orderId, requestHeaderMetaDto.getLatitude(), requestHeaderMetaDto.getLongitude());
     }
 
     /* =====================================================
@@ -217,8 +235,9 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
 
     private HttpHeaders buildPayoutHeaders(VendorCredentials creds) throws JsonProcessingException {
         HttpHeaders headers = new HttpHeaders();
-        //headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bearer "+creds.getToken());
+        log.info("<----------- Headers{} ------------>", headers);
         return headers;
     }
 
@@ -258,7 +277,8 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
             SendPayoutRequest req,
             String orderId,
             Double latitude,
-            Double longitude) {
+            Double longitude,
+            String vendorTxRef ) {
 
         PayoutPendingTransactions pending = new PayoutPendingTransactions();
         pending.setTransactionId(orderId);
@@ -273,6 +293,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         pending.setBeneficiaryName(req.getBeneficiaryName());
         pending.setLatitude(latitude);
         pending.setLongitude(longitude);
+        pending.setTempTxnId(vendorTxRef);
 
         payoutPendingTransactionRepository.save(pending);
     }
@@ -295,21 +316,31 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
             return failed(orderId, "Empty or invalid response from vendor");
         }
 
-        String vendorCodeResp = (String) vendorResp.get("code");
-        String vendorStatus = (String) vendorResp.get("status");
-        String vendorMessage = (String) vendorResp.get("message");
+        String vendorStatus = String.valueOf(vendorResp.get("status"));
+        String vendorMessage = String.valueOf(vendorResp.get("msg"));
+        String vendorTxnId = String.valueOf(vendorResp.get("txid"));
+        String vendorData = String.valueOf(vendorResp.get("data"));
+        String vendorTxRef = String.valueOf(vendorResp.get("tx_ref"));
 
-        boolean accepted = "RP000".equals(vendorCodeResp)
-                && "SUCCESS".equalsIgnoreCase(vendorStatus);
+        boolean accepted = "waiting".equalsIgnoreCase(vendorStatus);
 
         if (!accepted) {
-            return failed(orderId, vendorMessage);
+            String errorMessage = vendorMessage;
+
+            if (vendorData != null && !"null".equalsIgnoreCase(vendorData) && !vendorData.isBlank()) {
+                errorMessage = vendorMessage + " - " + vendorData;
+            }
+
+            log.warn("[IM PAYOUT] Vendor rejected transaction | TxnID={} | Status={} | Message={}",
+                    orderId, vendorStatus, errorMessage);
+
+            return failed(orderId, errorMessage);
         }
 
-        // Save pending transaction
-        savePendingTransaction(req, orderId, latitude, longitude);
+        savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef);
 
-        log.info("[IM PAYOUT] Transaction saved | TxnID={} | Status={}", orderId, vendorStatus);
+        log.info("[IM PAYOUT] Transaction saved | TxnID={} | VendorTxnID={} | Status={}",
+                orderId, vendorTxnId, vendorStatus);
 
         return PayoutResponseDto.builder()
                 .orderId(orderId)
@@ -327,30 +358,186 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
        BUILD PAYOUT REQUEST BODY
        ===================================================== */
 
-    private MultiValueMap<String, Object> buildPayoutRequestBody(
+    private Map<String, Object> buildPayoutRequestBody(
             SendPayoutRequest req,
-            String orderId,
             VendorCredentials creds,
-            Object ipAddress) {
+            SubProducts subProduct,
+            RequestHeaderMetaDto requestHeaderMetaDto) {
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        Map<String, Object> body = new LinkedHashMap<>();
 
-        body.add("transaction_amount", req.getAmount());
-        body.add("tx_mode", req.getPaymentMode().toUpperCase());
-        body.add("to_bank", req.getAccountNumber());
-        body.add("geolocation", req.getLatitude()+","+req.getLongitude());
-        body.add("userid", creds.getUsername());
-        body.add("clientip", String.valueOf(ipAddress));
-        body.add("medium", "rweb");
-        body.add("site", "mapp");
-        body.add("host", "www.nfttech.in");
-        body.add("timestamp", LocalDateTime.now());
+        body.put("geolocation",
+                requestHeaderMetaDto.getLatitude() + "," + requestHeaderMetaDto.getLongitude());
+
+        body.put("userid", creds.getUsername());
+        body.put("clientip", requestHeaderMetaDto.getIpAddress());
+        body.put("medium", requestHeaderMetaDto.getMedium() != null
+                ? requestHeaderMetaDto.getMedium()
+                : "rweb");
+        body.put("site", "mapp");
+        body.put("host", requestHeaderMetaDto.getRequestDomainName());
+
+        body.put("timestamp",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+        body.put("transaction_amount", String.valueOf(req.getAmount()));
+        body.put("tx_mode", req.getPaymentMode().toLowerCase());
+        body.put("subproduct", subProduct.getSubProductTitle());
+
+        Map<String, Object> bankData = new LinkedHashMap<>();
+        bankData.put("bank_name", req.getBankName());
+        bankData.put("ifsc_code", req.getIfscCode());
+        bankData.put("account_name", req.getBeneficiaryName());
+        bankData.put("account_no", req.getAccountNumber());
+
+        body.put("bankData", bankData);
+
+        log.info("<------------- Request Body {} --------->", body);
+
         return body;
     }
 
     @Override
-    public String handleCallback(Map<String, String> payload, HttpServletRequest request) throws JsonProcessingException {
-        return "";
+    public String handleCallback(Map<String, String> payload, HttpServletRequest request)
+            throws JsonProcessingException {
+
+//        {
+//            txid=b68f8baa1f9087319c3457c982da9377,
+//                    status=completed,
+//                    product=PAYOUT,
+//                    operator=imps,
+//                    tx_ref=0500033136510399,
+//                    failure_reason= ""
+//        }
+
+        log.info("IM Callback Received: {}", payload);
+
+        // ===== 1. Extract Fields =====
+        String status = payload.get("status");
+        String vendorTxnId = payload.get("tx_ref");
+
+        log.info("[1] Parsed Callback: orderId={}, requestId={}, status={}", vendorTxnId, vendorTxnId, status);
+
+        // ===== 2. Fetch Pending Transaction =====
+        PayoutPendingTransactions pendingTxn = payoutPendingTransactionRepository
+                .findByTempTxnId(vendorTxnId)
+                .orElseThrow(() ->
+                        new RuntimeException("Pending transaction not found for order ID: " + vendorTxnId));
+
+        BigDecimal amount = pendingTxn.getAmount();
+        String orderId = pendingTxn.getTransactionId();
+
+        // ===== Already SUCCESS check =====
+        if ("SUCCESS".equalsIgnoreCase(pendingTxn.getStatus())) {
+            log.warn("Transaction already marked SUCCESS for orderId={}", vendorTxnId);
+            return "Transaction already processed successfully";
+        }
+
+        log.info("[2] PendingTxn fetched successfully: ID={}, SchemeCode={}, TxnType={}, Amount={}, Status={}",
+                pendingTxn.getId(), pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(),
+                pendingTxn.getAmount(), pendingTxn.getStatus());
+
+        // Sanitize amount from callback payload (remove commas)
+        String cleanCallbackAmount = String.valueOf(amount != null);
+        Double txnAmt = Double.valueOf(cleanCallbackAmount);
+
+        // ===== 3. Fetch Scheme Rate =====
+        log.info("[3] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
+                pendingTxn.getSchemeCode(), pendingTxn.getTransactionType(), txnAmt);
+
+        SchemeRate selectedScheme = schemeRateRepository
+                .findSchemeRateByCodeAndOperatorAndAmount(
+                        pendingTxn.getSchemeCode(),
+                        pendingTxn.getTransactionType(),
+                        txnAmt)
+                .orElseThrow(() ->
+                        new RuntimeException("No matching scheme rate found for amount: " + txnAmt));
+
+        log.info("[3.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
+                selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
+                selectedScheme.getGross(), selectedScheme.getRetailer());
+
+        // ===== 4. Fetch Scheme =====
+        Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                .orElseThrow(() ->
+                        new RuntimeException("Scheme Not Found with code: " + selectedScheme.getSchemeCode()));
+
+        log.info("[4] Scheme fetched successfully: HashCode={}", scheme.getSchemeCombinationHashCode());
+
+        // ===== 5. Extract Product & SubProduct =====
+        String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+
+        if (hashParts.length < 2) {
+            throw new RuntimeException("Invalid schemeCombinationHashCode format: "
+                    + scheme.getSchemeCombinationHashCode());
+        }
+
+        short productId = Short.parseShort(hashParts[0]);
+        String subProductIdStr = hashParts[1];
+
+        Products product = productsRepository.findById(productId)
+                .orElseThrow(() ->
+                        new RuntimeException("Product not found with id: " + productId));
+
+        SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
+                .orElseThrow(() ->
+                        new RuntimeException("SubProduct not found with id: " + subProductIdStr));
+
+        log.info("[5] Product/SubProduct fetched successfully: Product={}, SubProduct={}",
+                product.getName(), subProduct.getSubProductTitle());
+
+        // ===== 6. Prepare DTO =====
+        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
+        String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
+
+        dto.setBaseTranxId(baseTxnId);
+        dto.setAmount(txnAmt);
+        dto.setConfirmAmount(txnAmt);
+        dto.setOperatorName(pendingTxn.getTransactionType());
+        dto.setOperatorCode(selectedScheme.getOperatorCode());
+        dto.setSchemeRate(selectedScheme);
+        dto.setTransactionType(product.getTransactionType());
+        dto.setWalletType(subProduct.getWalletType());
+        dto.setGstValue(String.valueOf(product.getSgst()));
+        dto.setTdsRate(String.valueOf(product.getTds()));
+        dto.setProductCode(product.getProductCode());
+        dto.setSubProductCode(subProduct.getSubProductCode());
+        dto.setIsCommission(product.getIsCommissions());
+        dto.setHasCharge(product.getHasCharges());
+        dto.setHierarchyId(pendingTxn.getRetailerId());
+        dto.setVendorName("IM Payout");
+        dto.setVendorTxnId(vendorTxnId);
+
+        log.info("[6] DTO ready for transaction processing: {}", dto);
+
+        // ===== 7. Map Vendor Status =====
+        String finalStatus = switch (status) {
+
+            case "completed", "SUCCESS" -> "SUCCESS";
+
+            case "FAILED" -> "FAILED";
+
+            case "PENDING", "waiting" -> "PENDING";
+
+            default -> "UNKNOWN";
+        };
+
+        log.info("[7] Status mapped from vendor: {} -> {}", status, finalStatus);
+
+        // ===== 8. Process Transaction =====
+        transactionEngineServiceImpl.processTransaction(dto, finalStatus);
+
+        log.info("[8] Transaction processed successfully for ORDER_ID: {}, STATUS={}",
+                orderId, finalStatus);
+
+        // ===== 9. Update UTR =====
+        pendingTxn.setStatus(finalStatus);
+        payoutPendingTransactionRepository.save(pendingTxn);
+
+        log.info("[9] Pending transaction updated with UTR={}, STATUS={}", vendorTxnId, finalStatus);
+
+        return "SUCCESS";
     }
 
 

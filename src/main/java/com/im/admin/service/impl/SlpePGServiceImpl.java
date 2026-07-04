@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.commons.LoggableVendor;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.SlabType;
@@ -49,7 +50,7 @@ public class SlpePGServiceImpl implements SlpePGService {
     private final RetailerRepository retailerRepository;
 
     @Override
-    public String createOrder(SlpePgCreateOrderRequest req, Double latitude, Double longitude) {
+    public String createOrder(SlpePgCreateOrderRequest req, RequestHeaderMetaDto requestHeaderMetaDto) {
 
         log.info("Starting SLPE create order for subProductId={}, initiatedBy={}, amount={}", req.getSubProductId(), req.getInitiatedBy(), req.getAmount());
 
@@ -139,8 +140,8 @@ public class SlpePGServiceImpl implements SlpePGService {
                 pgTransactionMapping.setSubProductId(req.getSubProductId());
                 pgTransactionMapping.setStatus("PENDING");
                 pgTransactionMapping.setVendorName("SLPE Payment Gateway");
-                pgTransactionMapping.setLatitude(latitude);
-                pgTransactionMapping.setLongitude(longitude);
+                pgTransactionMapping.setLatitude(requestHeaderMetaDto.getLatitude());
+                pgTransactionMapping.setLongitude(requestHeaderMetaDto.getLongitude());
 
                 pgTransactionMappingRepository.save(pgTransactionMapping);
 

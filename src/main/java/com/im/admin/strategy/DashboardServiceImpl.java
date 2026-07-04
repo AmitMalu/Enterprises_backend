@@ -137,9 +137,11 @@ public class DashboardServiceImpl implements DashboardService {
     @Autowired
     private AdminPrepaidAmountRepository adminPrepaidAmountRepository;
 
-
     @Autowired
     private AdminPostpaidAmountRepository adminPostpaidAmountRepository;
+
+    @Autowired
+    private WhiteLabelUserRepository whiteLabelUserRepository;
 
 
     @Override
@@ -242,6 +244,11 @@ public class DashboardServiceImpl implements DashboardService {
                         .map(this::mapToUserDetails)
                         .orElseThrow(() -> new RuntimeException("WhiteLabel profile not found"));  // White Label
             }
+            case "WLAU" -> {
+                return whiteLabelUserRepository.findById(hierarchyId)
+                        .map(this::mapToUserDetails)
+                        .orElseThrow(() -> new RuntimeException("White Label User profile not found"));
+            }
             case "SD" -> {
                 return superDistributorRepository.findBySuperDistributorId(hierarchyId)
                         .map(this::mapToUserDetails)
@@ -269,6 +276,8 @@ public class DashboardServiceImpl implements DashboardService {
                         .map(this::mapToUserDetails)
                         .orElseThrow(() -> new RuntimeException("Retailer User profile not found"));
             }
+
+
             default -> throw new RuntimeException("Unsupported hierarchy type: " + type);
         }
     }

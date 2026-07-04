@@ -13,6 +13,11 @@ import java.time.LocalDateTime;
 /**
  * @author SHUBHAM KHOPADE
  */
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.Arrays;
+
 @Aspect
 @Component
 @RequiredArgsConstructor
@@ -31,11 +36,19 @@ public class GlobalApiLoggingAspect {
         String vendorId = VendorContext.getVendorId();
 
         try {
-            request = objectMapper.writeValueAsString(joinPoint.getArgs());
+            Object[] safeArgs = Arrays.stream(joinPoint.getArgs())
+                    .filter(arg -> !(arg instanceof HttpServletRequest))
+                    .filter(arg -> !(arg instanceof HttpServletResponse))
+                    .filter(arg -> !(arg instanceof MultipartFile))
+                    .toArray();
+
+            request = objectMapper.writeValueAsString(safeArgs);
 
             Object result = joinPoint.proceed();
 
-            response = result != null ? objectMapper.writeValueAsString(result) : "null";
+            response = result != null
+                    ? objectMapper.writeValueAsString(result)
+                    : "null";
 
             return result;
 
@@ -45,9 +58,7 @@ public class GlobalApiLoggingAspect {
 
         } finally {
 
-            // Only save if ServiceImpl did NOT execute
             if (!VendorContext.isServiceCalled()) {
-
                 commonFunctions.saveVendorLogs(
                         startTime,
                         request,
@@ -59,7 +70,6 @@ public class GlobalApiLoggingAspect {
             }
 
             VendorContext.clear();
-
         }
     }
 }

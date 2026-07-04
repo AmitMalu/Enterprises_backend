@@ -7,6 +7,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.LoggableVendor;
 import com.im.admin.dto.BeneficiaryVerifyRequestDto;
 import com.im.admin.dto.BeneficiaryVerifyResponseDto;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
@@ -89,9 +90,7 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
             String orderId,
             SubProducts subProducts,
             WalletType walletType,
-            Double latitude,
-            Double longitude,
-            Object ipAddress
+            RequestHeaderMetaDto requestHeaderMetaDto
     ) {
 
         log.info("Starting payout | orderId={}, amount={}", orderId, req.getAmount());
@@ -108,8 +107,8 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
         pending.setIfscCode(req.getIfscCode());
         pending.setAccountNumber(req.getAccountNumber());
         pending.setBeneficiaryName(req.getBeneficiaryName());
-        pending.setLatitude(latitude);
-        pending.setLongitude(longitude);
+        pending.setLatitude(requestHeaderMetaDto.getLatitude());
+        pending.setLongitude(requestHeaderMetaDto.getLongitude());
         pending.setStatus("INITIATED");
 
         payoutPendingTransactionRepository.save(pending);

@@ -42,6 +42,9 @@ public class HierarchyAccessValidator {
     @Autowired
     private AdminUserRepository adminUserRepository;
 
+    @Autowired
+    private AccessHierarchyPathRepository accessHierarchyPathRepository;
+
     /**
      * YOUR EXISTING LOGIC (USED HERE)
      */
@@ -77,4 +80,35 @@ public class HierarchyAccessValidator {
             return null;
         }
     }
+
+    /**
+     * AD and AU can access everything.
+     * Other hierarchy types can access only their own subtree.
+     */
+//    public boolean belongsToHierarchy(
+//            String recordHierarchyId,
+//            String loginHierarchyId,
+//            String loginHierarchyType
+//    ) {
+//
+//        if (recordHierarchyId == null
+//                || loginHierarchyId == null
+//                || loginHierarchyType == null) {
+//            return false;
+//        }
+//
+//        // AD & AU have full access
+//        if ("AD".equalsIgnoreCase(loginHierarchyType)
+//                || "AU".equalsIgnoreCase(loginHierarchyType)) {
+//            return true;
+//        }
+//
+//        // Check hierarchy path
+//        return accessHierarchyPathRepository.existsHierarchyPath(
+//                loginHierarchyId,
+//                recordHierarchyId
+//        );
+//
+//
+//    }
 }

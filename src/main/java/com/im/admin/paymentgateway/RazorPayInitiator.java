@@ -2,6 +2,7 @@ package com.im.admin.paymentgateway;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.dto.PgTransactionRequestDto;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.Customer;
 import com.im.admin.request.RazorPayCreateOrderRequest;
 import com.im.admin.response.CommonResponse;
@@ -25,7 +26,7 @@ public class RazorPayInitiator implements PaymentGatewayInitiator {
 
 
     @Override
-    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, Double latitude, Double longitude, String ipAddress) throws JsonProcessingException {
+    public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, RequestHeaderMetaDto requestHeaderMetaDto) throws JsonProcessingException {
 
         RazorPayCreateOrderRequest payCreateOrderRequest = new RazorPayCreateOrderRequest();
 
@@ -42,7 +43,7 @@ public class RazorPayInitiator implements PaymentGatewayInitiator {
 
         payCreateOrderRequest.setCustomer(customer);
 
-        String payment_url = razorPayPGService.createOrder(payCreateOrderRequest, latitude, longitude);
+        String payment_url = razorPayPGService.createOrder(payCreateOrderRequest, requestHeaderMetaDto);
 
         return PgUnifiedOrderResponse.builder()
                 .vendor("RazorPay")

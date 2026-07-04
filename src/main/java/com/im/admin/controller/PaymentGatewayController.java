@@ -5,12 +5,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.im.admin.commons.LoggableApi;
 import com.im.admin.dto.PaymentGatewayCardBinRequestDTO;
 import com.im.admin.dto.PgTransactionRequestDto;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.RetailerCommissionResponseDTO;
 import com.im.admin.orchestrator.PGOrchestrator;
 import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
 import com.im.admin.service.impl.RunpaisaPGServiceImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -44,25 +46,25 @@ public class PaymentGatewayController {
     @PostMapping("/create-order")
     public ResponseEntity<CommonResponse<PgUnifiedOrderResponse>> createOrder(
             @RequestBody PGCreateOrderCommand request,
-            @RequestHeader("Latitude") Double latitude,
-            @RequestHeader("Longitude") Double longitude,
-            @RequestHeader("ipaddress") String ipAddress) throws JsonProcessingException {
+            HttpServletRequest httpServletRequest) throws JsonProcessingException {
+
+        RequestHeaderMetaDto requestHeaderMetaDtoMeta = RequestHeaderMetaDto.from(httpServletRequest);
 
         long startTime = System.currentTimeMillis();
         log.info("======= START: createOrder =======");
         log.info("Request: {}", request);
-        log.info("Location: Latitude={}, Longitude={}", latitude, longitude);
-        log.info("IP Address: {}", ipAddress);
+        log.info("Location: Latitude={}, Longitude={}", requestHeaderMetaDtoMeta.getLatitude(), requestHeaderMetaDtoMeta.getLongitude());
+        log.info("IP Address: {}", requestHeaderMetaDtoMeta.getIpAddress());
 
         // Validate IP address format
-        if (!isValidIpAddress(ipAddress)) {
-            log.error("Invalid IP address format: {}", ipAddress);
+        if (!isValidIpAddress(requestHeaderMetaDtoMeta.getIpAddress())) {
+            log.error("Invalid IP address format: {}", requestHeaderMetaDtoMeta.getIpAddress());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(CommonResponse.error(400, "Invalid IP address format. Expected format: 1.22.36.186"));
         }
 
         // Validate location
-        if (latitude == null || longitude == null) {
+        if (requestHeaderMetaDtoMeta.getLatitude() == null || requestHeaderMetaDtoMeta.getLongitude() == null) {
             log.error("Missing location headers");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(CommonResponse.error(400, "Latitude and Longitude are required"));
@@ -70,7 +72,7 @@ public class PaymentGatewayController {
 
         try {
             PgUnifiedOrderResponse result = pgOrchestrator.initiate(
-                    request, latitude, longitude, ipAddress);
+                    request, requestHeaderMetaDtoMeta);
 
             long duration = System.currentTimeMillis() - startTime;
             log.info("Order created successfully in {}ms: {}", duration, result);
