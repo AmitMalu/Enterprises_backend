@@ -86,6 +86,16 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                         ? request.getHierarchyId()
                         : tokenUtil.extractHierarchyId();
 
+        // For WLAU: use parent WL's hierarchy ID so they see same data as WL
+        if ("WLAU".equalsIgnoreCase(commonMethods.extractHierarchyType(loggedInHierarchyId))) {
+            String parentWlId = userDetailsRepository
+                    .findFirstByHierarchyId(loggedInHierarchyId)
+                    .map(ud -> ud.getParentAccount())
+                    .orElse(loggedInHierarchyId); // fallback to self if parent not found
+            loggedInHierarchyId = parentWlId;
+            log.info("WLAU detected — using parent WL id={} for report", loggedInHierarchyId);
+        }
+
         String hierarchyIdsCsv =
                 getHierarchyIdsCsv(loggedInHierarchyId);
 
