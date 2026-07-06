@@ -1261,15 +1261,6 @@ public class PayoutOrchestrator {
     public String imPayoutCallback(Map<String, String> payload, HttpServletRequest request)
             throws JsonProcessingException {
 
-//        {
-//            txid=b68f8baa1f9087319c3457c982da9377,
-//                    status=completed,
-//                    product=PAYOUT,
-//                    operator=imps,
-//                    tx_ref=0500033136510399,
-//                    failure_reason= ""
-//        }
-
         String vendorTxnId = payload.get("tx_ref");
 
         log.info("[1] [IM] Fetching pending transaction for ORDER_ID: {}", vendorTxnId);
