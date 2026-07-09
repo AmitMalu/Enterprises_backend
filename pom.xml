@@ -184,6 +184,12 @@
 			<version>1.10.0</version>
 		</dependency>
 
+		<!-- Thymeleaf - Optional but recommended for HTML templating -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+
 	</dependencies>
 
 	<build>

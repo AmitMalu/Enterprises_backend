@@ -5,8 +5,7 @@ import com.im.admin.entities.product.Products;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -35,6 +34,10 @@ public class SubProducts {
     private String id;  // Stores 01 to 99 as a string
 
     @Column(name = "sub_product_title", nullable = false)
+    @Pattern(
+            regexp = "^[A-Za-z0-9&()@./,_+\\- ]+$",
+            message = "Invalid sub product title"
+    )
     private String subProductTitle;
 
     @Column(name = "sub_product_code", nullable = false, unique = true)
