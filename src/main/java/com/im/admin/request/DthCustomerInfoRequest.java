@@ -10,8 +10,6 @@ public class DthCustomerInfoRequest {
 
 
     private String subProductId;
-
     private String accountNo;
-
     private String spkey;
 }
