@@ -505,9 +505,18 @@
                 </div>
 
                 <div class="detail-row">
+                    <span>📱 Mobile</span>
+                    <strong th:text="${node.mobileNumber != null ? node.mobileNumber : '-'}">
+                        -
+                    </strong>
+                </div>
+
+                <div class="detail-row">
                     <span>📅 Created</span>
                     <strong th:text="${node.createdOn != null ? #strings.substring(node.createdOn, 0, 10) : '-'}">-</strong>
                 </div>
+
+
             </div>
 
             <span th:if="${!#lists.isEmpty(node.children)}"
