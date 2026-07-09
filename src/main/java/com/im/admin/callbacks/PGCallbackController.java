@@ -2,6 +2,7 @@ package com.im.admin.callbacks;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.repositories.PgTransactionMappingRepository;
+import com.im.admin.request.IMCallbackRequest;
 import com.im.admin.request.NixaSoftCallbackRequest;
 import com.im.admin.request.UnisusWebhookRequest;
 import com.im.admin.response.UnisusWebhookResponse;
@@ -11,6 +12,7 @@ import com.im.admin.util.IdempotencyServiceUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -34,9 +36,9 @@ public class PGCallbackController {
     private final SlpePGService slpePGService;
     private final RazorPayPGService razorPayPGService;
     private final CashfreePGService cashfreePGService;
-    private final PgTransactionMappingRepository repository;
     private final IdempotencyServiceUtil idempotencyService;
     private final ImPGService imPGService;
+    private final ObjectMapper objectMapper;
 
 
     // RUNPAISA CALLBACK
@@ -158,16 +160,15 @@ public class PGCallbackController {
         return ResponseEntity.ok("OK");
     }
 
-    // RUNPAISA CALLBACK
+    // IM CALLBACK
     @PostMapping("/im")
     public void imCallback(
             @RequestBody Map<String, String> payload,
             HttpServletRequest request) throws Exception {
 
         log.info("IM callback received");
-
-        imPGService.handleCallback(payload, request);
-
+        IMCallbackRequest callbackDTO = objectMapper.convertValue(payload, IMCallbackRequest.class);
+        imPGService.handleCallback(callbackDTO, request);
     }
 
 }

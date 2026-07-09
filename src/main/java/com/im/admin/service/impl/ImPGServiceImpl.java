@@ -5,11 +5,16 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
+import com.im.admin.entities.enums.SlabType;
+import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
+import com.im.admin.mapper.StatusMapper;
 import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.repositories.*;
 import com.im.admin.request.CashfreeCreateOrderRequest;
+import com.im.admin.request.IMCallbackRequest;
 import com.im.admin.request.ImPgCreateOrderRequest;
+import com.im.admin.request.NixaSoftCallbackRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
@@ -21,16 +26,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * @author SHUBHAM KHOPADE
@@ -75,6 +78,9 @@ public class ImPGServiceImpl implements ImPGService {
 
     @Autowired
     private RetailerRepository retailerRepository;
+
+    @Autowired
+    private StatusMapper statusMapper;
 
     RestTemplate restTemplate = new RestTemplate();
 
@@ -212,6 +218,9 @@ public class ImPGServiceImpl implements ImPGService {
                 mapping.setVendorName(vendor.getVendorName());
                 mapping.setLatitude(requestHeaderMetaDtoMeta.getLatitude());
                 mapping.setLongitude(requestHeaderMetaDtoMeta.getLongitude());
+                mapping.setClientIp(requestHeaderMetaDtoMeta.getIpAddress());
+                mapping.setMedium(requestHeaderMetaDtoMeta.getMedium());
+                mapping.setRequestDomainName(requestHeaderMetaDtoMeta.getRequestDomainName());
 
                 // if these fields exist in your entity
                 mapping.setVendorName("IM Payment Gateway");
@@ -288,8 +297,159 @@ public class ImPGServiceImpl implements ImPGService {
     }
 
     @Override
-    public void handleCallback(Map<String, String> payload, HttpServletRequest request) {
+    @Transactional
+    public void handleCallback(IMCallbackRequest imCallbackRequest, HttpServletRequest request) {
 
+        log.info("NixaSoft Callback Started {}", imCallbackRequest.toString());
+        log.info("Processing NixaSoft callback for orderId={}", imCallbackRequest.getTransactionReference());
+
+        PgTransactionMapping pgTransactionMapping =
+                pgTransactionMappingRepository
+                        .findByTxnId(imCallbackRequest.getTransactionReference())
+                        .orElseThrow(() ->
+                                new RuntimeException("Transaction not found"));
+
+        // Prevent duplicate success processing
+        if ("SUCCESS".equalsIgnoreCase(pgTransactionMapping.getStatus())) {
+            log.warn(
+                    "Transaction already marked SUCCESS for orderId={}",
+                    request.getRequestId()
+            );
+            return;
+        }
+
+        // Map the status and save
+        String mappedStatus = StatusMapper.mapIMStatusToInternalStatus(imCallbackRequest.getStatus());
+        pgTransactionMapping.setStatus(mappedStatus);
+        pgTransactionMappingRepository.save(pgTransactionMapping);
+
+        String subProductId = pgTransactionMapping.getSubProductId();
+
+        SubProducts subProducts =
+                subProductsRepository.findById(subProductId)
+                        .orElseThrow(() -> {
+                            log.error("---- [Callback] SubProduct NOT FOUND for subProductId: {}", subProductId);
+                            return new RuntimeException("SubProduct not found for subProductId: " + subProductId);
+                        });
+
+        log.info("---- [Callback] SubProduct fetched successfully | subProductId={}, subProductCode={}",
+                subProducts.getId(),
+                subProducts.getSubProductCode());
+
+        SchemeAllocation schemeAllocation =
+                schemeAllocationRepository
+                        .findByHierarchyIdAndSubProductCode(
+                                pgTransactionMapping.getInitiatedBy(),
+                                subProducts.getSubProductCode()
+                        )
+                        .orElseThrow(() -> new RuntimeException(
+                                "SchemeAllocation not found | hierarchyId="
+                                        + pgTransactionMapping.getInitiatedBy()
+                                        + ", subProductCode="
+                                        + subProducts.getSubProductCode()
+                        ));
+
+        String schemeCode = schemeAllocation.getSchemeCode();
+
+        log.info("---- [Callback] SchemeAllocation fetched successfully | schemeCode={}", schemeCode);
+
+        // Prepare base data
+        Double txnAmt = pgTransactionMapping.getAmount();
+        log.info("---- [Callback] Parsed transaction amount: {}", txnAmt);
+
+
+        String operator = imCallbackRequest.getOperator();
+
+        String operatorName = commonMethods.formatOperatorName(operator);
+
+        log.info("---- [Callback] Using operatorName for DB lookup: {}", operatorName);
+
+        List<SchemeRate> matchingSchemes =
+                schemeRateRepository.findBySchemeCodeAndOperatorName(
+                        schemeCode,
+                        operatorName
+                );
+
+        if (matchingSchemes == null || matchingSchemes.isEmpty()) {
+
+            log.error(
+                    "---- [Callback] No matching scheme found for schemeCode={} and operatorName={}",
+                    schemeCode,
+                    operatorName
+            );
+
+            return;
+        }
+
+        log.info("---- [Callback] Scheme(s) found: {}", matchingSchemes.size());
+
+        // Pick correct scheme by amount range or fixed value
+        SchemeRate selectedScheme = matchingSchemes.stream()
+                .filter(scheme ->
+                        scheme.getSlabType() == SlabType.VARIABLE &&
+                                txnAmt >= scheme.getSlabStart() && txnAmt <= scheme.getSlabEnd()
+                )
+                .findFirst()
+                .orElse(matchingSchemes.get(0));
+        log.info("---- [Callback] Selected scheme: {}", selectedScheme);
+
+        // Fetch scheme, product & subproduct details
+        log.debug("---- [Callback] Fetching scheme details for code: {}", selectedScheme.getSchemeCode());
+        log.info("---- [Callback] Fetching scheme details for code: {}", selectedScheme.getSchemeCode());
+        Scheme scheme = schemeRepository.findBySchemeCode(selectedScheme.getSchemeCode())
+                .orElseThrow(() -> new RuntimeException("Scheme Not Found for code: " + selectedScheme.getSchemeCode()));
+
+        String[] hashParts = scheme.getSchemeCombinationHashCode().split("-");
+        short productId = Short.parseShort(hashParts[0]);
+        String subProductIdStr = hashParts[1];
+        log.debug("---- [Callback] Extracted productId: {}, subProductId: {}", productId, subProductIdStr);
+        log.info("---- [Callback] Extracted productId: {}, subProductId: {}", productId, subProductIdStr);
+
+        Products product = productsRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        SubProducts subProduct = subProductsRepository.findById(subProductIdStr)
+                .orElseThrow(() -> new RuntimeException("SubProduct not found with id: " + subProductIdStr));
+
+        String orderId = pgTransactionMapping.getOrderId();
+
+        String baseTranxId = orderId.startsWith("ORD") ? orderId.substring(3) : orderId;
+
+        // Build DTO (common for all statuses)
+        TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+
+        dto.setBaseTranxId(baseTranxId);
+        dto.setAmount(txnAmt);
+        dto.setConfirmAmount(txnAmt);
+        dto.setOperatorName(operatorName);
+        dto.setOperatorCode(selectedScheme.getOperatorCode());
+        dto.setSchemeRate(selectedScheme);
+        dto.setTransactionType(product.getTransactionType());
+        dto.setWalletType(subProduct.getWalletType());
+        dto.setGstValue(String.valueOf(product.getSgst()));
+        dto.setTdsRate(String.valueOf(product.getTds()));
+        dto.setHierarchyId(pgTransactionMapping.getInitiatedBy());
+        dto.setProductCode(product.getProductCode());
+        dto.setSubProductCode(subProduct.getSubProductCode());
+        dto.setIsCommission(product.getIsCommissions());
+        dto.setHasCharge(product.getHasCharges());
+        dto.setVendorTxnId(imCallbackRequest.getTxid());
+        dto.setVendorName("IM Payment Gateway");
+        dto.setMedium(pgTransactionMapping.getMedium());
+        dto.setClientIp(pgTransactionMapping.getClientIp());
+        dto.setRequestDomainName(pgTransactionMapping.getRequestDomainName());
+
+        log.debug("---- [Callback] DTO prepared: {}", dto);
+        log.info("---- [Callback] DTO prepared: {}", dto);
+
+        String vendorStatus = imCallbackRequest.getStatus();
+
+        String status = StatusMapper.mapIMStatusToInternalStatus(vendorStatus);
+
+        // Forward to central transaction engine
+        log.info("---- [Callback] Forwarding to Transaction Engine with Status: {}", vendorStatus);
+        transactionServiceImpl.processTransaction(dto, status);
+
+        log.info("Transaction updated successfully orderId={}, status={}", orderId, status);
     }
 
 
