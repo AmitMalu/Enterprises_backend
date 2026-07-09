@@ -34,6 +34,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -1024,6 +1025,27 @@ public class CommonMethods {
         }
 
         return (String) responseBodyMap.get("token");
+    }
+
+    public String formatOperatorName(String operator) {
+        if (operator == null || operator.isEmpty()) {
+            return operator;
+        }
+
+        // Fallback to generic formatting
+        return Arrays.stream(operator.split("_"))
+                .map(part -> part.substring(0, 1).toUpperCase() + part.substring(1).toLowerCase())
+                .collect(Collectors.joining("_"));
+    }
+
+    public boolean isValidIpAddress(String ip) {
+        if (ip == null || ip.trim().isEmpty()) {
+            return false;
+        }
+
+        // IPv4 pattern (e.g., 1.22.36.186)
+        String ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
+        return ip.trim().matches(ipv4Pattern);
     }
 
 }

@@ -88,7 +88,6 @@ public class DashboardServiceImpl implements DashboardService {
     @Autowired
     private RetailerPostpaidAmountRepository retailerPostpaidAmountRepository;
 
-
     @Autowired
     private RetailerPostpaidTransactionDetailsRepository retailerPostpaidTransactionDetailsRepository;
 
@@ -142,6 +141,9 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Autowired
     private WhiteLabelUserRepository whiteLabelUserRepository;
+
+    @Autowired
+    private AdminUserRepository adminUserRepository;
 
 
     @Override
@@ -234,6 +236,12 @@ public class DashboardServiceImpl implements DashboardService {
                         .map(this::mapToUserDetails)
                         .orElseThrow(() -> new RuntimeException("Admin profile not found"));
             }
+
+            case "AU" -> {
+                return adminUserRepository.findById(hierarchyId)
+                        .map(this::mapToUserDetails)
+                        .orElseThrow(() -> new RuntimeException("Admin User Not Found"));
+            }
             case "EN" -> {
                 return enterprisesRepository.findByEnterpriseId(hierarchyId)
                         .map(this::mapToUserDetails)
@@ -297,6 +305,14 @@ public class DashboardServiceImpl implements DashboardService {
             info.setStatus(ad.getStatus());
         }
 
+        if (entity instanceof AdminUser au) {
+            info.setName(au.getName());
+            info.setMemberId(au.getId());
+            info.setEmail(au.getEmailId());
+            info.setMobileNumber(au.getMobileNumber());
+            //info.setStatus(String.valueOf(au.getStatus()));
+        }
+
         if (entity instanceof Retailer r) {
 
             Optional<UserDetails> userDetailsOpt = userDetailsRepository.findFirstByHierarchyId(r.getRetailerId());
@@ -352,7 +368,7 @@ public class DashboardServiceImpl implements DashboardService {
             info.setMemberId(ru.getRetailerUserId());
             info.setEmail(ru.getEmailId());
             info.setMobileNumber(ru.getMobileNumber());
-            // info.setStatus(ru.get);
+            //info.setStatus(String.valueOf(ru.getStatus()));
         }
 
         if (entity instanceof Distributor dt) {
@@ -548,6 +564,22 @@ public class DashboardServiceImpl implements DashboardService {
             docsDto.setPanCardImage(wl.getPanCardImage());
             docsDto.setShopImage(wl.getShopImage());
             docsDto.setBusinessProofImage(wl.getBusinessProofImage());
+
+        }
+
+        if(entity instanceof WhiteLabelUser wlau)
+        {
+            Optional<UserDetails> userDetailsOpt = userDetailsRepository.findFirstByHierarchyId(wlau.getId());
+            UserDetails userDetails = userDetailsOpt.get();
+
+            info.setName(wlau.getName());
+            info.setMemberId(wlau.getId());
+            info.setEmail(wlau.getEmailId());
+            info.setMobileNumber(wlau.getMobileNumber());
+            info.setDob(wlau.getDob() != null ? wlau.getDob().toString() : null);
+            info.setOutletName(wlau.getAdd().getOutletName());
+            info.setIsBlocked(userDetails.getIsBlocked());
+
 
         }
 

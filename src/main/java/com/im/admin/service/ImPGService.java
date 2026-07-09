@@ -2,6 +2,7 @@ package com.im.admin.service;
 
 import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.CashfreeCreateOrderRequest;
+import com.im.admin.request.IMCallbackRequest;
 import com.im.admin.request.ImPgCreateOrderRequest;
 import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
@@ -18,7 +19,7 @@ public interface ImPGService {
 
     PgStatusResponse checkStatus(String orderId);
 
-    void handleCallback(Map<String, String> payload, HttpServletRequest request);
+    void handleCallback(IMCallbackRequest imCallbackRequest, HttpServletRequest request);
 
 
 }

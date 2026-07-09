@@ -40,6 +40,7 @@ public class PrefundRequestResponseDTO {
 
     private String remarks;
     private String depositType;
+    private String depositeImage;
 
     private String subProductName;
     private String productName;

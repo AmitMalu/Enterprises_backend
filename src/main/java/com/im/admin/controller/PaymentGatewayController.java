@@ -12,6 +12,7 @@ import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
 import com.im.admin.service.impl.RunpaisaPGServiceImpl;
+import com.im.admin.util.CommonMethods;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class PaymentGatewayController {
 
     private final PGOrchestrator pgOrchestrator;
     private final RunpaisaPGServiceImpl paymentGatewayService;
+    private final CommonMethods commonMethods;
 
 
     @PostMapping("/validate")
@@ -57,7 +59,7 @@ public class PaymentGatewayController {
         log.info("IP Address: {}", requestHeaderMetaDtoMeta.getIpAddress());
 
         // Validate IP address format
-        if (!isValidIpAddress(requestHeaderMetaDtoMeta.getIpAddress())) {
+        if (!commonMethods.isValidIpAddress(requestHeaderMetaDtoMeta.getIpAddress())) {
             log.error("Invalid IP address format: {}", requestHeaderMetaDtoMeta.getIpAddress());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(CommonResponse.error(400, "Invalid IP address format. Expected format: 1.22.36.186"));
@@ -92,16 +94,6 @@ public class PaymentGatewayController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResponse.error(500, "Failed to create order. Please try again."));
         }
-    }
-
-    private boolean isValidIpAddress(String ip) {
-        if (ip == null || ip.trim().isEmpty()) {
-            return false;
-        }
-
-        // IPv4 pattern (e.g., 1.22.36.186)
-        String ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
-        return ip.trim().matches(ipv4Pattern);
     }
 
 //    @PostMapping("/order-status")

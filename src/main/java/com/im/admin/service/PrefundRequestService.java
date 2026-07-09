@@ -3,6 +3,7 @@ package com.im.admin.service;
 import com.im.admin.dto.FundRequestActionDto;
 import com.im.admin.dto.PrefundRequestDto;
 import com.im.admin.dto.PrefundRequestResponseDTO;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.entities.PrefundRequest;
 import com.im.admin.response.CommonResponse;
 import org.springframework.data.domain.Page;
@@ -13,7 +14,7 @@ import java.time.LocalDate;
 
 public interface PrefundRequestService {
 
-    CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile, String ipAddress) throws IOException;
+    CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile, RequestHeaderMetaDto requestHeaderMetaDtoMeta) throws IOException;
 
     Page<PrefundRequestResponseDTO> getAllPrefundRequests(int page, int size,
                                                           Long id, String requestedBy, String mobileNumber, Double depositAmount,
