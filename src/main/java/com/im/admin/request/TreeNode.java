@@ -28,13 +28,15 @@ public class TreeNode {
     private List<TreeNode> children;
     private BigDecimal prepaidBalance;
     private BigDecimal postpaidBalance;
+    private String mobileNumber;
+    private String opt;
 
     public TreeNode(String id, String type, String parentId, String createdOn) {
         this.id = id;
         this.type = type;
         this.parentId = parentId;
         this.createdOn = createdOn;
-        this.children = new ArrayList<>();  // ✅ Always initialize
+        this.children = new ArrayList<>();
     }
 
     public void addChild(TreeNode child) {
