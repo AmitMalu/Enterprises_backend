@@ -86,12 +86,15 @@ public class SchemeController {
     @GetMapping
     public ResponseEntity<CommonResponse<Page<GetAllSchemeResponse>>> getAllSchemes(
             SchemeFilter filter,
-
-            @PageableDefault(size = 10)
+//            @PageableDefault(size = 10)
+//            Pageable pageable
+            @PageableDefault(
+                    size = 10,
+                    sort = "createdOn",
+                    direction = Sort.Direction.DESC
+            )
             Pageable pageable
-
     ) {
-
         log.info(
                 "[GET ALL SCHEMES] Request received | filter={} | page={} | size={}",
                 filter,
@@ -115,9 +118,6 @@ public class SchemeController {
         );
 
     }
-
-
-
 
     @GetMapping("/get-by-id/{id}")
     public ResponseEntity<CommonResponse<GetAllSchemeResponse>> getSchemeById(@PathVariable Long id) {
