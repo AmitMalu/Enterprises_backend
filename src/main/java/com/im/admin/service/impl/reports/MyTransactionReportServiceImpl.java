@@ -65,14 +65,18 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
 
     @Override
     public CommonResponse<Page<MyTransactionReportResponse>> getReport(
-            MyTransactionReportRequest request,int page,
+            MyTransactionReportRequest request, int page,
             int size) {
+
+        log.info("Entered getReport() with request={}, page={}, size={}", request, page, size);
 
         Pageable pageable = PageRequest.of(
                 page,
                 size,
                 Sort.by("transactionDate").descending()
         );
+
+        log.info("Pageable created successfully with page={}, size={}", page, size);
 
 //        String loggedInHierarchyId =
 //                (request.getHierarchyId() != null
@@ -86,33 +90,47 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                         ? request.getHierarchyId()
                         : tokenUtil.extractHierarchyId();
 
+        log.info("Resolved loggedInHierarchyId={}", loggedInHierarchyId);
+
         // For WLAU: use parent WL's hierarchy ID so they see same data as WL
         if ("WLAU".equalsIgnoreCase(commonMethods.extractHierarchyType(loggedInHierarchyId))) {
+
+            log.info("Hierarchy type is WLAU. Fetching parent WL hierarchy for {}", loggedInHierarchyId);
+
             String parentWlId = userDetailsRepository
                     .findFirstByHierarchyId(loggedInHierarchyId)
                     .map(ud -> ud.getParentAccount())
                     .orElse(loggedInHierarchyId); // fallback to self if parent not found
+
             loggedInHierarchyId = parentWlId;
+
             log.info("WLAU detected — using parent WL id={} for report", loggedInHierarchyId);
         }
 
         String hierarchyIdsCsv =
                 getHierarchyIdsCsv(loggedInHierarchyId);
 
-
+        log.info("Hierarchy CSV generated={}", hierarchyIdsCsv);
 
         LocalDate from = StringUtils.hasText(request.getFromDate())
                 ? LocalDate.parse(request.getFromDate())
                 : null;
 
+        log.info("Parsed fromDate={}", from);
+
         LocalDate to = StringUtils.hasText(request.getToDate())
                 ? LocalDate.parse(request.getToDate())
                 : null;
 
+        log.info("Parsed toDate={}", to);
+
         // ===== SUB PRODUCT FILTER =====
         String subProductsParam = "ALL";
+
         if (StringUtils.hasText(request.getSubProductName())
                 && !"ALL".equalsIgnoreCase(request.getSubProductName())) {
+
+            log.info("Applying sub product filter={}", request.getSubProductName());
 
             subProductsParam = Arrays.stream(request.getSubProductName().split(","))
                     .map(String::trim)
@@ -120,26 +138,37 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                     .collect(Collectors.joining(","));
         }
 
+        log.info("Final subProductsParam={}", subProductsParam);
+
         // ===== PRODUCT FILTER =====
         String productParam = "ALL";
 
-        //  Highest priority → productId
+        // Highest priority → productId
         if (request.getProductId() != null) {
+
+            log.info("Fetching product using productId={}", request.getProductId());
+
             Products product = productsRepository.findById(request.getProductId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid productId"));
 
             productParam = product.getName();
+
+            log.info("Resolved product name={} from productId={}", productParam, request.getProductId());
         }
 
         // Fallback → productName (old behavior)
         else if (StringUtils.hasText(request.getProductName())
                 && !"ALL".equalsIgnoreCase(request.getProductName())) {
 
+            log.info("Applying product name filter={}", request.getProductName());
+
             productParam = Arrays.stream(request.getProductName().split(","))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
                     .collect(Collectors.joining(","));
         }
+
+        log.info("Final productParam={}", productParam);
 
         List<MyTransactionReportResponse> allData = new ArrayList<>();
         long totalCount = 0;
@@ -149,9 +178,14 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                         ? Arrays.asList(WalletType.PREPAID, WalletType.POSTPAID)
                         : List.of(request.getWalletType());
 
+        log.info("Wallet types selected={}", walletTypes);
+
         for (WalletType walletType : walletTypes) {
 
+            log.info("Fetching transactions for walletType={}", walletType);
+
             Map<String, Object> walletData =
+
 //                    fetchTransactionsForWalletWithCount(
 //                            walletType,
 //                            request,
@@ -175,11 +209,23 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                             loggedInHierarchyId
                     );
 
-            allData.addAll(
-                    (List<MyTransactionReportResponse>) walletData.get("results")
-            );
-            totalCount += (Long) walletData.get("totalCount");
+            log.info("Transactions fetched successfully for walletType={}", walletType);
+
+            List<MyTransactionReportResponse> walletResults =
+                    (List<MyTransactionReportResponse>) walletData.get("results");
+
+            Long walletCount = (Long) walletData.get("totalCount");
+
+            log.info("walletType={} returned {} records with totalCount={}",
+                    walletType,
+                    walletResults.size(),
+                    walletCount);
+
+            allData.addAll(walletResults);
+            totalCount += walletCount;
         }
+
+        log.info("Total records collected before sorting={}", allData.size());
 
         allData.sort(
                 Comparator.comparing(MyTransactionReportResponse::getTransactionDate,
@@ -188,21 +234,38 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                                 Comparator.nullsLast(Comparator.reverseOrder()))
         );
 
+        log.info("Sorting completed.");
+
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), allData.size());
+
+        log.info("Pagination calculated. start={}, end={}, totalRecords={}", start, end, allData.size());
 
         List<MyTransactionReportResponse> pagedData;
 
         if (start >= allData.size()) {
+
+            log.info("Requested page exceeds available data. Returning empty page.");
+
             pagedData = Collections.emptyList();
+
         } else {
+
             pagedData = allData.subList(start, end);
+
+            log.info("Paged data size={}", pagedData.size());
         }
 
         Page<MyTransactionReportResponse> resultPage =
                 new PageImpl<>(pagedData, pageable, totalCount);
 
-        return new CommonResponse<>(200, "Report fetched successfully", resultPage );
+        log.info("Page created successfully. totalCount={}, pageSize={}",
+                totalCount,
+                resultPage.getNumberOfElements());
+
+        log.info("Exiting getReport() successfully.");
+
+        return new CommonResponse<>(200, "Report fetched successfully", resultPage);
     }
 
 
@@ -217,11 +280,19 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             Pageable pageable,
             String hierarchyIdsCsv,
             String loggedInHierarchyId
-    )
-    {
+    ) {
+
+        log.info("Entered fetchTransactionsForWalletWithCount()");
+        log.info("walletType={}", walletType);
+        log.info("loggedInHierarchyId={}", loggedInHierarchyId);
+        log.info("hierarchyIdsCsv={}", hierarchyIdsCsv);
+        log.info("fromDate={}, toDate={}", from, to);
+        log.info("subProducts={}, products={}", subProducts, products);
 
         StoredProcedureQuery query =
                 entityManager.createStoredProcedureQuery("my_transaction_report");
+
+        log.info("Stored procedure 'my_transaction_report' initialized.");
 
         // ===== REGISTER PARAMS (EXACTLY SP KE ORDER ME) =====
         query.registerStoredProcedureParameter("p_table_name", String.class, ParameterMode.IN);
@@ -245,8 +316,12 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         query.registerStoredProcedureParameter("p_offset", Integer.class, ParameterMode.IN);
         query.registerStoredProcedureParameter("p_page_size", Integer.class, ParameterMode.IN);
 
+        log.info("All stored procedure parameters registered successfully.");
+
         // ===== SET PARAMS =====
         query.setParameter("p_table_name", walletType.name());
+
+        log.info("Set p_table_name={}", walletType.name());
 
 //        query.setParameter(
 //                "p_hierarchy_type",
@@ -258,46 +333,72 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
                 commonMethods.extractHierarchyType(loggedInHierarchyId)
         );
 
-//        query.setParameter("p_hierarchy_id", loggedInHierarchyId);
+        log.info("Set p_hierarchy_type={}", commonMethods.extractHierarchyType(loggedInHierarchyId));
 
+//        query.setParameter("p_hierarchy_id", loggedInHierarchyId);
 
         query.setParameter(
                 "p_hierarchy_id",
                 hierarchyIdsCsv
         );
 
+        log.info("Set p_hierarchy_id={}", hierarchyIdsCsv);
+
         query.setParameter("p_from_date", from);
         query.setParameter("p_to_date", to);
         query.setParameter("p_sub_products", subProducts);
         query.setParameter("p_product_name", products);
+
+        log.info("Set date and product related parameters.");
 
         query.setParameter(
                 "p_status",
                 request.getStatus() != null ? request.getStatus().name() : "ALL"
         );
 
+        log.info("Set p_status={}", request.getStatus() != null ? request.getStatus().name() : "ALL");
+
         // dummy value (SP expects it, but filter nahi lagega)
         query.setParameter("p_column_name", "retailer_id");
 
+        log.info("Set p_column_name=retailer_id");
+
         query.setParameter("p_id", request.getId());
 
+        log.info("Set p_id={}", request.getId());
+
         Date tranDate = null;
+
         if (StringUtils.hasText(request.getTransactionDate())) {
+
+            log.info("Parsing transaction date={}", request.getTransactionDate());
+
             try {
                 tranDate = new Date(
                         new SimpleDateFormat("dd-MM-yyyy")
                                 .parse(request.getTransactionDate()).getTime()
                 );
-            } catch (ParseException ignored) {}
+
+                log.info("Parsed transaction date={}", tranDate);
+
+            } catch (ParseException ignored) {
+
+                log.info("Unable to parse transaction date={}", request.getTransactionDate());
+            }
         }
 
         query.setParameter("p_transaction_date", tranDate);
+
         query.setParameter(
                 "p_transaction_time",
                 StringUtils.hasText(request.getTransactionTime())
                         ? Time.valueOf(request.getTransactionTime())
                         : null
         );
+
+        log.info("Set transaction date={} and transaction time={}",
+                tranDate,
+                request.getTransactionTime());
 
         query.setParameter("p_bal_before", request.getBalBefore());
         query.setParameter("p_amount", request.getAmount());
@@ -306,17 +407,33 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
         query.setParameter("p_tranx_id", request.getTranxId());
         query.setParameter("p_narration", request.getNarration());
 
+        log.info("Set balance and transaction related parameters.");
+
         query.setParameter("p_offset", pageable.getOffset());
         query.setParameter("p_page_size", pageable.getPageSize());
 
+        log.info("Set pagination parameters. offset={}, pageSize={}",
+                pageable.getOffset(),
+                pageable.getPageSize());
+
         // ===== EXECUTE =====
+
+        log.info("Executing stored procedure.");
+
         query.execute();
+
+        log.info("Stored procedure executed successfully.");
 
         List<MyTransactionReportResponse> results = new ArrayList<>();
         Long totalCount = 0L;
 
         List<Object[]> rows = query.getResultList();
+
+        log.info("Total rows returned from stored procedure={}", rows.size());
+
         for (Object[] row : rows) {
+
+            log.info("Processing transaction row with id={}", row[0]);
 
             MyTransactionReportResponse dto = new MyTransactionReportResponse();
 
@@ -333,6 +450,7 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
 
             String statusStr =
                     ((String) row[10]).trim().replace(" ", "_").toUpperCase();
+
             dto.setStatus(Status.valueOf(statusStr));
 
             dto.setTranxId((String) row[11]);
@@ -344,36 +462,73 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
             dto.setLatitude((Double) row[16]);
             dto.setLongitude((Double) row[17]);
 
-
             // wallet type
             dto.setWalletType(walletType);
 
             results.add(dto);
+
+            log.info("Transaction mapped successfully. tranxId={}, status={}",
+                    dto.getTranxId(),
+                    dto.getStatus());
         }
 
+        log.info("Completed mapping all transaction rows. Total mapped records={}", results.size());
+
         if (query.hasMoreResults()) {
+
+            log.info("Stored procedure returned additional result set for total count.");
+
             Object countObj =
                     ((List<Object>) query.getResultList()).get(0);
+
             totalCount = ((Number) countObj).longValue();
+
+            log.info("Total count received from stored procedure={}", totalCount);
+
+        } else {
+
+            log.info("Stored procedure did not return total count result set.");
         }
 
         Map<String, Object> map = new HashMap<>();
+
         map.put("results", results);
         map.put("totalCount", totalCount);
+
+        log.info("Response map prepared. resultsSize={}, totalCount={}",
+                results.size(),
+                totalCount);
+
+        log.info("Exiting fetchTransactionsForWalletWithCount().");
+
         return map;
     }
 
     private String getHierarchyIdsCsv(String hierarchyId) {
 
+        log.info("Entered getHierarchyIdsCsv() with hierarchyId={}", hierarchyId);
+
         List<String> hierarchyIds =
                 accessHierarchyPathRepository
                         .findDescendantsByAncestor(hierarchyId);
 
+        log.info("Hierarchy IDs fetched from repository={}", hierarchyIds);
+
         if (hierarchyIds == null || hierarchyIds.isEmpty()) {
+
+            log.info("No descendants found for hierarchyId={}. Returning same hierarchyId.",
+                    hierarchyId);
+
             return hierarchyId;
         }
 
-        return String.join(",", hierarchyIds);
+        String hierarchyCsv = String.join(",", hierarchyIds);
+
+        log.info("Generated hierarchyIdsCsv={}", hierarchyCsv);
+
+        log.info("Exiting getHierarchyIdsCsv().");
+
+        return hierarchyCsv;
     }
 
     @Override

@@ -7,6 +7,7 @@ import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
+import com.im.admin.request.DthCustomerInfoRequest;
 import com.im.admin.request.MobileLookupRequest;
 import com.im.admin.request.RechargePlanRequest;
 import com.im.admin.request.RechargeRequest;
@@ -309,5 +310,33 @@ public class RechargeOrchestrator {
                 vendorFactory.getVendor(vendor.getVendorName());
 
         return vendorService.getRechargePlans(request, credentials);
+    }
+
+    public DthCustomerInfoResponse getDthCustomerInfo(
+            DthCustomerInfoRequest request) {
+
+        VendorRouting routing =
+                vendorRoutingRepository
+                        .findBySubProductId(request.getSubProductId());
+
+        Vendors vendor =
+                CommonMethods.getVendors(routing);
+
+        VendorCredentials credentials =
+                vendorCredentialsRepository
+                        .findByVendorIdAndProductId(
+                                vendor.getId(),
+                                vendor.getProduct().getId())
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Vendor credentials not found"));
+
+        RechargeVendorService vendorService =
+                vendorFactory.getVendor(
+                        vendor.getVendorName());
+
+        return vendorService.getDthCustomerInfo(
+                request,
+                credentials);
     }
 }

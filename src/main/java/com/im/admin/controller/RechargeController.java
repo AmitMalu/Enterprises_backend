@@ -1,6 +1,7 @@
 package com.im.admin.controller;
 
 import com.im.admin.orchestrator.RechargeOrchestrator;
+import com.im.admin.request.DthCustomerInfoRequest;
 import com.im.admin.request.MobileLookupRequest;
 import com.im.admin.request.RechargePlanRequest;
 import com.im.admin.request.RechargeRequest;
@@ -96,6 +97,22 @@ public class RechargeController {
 
         return ResponseEntity.ok(
                 CommonResponse.success(response, "Recharge plans fetched successfully")
+        );
+    }
+
+    @PostMapping("/dth-customer-info")
+    public ResponseEntity<CommonResponse<DthCustomerInfoResponse>>
+    getDthCustomerInfo(
+            @RequestBody DthCustomerInfoRequest request) {
+
+        DthCustomerInfoResponse response =
+                rechargeOrchestrator.getDthCustomerInfo(request);
+
+        return ResponseEntity.ok(
+                CommonResponse.success(
+                        response,
+                        "Customer information fetched successfully"
+                )
         );
     }
 

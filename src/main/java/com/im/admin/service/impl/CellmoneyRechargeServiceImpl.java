@@ -7,10 +7,7 @@ import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.*;
-import com.im.admin.request.CellmobeyRechargeCallback;
-import com.im.admin.request.MobileLookupRequest;
-import com.im.admin.request.RechargePlanRequest;
-import com.im.admin.request.RechargeRequest;
+import com.im.admin.request.*;
 import com.im.admin.response.*;
 import com.im.admin.service.RechargeCallbackHandler;
 import com.im.admin.service.RechargeVendorService;
@@ -617,6 +614,45 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
         }
     }
 
+    @Override
+    public DthCustomerInfoResponse getDthCustomerInfo(
+            DthCustomerInfoRequest request,
+            VendorCredentials credentials) {
+
+        String url = UriComponentsBuilder
+                .fromHttpUrl("https://roundpay.net/PlanServices/v1/DTHCustomerInfo")
+                .queryParam("accountNo", request.getAccountNo())
+                .queryParam("spkey", request.getSpkey())
+                .queryParam("userid", "18022")
+                .queryParam("token", credentials.getTokenUrlUat())
+                .toUriString();
+
+        log.info("DTH Customer Info URL: {}", url);
+        log.info("Account No: {}", request.getAccountNo());
+        log.info("SP Key: {}", request.getSpkey());
+        log.info("Token: {}", credentials.getTokenUrlUat());
+
+        String response = restTemplate.getForObject(url, String.class);
+
+        log.info("Raw Vendor Response: {}", response);
+
+        try {
+
+            DthCustomerInfoResponse customerInfoResponse =
+                    objectMapper.readValue(response, DthCustomerInfoResponse.class);
+
+            log.info("Parsed Response: {}", customerInfoResponse);
+
+            return customerInfoResponse;
+
+        } catch (Exception e) {
+
+            log.error("Failed to parse DTH customer info response", e);
+
+            throw new RuntimeException("Failed to parse DTH customer info response", e);
+        }
+    }
+
     private int parseStatusCode(String vendorResponse) {
 
         String[] parts = vendorResponse.split("=");
@@ -666,5 +702,7 @@ public class CellmoneyRechargeServiceImpl implements RechargeVendorService, Rech
 
         return dto;
     }
+
+
 }
 
