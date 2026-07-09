@@ -631,24 +631,107 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 dto.getWalletType(), tdsRate, baseTxnId, new HashSet<>(), tranStatus, request);
     }
 
+//    private void processAdminCommission(TransactionSchemeDetailsRequestDto dto,
+//                                        BigDecimal txnAmount, BigDecimal tdsRate,
+//                                        String baseTxnId, String tranStatus,
+//                                        TransactionSchemeDetailsRequestDto request, String rateType) {
+//
+//        BigDecimal adminRate = BigDecimal.valueOf(dto.getSchemeRate().getIm());
+//        if (adminRate.compareTo(BigDecimal.ZERO) <= 0) {
+//            log.info("[COMMISSION] Admin commission skipped | Rate=0");
+//            return;
+//        }
+//
+//        BigDecimal adminCommission = calculateCommissionAmount(adminRate.doubleValue(), txnAmount, rateType);
+//        log.info("[COMMISSION] Admin Commission | Rate={} | Amount={}", adminRate, adminCommission);
+//
+//        getAdminHierarchyId(dto.getHierarchyId()).ifPresentOrElse(adminId -> {
+//            creditHierarchy("AD", adminId, adminCommission, dto.getWalletType(),
+//                    tdsRate, baseTxnId, tranStatus, request);
+//        }, () -> log.warn("[COMMISSION] Admin not found for HierarchyId={}", dto.getHierarchyId()));
+//    }
+
     private void processAdminCommission(TransactionSchemeDetailsRequestDto dto,
                                         BigDecimal txnAmount, BigDecimal tdsRate,
                                         String baseTxnId, String tranStatus,
                                         TransactionSchemeDetailsRequestDto request, String rateType) {
 
-        BigDecimal adminRate = BigDecimal.valueOf(dto.getSchemeRate().getIm());
-        if (adminRate.compareTo(BigDecimal.ZERO) <= 0) {
-            log.info("[COMMISSION] Admin commission skipped | Rate=0");
+        BigDecimal imRate = BigDecimal.valueOf(dto.getSchemeRate().getIm());
+
+        if (imRate.compareTo(BigDecimal.ZERO) <= 0) {
+            log.info("[COMMISSION] IM commission skipped | Rate=0");
             return;
         }
 
-        BigDecimal adminCommission = calculateCommissionAmount(adminRate.doubleValue(), txnAmount, rateType);
-        log.info("[COMMISSION] Admin Commission | Rate={} | Amount={}", adminRate, adminCommission);
+        BigDecimal imCommission = calculateCommissionAmount(
+                imRate.doubleValue(),
+                txnAmount,
+                rateType
+        );
 
-        getAdminHierarchyId(dto.getHierarchyId()).ifPresentOrElse(adminId -> {
-            creditHierarchy("AD", adminId, adminCommission, dto.getWalletType(),
-                    tdsRate, baseTxnId, tranStatus, request);
-        }, () -> log.warn("[COMMISSION] Admin not found for HierarchyId={}", dto.getHierarchyId()));
+        log.info("[COMMISSION] IM Commission | Rate={} | Amount={}",
+                imRate, imCommission);
+
+        getAdminWhiteLabelId(dto.getHierarchyId()).ifPresentOrElse(adminWlId -> {
+
+            log.info("[COMMISSION] IM commission crediting to Admin WL | WL={}", adminWlId);
+
+            creditHierarchy(
+                    "WL",
+                    adminWlId,
+                    imCommission,
+                    dto.getWalletType(),
+                    tdsRate,
+                    baseTxnId,
+                    tranStatus,
+                    request
+            );
+
+        }, () -> log.warn("[COMMISSION] Admin WhiteLabel not found for HierarchyId={}",
+                dto.getHierarchyId()));
+    }
+
+    private Optional<String> getAdminWhiteLabelId(String hierarchyId) {
+
+        String currentHierarchyId = hierarchyId;
+        Set<String> visited = new HashSet<>();
+
+        while (currentHierarchyId != null && !currentHierarchyId.isBlank()) {
+
+            if (!visited.add(currentHierarchyId)) {
+                log.warn("[COMMISSION] Loop detected while finding Admin WL | HierarchyId={}",
+                        currentHierarchyId);
+                break;
+            }
+
+            String type = extractHierarchyType(currentHierarchyId);
+
+            log.info("[COMMISSION] Checking hierarchy for Admin WL | Id={} | Type={}",
+                    currentHierarchyId, type);
+
+            if ("WL".equals(type)) {
+
+                Optional<WhiteLabels> whiteLabelOptional =
+                        whiteLabelsRepository.findById(currentHierarchyId);
+
+                if (whiteLabelOptional.isPresent()
+                        && Boolean.TRUE.equals(whiteLabelOptional.get().getIsAdmin())) {
+
+                    log.info("[COMMISSION] Admin WL found | WL={}", currentHierarchyId);
+                    return Optional.of(currentHierarchyId);
+                }
+            }
+
+            Optional<String> parentOptional = findParentHierarchy(currentHierarchyId);
+
+            if (parentOptional.isEmpty()) {
+                break;
+            }
+
+            currentHierarchyId = parentOptional.get();
+        }
+
+        return Optional.empty();
     }
 
 
@@ -750,13 +833,17 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     }
 
     private boolean isFinalAdmin(String type, String id) {
-        if ("AD".equals(type) || "IM".equals(type)) return true;
+
+        if ("AD".equals(type)) {
+            return true;
+        }
 
         if ("WL".equals(type)) {
             return whiteLabelsRepository.findById(id)
                     .map(WhiteLabels::getIsAdmin)
                     .orElse(false);
         }
+
         return false;
     }
 

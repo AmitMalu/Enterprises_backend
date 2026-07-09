@@ -36,6 +36,7 @@ public class PGCallbackController {
     private final CashfreePGService cashfreePGService;
     private final PgTransactionMappingRepository repository;
     private final IdempotencyServiceUtil idempotencyService;
+    private final ImPGService imPGService;
 
 
     // RUNPAISA CALLBACK
@@ -155,6 +156,18 @@ public class PGCallbackController {
         cashfreePGService.processWebhook(rawPayload, idempotencyKey);
 
         return ResponseEntity.ok("OK");
+    }
+
+    // RUNPAISA CALLBACK
+    @PostMapping("/im")
+    public void imCallback(
+            @RequestBody Map<String, String> payload,
+            HttpServletRequest request) throws Exception {
+
+        log.info("IM callback received");
+
+        imPGService.handleCallback(payload, request);
+
     }
 
 }

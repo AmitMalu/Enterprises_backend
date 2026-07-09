@@ -427,6 +427,10 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         BigDecimal amount = pendingTxn.getAmount();
         String orderId = pendingTxn.getTransactionId();
 
+        if (amount == null) {
+            throw new RuntimeException("Pending transaction amount is null for order ID: " + vendorTxnId);
+        }
+
         // ===== Already SUCCESS check =====
         if ("SUCCESS".equalsIgnoreCase(pendingTxn.getStatus())) {
             log.warn("Transaction already marked SUCCESS for orderId={}", vendorTxnId);
@@ -438,8 +442,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                 pendingTxn.getAmount(), pendingTxn.getStatus());
 
         // Sanitize amount from callback payload (remove commas)
-        String cleanCallbackAmount = String.valueOf(amount != null);
-        Double txnAmt = Double.valueOf(cleanCallbackAmount);
+        Double txnAmt = amount.doubleValue();
 
         // ===== 3. Fetch Scheme Rate =====
         log.info("[3] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
