@@ -41,7 +41,8 @@ public class SecurityConfig {
             "/api/payout/callback", "/api/payout/callback/runpaisa", "/auth/forget-verify-otp", "/api/aes/encrypt-credentials",
             "/api/aes/decrypt-credentials", "/api/pg/callback/razorpay", "/api/pg/callback/cashfree",
             "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui", "/swagger-ui/**", "/swagger-ui.html",  "/enterprises/images/**",
-            "/api/payout/callback/vimopay", "/api/vidual-pay/authorize", "/api/payout/callback/im");
+            "/api/payout/callback/vimopay", "/api/vidual-pay/authorize", "/api/payout/callback/im", "/api/pg/callback/im",
+            "/api/hierarchies/view",  "/api/hierarchies/tree",  "/api/hierarchies/data");
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {

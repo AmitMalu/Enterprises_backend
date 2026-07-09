@@ -34,7 +34,7 @@ public class AESFilter extends OncePerRequestFilter {
 			"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui", "/swagger-ui/**", "/swagger-ui.html",
 			"/swagger-ui/index.html", "/swagger-ui/swagger-ui.css", "/swagger-ui/swagger-ui-bundle.js",
 			"/swagger-ui/swagger-ui-standalone-preset.js", "/enterprises/images/**", "/api/payout/callback/vimopay", "/api/payout/callback/im",
-			"/api/vidual-pay/authorize");
+			"/api/vidual-pay/authorize",  "/api/pg/callback/im", "/api/hierarchies/view",  "/api/hierarchies/tree",  "/api/hierarchies/data");
 
 	@Value("${app.security.base-secret}")
 	private String baseSecret;

@@ -7,6 +7,7 @@ import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.RunPaisaCallback;
 import com.im.admin.service.PayoutBeneficiaryService;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,9 @@ public class PayoutBeneficiaryServiceImpl implements PayoutBeneficiaryService {
 
     @Autowired
     private PayoutPendingTransactionRepository payoutPendingTransactionRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
 
     @Override
@@ -95,41 +99,91 @@ public class PayoutBeneficiaryServiceImpl implements PayoutBeneficiaryService {
     }
 
     @Override
-    public CommonResponse<Page<BeneficiaryBankAccount>> getAllFiltered(Long id, String retailerId, String bankName, String bankHolderName, String accountNumber, String ifscCode, String paymentMode, Boolean isVerified, LocalDate createdOn, String createdBy, Pageable pageable) {
+    public CommonResponse<Page<BeneficiaryBankAccount>> getAllFiltered(
+            Long id,
+            String retailerId,
+            String bankName,
+            String bankHolderName,
+            String accountNumber,
+            String ifscCode,
+            String paymentMode,
+            Boolean isVerified,
+            LocalDate createdOn,
+            String createdBy,
+            Pageable pageable) {
+
+        String loginHierarchyId = tokenUtil.extractHierarchyId();
 
         Page<BeneficiaryBankAccount> results =
                 beneficiaryBankAccountRepository.findAll((root, query, cb) -> {
+
                     List<Predicate> predicates = new ArrayList<>();
+
+                    // IMPORTANT: logged-in hierarchy can see only own banks
+                    predicates.add(cb.equal(root.get("retailerId"), loginHierarchyId));
 
                     if (id != null) {
                         predicates.add(cb.equal(root.get("id"), id));
                     }
+
                     if (retailerId != null && !retailerId.isBlank()) {
-                        predicates.add(cb.like(cb.lower(root.get("retailerId")), "%" + retailerId.toLowerCase() + "%"));
+                        predicates.add(cb.like(
+                                cb.lower(root.get("retailerId")),
+                                "%" + retailerId.toLowerCase() + "%"
+                        ));
                     }
+
                     if (bankName != null && !bankName.isBlank()) {
-                        predicates.add(cb.like(cb.lower(root.get("bankName")), "%" + bankName.toLowerCase() + "%"));
+                        predicates.add(cb.like(
+                                cb.lower(root.get("bankName")),
+                                "%" + bankName.toLowerCase() + "%"
+                        ));
                     }
+
                     if (bankHolderName != null && !bankHolderName.isBlank()) {
-                        predicates.add(cb.like(cb.lower(root.get("bankHolderName")), "%" + bankHolderName.toLowerCase() + "%"));
+                        predicates.add(cb.like(
+                                cb.lower(root.get("bankHolderName")),
+                                "%" + bankHolderName.toLowerCase() + "%"
+                        ));
                     }
+
                     if (accountNumber != null && !accountNumber.isBlank()) {
-                        predicates.add(cb.like(cb.lower(root.get("accountNumber")), "%" + accountNumber.toLowerCase() + "%"));
+                        predicates.add(cb.like(
+                                cb.lower(root.get("accountNumber")),
+                                "%" + accountNumber.toLowerCase() + "%"
+                        ));
                     }
+
                     if (ifscCode != null && !ifscCode.isBlank()) {
-                        predicates.add(cb.like(cb.lower(root.get("ifscCode")), "%" + ifscCode.toLowerCase() + "%"));
+                        predicates.add(cb.like(
+                                cb.lower(root.get("ifscCode")),
+                                "%" + ifscCode.toLowerCase() + "%"
+                        ));
                     }
+
                     if (paymentMode != null && !paymentMode.isBlank()) {
-                        predicates.add(cb.like(cb.lower(root.get("paymentMode")), "%" + paymentMode.toLowerCase() + "%"));
+                        predicates.add(cb.like(
+                                cb.lower(root.get("paymentMode")),
+                                "%" + paymentMode.toLowerCase() + "%"
+                        ));
                     }
+
                     if (isVerified != null) {
                         predicates.add(cb.equal(root.get("isVerified"), isVerified));
                     }
+
                     if (createdOn != null) {
-                        predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("createdOn")), createdOn));
+                        predicates.add(cb.equal(
+                                cb.function("DATE", LocalDate.class, root.get("createdOn")),
+                                createdOn
+                        ));
                     }
+
                     if (createdBy != null && !createdBy.isBlank()) {
-                        predicates.add(cb.like(cb.lower(root.get("createdBy")), "%" + createdBy.toLowerCase() + "%"));
+                        predicates.add(cb.like(
+                                cb.lower(root.get("createdBy")),
+                                "%" + createdBy.toLowerCase() + "%"
+                        ));
                     }
 
                     return cb.and(predicates.toArray(new Predicate[0]));

@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Hierarchy</title>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+
+        .container {
+            width: 100%;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #4CAF50;
+            min-width: 1000px;
+        }
+
+        .header h1 {
+            color: #1a237e;
+            font-size: 24px;
+        }
+
+        .header .info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .header .info span {
+            background: #e8f5e9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            color: #2e7d32;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin: 10px 0 20px 0;
+            flex-wrap: wrap;
+            min-width: 1000px;
+        }
+
+        .stat-item {
+            background: #f5f5f5;
+            padding: 7px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+
+        .stat-item strong {
+            color: #1a237e;
+        }
+
+        .legend {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0 25px 0;
+            min-width: 1000px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #fafafa;
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .tree-container {
+            width: 100%;
+            overflow-x: auto;
+            padding: 10px 0 30px 0;
+        }
+
+        .org-chart {
+            display: inline-block;
+            min-width: 100%;
+            text-align: center;
+        }
+
+        .org-chart ul {
+            padding-top: 38px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+        }
+
+        .org-chart li {
+            list-style-type: none;
+            position: relative;
+            padding: 38px 8px 0 8px;
+            text-align: center;
+        }
+
+        .org-chart li::before,
+        .org-chart li::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 38px;
+            border-top: 2px solid #4db6ac;
+        }
+
+        .org-chart li::before {
+            right: 50%;
+        }
+
+        .org-chart li::after {
+            left: 50%;
+            border-left: 2px solid #4db6ac;
+        }
+
+        .org-chart li:only-child::before,
+        .org-chart li:only-child::after {
+            display: none;
+        }
+
+        .org-chart li:first-child::before,
+        .org-chart li:last-child::after {
+            border: 0 none;
+        }
+
+        .org-chart li:last-child::before {
+            border-right: 2px solid #4db6ac;
+            border-radius: 0 8px 0 0;
+        }
+
+        .org-chart li:first-child::after {
+            border-radius: 8px 0 0 0;
+        }
+
+        .org-chart ul ul::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            height: 38px;
+            border-left: 2px solid #4db6ac;
+        }
+
+        .node-card {
+            min-width: 175px;
+            display: inline-block;
+            border-radius: 10px;
+            padding: 11px 14px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.16);
+            font-size: 13px;
+            color: #1f2937;
+            border: 2px solid transparent;
+            transition: 0.2s;
+        }
+
+        .node-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.22);
+        }
+
+        .node-id {
+            font-weight: 800;
+            font-size: 14px;
+            margin-bottom: 7px;
+            word-break: keep-all;
+        }
+
+        .node-code {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 9px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.85);
+            color: #111827;
+            display: inline-block;
+            margin-bottom: 6px;
+        }
+
+        .node-meta {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .type-badge,
+        .child-count,
+        .level-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.82);
+            color: #333;
+            font-weight: 700;
+        }
+
+        .date-text {
+            display: block;
+            font-size: 11px;
+            color: rgba(0,0,0,0.65);
+            margin-top: 6px;
+            font-weight: 600;
+        }
+
+        .toggle-btn {
+            display: inline-block;
+            margin-top: 7px;
+            cursor: pointer;
+            font-size: 11px;
+            color: #0d47a1;
+            background: rgba(255,255,255,0.85);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 800;
+            user-select: none;
+        }
+
+        .collapsed > ul {
+            display: none;
+        }
+
+        .AD, .legend-AD {
+            background: #1a237e;
+            color: white;
+            border-color: #0d47a1;
+        }
+
+        .AU, .legend-AU {
+            background: #3949ab;
+            color: white;
+            border-color: #283593;
+        }
+
+        .WL, .legend-WL {
+            background: #00897b;
+            color: white;
+            border-color: #00695c;
+        }
+
+        .WLAU, .legend-WLAU {
+            background: #26a69a;
+            color: white;
+            border-color: #00897b;
+        }
+
+        .SD, .legend-SD {
+            background: #fb8c00;
+            color: white;
+            border-color: #ef6c00;
+        }
+
+        .PT, .legend-PT {
+            background: #fbc02d;
+            color: #1f2937;
+            border-color: #f9a825;
+        }
+
+        .DT, .legend-DT {
+            background: #8e24aa;
+            color: white;
+            border-color: #6a1b9a;
+        }
+
+        .RT, .legend-RT {
+            background: #43a047;
+            color: white;
+            border-color: #2e7d32;
+        }
+
+        .UNKNOWN, .legend-UNKNOWN {
+            background: #90a4ae;
+            color: white;
+            border-color: #607d8b;
+        }
+
+        .AD .node-code,
+        .AU .node-code,
+        .WL .node-code,
+        .WLAU .node-code,
+        .SD .node-code,
+        .DT .node-code,
+        .RT .node-code,
+        .UNKNOWN .node-code {
+            background: rgba(255,255,255,0.95);
+            color: #111827;
+        }
+
+        .AD .date-text,
+        .AU .date-text,
+        .WL .date-text,
+        .WLAU .date-text,
+        .SD .date-text,
+        .DT .date-text,
+        .RT .date-text,
+        .UNKNOWN .date-text {
+            color: rgba(255,255,255,0.88);
+        }
+
+        .error-container {
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #ef9a9a;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .wallet-info{
+             margin-top:8px;
+             font-size:12px;
+             text-align:left;
+        }
+
+        .wallet{
+            margin:3px 0;
+            padding:4px 8px;
+            border-radius:6px;
+            background:rgba(255,255,255,.18);
+        }
+
+        .wallet strong{
+            float:right;
+        }
+
+        .prepaid{
+            border-left:4px solid #2ecc71;
+        }
+
+        .postpaid{
+            border-left:4px solid #3498db;
+        }
+
+        .view-more-btn {
+    margin-top: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    color: #0d47a1;
+    background: rgba(255,255,255,0.9);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 800;
+}
+
+.node-details {
+    display: none;
+    margin-top: 8px;
+    text-align: left;
+    background: rgba(255,255,255,0.18);
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.node-details.open {
+    display: block;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 4px 0;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .node-card { min-width: 145px; padding: 9px 10px; }
+            .org-chart ul { gap: 10px; }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <div class="header">
+        <h1>🏢 Enterprise Hierarchy</h1>
+        <div class="info">
+            Total Nodes: <span th:text="${totalNodes}">0</span>
+            <span style="margin-left:15px;">
+                Root: <strong th:text="${root != null ? root.id : 'None'}">-</strong>
+            </span>
+        </div>
+    </div>
+
+    <div class="stats" th:if="${root != null}">
+        <div class="stat-item">📊 Root: <strong th:text="${root.id}">-</strong></div>
+        <div class="stat-item">📁 Type: <strong th:text="${root.type}">-</strong></div>
+        <div class="stat-item">👶 Direct Children:
+            <strong th:text="${root.children != null ? root.children.size() : 0}">0</strong>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><span class="legend-color legend-AD"></span> AD - Admin</div>
+        <div class="legend-item"><span class="legend-color legend-AU"></span> AU - Admin User</div>
+        <div class="legend-item"><span class="legend-color legend-WL"></span> WL - White Label</div>
+        <div class="legend-item"><span class="legend-color legend-WLAU"></span> WLAU - White Label User</div>
+        <div class="legend-item"><span class="legend-color legend-SD"></span> SD - Super Distributor</div>
+        <div class="legend-item"><span class="legend-color legend-PT"></span> PT - Partner</div>
+        <div class="legend-item"><span class="legend-color legend-DT"></span> DT - Distributor</div>
+        <div class="legend-item"><span class="legend-color legend-RT"></span> RT - Retailer</div>
+    </div>
+
+    <div class="tree-container" th:if="${root != null}">
+        <div class="org-chart">
+            <ul>
+                <li>
+                    <div th:replace="~{::treeNode(${root}, 0)}"></div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="error-container" th:if="${error != null}">
+        ❌ <span th:text="${error}">Error loading hierarchy</span>
+    </div>
+
+    <div th:if="${root == null and error == null}" class="loading">
+        ⏳ No hierarchy data found
+    </div>
+
+</div>
+
+<th:block th:fragment="treeNode(node, depth)" th:if="${node != null}">
+
+    <th:block th:with="
+        parts=${#strings.arraySplit(node.id, '-')},
+        hierarchyCode=${parts.length > 1 ? parts[1] : 'UNKNOWN'}
+    ">
+
+        <div class="node-card"
+             th:classappend="${hierarchyCode}">
+
+            <div class="node-id" th:text="${node.id}">ID</div>
+
+            <div class="node-code" th:text="${hierarchyCode}">CODE</div>
+
+            <div class="node-meta">
+                <span class="type-badge" th:text="${node.type}">TYPE</span>
+
+                <span class="level-badge" th:text="'Level ' + ${depth}">Level 0</span>
+
+                <span class="child-count"
+                      th:if="${!#lists.isEmpty(node.children)}"
+                      th:text="${#lists.size(node.children)} + ' under'">0 under</span>
+            </div>
+
+            <button type="button"
+                    class="view-more-btn"
+                    onclick="toggleNodeDetails(this)">
+                View More
+            </button>
+
+            <div class="node-details">
+                <div class="detail-row">
+                    <span>💰 Prepaid</span>
+                    <strong th:text="${node.prepaidBalance != null ? #numbers.formatDecimal(node.prepaidBalance,1,2) : '-'}">-</strong>
+                </div>
+
+                <div class="detail-row">
+                    <span>💳 Postpaid</span>
+                    <strong th:text="${node.postpaidBalance != null ? #numbers.formatDecimal(node.postpaidBalance,1,2) : '-'}">-</strong>
+                </div>
+
+                <div class="detail-row">
+                    <span>📅 Created</span>
+                    <strong th:text="${node.createdOn != null ? #strings.substring(node.createdOn, 0, 10) : '-'}">-</strong>
+                </div>
+            </div>
+
+            <span th:if="${!#lists.isEmpty(node.children)}"
+                  class="toggle-btn"
+                  onclick="toggleChildren(this)">Hide Children</span>
+        </div>
+
+        <ul th:if="${!#lists.isEmpty(node.children)}">
+            <li th:each="child : ${node.children}" th:if="${child != null}">
+                <div th:replace="~{::treeNode(${child}, ${depth + 1})}"></div>
+            </li>
+        </ul>
+
+    </th:block>
+
+</th:block>
+
+<script>
+    function toggleNodeDetails(button) {
+        const card = button.closest('.node-card');
+        const details = card.querySelector('.node-details');
+
+        if (!details) return;
+
+        details.classList.toggle('open');
+
+        button.textContent = details.classList.contains('open')
+            ? 'Hide Info'
+            : 'View More';
+    }
+</script>
+
+</body>
+</html>

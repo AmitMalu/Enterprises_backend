@@ -2,17 +2,18 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.HierarchyMasterDto;
 import com.im.admin.dto.HierarchyResponseDto;
+import com.im.admin.request.HierarchyResponse;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.HierarchyMasterService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
