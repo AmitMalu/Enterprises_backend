@@ -274,21 +274,19 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
             String cardBin = pg.getCardBinNo();
 
             // Step 2: Get callback log
+//            String txnPart = orderId.replace("ORD", "");
+
 //            CallbackEventLog callback =
 //                    callbackEventLogRepository
-//                            .findTopByOrderIdOrderByIdDesc(orderId)
+//                            .findLatestPgCallback(txnPart)
 //                            .orElseThrow(() ->
 //                                    new RuntimeException("Callback log not found"));
 
-
-            String txnPart = orderId.replace("ORD", "");
-
             CallbackEventLog callback =
                     callbackEventLogRepository
-                            .findLatestPgCallback(txnPart)
+                            .findLatestPgCallback(orderId)
                             .orElseThrow(() ->
                                     new RuntimeException("Callback log not found"));
-
 
             Map<String, String> parsedRequest = parseRequest(callback.getRequest());
 
@@ -331,17 +329,30 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                                     new RuntimeException("Payout record not found"));
 
             // Step 2: Get callback
+
 //            CallbackEventLog callback =
 //                    callbackEventLogRepository
-//                            .findTopByOrderIdOrderByIdDesc(payout.getTransactionId())
+//                            .findLatestByTxnIdInRequest(payout.getTransactionId())
 //                            .orElseThrow(() ->
 //                                    new RuntimeException("Callback log not found"));
 
             CallbackEventLog callback =
                     callbackEventLogRepository
                             .findLatestByTxnIdInRequest(payout.getTransactionId())
-                            .orElseThrow(() ->
-                                    new RuntimeException("Callback log not found"));
+                            .orElse(null);
+
+            if (callback == null
+                    && payout.getTempTxnId() != null
+                    && !payout.getTempTxnId().isBlank()) {
+
+                callback = callbackEventLogRepository
+                        .findLatestByTxRef(payout.getTempTxnId())
+                        .orElse(null);
+            }
+
+            if (callback == null) {
+                throw new RuntimeException("Callback log not found");
+            }
 
             BeneficiaryBankAccount bankAccount =
                     beneficiaryBankAccountRepository
@@ -359,15 +370,21 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
 
             String status = parsed.containsKey("STATUS")
                     ? parsed.get("STATUS")
-                    : parsed.get("txnStatus");
+                    : parsed.containsKey("txnStatus")
+                    ? parsed.get("txnStatus")
+                    : parsed.get("status");
 
             String txnMode = parsed.containsKey("TXN_MODE")
                     ? parsed.get("TXN_MODE")
-                    : parsed.get("paymentMode");
+                    : parsed.containsKey("paymentMode")
+                    ? parsed.get("paymentMode")
+                    : parsed.get("operator");
 
             String txnAmount = parsed.containsKey("TXN_AMOUNT")
                     ? parsed.get("TXN_AMOUNT")
-                    : parsed.get("amount");
+                    : parsed.containsKey("amount")
+                    ? parsed.get("amount")
+                    : payout.getAmount().toPlainString();
 
             String utr = parsed.containsKey("UTRNO")
                     ? parsed.get("UTRNO")
