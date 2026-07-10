@@ -6,10 +6,7 @@ import com.im.admin.commons.CommonFunctions;
 import com.im.admin.dto.AbstractWalletAmountTable;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.dto.WalletToWalletTransferDto;
-import com.im.admin.entities.Operators;
-import com.im.admin.entities.Scheme;
-import com.im.admin.entities.SchemeRate;
-import com.im.admin.entities.SubProducts;
+import com.im.admin.entities.*;
 import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.enums.SlabType;
 import com.im.admin.entities.enums.WalletType;
@@ -27,14 +24,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -78,20 +73,30 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
     @Transactional
     @Override
-    public void transferAmountWalletToWallet(WalletToWalletTransferDto request, Double latitude, Double longitude) throws JsonProcessingException {
+    public void transferAmountWalletToWallet(
+            WalletToWalletTransferDto request,
+            Double latitude,
+            Double longitude
+    ) throws JsonProcessingException {
 
         log.info("=== START Wallet-to-Wallet Transfer ===");
+
         LocalDateTime requestDateTime = LocalDateTime.now();
         String requestJson = null;
         String responseJson = null;
 
         try {
-            // Serialize request
+
+            // =========================================================
+            // SERIALIZE AND LOG REQUEST
+            // =========================================================
             requestJson = objectMapper.writeValueAsString(request);
+
             log.info("Initiating wallet-to-wallet transfer: {}", requestJson);
 
-            // Log request parameters
-            log.info("Transfer Details - HierarchyId: {}, FromWallet: {}, ToWallet: {}, Amount: {}, ConfirmAmount: {}, SubProductId: {}, SchemeCode: {}",
+            log.info(
+                    "Transfer Details - HierarchyId: {}, FromWallet: {}, ToWallet: {}, " +
+                            "Amount: {}, ConfirmAmount: {}, SubProductId: {}, SchemeCode: {}",
                     request.getHierarchyId(),
                     request.getWalletTypeFrom(),
                     request.getWalletTypeTo(),
@@ -101,7 +106,11 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     request.getSchemeCode()
             );
 
-            log.info("Location Details - Latitude: {}, Longitude: {}", latitude, longitude);
+            log.info(
+                    "Location Details - Latitude: {}, Longitude: {}",
+                    latitude,
+                    longitude
+            );
 
             String hierarchyId = request.getHierarchyId();
             WalletType fromWallet = request.getWalletTypeFrom();
@@ -109,88 +118,326 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             BigDecimal amount = request.getTransferAmount();
             BigDecimal confirmAmount = request.getConfirmAmount();
 
-            // Validate amount match
-            log.debug("Validating amount and confirmation amount");
-            if (!Objects.equals(amount, confirmAmount)) {
-                log.warn("Amount mismatch: {} != {}", amount, confirmAmount);
-                throw new IllegalArgumentException("Amount and confirmation amount do not match.");
+            // =========================================================
+            // BASIC VALIDATIONS
+            // =========================================================
+            if (hierarchyId == null || hierarchyId.isBlank()) {
+                log.warn("Hierarchy ID is null or blank");
+                throw new IllegalArgumentException("Hierarchy ID is required.");
             }
+
+            if (fromWallet == null) {
+                log.warn("Source wallet type is null");
+                throw new IllegalArgumentException("Source wallet type is required.");
+            }
+
+            if (toWallet == null) {
+                log.warn("Destination wallet type is null");
+                throw new IllegalArgumentException("Destination wallet type is required.");
+            }
+
+            if (amount == null) {
+                log.warn("Transfer amount is null");
+                throw new IllegalArgumentException("Transfer amount is required.");
+            }
+
+            if (confirmAmount == null) {
+                log.warn("Confirmation amount is null");
+                throw new IllegalArgumentException("Confirmation amount is required.");
+            }
+
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                log.warn("Invalid transfer amount: {}", amount);
+                throw new IllegalArgumentException(
+                        "Transfer amount must be greater than zero."
+                );
+            }
+
+            // Using compareTo so 100 and 100.00 are treated as equal.
+            log.debug("Validating amount and confirmation amount");
+
+            if (amount.compareTo(confirmAmount) != 0) {
+
+                log.warn(
+                        "Amount mismatch. Amount: {}, Confirmation amount: {}",
+                        amount,
+                        confirmAmount
+                );
+
+                throw new IllegalArgumentException(
+                        "Amount and confirmation amount do not match."
+                );
+            }
+
             log.debug("Amount validation passed");
 
             // Validate wallet types
-            log.debug("Validating wallet types - From: {}, To: {}", fromWallet, toWallet);
+            log.debug(
+                    "Validating wallet types - From: {}, To: {}",
+                    fromWallet,
+                    toWallet
+            );
+
             if (fromWallet == toWallet) {
-                log.warn("Same wallet type transfer attempted: {}", fromWallet);
-                throw new IllegalArgumentException("Cannot transfer between the same wallet types.");
+
+                log.warn(
+                        "Same wallet type transfer attempted: {}",
+                        fromWallet
+                );
+
+                throw new IllegalArgumentException(
+                        "Cannot transfer between the same wallet types."
+                );
             }
+
             log.debug("Wallet type validation passed");
 
-            // Check available balance
-            log.info("Fetching available balance for hierarchyId: {}, walletType: {}", hierarchyId, fromWallet);
-            BigDecimal availableBalance = commonMethods.getCurrentBalance(hierarchyId, String.valueOf(fromWallet));
-            log.info("Available balance in {} wallet: {}", fromWallet, availableBalance);
+            // =========================================================
+            // FETCH AVAILABLE BALANCE
+            // =========================================================
+            log.info(
+                    "Fetching available balance for hierarchyId: {}, walletType: {}",
+                    hierarchyId,
+                    fromWallet
+            );
 
-            // Fetch SubProduct
-            log.info("Fetching SubProduct for subProductId: {}", request.getSubProductId());
+            BigDecimal availableBalance =
+                    commonMethods.getCurrentBalance(
+                            hierarchyId,
+                            fromWallet.name()
+                    );
+
+            if (availableBalance == null) {
+
+                log.error(
+                        "Available balance returned null for hierarchyId: {}, walletType: {}",
+                        hierarchyId,
+                        fromWallet
+                );
+
+                throw new IllegalStateException(
+                        "Unable to fetch available balance for " +
+                                fromWallet + " wallet."
+                );
+            }
+
+            log.info(
+                    "Available balance in {} wallet: {}",
+                    fromWallet,
+                    availableBalance
+            );
+
+            // =========================================================
+            // NEW CHANGE 1:
+            // EARLY BALANCE CHECK BEFORE FETCHING SCHEME/SLAB
+            //
+            // At this point charge is not known, so only the requested
+            // transfer amount can be checked.
+            // =========================================================
+            log.debug(
+                    "Performing early balance validation. Requested amount: {}, Available balance: {}",
+                    amount,
+                    availableBalance
+            );
+
+            if (availableBalance.compareTo(amount) < 0) {
+
+                log.warn(
+                        "Insufficient balance before slab lookup. " +
+                                "HierarchyId: {}, WalletType: {}, " +
+                                "RequestedAmount: {}, AvailableBalance: {}",
+                        hierarchyId,
+                        fromWallet,
+                        amount,
+                        availableBalance
+                );
+
+                throw new IllegalArgumentException(
+                        "Insufficient balance in " + fromWallet +
+                                " wallet. Requested amount: " + amount +
+                                ", Available balance: " + availableBalance
+                );
+            }
+
+            log.info(
+                    "Early balance validation passed. Requested amount: {}, Available balance: {}",
+                    amount,
+                    availableBalance
+            );
+
+            // =========================================================
+            // FETCH SUB-PRODUCT
+            // =========================================================
+            log.info(
+                    "Fetching SubProduct for subProductId: {}",
+                    request.getSubProductId()
+            );
+
             SubProducts subProduct =
-                    subProductsRepository.findById(request.getSubProductId())
+                    subProductsRepository
+                            .findById(request.getSubProductId())
                             .orElseThrow(() -> {
-                                log.error("---- [Callback] SubProduct NOT FOUND for subProductId: {}", request.getSubProductId());
-                                return new RuntimeException("SubProduct not found for subProductId: " + request.getSubProductId());
+
+                                log.error(
+                                        "[WTW] SubProduct NOT FOUND for subProductId: {}",
+                                        request.getSubProductId()
+                                );
+
+                                return new RuntimeException(
+                                        "SubProduct not found for subProductId: " +
+                                                request.getSubProductId()
+                                );
                             });
 
-            log.info("---- [Callback] SubProduct fetched successfully | subProductId={}, subProductName={}",
-                    request.getSubProductId(), subProduct.getSubProductTitle());
+            log.info(
+                    "[WTW] SubProduct fetched successfully | " +
+                            "subProductId={}, subProductName={}",
+                    request.getSubProductId(),
+                    subProduct.getSubProductTitle()
+            );
 
-            // Get Product from SubProduct
+            // =========================================================
+            // FETCH PRODUCT FROM SUB-PRODUCT
+            // =========================================================
             Products product = subProduct.getProduct();
-            log.info("---- [Callback] Product fetched successfully | productId={}, productCode={}, transactionType={}",
-                    product.getId(), product.getProductCode(), product.getTransactionType());
 
-            // Fetch Scheme
-            log.info("Extracting hierarchy type for hierarchyId: {}", hierarchyId);
-            String hierarchyType = walletTransactionService.extractHierarchyType(hierarchyId);
+            if (product == null) {
+
+                log.error(
+                        "[WTW] Product not mapped with subProductId: {}",
+                        request.getSubProductId()
+                );
+
+                throw new RuntimeException(
+                        "Product is not mapped with sub-product: " +
+                                request.getSubProductId()
+                );
+            }
+
+            log.info(
+                    "[WTW] Product fetched successfully | " +
+                            "productId={}, productCode={}, transactionType={}",
+                    product.getId(),
+                    product.getProductCode(),
+                    product.getTransactionType()
+            );
+
+            // =========================================================
+            // RESOLVE SCHEME CODE
+            // =========================================================
+            log.info(
+                    "Extracting hierarchy type for hierarchyId: {}",
+                    hierarchyId
+            );
+
+            String hierarchyType =
+                    walletTransactionService.extractHierarchyType(
+                            hierarchyId
+                    );
+
             log.info("Hierarchy Type: {}", hierarchyType);
 
             String schemeCode;
 
-            if ("RU".equalsIgnoreCase(hierarchyType) || "RT".equalsIgnoreCase(hierarchyType)) {
+            if ("RU".equalsIgnoreCase(hierarchyType)
+                    || "RT".equalsIgnoreCase(hierarchyType)) {
 
-                // Retailer → use request scheme
-                log.debug("Retailer/RU hierarchy detected, using scheme from request");
+                log.debug(
+                        "Retailer/RU hierarchy detected, using scheme from request"
+                );
+
                 schemeCode = request.getSchemeCode();
 
                 if (schemeCode == null || schemeCode.isBlank()) {
-                    log.error("Scheme code is required for Retailer/RU but was null or blank");
-                    throw new RuntimeException("Scheme code is required for Retailer/RU");
+
+                    log.error(
+                            "Scheme code is required for Retailer/RU but was null or blank"
+                    );
+
+                    throw new RuntimeException(
+                            "Scheme code is required for Retailer/RU"
+                    );
                 }
-                log.info("Scheme code from request: {}", schemeCode);
+
+                schemeCode = schemeCode.trim();
+
+                log.info(
+                        "Scheme code received from request: {}",
+                        schemeCode
+                );
 
             } else {
 
-                // Other hierarchy → use mapped scheme
-                log.debug("Non-retailer hierarchy, resolving scheme from hierarchy");
-                String schemeName = getSchemeNameByHierarchy(hierarchyId);
-                log.info("Scheme name resolved from hierarchy: {}", schemeName);
+                log.debug(
+                        "Non-retailer hierarchy detected, resolving scheme from hierarchy"
+                );
 
-                Optional<Scheme> scheme = schemeRepository.findBySchemeName(schemeName);
+                String schemeName =
+                        getSchemeNameByHierarchy(hierarchyId);
 
-                if (scheme.isEmpty()) {
-                    log.error("Scheme not found for name: {}", schemeName);
-                    throw new RuntimeException("Scheme not found for name: " + schemeName);
+                log.info(
+                        "Scheme name resolved from hierarchy: {}",
+                        schemeName
+                );
+
+                Optional<Scheme> schemeOptional =
+                        schemeRepository.findBySchemeName(schemeName);
+
+                if (schemeOptional.isEmpty()) {
+
+                    log.error(
+                            "Scheme not found for name: {}",
+                            schemeName
+                    );
+
+                    throw new RuntimeException(
+                            "Scheme not found for name: " + schemeName
+                    );
                 }
 
-                schemeCode = scheme.get().getSchemeCode();
-                log.info("Scheme resolved from hierarchy | type={} | schemeCode={}", hierarchyType, schemeCode);
+                schemeCode =
+                        schemeOptional.get().getSchemeCode();
+
+                log.info(
+                        "Scheme resolved from hierarchy | " +
+                                "hierarchyType={}, schemeCode={}",
+                        hierarchyType,
+                        schemeCode
+                );
             }
 
-            // FINAL COMMON CALL - Get Scheme Rate
-            log.info("Fetching exact scheme rate for schemeCode: {}, amount: {}", schemeCode, request.getConfirmAmount().doubleValue());
-            SchemeRate schemeRate = getExactSchemeRate(
+            // =========================================================
+            // FETCH EXACT SCHEME SLAB/RATE
+            // =========================================================
+            log.info(
+                    "Fetching exact scheme rate for schemeCode: {}, amount: {}",
                     schemeCode,
-                    request.getConfirmAmount().doubleValue()
+                    confirmAmount
             );
-            log.info("Scheme Rate fetched - SchemeCode: {}, OperatorCode: {}, RateType: {}, Gross: {}, IM: {}",
+
+            SchemeRate schemeRate =
+                    getExactSchemeRate(
+                            schemeCode,
+                            confirmAmount.doubleValue()
+                    );
+
+            if (schemeRate == null) {
+
+                log.error(
+                        "Scheme rate returned null for schemeCode: {}, amount: {}",
+                        schemeCode,
+                        confirmAmount
+                );
+
+                throw new RuntimeException(
+                        "Scheme slab not found for scheme code: " +
+                                schemeCode + " and amount: " + confirmAmount
+                );
+            }
+
+            log.info(
+                    "Scheme Rate fetched - SchemeCode: {}, OperatorCode: {}, " +
+                            "RateType: {}, Gross: {}, IM: {}",
                     schemeRate.getSchemeCode(),
                     schemeRate.getOperatorCode(),
                     schemeRate.getRateType(),
@@ -198,132 +445,586 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     schemeRate.getIm()
             );
 
-            // Fetch Operator
-            log.info("Fetching Operator for operatorCode: {}", schemeRate.getOperatorCode());
-            Operators operator = operatorsRepository
-                    .findByOperatorCode(schemeRate.getOperatorCode())
-                    .orElseThrow(() -> new RuntimeException(
-                            "Operator not found for code: " + schemeRate.getOperatorCode()
-                    ));
+            // =========================================================
+            // FETCH OPERATOR
+            // =========================================================
+            log.info(
+                    "Fetching Operator for operatorCode: {}",
+                    schemeRate.getOperatorCode()
+            );
 
-            log.info("Operator fetched successfully | operatorCode={}, operatorName={}",
-                    operator.getOperatorCode(), operator.getOperatorName());
+            Operators operator =
+                    operatorsRepository
+                            .findByOperatorCode(
+                                    schemeRate.getOperatorCode()
+                            )
+                            .orElseThrow(() -> {
 
-            // Calculate gross charge
-            log.debug("Calculating gross charge");
+                                log.error(
+                                        "Operator not found for operatorCode: {}",
+                                        schemeRate.getOperatorCode()
+                                );
+
+                                return new RuntimeException(
+                                        "Operator not found for code: " +
+                                                schemeRate.getOperatorCode()
+                                );
+                            });
+
+            log.info(
+                    "Operator fetched successfully | " +
+                            "operatorCode={}, operatorName={}",
+                    operator.getOperatorCode(),
+                    operator.getOperatorName()
+            );
+
+            // =========================================================
+            // CALCULATE GROSS CHARGE
+            // =========================================================
+            log.debug(
+                    "Calculating gross charge. RateType: {}, GrossRate: {}, Amount: {}",
+                    schemeRate.getRateType(),
+                    schemeRate.getGross(),
+                    amount
+            );
+
+            if (schemeRate.getRateType() == null) {
+
+                log.error(
+                        "Rate type is null for schemeCode: {}",
+                        schemeCode
+                );
+
+                throw new RuntimeException(
+                        "Rate type is not configured for scheme: " +
+                                schemeCode
+                );
+            }
+
+            if (schemeRate.getGross() == null) {
+
+                log.error(
+                        "Gross rate is null for schemeCode: {}",
+                        schemeCode
+                );
+
+                throw new RuntimeException(
+                        "Gross rate is not configured for scheme: " +
+                                schemeCode
+                );
+            }
+
+            BigDecimal grossRate =
+                    BigDecimal.valueOf(schemeRate.getGross());
+
             BigDecimal grossCharge;
 
             if (schemeRate.getRateType() == RateType.PERCENTAGE) {
-                grossCharge = amount.multiply(BigDecimal.valueOf(schemeRate.getGross())).divide(BigDecimal.valueOf(100));
-                log.debug("Gross charge calculated (Percentage): {}% of {} = {}", schemeRate.getGross(), amount, grossCharge);
+
+                grossCharge = amount
+                        .multiply(grossRate)
+                        .divide(
+                                BigDecimal.valueOf(100),
+                                2,
+                                RoundingMode.HALF_UP
+                        );
+
+                log.debug(
+                        "Percentage gross charge calculated. " +
+                                "Rate: {}%, Amount: {}, GrossCharge: {}",
+                        grossRate,
+                        amount,
+                        grossCharge
+                );
+
             } else {
-                grossCharge = BigDecimal.valueOf(schemeRate.getGross());
-                log.debug("Gross charge calculated (Fixed): {}", grossCharge);
+
+                grossCharge = grossRate.setScale(
+                        2,
+                        RoundingMode.HALF_UP
+                );
+
+                log.debug(
+                        "Fixed gross charge calculated: {}",
+                        grossCharge
+                );
             }
 
-            BigDecimal totalRequiredAmount = amount.add(grossCharge);
-            log.info("Total required amount: {} (Amount: {} + Gross Charge: {})", totalRequiredAmount, amount, grossCharge);
+            if (grossCharge.compareTo(BigDecimal.ZERO) < 0) {
 
-            // Validate sufficient balance
-            log.debug("Checking sufficient balance - Available: {}, Required: {}", availableBalance, totalRequiredAmount);
+                log.error(
+                        "Calculated gross charge is negative. " +
+                                "SchemeCode: {}, GrossCharge: {}",
+                        schemeCode,
+                        grossCharge
+                );
+
+                throw new IllegalStateException(
+                        "Invalid negative charge configured for scheme: " +
+                                schemeCode
+                );
+            }
+
+            BigDecimal totalRequiredAmount =
+                    amount.add(grossCharge);
+
+            log.info(
+                    "Total required amount calculated. " +
+                            "TransferAmount: {}, GrossCharge: {}, TotalRequiredAmount: {}",
+                    amount,
+                    grossCharge,
+                    totalRequiredAmount
+            );
+
+            // =========================================================
+            // NEW CHANGE 2:
+            // FINAL BALANCE CHECK AFTER SLAB AND CHARGE CALCULATION
+            //
+            // This check is mandatory because the final debit includes
+            // the transfer amount plus the calculated charge.
+            // =========================================================
+            log.debug(
+                    "Performing final balance validation. " +
+                            "AvailableBalance: {}, TotalRequiredAmount: {}",
+                    availableBalance,
+                    totalRequiredAmount
+            );
+
             if (availableBalance.compareTo(totalRequiredAmount) < 0) {
-                log.warn("Insufficient balance. Required: {}, Available: {}",
-                        totalRequiredAmount, availableBalance);
+
+                log.warn(
+                        "Insufficient balance after charge calculation. " +
+                                "HierarchyId: {}, WalletType: {}, " +
+                                "TransferAmount: {}, GrossCharge: {}, " +
+                                "TotalRequiredAmount: {}, AvailableBalance: {}",
+                        hierarchyId,
+                        fromWallet,
+                        amount,
+                        grossCharge,
+                        totalRequiredAmount,
+                        availableBalance
+                );
 
                 throw new IllegalArgumentException(
                         "Insufficient balance in " + fromWallet +
-                                " wallet. Required: " + totalRequiredAmount +
-                                ", Available: " + availableBalance
+                                " wallet. Transfer amount: " + amount +
+                                ", Charge: " + grossCharge +
+                                ", Total required: " + totalRequiredAmount +
+                                ", Available balance: " + availableBalance
                 );
             }
-            log.debug("Sufficient balance available");
 
-            // Generate base transaction ID
-            String baseTransactionId = commonMethods.generateBaseTransactionId();
-            log.info("Generated base transaction ID: {}", baseTransactionId);
+            log.info(
+                    "Final balance validation passed. " +
+                            "TotalRequiredAmount: {}, AvailableBalance: {}",
+                    totalRequiredAmount,
+                    availableBalance
+            );
 
-            // ====== DEBIT FROM SOURCE WALLET ======
-            log.info("Debiting from {} wallet for hierarchyId: {}", fromWallet, hierarchyId);
-            AbstractWalletAmountTable fromWalletTable = commonMethods.getWalletByType(fromWallet.name(), hierarchyId);
-            log.debug("Source wallet table fetched: {}", fromWalletTable.getClass().getSimpleName());
-            updateWallet(fromWalletTable, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
-            log.info("Debited {} from {} wallet. Transaction ID: {}", amount, fromWallet, baseTransactionId);
+            // =========================================================
+            // GENERATE BASE TRANSACTION ID
+            // =========================================================
+            String baseTransactionId =
+                    commonMethods.generateBaseTransactionId();
 
-            // ====== HIERARCHY CHAIN PROCESSING ======
-            log.info("Processing hierarchy chain starting from: {}", hierarchyId);
+            log.info(
+                    "Generated base transaction ID: {}",
+                    baseTransactionId
+            );
+
+            // =========================================================
+            // DEBIT TRANSFER AMOUNT FROM SOURCE WALLET
+            //
+            // Only the transfer amount is debited here.
+            // Charges must be debited separately by processCharges().
+            // =========================================================
+            log.info(
+                    "Debiting transfer amount from {} wallet for hierarchyId: {}",
+                    fromWallet,
+                    hierarchyId
+            );
+
+            AbstractWalletAmountTable fromWalletTable =
+                    commonMethods.getWalletByType(
+                            fromWallet.name(),
+                            hierarchyId
+                    );
+
+            if (fromWalletTable == null) {
+
+                log.error(
+                        "Source wallet not found. HierarchyId: {}, WalletType: {}",
+                        hierarchyId,
+                        fromWallet
+                );
+
+                throw new RuntimeException(
+                        "Source wallet not found for hierarchyId: " +
+                                hierarchyId
+                );
+            }
+
+            log.debug(
+                    "Source wallet table fetched: {}",
+                    fromWalletTable.getClass().getSimpleName()
+            );
+
+            updateWallet(
+                    fromWalletTable,
+                    hierarchyId,
+                    fromWallet,
+                    amount,
+                    "Debit",
+                    baseTransactionId,
+                    "SUCCESS",
+                    "DEBIT",
+                    latitude,
+                    longitude
+            );
+
+            log.info(
+                    "Debited transfer amount {} from {} wallet. Transaction ID: {}",
+                    amount,
+                    fromWallet,
+                    baseTransactionId
+            );
+
+            // =========================================================
+            // HIERARCHY CHAIN PROCESSING
+            // =========================================================
+            log.info(
+                    "Processing hierarchy chain starting from: {}",
+                    hierarchyId
+            );
+
             String currentId = hierarchyId;
             int hierarchyLevel = 0;
 
             while (true) {
-                hierarchyLevel++;
-                log.debug("Hierarchy level {} - Processing: {}", hierarchyLevel, currentId);
 
-                Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
+                hierarchyLevel++;
+
+                log.debug(
+                        "Hierarchy level {} - Processing hierarchyId: {}",
+                        hierarchyLevel,
+                        currentId
+                );
+
+                Optional<String> parentOpt =
+                        commonMethods.findParentHierarchy(currentId);
+
                 if (parentOpt.isEmpty()) {
-                    log.error("No approver found for hierarchy: {}", hierarchyId);
-                    throw new RuntimeException("No approver found for hierarchy: " + hierarchyId);
+
+                    log.error(
+                            "No approver found for hierarchyId: {}",
+                            hierarchyId
+                    );
+
+                    throw new RuntimeException(
+                            "No approver found for hierarchy: " +
+                                    hierarchyId
+                    );
                 }
 
                 String parentId = parentOpt.get();
-                String parentType = commonMethods.extractHierarchyType(parentId);
-                log.info("Found parent hierarchy: {} with type {}", parentId, parentType);
 
-                if ("WL".equals(parentType)) {
+                String parentType =
+                        commonMethods.extractHierarchyType(parentId);
+
+                log.info(
+                        "Found parent hierarchy: {} with type: {}",
+                        parentId,
+                        parentType
+                );
+
+                if ("WL".equalsIgnoreCase(parentType)) {
+
                     log.info("=== Processing WL level transfer ===");
-                    whiteLabelRepository.findById(parentId).ifPresent(wl -> {
-                        log.info("Processing WL level transfer for WL ID: {}", wl.getWhiteLabelId());
 
-                        log.debug("Crediting {} wallet at WL level", fromWallet);
-                        AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), wl.getWhiteLabelId());
-                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
-                        log.debug("Credited {} to {} wallet at WL level", amount, fromWallet);
+                    WhiteLabels whiteLabel =
+                            whiteLabelRepository
+                                    .findById(parentId)
+                                    .orElseThrow(() -> {
 
-                        log.debug("Debiting {} wallet at WL level", toWallet);
-                        AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), wl.getWhiteLabelId());
-                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
-                        log.debug("Debited {} from {} wallet at WL level", amount, toWallet);
+                                        log.error(
+                                                "WhiteLabel not found for parentId: {}",
+                                                parentId
+                                        );
 
-                        log.info("WL level transfer completed for WL ID: {}", wl.getWhiteLabelId());
-                    });
+                                        return new RuntimeException(
+                                                "WhiteLabel not found for hierarchyId: " +
+                                                        parentId
+                                        );
+                                    });
+
+                    log.info(
+                            "Processing WL level transfer for WL ID: {}",
+                            whiteLabel.getWhiteLabelId()
+                    );
+
+                    AbstractWalletAmountTable wlFromWallet =
+                            commonMethods.getWalletByType(
+                                    fromWallet.name(),
+                                    whiteLabel.getWhiteLabelId()
+                            );
+
+                    if (wlFromWallet == null) {
+
+                        throw new RuntimeException(
+                                fromWallet +
+                                        " wallet not found for WhiteLabel: " +
+                                        whiteLabel.getWhiteLabelId()
+                        );
+                    }
+
+                    updateWallet(
+                            wlFromWallet,
+                            parentId,
+                            fromWallet,
+                            amount,
+                            "Credit",
+                            baseTransactionId,
+                            "SUCCESS",
+                            "CREDIT",
+                            latitude,
+                            longitude
+                    );
+
+                    log.debug(
+                            "Credited {} to {} wallet at WL level",
+                            amount,
+                            fromWallet
+                    );
+
+                    AbstractWalletAmountTable wlToWallet =
+                            commonMethods.getWalletByType(
+                                    toWallet.name(),
+                                    whiteLabel.getWhiteLabelId()
+                            );
+
+                    if (wlToWallet == null) {
+
+                        throw new RuntimeException(
+                                toWallet +
+                                        " wallet not found for WhiteLabel: " +
+                                        whiteLabel.getWhiteLabelId()
+                        );
+                    }
+
+                    updateWallet(
+                            wlToWallet,
+                            parentId,
+                            toWallet,
+                            amount,
+                            "Debit",
+                            baseTransactionId,
+                            "SUCCESS",
+                            "DEBIT",
+                            latitude,
+                            longitude
+                    );
+
+                    log.debug(
+                            "Debited {} from {} wallet at WL level",
+                            amount,
+                            toWallet
+                    );
+
+                    log.info(
+                            "WL level transfer completed for WL ID: {}",
+                            whiteLabel.getWhiteLabelId()
+                    );
+
                     log.info("=== WL level processing complete ===");
+
                     break;
                 }
 
-                if ("IM".equals(parentType) || "AD".equals(parentType)) {
-                    log.info("=== Processing {} level transfer ===", parentType);
-                    adminRepository.findById(parentId).ifPresent(ad -> {
-                        log.info("Processing {} level transfer for Admin ID: {}", parentType, ad.getId());
+                if ("IM".equalsIgnoreCase(parentType)
+                        || "AD".equalsIgnoreCase(parentType)) {
 
-                        log.debug("Crediting {} wallet at {} level", fromWallet, parentType);
-                        AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), ad.getId());
-                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
-                        log.debug("Credited {} to {} wallet at {} level", amount, fromWallet, parentType);
+                    log.info(
+                            "=== Processing {} level transfer ===",
+                            parentType
+                    );
 
-                        log.debug("Debiting {} wallet at {} level", toWallet, parentType);
-                        AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), ad.getId());
-                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
-                        log.debug("Debited {} from {} wallet at {} level", amount, toWallet, parentType);
+                    Admin admin =
+                            adminRepository
+                                    .findById(parentId)
+                                    .orElseThrow(() -> {
 
-                        log.info("{} level transfer completed for Admin ID: {}", parentType, ad.getId());
-                    });
-                    log.info("=== {} level processing complete ===", parentType);
+                                        log.error(
+                                                "Admin not found for parentId: {}",
+                                                parentId
+                                        );
+
+                                        return new RuntimeException(
+                                                "Admin not found for hierarchyId: " +
+                                                        parentId
+                                        );
+                                    });
+
+                    log.info(
+                            "Processing {} level transfer for Admin ID: {}",
+                            parentType,
+                            admin.getId()
+                    );
+
+                    AbstractWalletAmountTable adminFromWallet =
+                            commonMethods.getWalletByType(
+                                    fromWallet.name(),
+                                    admin.getId()
+                            );
+
+                    if (adminFromWallet == null) {
+
+                        throw new RuntimeException(
+                                fromWallet +
+                                        " wallet not found for Admin: " +
+                                        admin.getId()
+                        );
+                    }
+
+                    updateWallet(
+                            adminFromWallet,
+                            parentId,
+                            fromWallet,
+                            amount,
+                            "Credit",
+                            baseTransactionId,
+                            "SUCCESS",
+                            "CREDIT",
+                            latitude,
+                            longitude
+                    );
+
+                    log.debug(
+                            "Credited {} to {} wallet at {} level",
+                            amount,
+                            fromWallet,
+                            parentType
+                    );
+
+                    AbstractWalletAmountTable adminToWallet =
+                            commonMethods.getWalletByType(
+                                    toWallet.name(),
+                                    admin.getId()
+                            );
+
+                    if (adminToWallet == null) {
+
+                        throw new RuntimeException(
+                                toWallet +
+                                        " wallet not found for Admin: " +
+                                        admin.getId()
+                        );
+                    }
+
+                    updateWallet(
+                            adminToWallet,
+                            parentId,
+                            toWallet,
+                            amount,
+                            "Debit",
+                            baseTransactionId,
+                            "SUCCESS",
+                            "DEBIT",
+                            latitude,
+                            longitude
+                    );
+
+                    log.debug(
+                            "Debited {} from {} wallet at {} level",
+                            amount,
+                            toWallet,
+                            parentType
+                    );
+
+                    log.info(
+                            "{} level transfer completed for Admin ID: {}",
+                            parentType,
+                            admin.getId()
+                    );
+
+                    log.info(
+                            "=== {} level processing complete ===",
+                            parentType
+                    );
+
                     break;
                 }
 
                 currentId = parentId;
-                log.debug("Moving to parent: {}", currentId);
+
+                log.debug(
+                        "Moving to next parent hierarchy: {}",
+                        currentId
+                );
             }
 
-            // ====== CREDIT TO DESTINATION WALLET ======
-            log.info("Crediting to {} wallet for hierarchyId: {}", toWallet, hierarchyId);
-            AbstractWalletAmountTable toWalletTable = commonMethods.getWalletByType(toWallet.name(), hierarchyId);
-            log.debug("Destination wallet table fetched: {}", toWalletTable.getClass().getSimpleName());
-            updateWallet(toWalletTable, hierarchyId, toWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
-            log.info("Credited {} to {} wallet. Transaction ID: {}", amount, toWallet, baseTransactionId);
+            // =========================================================
+            // CREDIT TRANSFER AMOUNT TO DESTINATION WALLET
+            // =========================================================
+            log.info(
+                    "Crediting transfer amount to {} wallet for hierarchyId: {}",
+                    toWallet,
+                    hierarchyId
+            );
 
-            // ====== PROCESS CHARGES ======
-            log.info("Preparing transaction details for processing charges");
-            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+            AbstractWalletAmountTable toWalletTable =
+                    commonMethods.getWalletByType(
+                            toWallet.name(),
+                            hierarchyId
+                    );
+
+            if (toWalletTable == null) {
+
+                log.error(
+                        "Destination wallet not found. HierarchyId: {}, WalletType: {}",
+                        hierarchyId,
+                        toWallet
+                );
+
+                throw new RuntimeException(
+                        "Destination wallet not found for hierarchyId: " +
+                                hierarchyId
+                );
+            }
+
+            log.debug(
+                    "Destination wallet table fetched: {}",
+                    toWalletTable.getClass().getSimpleName()
+            );
+
+            updateWallet(
+                    toWalletTable,
+                    hierarchyId,
+                    toWallet,
+                    amount,
+                    "Credit",
+                    baseTransactionId,
+                    "SUCCESS",
+                    "CREDIT",
+                    latitude,
+                    longitude
+            );
+
+            log.info(
+                    "Credited {} to {} wallet. Transaction ID: {}",
+                    amount,
+                    toWallet,
+                    baseTransactionId
+            );
+
+            // =========================================================
+            // PREPARE AND PROCESS CHARGES
+            // =========================================================
+            log.info(
+                    "Preparing transaction details for processing charges"
+            );
+
+            TransactionSchemeDetailsRequestDto dto =
+                    new TransactionSchemeDetailsRequestDto();
 
             dto.setBaseTranxId(baseTransactionId);
             dto.setAmount(confirmAmount.doubleValue());
@@ -335,7 +1036,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             dto.setWalletType(subProduct.getWalletType());
             dto.setGstValue(String.valueOf(product.getSgst()));
             dto.setTdsRate(String.valueOf(product.getTds()));
-            dto.setHierarchyId(request.getHierarchyId());
+            dto.setHierarchyId(hierarchyId);
             dto.setProductCode(product.getProductCode());
             dto.setSubProductCode(subProduct.getSubProductCode());
             dto.setIsCommission(product.getIsCommissions());
@@ -343,47 +1044,442 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             dto.setLatitude(latitude);
             dto.setLongitude(longitude);
 
-            log.debug("---- [Callback] DTO prepared: {}", dto);
-            log.info("Processing charges - IM Rate: {}, SGST: {}", schemeRate.getIm(), product.getSgst());
+            log.debug(
+                    "[WTW] Transaction charge DTO prepared: {}",
+                    dto
+            );
 
-            transactionEngineServiceImpl.processCharges(dto, fromWalletTable, BigDecimal.valueOf(schemeRate.getIm()), product.getSgst().toString(), baseTransactionId, "SUCCESS");
-            log.info("Charges processed successfully for transaction ID: {}", baseTransactionId);
+            log.info(
+                    "Processing charges - IM Rate: {}, SGST: {}",
+                    schemeRate.getIm(),
+                    product.getSgst()
+            );
 
-            // ====== BUILD SUCCESS RESPONSE ======
-            CommonResponse<String> response = new CommonResponse<>(200, "Transfer successful", baseTransactionId);
-            responseJson = objectMapper.writeValueAsString(response);
+            transactionEngineServiceImpl.processCharges(
+                    dto,
+                    fromWalletTable,
+                    BigDecimal.valueOf(schemeRate.getIm()),
+                    product.getSgst().toString(),
+                    baseTransactionId,
+                    "SUCCESS"
+            );
+
+            log.info(
+                    "Charges processed successfully for transaction ID: {}",
+                    baseTransactionId
+            );
+
+            // =========================================================
+            // BUILD SUCCESS RESPONSE LOG
+            // =========================================================
+            CommonResponse<String> response =
+                    new CommonResponse<>(
+                            200,
+                            "Transfer successful",
+                            baseTransactionId
+                    );
+
+            responseJson =
+                    objectMapper.writeValueAsString(response);
 
             log.info("=== Transfer completed successfully ===");
-            log.info("Transaction ID: {}, From: {} -> To: {}, Amount: {}",
-                    baseTransactionId, fromWallet, toWallet, amount);
-            log.info("Hierarchy: {}, Scheme: {}, Operator: {}",
-                    hierarchyId, schemeCode, operator.getOperatorName());
+
+            log.info(
+                    "Transaction ID: {}, From: {} -> To: {}, " +
+                            "TransferAmount: {}, GrossCharge: {}, TotalRequiredAmount: {}",
+                    baseTransactionId,
+                    fromWallet,
+                    toWallet,
+                    amount,
+                    grossCharge,
+                    totalRequiredAmount
+            );
+
+            log.info(
+                    "Hierarchy: {}, Scheme: {}, Operator: {}",
+                    hierarchyId,
+                    schemeCode,
+                    operator.getOperatorName()
+            );
 
         } catch (Exception ex) {
+
             log.error("=== Wallet-to-wallet transfer failed ===");
-            log.error("Error: {}", ex.getMessage());
-            log.error("Stack trace:", ex);
-            responseJson = "{\"error\": \"" + ex.getMessage() + "\"}";
+
+            log.error(
+                    "Wallet-to-wallet transfer error: {}",
+                    ex.getMessage(),
+                    ex
+            );
+
+            try {
+
+                Map<String, Object> errorResponse = new HashMap<>();
+
+                errorResponse.put("status", 500);
+                errorResponse.put("message", ex.getMessage());
+
+                responseJson =
+                        objectMapper.writeValueAsString(errorResponse);
+
+            } catch (Exception serializationException) {
+
+                log.error(
+                        "Failed to serialize wallet transfer error response",
+                        serializationException
+                );
+
+                responseJson =
+                        "{\"status\":500,\"message\":\"Wallet transfer failed\"}";
+            }
+
             throw ex;
 
         } finally {
-            LocalDateTime responseDateTime = LocalDateTime.now();
-            log.info("Saving IM logs - Request: {}, Response: {}",
-                    requestJson != null ? "Present" : "Null",
-                    responseJson != null ? "Present" : "Null");
 
-            // Save logs whether success or failure
-            commonFunctions.saveImLogs(
-                    requestJson,
-                    requestDateTime,
-                    null,
-                    responseJson,
-                    responseDateTime
+            LocalDateTime responseDateTime =
+                    LocalDateTime.now();
+
+            log.info(
+                    "Saving IM logs - Request: {}, Response: {}",
+                    requestJson != null ? "Present" : "Null",
+                    responseJson != null ? "Present" : "Null"
             );
-            log.info("IM logs saved successfully");
+
+            try {
+
+                commonFunctions.saveImLogs(
+                        requestJson,
+                        requestDateTime,
+                        null,
+                        responseJson,
+                        responseDateTime
+                );
+
+                log.info("IM logs saved successfully");
+
+            } catch (Exception logException) {
+
+                // Do not overwrite the original transaction exception
+                // if only the audit-log save operation fails.
+                log.error(
+                        "Failed to save IM logs for wallet-to-wallet transfer",
+                        logException
+                );
+            }
+
             log.info("=== END Wallet-to-Wallet Transfer ===");
         }
     }
+
+//    @Transactional
+//    @Override
+//    public void transferAmountWalletToWallet(WalletToWalletTransferDto request, Double latitude, Double longitude) throws JsonProcessingException {
+//
+//        log.info("=== START Wallet-to-Wallet Transfer ===");
+//        LocalDateTime requestDateTime = LocalDateTime.now();
+//        String requestJson = null;
+//        String responseJson = null;
+//
+//        try {
+//            // Serialize request
+//            requestJson = objectMapper.writeValueAsString(request);
+//            log.info("Initiating wallet-to-wallet transfer: {}", requestJson);
+//
+//            // Log request parameters
+//            log.info("Transfer Details - HierarchyId: {}, FromWallet: {}, ToWallet: {}, Amount: {}, ConfirmAmount: {}, SubProductId: {}, SchemeCode: {}",
+//                    request.getHierarchyId(),
+//                    request.getWalletTypeFrom(),
+//                    request.getWalletTypeTo(),
+//                    request.getTransferAmount(),
+//                    request.getConfirmAmount(),
+//                    request.getSubProductId(),
+//                    request.getSchemeCode()
+//            );
+//
+//            log.info("Location Details - Latitude: {}, Longitude: {}", latitude, longitude);
+//
+//            String hierarchyId = request.getHierarchyId();
+//            WalletType fromWallet = request.getWalletTypeFrom();
+//            WalletType toWallet = request.getWalletTypeTo();
+//            BigDecimal amount = request.getTransferAmount();
+//            BigDecimal confirmAmount = request.getConfirmAmount();
+//
+//            // Validate amount match
+//            log.debug("Validating amount and confirmation amount");
+//            if (!Objects.equals(amount, confirmAmount)) {
+//                log.warn("Amount mismatch: {} != {}", amount, confirmAmount);
+//                throw new IllegalArgumentException("Amount and confirmation amount do not match.");
+//            }
+//            log.debug("Amount validation passed");
+//
+//            // Validate wallet types
+//            log.debug("Validating wallet types - From: {}, To: {}", fromWallet, toWallet);
+//            if (fromWallet == toWallet) {
+//                log.warn("Same wallet type transfer attempted: {}", fromWallet);
+//                throw new IllegalArgumentException("Cannot transfer between the same wallet types.");
+//            }
+//            log.debug("Wallet type validation passed");
+//
+//            // Check available balance
+//            log.info("Fetching available balance for hierarchyId: {}, walletType: {}", hierarchyId, fromWallet);
+//            BigDecimal availableBalance = commonMethods.getCurrentBalance(hierarchyId, String.valueOf(fromWallet));
+//            log.info("Available balance in {} wallet: {}", fromWallet, availableBalance);
+//
+//            // Fetch SubProduct
+//            log.info("Fetching SubProduct for subProductId: {}", request.getSubProductId());
+//            SubProducts subProduct =
+//                    subProductsRepository.findById(request.getSubProductId())
+//                            .orElseThrow(() -> {
+//                                log.error("---- [Callback] SubProduct NOT FOUND for subProductId: {}", request.getSubProductId());
+//                                return new RuntimeException("SubProduct not found for subProductId: " + request.getSubProductId());
+//                            });
+//
+//            log.info("---- [WTW] SubProduct fetched successfully | subProductId={}, subProductName={}",
+//                    request.getSubProductId(), subProduct.getSubProductTitle());
+//
+//            // Get Product from SubProduct
+//            Products product = subProduct.getProduct();
+//            log.info("---- [WTW] Product fetched successfully | productId={}, productCode={}, transactionType={}",
+//                    product.getId(), product.getProductCode(), product.getTransactionType());
+//
+//            // Fetch Scheme
+//            log.info("Extracting hierarchy type for hierarchyId: {}", hierarchyId);
+//            String hierarchyType = walletTransactionService.extractHierarchyType(hierarchyId);
+//            log.info("Hierarchy Type: {}", hierarchyType);
+//
+//            String schemeCode;
+//
+//            if ("RU".equalsIgnoreCase(hierarchyType) || "RT".equalsIgnoreCase(hierarchyType)) {
+//
+//                // Retailer → use request scheme
+//                log.debug("Retailer/RU hierarchy detected, using scheme from request");
+//                schemeCode = request.getSchemeCode();
+//
+//                if (schemeCode == null || schemeCode.isBlank()) {
+//                    log.error("Scheme code is required for Retailer/RU but was null or blank");
+//                    throw new RuntimeException("Scheme code is required for Retailer/RU");
+//                }
+//                log.info("Scheme code from request: {}", schemeCode);
+//
+//            } else {
+//
+//                // Other hierarchy → use mapped scheme
+//                log.debug("Non-retailer hierarchy, resolving scheme from hierarchy");
+//                String schemeName = getSchemeNameByHierarchy(hierarchyId);
+//                log.info("Scheme name resolved from hierarchy: {}", schemeName);
+//
+//                Optional<Scheme> scheme = schemeRepository.findBySchemeName(schemeName);
+//
+//                if (scheme.isEmpty()) {
+//                    log.error("Scheme not found for name: {}", schemeName);
+//                    throw new RuntimeException("Scheme not found for name: " + schemeName);
+//                }
+//
+//                schemeCode = scheme.get().getSchemeCode();
+//                log.info("Scheme resolved from hierarchy | type={} | schemeCode={}", hierarchyType, schemeCode);
+//            }
+//
+//            // FINAL COMMON CALL - Get Scheme Rate
+//            log.info("Fetching exact scheme rate for schemeCode: {}, amount: {}", schemeCode, request.getConfirmAmount().doubleValue());
+//            SchemeRate schemeRate = getExactSchemeRate(
+//                    schemeCode,
+//                    request.getConfirmAmount().doubleValue()
+//            );
+//            log.info("Scheme Rate fetched - SchemeCode: {}, OperatorCode: {}, RateType: {}, Gross: {}, IM: {}",
+//                    schemeRate.getSchemeCode(),
+//                    schemeRate.getOperatorCode(),
+//                    schemeRate.getRateType(),
+//                    schemeRate.getGross(),
+//                    schemeRate.getIm()
+//            );
+//
+//            // Fetch Operator
+//            log.info("Fetching Operator for operatorCode: {}", schemeRate.getOperatorCode());
+//            Operators operator = operatorsRepository
+//                    .findByOperatorCode(schemeRate.getOperatorCode())
+//                    .orElseThrow(() -> new RuntimeException(
+//                            "Operator not found for code: " + schemeRate.getOperatorCode()
+//                    ));
+//
+//            log.info("Operator fetched successfully | operatorCode={}, operatorName={}",
+//                    operator.getOperatorCode(), operator.getOperatorName());
+//
+//            // Calculate gross charge
+//            log.debug("Calculating gross charge");
+//            BigDecimal grossCharge;
+//
+//            if (schemeRate.getRateType() == RateType.PERCENTAGE) {
+//                grossCharge = amount.multiply(BigDecimal.valueOf(schemeRate.getGross())).divide(BigDecimal.valueOf(100));
+//                log.debug("Gross charge calculated (Percentage): {}% of {} = {}", schemeRate.getGross(), amount, grossCharge);
+//            } else {
+//                grossCharge = BigDecimal.valueOf(schemeRate.getGross());
+//                log.debug("Gross charge calculated (Fixed): {}", grossCharge);
+//            }
+//
+//            BigDecimal totalRequiredAmount = amount.add(grossCharge);
+//            log.info("Total required amount: {} (Amount: {} + Gross Charge: {})", totalRequiredAmount, amount, grossCharge);
+//
+//            // Validate sufficient balance
+//            log.debug("Checking sufficient balance - Available: {}, Required: {}", availableBalance, totalRequiredAmount);
+//            if (availableBalance.compareTo(totalRequiredAmount) < 0) {
+//                log.warn("Insufficient balance. Required: {}, Available: {}",
+//                        totalRequiredAmount, availableBalance);
+//
+//                throw new IllegalArgumentException(
+//                        "Insufficient balance in " + fromWallet +
+//                                " wallet. Required: " + totalRequiredAmount +
+//                                ", Available: " + availableBalance
+//                );
+//            }
+//            log.debug("Sufficient balance available");
+//
+//            // Generate base transaction ID
+//            String baseTransactionId = commonMethods.generateBaseTransactionId();
+//            log.info("Generated base transaction ID: {}", baseTransactionId);
+//
+//            // ====== DEBIT FROM SOURCE WALLET ======
+//            log.info("Debiting from {} wallet for hierarchyId: {}", fromWallet, hierarchyId);
+//            AbstractWalletAmountTable fromWalletTable = commonMethods.getWalletByType(fromWallet.name(), hierarchyId);
+//            log.debug("Source wallet table fetched: {}", fromWalletTable.getClass().getSimpleName());
+//            updateWallet(fromWalletTable, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
+//            log.info("Debited {} from {} wallet. Transaction ID: {}", amount, fromWallet, baseTransactionId);
+//
+//            // ====== HIERARCHY CHAIN PROCESSING ======
+//            log.info("Processing hierarchy chain starting from: {}", hierarchyId);
+//            String currentId = hierarchyId;
+//            int hierarchyLevel = 0;
+//
+//            while (true) {
+//                hierarchyLevel++;
+//                log.debug("Hierarchy level {} - Processing: {}", hierarchyLevel, currentId);
+//
+//                Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
+//                if (parentOpt.isEmpty()) {
+//                    log.error("No approver found for hierarchy: {}", hierarchyId);
+//                    throw new RuntimeException("No approver found for hierarchy: " + hierarchyId);
+//                }
+//
+//                String parentId = parentOpt.get();
+//                String parentType = commonMethods.extractHierarchyType(parentId);
+//                log.info("Found parent hierarchy: {} with type {}", parentId, parentType);
+//
+//                if ("WL".equals(parentType)) {
+//                    log.info("=== Processing WL level transfer ===");
+//                    whiteLabelRepository.findById(parentId).ifPresent(wl -> {
+//                        log.info("Processing WL level transfer for WL ID: {}", wl.getWhiteLabelId());
+//
+//                        log.debug("Crediting {} wallet at WL level", fromWallet);
+//                        AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), wl.getWhiteLabelId());
+//                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
+//                        log.debug("Credited {} to {} wallet at WL level", amount, fromWallet);
+//
+//                        log.debug("Debiting {} wallet at WL level", toWallet);
+//                        AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), wl.getWhiteLabelId());
+//                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
+//                        log.debug("Debited {} from {} wallet at WL level", amount, toWallet);
+//
+//                        log.info("WL level transfer completed for WL ID: {}", wl.getWhiteLabelId());
+//                    });
+//                    log.info("=== WL level processing complete ===");
+//                    break;
+//                }
+//
+//                if ("IM".equals(parentType) || "AD".equals(parentType)) {
+//                    log.info("=== Processing {} level transfer ===", parentType);
+//                    adminRepository.findById(parentId).ifPresent(ad -> {
+//                        log.info("Processing {} level transfer for Admin ID: {}", parentType, ad.getId());
+//
+//                        log.debug("Crediting {} wallet at {} level", fromWallet, parentType);
+//                        AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), ad.getId());
+//                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
+//                        log.debug("Credited {} to {} wallet at {} level", amount, fromWallet, parentType);
+//
+//                        log.debug("Debiting {} wallet at {} level", toWallet, parentType);
+//                        AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), ad.getId());
+//                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
+//                        log.debug("Debited {} from {} wallet at {} level", amount, toWallet, parentType);
+//
+//                        log.info("{} level transfer completed for Admin ID: {}", parentType, ad.getId());
+//                    });
+//                    log.info("=== {} level processing complete ===", parentType);
+//                    break;
+//                }
+//
+//                currentId = parentId;
+//                log.debug("Moving to parent: {}", currentId);
+//            }
+//
+//            // ====== CREDIT TO DESTINATION WALLET ======
+//            log.info("Crediting to {} wallet for hierarchyId: {}", toWallet, hierarchyId);
+//            AbstractWalletAmountTable toWalletTable = commonMethods.getWalletByType(toWallet.name(), hierarchyId);
+//            log.debug("Destination wallet table fetched: {}", toWalletTable.getClass().getSimpleName());
+//            updateWallet(toWalletTable, hierarchyId, toWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
+//            log.info("Credited {} to {} wallet. Transaction ID: {}", amount, toWallet, baseTransactionId);
+//
+//            // ====== PROCESS CHARGES ======
+//            log.info("Preparing transaction details for processing charges");
+//            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
+//
+//            dto.setBaseTranxId(baseTransactionId);
+//            dto.setAmount(confirmAmount.doubleValue());
+//            dto.setConfirmAmount(confirmAmount.doubleValue());
+//            dto.setOperatorName(schemeRate.getOperatorName());
+//            dto.setOperatorCode(schemeRate.getSchemeCode());
+//            dto.setSchemeRate(schemeRate);
+//            dto.setTransactionType(product.getTransactionType());
+//            dto.setWalletType(subProduct.getWalletType());
+//            dto.setGstValue(String.valueOf(product.getSgst()));
+//            dto.setTdsRate(String.valueOf(product.getTds()));
+//            dto.setHierarchyId(request.getHierarchyId());
+//            dto.setProductCode(product.getProductCode());
+//            dto.setSubProductCode(subProduct.getSubProductCode());
+//            dto.setIsCommission(product.getIsCommissions());
+//            dto.setHasCharge(product.getHasCharges());
+//            dto.setLatitude(latitude);
+//            dto.setLongitude(longitude);
+//
+//            log.debug("---- [Callback] DTO prepared: {}", dto);
+//            log.info("Processing charges - IM Rate: {}, SGST: {}", schemeRate.getIm(), product.getSgst());
+//
+//            transactionEngineServiceImpl.processCharges(dto, fromWalletTable, BigDecimal.valueOf(schemeRate.getIm()), product.getSgst().toString(), baseTransactionId, "SUCCESS");
+//            log.info("Charges processed successfully for transaction ID: {}", baseTransactionId);
+//
+//            // ====== BUILD SUCCESS RESPONSE ======
+//            CommonResponse<String> response = new CommonResponse<>(200, "Transfer successful", baseTransactionId);
+//            responseJson = objectMapper.writeValueAsString(response);
+//
+//            log.info("=== Transfer completed successfully ===");
+//            log.info("Transaction ID: {}, From: {} -> To: {}, Amount: {}",
+//                    baseTransactionId, fromWallet, toWallet, amount);
+//            log.info("Hierarchy: {}, Scheme: {}, Operator: {}",
+//                    hierarchyId, schemeCode, operator.getOperatorName());
+//
+//        } catch (Exception ex) {
+//            log.error("=== Wallet-to-wallet transfer failed ===");
+//            log.error("Error: {}", ex.getMessage());
+//            log.error("Stack trace:", ex);
+//            responseJson = "{\"error\": \"" + ex.getMessage() + "\"}";
+//            throw ex;
+//
+//        } finally {
+//            LocalDateTime responseDateTime = LocalDateTime.now();
+//            log.info("Saving IM logs - Request: {}, Response: {}",
+//                    requestJson != null ? "Present" : "Null",
+//                    responseJson != null ? "Present" : "Null");
+//
+//            // Save logs whether success or failure
+//            commonFunctions.saveImLogs(
+//                    requestJson,
+//                    requestDateTime,
+//                    null,
+//                    responseJson,
+//                    responseDateTime
+//            );
+//            log.info("IM logs saved successfully");
+//            log.info("=== END Wallet-to-Wallet Transfer ===");
+//        }
+//    }
 
 
 
