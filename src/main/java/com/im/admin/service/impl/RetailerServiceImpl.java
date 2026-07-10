@@ -233,11 +233,27 @@ public class RetailerServiceImpl implements RetailerService {
 
         String retailerRequest = objectMapper.writeValueAsString(retailer);
 
+//        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
+//        try {
+//            phoneNumberValidationService.validatePhoneNumber(retailer.getMobileNumber());
+//        } catch (IllegalArgumentException ex) {
+//            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+//        }
+//
+//        if (!errors.isEmpty()) {
+//            throw new CustomValidationException(errors);
+//        }
+
         List<FieldErrorDetailsDTO> errors = new ArrayList<>();
-        try {
-            phoneNumberValidationService.validatePhoneNumber(retailer.getMobileNumber());
-        } catch (IllegalArgumentException ex) {
-            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+
+        if (retailer.getMobileNumber() != null
+                && !retailer.getMobileNumber().equals(existingRetailer.getMobileNumber())) {
+
+            try {
+                phoneNumberValidationService.validatePhoneNumber(retailer.getMobileNumber());
+            } catch (IllegalArgumentException ex) {
+                errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
+            }
         }
 
         if (!errors.isEmpty()) {

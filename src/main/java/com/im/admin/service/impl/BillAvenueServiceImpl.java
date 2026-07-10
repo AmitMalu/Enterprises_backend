@@ -512,7 +512,8 @@ public class BillAvenueServiceImpl implements BillAvenueService {
             BigDecimal amount = request.getAmountInfo().getAmount();
 
             if (availableBalance.compareTo(amount) < 0) {
-                return new CommonResponse<>(400, "Insufficient Balance", null);
+//                return new CommonResponse<>(400, "Insufficient Balance", null);
+                return new CommonResponse<>(400, "Insufficient balance in " + walletType.name() + " wallet.", null);
             }
 
             // 3 Vendor Routing
