@@ -505,7 +505,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     rt.setStatus("APPROVED");
                     rt.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, rt.getRetailerId(), rt.getMobileNumber(), rt.getEmailId(), rt.getName(),rt.getParentAccount());
+                    response = createUserDetails(hierarchyType, rt.getRetailerId(), rt.getMobileNumber(), rt.getEmailId(), rt.getName(),rt.getParentAccount(), rt.getCreatedBy(), rt.getEditedBy());
                 } else {
                     rt.setStatus("REJECTED");
                     rt.setRejectionReason(remarks);
@@ -520,7 +520,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     dt.setStatus("APPROVED");
                     dt.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, dt.getDistributorId(), dt.getMobileNumber(), dt.getEmailId(), dt.getName(),dt.getParentAccount());
+                    response = createUserDetails(hierarchyType, dt.getDistributorId(), dt.getMobileNumber(), dt.getEmailId(), dt.getName(),dt.getParentAccount(),dt.getCreatedBy(),dt.getEditedBy());
                 } else {
                     dt.setStatus("REJECTED");
                     dt.setRejectionReason(remarks);
@@ -536,7 +536,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     pt.setStatus("APPROVED");
                     pt.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, pt.getPartnerId(), pt.getMobileNumber(), pt.getEmailId(), pt.getName(),pt.getParentAccount());
+                    response = createUserDetails(hierarchyType, pt.getPartnerId(), pt.getMobileNumber(), pt.getEmailId(), pt.getName(),pt.getParentAccount(),pt.getCreatedBy(),pt.getEditedBy());
                 } else {
                     pt.setStatus("REJECTED");
                     pt.setRejectionReason(remarks);
@@ -552,7 +552,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     sd.setStatus("APPROVED");
                     sd.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, sd.getSuperDistributorId(), sd.getMobileNumber(), sd.getEmailId(), sd.getName(),sd.getParentAccount());
+                    response = createUserDetails(hierarchyType, sd.getSuperDistributorId(), sd.getMobileNumber(), sd.getEmailId(), sd.getName(),sd.getParentAccount(),sd.getCreatedBy(),sd.getEditedBy());
                 } else {
                     sd.setStatus("REJECTED");
                     sd.setRejectionReason(remarks);
@@ -568,7 +568,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     wl.setStatus("APPROVED");
                     wl.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, wl.getWhiteLabelId(), wl.getMobileNumber(), wl.getEmailId(), wl.getTitle(),wl.getParentAccount());
+                    response = createUserDetails(hierarchyType, wl.getWhiteLabelId(), wl.getMobileNumber(), wl.getEmailId(), wl.getTitle(),wl.getParentAccount(),wl.getCreatedBy(),wl.getEditedBy());
                 } else {
                     wl.setStatus("REJECTED");
                     wl.setRejectionReason(remarks);
@@ -583,7 +583,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     et.setStatus("APPROVED");
                     et.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, et.getEnterpriseId(), et.getMobileNumber(), et.getEmailId(), et.getName(),et.getParentAccount());
+                    response = createUserDetails(hierarchyType, et.getEnterpriseId(), et.getMobileNumber(), et.getEmailId(), et.getName(),et.getParentAccount(),et.getCreatedBy(),et.getEditedBy());
                 } else {
                     et.setStatus("REJECTED");
                     et.setRejectionReason(remarks);
@@ -599,7 +599,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                     ad.setStatus("APPROVED");
                     ad.setRejectionReason("-");
                     ad.setRemarks(remarks);
-                    response = createUserDetails(hierarchyType, ad.getId(), ad.getMobileNumber(), ad.getEmailId(), ad.getName(),"Admin");
+                    response = createUserDetails(hierarchyType, ad.getId(), ad.getMobileNumber(), ad.getEmailId(), ad.getName(),"Admin",ad.getCreatedBy(),ad.getEditedBy());
                 } else {
                     ad.setStatus("REJECTED");
                     ad.setRejectionReason(remarks);
@@ -614,7 +614,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         return isApproved ? "Hierarchy approved successfully " + response : "Hierarchy rejected successfully";
     }
 
-    private String createUserDetails(String hierarchyType, String hierarchyId, String mobileNo, String email, String name,String parentAccount) {
+    private String createUserDetails(String hierarchyType, String hierarchyId, String mobileNo, String email, String name,String parentAccount, String createdBy, String editedBy) {
         String randomPassword = PasswordGeneratorUtil.generateRandomPassword(8); // e.g., Ab1!xY2@
         String encodedPassword = passwordEncoder.encode(randomPassword);
 
@@ -626,8 +626,8 @@ public class OnboardingServiceImpl implements OnboardingService {
         user.setEmailId(email);
         user.setLoginPassword(encodedPassword);
         user.setUserStatus("Active");
-        user.setCreatedBy("ADMIN");
-        user.setEditedBy("ADMIN");
+        user.setCreatedBy(createdBy);
+        user.setEditedBy(editedBy);
         user.setEditedDate(LocalDate.now());
         user.setEditedTime(LocalTime.now());
         user.setParentAccount(parentAccount);
