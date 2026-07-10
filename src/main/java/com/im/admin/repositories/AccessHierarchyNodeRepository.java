@@ -17,18 +17,7 @@ public interface AccessHierarchyNodeRepository
         extends JpaRepository<AccessHierarchyNode, String> {
 
 
-    @Query("""
-            select n.parentHierarchyId
-            from AccessHierarchyNode n
-            where n.hierarchyId = :hierarchyId
-            """)
-    Optional<String> findParentHierarchyId(
-            @Param("hierarchyId")
-            String hierarchyId
-    );
+    boolean existsByHierarchyId(String hierarchyId);
 
-    List<AccessHierarchyNode> findByParentHierarchyId(String parentId);
-
-    Optional<AccessHierarchyNode> findByParentHierarchyIdIsNull();
 
 }
