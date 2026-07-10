@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,6 +41,10 @@ public interface SchemeRepository extends JpaRepository<Scheme, Long>, JpaSpecif
     List<Scheme>
     findBySchemeCodeInAndIsActiveTrue(
             List<String> schemeCodes
+    );
+
+    List<Scheme> findAllBySchemeCodeIn(
+            Collection<String> schemeCodes
     );
 
 }

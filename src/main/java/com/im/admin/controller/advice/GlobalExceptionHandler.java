@@ -6,6 +6,7 @@ import com.im.admin.exception.FileValidationException;
 import com.im.admin.exception.NoPendingRecordsFoundException;
 import com.im.admin.exception.UserNotFoundException;
 import com.im.admin.response.CommonResponse;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -170,5 +171,74 @@ public class GlobalExceptionHandler {
         response.setMessage("Something Went Wrong - " + ex.getMessage());
         response.setData(null);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    private ResponseEntity<Map<String, Object>>
+    buildErrorResponse(
+            HttpStatus status,
+            String message
+    ) {
+
+        Map<String, Object> response =
+                new LinkedHashMap<>();
+
+        response.put("status", "FAILED");
+        response.put("message", message);
+        response.put("data", null);
+
+        return ResponseEntity
+                .status(status)
+                .body(response);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>>
+    handleIllegalStateException(
+            IllegalStateException exception
+    ) {
+
+        log.error(
+                "Hierarchy data state error: {}",
+                exception.getMessage()
+        );
+
+        return buildErrorResponse(
+                HttpStatus.CONFLICT,
+                exception.getMessage()
+        );
+    }
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<Map<String, Object>>
+    handleEntityNotFoundException(
+            EntityNotFoundException exception
+    ) {
+
+        log.warn(
+                "Hierarchy record not found: {}",
+                exception.getMessage()
+        );
+
+        return buildErrorResponse(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage()
+        );
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>>
+    handleIllegalArgumentException(
+            IllegalArgumentException exception
+    ) {
+
+        log.warn(
+                "Invalid hierarchy API request: {}",
+                exception.getMessage()
+        );
+
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage()
+        );
     }
 }

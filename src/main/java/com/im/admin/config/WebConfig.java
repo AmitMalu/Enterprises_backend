@@ -24,6 +24,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "https://admin.nfttech.in",         // Admin public URL
                         "https://portal.lakshaype.com",     // Lakshaype Public URL
                         "https://portal.nexatrust.in",      //Bagade Public URL
+                        "https://portal.lbvyapar.com",      //LogiBudha Public URL
                         "http://192.168.1.127:4173"         //Amaan public IP
 
                 )

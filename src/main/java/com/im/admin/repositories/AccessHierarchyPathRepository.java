@@ -6,6 +6,7 @@ package com.im.admin.repositories;
 
 import com.im.admin.entities.AccessHierarchyPath;
 import com.im.admin.entities.AccessHierarchyPathId;
+import com.im.admin.util.UnderHierarchyProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -99,6 +100,24 @@ public interface AccessHierarchyPathRepository
     Long countHierarchyPath(
             @Param("ancestorId") String ancestorId,
             @Param("descendantId") String descendantId
+    );
+
+    @Query("""
+            SELECT
+                node.hierarchyId AS hierarchyId,
+                node.hierarchyType AS hierarchyType,
+                node.parentHierarchyId AS parentHierarchyId,
+                node.createdOn AS createdOn,
+                path.depth AS depth
+            FROM AccessHierarchyPath path
+            JOIN AccessHierarchyNode node
+                ON node.hierarchyId = path.id.descendantId
+            WHERE path.id.ancestorId = :ancestorId
+              AND path.depth > 0
+            ORDER BY path.depth ASC, node.hierarchyId ASC
+            """)
+    List<UnderHierarchyProjection> findAllDescendants(
+            @Param("ancestorId") String ancestorId
     );
 
 }
