@@ -81,6 +81,10 @@ public interface SubProductsRepository extends JpaRepository<SubProducts, String
     );
 
 
+    List<SubProducts> findAllBySubProductCodeIn(
+            Collection<String> subProductCodes
+    );
+
 }
 
 

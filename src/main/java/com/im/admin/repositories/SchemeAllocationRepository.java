@@ -33,5 +33,9 @@ public interface SchemeAllocationRepository extends JpaRepository<SchemeAllocati
             String hierarchyId
     );
 
+    List<SchemeAllocation> findAllByHierarchyIdOrderByIdAsc(
+            String hierarchyId
+    );
+
 }
 

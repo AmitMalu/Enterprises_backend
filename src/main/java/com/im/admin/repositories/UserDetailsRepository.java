@@ -108,4 +108,8 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
             @Param("keyword") String keyword,
             Pageable pageable);
 
+    List<UserDetails> findAllByHierarchyIdIgnoreCase(String hierarchyId);
+
+    List<UserDetails> findAllByMobileNumber(String mobileNumber);
+
 }

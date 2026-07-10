@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +26,10 @@ public interface ProductsRepository extends JpaRepository<Products, Short>, JpaS
     Optional<Products> findByProductCode(String productCode);
 
     boolean existsByName(String name);
+
+    List<Products> findAllByProductCodeIn(
+            Collection<String> productCodes
+    );
 
 }
 
