@@ -5,6 +5,7 @@ import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.service.DropdownManagerService;
 import com.im.admin.util.CommonMethods;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import java.util.stream.Stream;
 
 
 @Service
+@Slf4j
 public class DropdownManagerImpl implements DropdownManagerService {
 
     @Autowired
@@ -50,6 +52,8 @@ public class DropdownManagerImpl implements DropdownManagerService {
     @Autowired
     private AccessHierarchyPathRepository accessHierarchyPathRepository;
 
+    @Autowired
+    private HierarchyWalletService hierarchyWalletService;
 
     @Override
     public Page<ChildUserDto> getChildUsers(
@@ -107,115 +111,86 @@ public class DropdownManagerImpl implements DropdownManagerService {
         return new PageImpl<>(paginated, pageable, filtered.size());
     }
 
-//    @Override
-//    public Page<ChildUserDto> getChildUsers(
-//            String parentHierarchyId,
-//            int page,
-//            int size,
-//            String userId,
-//            String parentAccount,
-//            String abbreviation,
-//            String title,
-//            String name,
-//            String mobileNumber,
-//            String emailId,
-//            String dob,
-//            String status,
-//            Boolean isBlocked,
-//            String network,
-//            String createdOn
-//    ) {
-//
-//        // Fetch ALL descendants (no pagination here)
-//        List<String> descendantIds =
-//                accessHierarchyPathRepository
-//                        .findDescendantIds(parentHierarchyId);
-//
-//        // Convert hierarchy → DTO
-//        List<ChildUserDto> allChildUsers =
-//                descendantIds.stream()
-//                        .map(this::getUserByHierarchyId)
-//                        .filter(Objects::nonNull)
-//                        .toList();
-//
-//        // Apply filters
-//        List<ChildUserDto> filtered =
-//                allChildUsers.stream()
-//                        .filter(u -> userId == null || containsIgnoreCase(u.getUserId(), userId))
-//                        .filter(u -> parentAccount == null || containsIgnoreCase(u.getParentAccount(), parentAccount))
-//                        .filter(u -> abbreviation == null || containsIgnoreCase(u.getAbbreviation(), abbreviation))
-//                        .filter(u -> title == null || containsIgnoreCase(u.getTitle(), title))
-//                        .filter(u -> name == null || containsIgnoreCase(u.getName(), name))
-//                        .filter(u -> mobileNumber == null || containsIgnoreCase(u.getMobileNumber(), mobileNumber))
-//                        .filter(u -> emailId == null || containsIgnoreCase(u.getEmailId(), emailId))
-//                        .filter(u -> status == null || containsIgnoreCase(u.getStatus(), status))
-//                        .filter(u -> dob == null ||
-//                                (u.getDob() != null &&
-//                                        u.getDob().toString().equals(dob)))
-//                        .filter(u -> isBlocked == null ||
-//                                Objects.equals(u.getIsBlocked(), isBlocked))
-//                        .filter(u -> network == null ||
-//                                containsIgnoreCase(u.getNetwork(), network))
-//                        .filter(u -> createdOn == null ||
-//                                (u.getCreatedOn() != null &&
-//                                        u.getCreatedOn()
-//                                                .toLocalDate()
-//                                                .toString()
-//                                                .equals(createdOn)))
-//                        .sorted(
-//                                Comparator.comparing(
-//                                        ChildUserDto::getCreatedOn,
-//                                        Comparator.nullsLast(
-//                                                Comparator.reverseOrder()
-//                                        )
-//                                )
-//                        )
-//                        .toList();
-//
-//        // Pagination AFTER filtering
-//        Pageable pageable =
-//                PageRequest.of(page, size);
-//
-//        int start =
-//                (int) pageable.getOffset();
-//
-//        int end =
-//                Math.min(
-//                        start + pageable.getPageSize(),
-//                        filtered.size()
-//                );
-//
-//        List<ChildUserDto> paginated =
-//                start >= filtered.size()
-//                        ? Collections.emptyList()
-//                        : filtered.subList(start, end);
-//
-//        return new PageImpl<>(
-//                paginated,
-//                pageable,
-//                filtered.size()
-//        );
-//    }
 
+//    private void fetchHierarchyRecursively(
+//            String parentId,
+//            String parentType,
+//            List<ChildUserDto> result
+//    ) {
+//        // Fetch ALL children of this parent from user_details (type-agnostic)
+//        List<UserDetails> children = userDetailsRepository.findByParentAccount(parentId);
+//
+//        for (UserDetails child : children) {
+//            String childType = child.getHierarchyCode();
+//            if (childType == null) continue;
+//
+//            // Map the child to ChildUserDto using the correct entity repo
+//            ChildUserDto dto = resolveChildDto(child.getHierarchyId(), childType);
+//            if (dto != null) {
+//                result.add(dto);
+//                // Recurse into this child's children
+//                fetchHierarchyRecursively(child.getHierarchyId(), childType, result);
+//            }
+//        }
+//    }
 
     private void fetchHierarchyRecursively(
             String parentId,
             String parentType,
             List<ChildUserDto> result
     ) {
-        // Fetch ALL children of this parent from user_details (type-agnostic)
-        List<UserDetails> children = userDetailsRepository.findByParentAccount(parentId);
+
+        List<UserDetails> children =
+                userDetailsRepository.findByParentAccount(parentId);
 
         for (UserDetails child : children) {
-            String childType = child.getHierarchyCode();
-            if (childType == null) continue;
 
-            // Map the child to ChildUserDto using the correct entity repo
-            ChildUserDto dto = resolveChildDto(child.getHierarchyId(), childType);
+            String childHierarchyId = child.getHierarchyId();
+            String childHierarchyCode = child.getHierarchyCode();
+
+            if (childHierarchyId == null || childHierarchyCode == null) {
+                continue;
+            }
+
+            ChildUserDto dto =
+                    resolveChildDto(
+                            childHierarchyId,
+                            childHierarchyCode
+                    );
+
             if (dto != null) {
+
+                try {
+
+                    Map<String, Object> walletInformation =
+                            hierarchyWalletService.getWalletInformation(
+                                    childHierarchyCode.toUpperCase(),
+                                    childHierarchyId
+                            );
+
+                    dto.setWalletInformation(walletInformation);
+
+                } catch (Exception exception) {
+
+                    log.error(
+                            "Unable to fetch wallet information for child hierarchyId: {}, hierarchyCode: {}",
+                            childHierarchyId,
+                            childHierarchyCode,
+                            exception
+                    );
+
+                    dto.setWalletInformation(
+                            createEmptyWalletInformation()
+                    );
+                }
+
                 result.add(dto);
-                // Recurse into this child's children
-                fetchHierarchyRecursively(child.getHierarchyId(), childType, result);
+
+                fetchHierarchyRecursively(
+                        childHierarchyId,
+                        childHierarchyCode,
+                        result
+                );
             }
         }
     }
@@ -261,7 +236,8 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 userDetailsRepository.findFirstByHierarchyId(p.getPartnerId())
                         .map(UserDetails::getIsBlocked).orElse(false),
                 p.getRejectionReason(),
-                p.getCreatedOn()
+                p.getCreatedOn(),
+                null
         );
     }
 
@@ -280,7 +256,8 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId())
                         .map(UserDetails::getIsBlocked).orElse(false),
                 e.getRejectionReason(),
-                e.getCreatedOn()
+                e.getCreatedOn(),
+                null
         );
     }
 
@@ -300,7 +277,8 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId())
                         .map(UserDetails::getIsBlocked).orElse(false),
                 wl.getRejectionReason(),
-                wl.getCreatedOn()
+                wl.getCreatedOn(),
+                null
         );
     }
 
@@ -319,7 +297,8 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId())
                         .map(UserDetails::getIsBlocked).orElse(false),
                 s.getRejectionReason(),
-                s.getCreatedOn()
+                s.getCreatedOn(),
+                null
         );
     }
 
@@ -339,7 +318,8 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 userDetailsRepository.findFirstByHierarchyId(d.getDistributorId())
                         .map(UserDetails::getIsBlocked).orElse(false),
                 d.getRejectionReason(),
-                d.getCreatedOn()
+                d.getCreatedOn(),
+                null
         );
     }
 
@@ -358,16 +338,10 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 userDetailsRepository.findFirstByHierarchyId(r.getRetailerId())
                         .map(UserDetails::getIsBlocked).orElse(false),
                 r.getRejectionReason(),
-                r.getCreatedOn()
+                r.getCreatedOn(),
+                null
         );
     }
-
-
-
-
-
-
-
 
     //  Helper method for safe string matching
     private boolean containsIgnoreCase(String source, String target) {
@@ -417,7 +391,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             e.getName(), e.getMobileNumber(), e.getEmailId(), e.getDob(), e.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId()).map(UserDetails::getIsBlocked).orElse(false),
                             e.getRejectionReason(),
-                            e.getCreatedOn()
+                            e.getCreatedOn(), null
                     )).toList();
 
             case "white_labels" -> whiteLabelRepository.findByParentAccount(parentHierarchyId).stream()
@@ -427,7 +401,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             wl.getName(), wl.getMobileNumber(), wl.getEmailId(), wl.getDob(), wl.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId()).map(UserDetails::getIsBlocked).orElse(false),
                             wl.getRejectionReason(),
-                            wl.getCreatedOn()
+                            wl.getCreatedOn(), null
                     )).toList();
 
             case "super_distributor" -> superDistributorRepository.findByParentAccount(parentHierarchyId).stream()
@@ -437,7 +411,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             s.getName(), s.getMobileNumber(), s.getEmailId(), s.getDob(), s.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId()).map(UserDetails::getIsBlocked).orElse(false),
                             s.getRejectionReason(),
-                            s.getCreatedOn()
+                            s.getCreatedOn(), null
                     )).toList();
 
             case "partner" -> partnerRepository.findByParentAccount(parentHierarchyId).stream()
@@ -447,7 +421,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             p.getName(), p.getMobileNumber(), p.getEmailId(), p.getDob(), p.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(p.getPartnerId()).map(UserDetails::getIsBlocked).orElse(false),
                             p.getRejectionReason(),
-                            p.getCreatedOn()
+                            p.getCreatedOn(), null
                     )).toList();
 
             case "distributor" -> distributorRepository.findByParentAccount(parentHierarchyId).stream()
@@ -457,7 +431,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             d.getName(), d.getMobileNumber(), d.getEmailId(), d.getDob(), d.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(d.getDistributorId()).map(UserDetails::getIsBlocked).orElse(false),
                             d.getRejectionReason(),
-                            d.getCreatedOn()
+                            d.getCreatedOn(), null
                     )).toList();
 
             case "retailer" -> retailerRepository.findByParentAccount(parentHierarchyId).stream()
@@ -467,11 +441,44 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             r.getName(), r.getMobileNumber(), r.getEmailId(), r.getDob(), r.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(r.getRetailerId()).map(UserDetails::getIsBlocked).orElse(false),
                             r.getRejectionReason(),
-                            r.getCreatedOn()
+                            r.getCreatedOn(), null
                     )).toList();
 
             default -> throw new RuntimeException("Invalid child entity type: " + childEntity);
         };
+
+        // <-- PASTE THIS HERE
+        approvedUsers.forEach(user -> {
+            try {
+                String hierarchyCode = commonMethods.extractHierarchyType(user.getUserId());
+
+                user.setWalletInformation(
+                        hierarchyWalletService.getWalletInformation(
+                                hierarchyCode,
+                                user.getUserId()
+                        )
+                );
+
+            } catch (Exception e) {
+
+                log.error("Unable to fetch wallet for {}", user.getUserId(), e);
+
+                Map<String, Object> wallet = new LinkedHashMap<>();
+
+                Map<String, Object> prepaid = new LinkedHashMap<>();
+                prepaid.put("available", false);
+                prepaid.put("message", "Wallet not found");
+
+                Map<String, Object> postpaid = new LinkedHashMap<>();
+                postpaid.put("available", false);
+                postpaid.put("message", "Wallet not found");
+
+                wallet.put("prepaid", prepaid);
+                wallet.put("postpaid", postpaid);
+
+                user.setWalletInformation(wallet);
+            }
+        });
 
         // Step 2: Apply filters
         List<ChildUserDto> filtered = approvedUsers.stream()
@@ -509,6 +516,23 @@ public class DropdownManagerImpl implements DropdownManagerService {
             "PT", "distributor",
             "DT", "retailer"
     );
+
+    private Map<String, Object> createEmptyWalletInformation() {
+
+        Map<String, Object> prepaid = new LinkedHashMap<>();
+        prepaid.put("available", false);
+        prepaid.put("message", "Unable to fetch prepaid wallet information");
+
+        Map<String, Object> postpaid = new LinkedHashMap<>();
+        postpaid.put("available", false);
+        postpaid.put("message", "Unable to fetch postpaid wallet information");
+
+        Map<String, Object> walletInformation = new LinkedHashMap<>();
+        walletInformation.put("prepaid", prepaid);
+        walletInformation.put("postpaid", postpaid);
+
+        return walletInformation;
+    }
 
 }
 

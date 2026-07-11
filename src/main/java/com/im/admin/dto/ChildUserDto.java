@@ -6,6 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
@@ -24,6 +25,9 @@ public class ChildUserDto {
     private Boolean isBlocked;
     private String remarks;
     private LocalDateTime createdOn;
+
+    private Map<String, Object> walletInformation;
+
 }
 
 
