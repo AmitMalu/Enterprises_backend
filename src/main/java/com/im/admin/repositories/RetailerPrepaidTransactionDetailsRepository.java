@@ -261,9 +261,14 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 AND (:schemeName IS NULL OR LOWER(r.schemeName) LIKE LOWER(CONCAT('%', :schemeName, '%')))
                 AND (:amount IS NULL OR r.amount = :amount)
             
-                  AND r.transactionId LIKE 'TXN%'
-                   AND (:txId IS NULL OR LOWER(r.transactionId) LIKE LOWER(CONCAT('%', :txId, '%')))
-            
+            AND (
+                r.transactionId LIKE 'TXN%'
+                OR r.transactionId LIKE 'FLD%'
+            )
+            AND (
+                :txId IS NULL
+                OR LOWER(r.transactionId) LIKE LOWER(CONCAT('%', :txId, '%'))
+            )
             
                 AND (:remarks IS NULL OR LOWER(r.remarks) LIKE LOWER(CONCAT('%', :remarks, '%')))
                 AND (:medium IS NULL OR LOWER(r.medium) LIKE LOWER(CONCAT('%', :medium, '%')))
