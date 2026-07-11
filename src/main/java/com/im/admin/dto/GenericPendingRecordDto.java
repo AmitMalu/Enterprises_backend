@@ -24,5 +24,6 @@ public class GenericPendingRecordDto {
     private String emailId;
     private String parentAccount;
     private String remarks;
+    private String editedBy;
 
 }

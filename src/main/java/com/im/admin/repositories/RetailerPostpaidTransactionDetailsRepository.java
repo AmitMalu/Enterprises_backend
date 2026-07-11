@@ -246,9 +246,15 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
               AND (:mobileNo IS NULL OR r.mobileNo LIKE %:mobileNo%)
               AND (:schemeName IS NULL OR r.schemeName LIKE %:schemeName%)
               AND (:amount IS NULL OR r.amount = :amount)
-            
-             AND r.transactionId LIKE 'TXN%'
-                   AND (:txId IS NULL OR LOWER(r.transactionId) LIKE LOWER(CONCAT('%', :txId, '%')))
+                   
+                   AND (
+                       r.transactionId LIKE 'TXN%'
+                       OR r.transactionId LIKE 'FLD%'
+                   )
+                   AND (
+                       :txId IS NULL
+                       OR LOWER(r.transactionId) LIKE LOWER(CONCAT('%', :txId, '%'))
+                   )
             
               AND (:remarks IS NULL OR r.remarks LIKE %:remarks%)
               AND (:medium IS NULL OR r.medium LIKE %:medium%)
