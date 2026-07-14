@@ -70,12 +70,21 @@ public class DropdownManagerImpl implements DropdownManagerService {
             String createdOn
     ) {
 
-        String parentType = commonMethods.extractHierarchyType(parentHierarchyId);
-
         List<ChildUserDto> allChildUsers = new ArrayList<>();
 
-        // Start recursive hierarchy traversal
-        fetchHierarchyRecursively(parentHierarchyId, parentType, allChildUsers);
+        // Use access_hierarchy_path table (same logic as reports) instead of recursive traversal
+        List<String> descendantIds = accessHierarchyPathRepository
+                .findDescendantsByAncestor(parentHierarchyId);
+
+        if (descendantIds != null) {
+            for (String childId : descendantIds) {
+                String childType = commonMethods.extractHierarchyType(childId);
+                ChildUserDto dto = resolveChildDto(childId, childType);
+                if (dto != null) {
+                    allChildUsers.add(dto);
+                }
+            }
+        }
 
         // ================= FILTERING =================
         List<ChildUserDto> filtered = allChildUsers.stream()
