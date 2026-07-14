@@ -268,62 +268,146 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             // =========================================================
             // FETCH SUB-PRODUCT
             // =========================================================
-            log.info(
-                    "Fetching SubProduct for subProductId: {}",
-                    request.getSubProductId()
-            );
-
-            SubProducts subProduct =
-                    subProductsRepository
-                            .findById(request.getSubProductId())
-                            .orElseThrow(() -> {
-
-                                log.error(
-                                        "[WTW] SubProduct NOT FOUND for subProductId: {}",
-                                        request.getSubProductId()
-                                );
-
-                                return new RuntimeException(
-                                        "SubProduct not found for subProductId: " +
-                                                request.getSubProductId()
-                                );
-                            });
-
-            log.info(
-                    "[WTW] SubProduct fetched successfully | " +
-                            "subProductId={}, subProductName={}",
-                    request.getSubProductId(),
-                    subProduct.getSubProductTitle()
-            );
-
-            // =========================================================
-            // FETCH PRODUCT FROM SUB-PRODUCT
-            // =========================================================
-            Products product = subProduct.getProduct();
-
-            if (product == null) {
-
-                log.error(
-                        "[WTW] Product not mapped with subProductId: {}",
-                        request.getSubProductId()
-                );
-
-                throw new RuntimeException(
-                        "Product is not mapped with sub-product: " +
-                                request.getSubProductId()
-                );
-            }
-
-            log.info(
-                    "[WTW] Product fetched successfully | " +
-                            "productId={}, productCode={}, transactionType={}",
-                    product.getId(),
-                    product.getProductCode(),
-                    product.getTransactionType()
-            );
+//            log.info(
+//                    "Fetching SubProduct for subProductId: {}",
+//                    request.getSubProductId()
+//            );
+//
+//            SubProducts subProduct =
+//                    subProductsRepository
+//                            .findById(request.getSubProductId())
+//                            .orElseThrow(() -> {
+//
+//                                log.error(
+//                                        "[WTW] SubProduct NOT FOUND for subProductId: {}",
+//                                        request.getSubProductId()
+//                                );
+//
+//                                return new RuntimeException(
+//                                        "SubProduct not found for subProductId: " +
+//                                                request.getSubProductId()
+//                                );
+//                            });
+//
+//            log.info(
+//                    "[WTW] SubProduct fetched successfully | " +
+//                            "subProductId={}, subProductName={}",
+//                    request.getSubProductId(),
+//                    subProduct.getSubProductTitle()
+//            );
+//
+//            // =========================================================
+//            // FETCH PRODUCT FROM SUB-PRODUCT
+//            // =========================================================
+//            Products product = subProduct.getProduct();
+//
+//            if (product == null) {
+//
+//                log.error(
+//                        "[WTW] Product not mapped with subProductId: {}",
+//                        request.getSubProductId()
+//                );
+//
+//                throw new RuntimeException(
+//                        "Product is not mapped with sub-product: " +
+//                                request.getSubProductId()
+//                );
+//            }
+//
+//            log.info(
+//                    "[WTW] Product fetched successfully | " +
+//                            "productId={}, productCode={}, transactionType={}",
+//                    product.getId(),
+//                    product.getProductCode(),
+//                    product.getTransactionType()
+//            );
 
             // =========================================================
             // RESOLVE SCHEME CODE
+            // =========================================================
+//            log.info(
+//                    "Extracting hierarchy type for hierarchyId: {}",
+//                    hierarchyId
+//            );
+//
+//            String hierarchyType =
+//                    walletTransactionService.extractHierarchyType(
+//                            hierarchyId
+//                    );
+//
+//            log.info("Hierarchy Type: {}", hierarchyType);
+//
+//            String schemeCode;
+//
+//            if ("RU".equalsIgnoreCase(hierarchyType)
+//                    || "RT".equalsIgnoreCase(hierarchyType)) {
+//
+//                log.debug(
+//                        "Retailer/RU hierarchy detected, using scheme from request"
+//                );
+//
+//                schemeCode = request.getSchemeCode();
+//
+//                if (schemeCode == null || schemeCode.isBlank()) {
+//
+//                    log.error(
+//                            "Scheme code is required for Retailer/RU but was null or blank"
+//                    );
+//
+//                    throw new RuntimeException(
+//                            "Scheme code is required for Retailer/RU"
+//                    );
+//                }
+//
+//                schemeCode = schemeCode.trim();
+//
+//                log.info(
+//                        "Scheme code received from request: {}",
+//                        schemeCode
+//                );
+//
+//            } else {
+//
+//                log.debug(
+//                        "Non-retailer hierarchy detected, resolving scheme from hierarchy"
+//                );
+//
+//                String schemeName =
+//                        getSchemeNameByHierarchy(hierarchyId);
+//
+//                log.info(
+//                        "Scheme name resolved from hierarchy: {}",
+//                        schemeName
+//                );
+//
+//                Optional<Scheme> schemeOptional =
+//                        schemeRepository.findBySchemeName(schemeName);
+//
+//                if (schemeOptional.isEmpty()) {
+//
+//                    log.error(
+//                            "Scheme not found for name: {}",
+//                            schemeName
+//                    );
+//
+//                    throw new RuntimeException(
+//                            "Scheme not found for name: " + schemeName
+//                    );
+//                }
+//
+//                schemeCode =
+//                        schemeOptional.get().getSchemeCode();
+//
+//                log.info(
+//                        "Scheme resolved from hierarchy | " +
+//                                "hierarchyType={}, schemeCode={}",
+//                        hierarchyType,
+//                        schemeCode
+//                );
+//            }
+
+            // =========================================================
+            // RESOLVE SCHEME CODE AND SUB-PRODUCT ID
             // =========================================================
             log.info(
                     "Extracting hierarchy type for hierarchyId: {}",
@@ -338,15 +422,18 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             log.info("Hierarchy Type: {}", hierarchyType);
 
             String schemeCode;
+            String resolvedSubProductId;
 
             if ("RU".equalsIgnoreCase(hierarchyType)
                     || "RT".equalsIgnoreCase(hierarchyType)) {
 
+                // Existing production workflow remains unchanged.
                 log.debug(
-                        "Retailer/RU hierarchy detected, using scheme from request"
+                        "Retailer/RU hierarchy detected, using scheme and sub-product from request"
                 );
 
                 schemeCode = request.getSchemeCode();
+                resolvedSubProductId = request.getSubProductId();
 
                 if (schemeCode == null || schemeCode.isBlank()) {
 
@@ -359,15 +446,29 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     );
                 }
 
+                if (resolvedSubProductId == null) {
+
+                    log.error(
+                            "SubProduct ID is required for Retailer/RU but was null"
+                    );
+
+                    throw new RuntimeException(
+                            "SubProduct ID is required for Retailer/RU"
+                    );
+                }
+
                 schemeCode = schemeCode.trim();
 
                 log.info(
-                        "Scheme code received from request: {}",
-                        schemeCode
+                        "Retailer/RU values received from request | " +
+                                "schemeCode={}, subProductId={}",
+                        schemeCode,
+                        resolvedSubProductId
                 );
 
             } else {
 
+                // Existing scheme-resolution workflow remains unchanged.
                 log.debug(
                         "Non-retailer hierarchy detected, resolving scheme from hierarchy"
                 );
@@ -395,16 +496,82 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     );
                 }
 
-                schemeCode =
-                        schemeOptional.get().getSchemeCode();
+                Scheme scheme = schemeOptional.get();
+
+                schemeCode = scheme.getSchemeCode();
+
+                // Only new behavior:
+                // extract SubProduct ID from existing scheme hash.
+                resolvedSubProductId =
+                        extractSubProductIdFromSchemeHash(
+                                scheme.getSchemeCombinationHashCode()
+                        );
 
                 log.info(
                         "Scheme resolved from hierarchy | " +
-                                "hierarchyType={}, schemeCode={}",
+                                "hierarchyType={}, schemeCode={}, subProductId={}",
                         hierarchyType,
-                        schemeCode
+                        schemeCode,
+                        resolvedSubProductId
                 );
             }
+
+            // =========================================================
+            // FETCH SUB-PRODUCT
+            // =========================================================
+            log.info(
+                    "Fetching SubProduct for resolvedSubProductId: {}",
+                    resolvedSubProductId
+            );
+
+            SubProducts subProduct =
+                    subProductsRepository
+                            .findById(resolvedSubProductId)
+                            .orElseThrow(() -> {
+
+                                log.error(
+                                        "[WTW] SubProduct NOT FOUND for subProductId: {}",
+                                        resolvedSubProductId
+                                );
+
+                                return new RuntimeException(
+                                        "SubProduct not found for subProductId: " +
+                                                resolvedSubProductId
+                                );
+                            });
+
+            log.info(
+                    "[WTW] SubProduct fetched successfully | " +
+                            "subProductId={}, subProductName={}",
+                    resolvedSubProductId,
+                    subProduct.getSubProductTitle()
+            );
+
+            // =========================================================
+            // FETCH PRODUCT FROM SUB-PRODUCT
+            // =========================================================
+            Products product = subProduct.getProduct();
+
+            if (product == null) {
+
+                log.error(
+                        "[WTW] Product not mapped with subProductId: {}",
+                        resolvedSubProductId
+                );
+
+                throw new RuntimeException(
+                        "Product is not mapped with sub-product: " +
+                                resolvedSubProductId
+                );
+            }
+
+            log.info(
+                    "[WTW] Product fetched successfully | " +
+                            "productId={}, productCode={}, transactionType={}",
+                    product.getId(),
+                    product.getProductCode(),
+                    product.getTransactionType()
+            );
 
             // =========================================================
             // FETCH EXACT SCHEME SLAB/RATE
@@ -1055,7 +1222,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     product.getSgst()
             );
 
-            transactionEngineServiceImpl.processCharges(
+            transactionEngineServiceImpl.processChargesAndCommission(
                     dto,
                     fromWalletTable,
                     BigDecimal.valueOf(schemeRate.getIm()),
@@ -1172,315 +1339,60 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
         }
     }
 
-//    @Transactional
-//    @Override
-//    public void transferAmountWalletToWallet(WalletToWalletTransferDto request, Double latitude, Double longitude) throws JsonProcessingException {
-//
-//        log.info("=== START Wallet-to-Wallet Transfer ===");
-//        LocalDateTime requestDateTime = LocalDateTime.now();
-//        String requestJson = null;
-//        String responseJson = null;
-//
-//        try {
-//            // Serialize request
-//            requestJson = objectMapper.writeValueAsString(request);
-//            log.info("Initiating wallet-to-wallet transfer: {}", requestJson);
-//
-//            // Log request parameters
-//            log.info("Transfer Details - HierarchyId: {}, FromWallet: {}, ToWallet: {}, Amount: {}, ConfirmAmount: {}, SubProductId: {}, SchemeCode: {}",
-//                    request.getHierarchyId(),
-//                    request.getWalletTypeFrom(),
-//                    request.getWalletTypeTo(),
-//                    request.getTransferAmount(),
-//                    request.getConfirmAmount(),
-//                    request.getSubProductId(),
-//                    request.getSchemeCode()
-//            );
-//
-//            log.info("Location Details - Latitude: {}, Longitude: {}", latitude, longitude);
-//
-//            String hierarchyId = request.getHierarchyId();
-//            WalletType fromWallet = request.getWalletTypeFrom();
-//            WalletType toWallet = request.getWalletTypeTo();
-//            BigDecimal amount = request.getTransferAmount();
-//            BigDecimal confirmAmount = request.getConfirmAmount();
-//
-//            // Validate amount match
-//            log.debug("Validating amount and confirmation amount");
-//            if (!Objects.equals(amount, confirmAmount)) {
-//                log.warn("Amount mismatch: {} != {}", amount, confirmAmount);
-//                throw new IllegalArgumentException("Amount and confirmation amount do not match.");
-//            }
-//            log.debug("Amount validation passed");
-//
-//            // Validate wallet types
-//            log.debug("Validating wallet types - From: {}, To: {}", fromWallet, toWallet);
-//            if (fromWallet == toWallet) {
-//                log.warn("Same wallet type transfer attempted: {}", fromWallet);
-//                throw new IllegalArgumentException("Cannot transfer between the same wallet types.");
-//            }
-//            log.debug("Wallet type validation passed");
-//
-//            // Check available balance
-//            log.info("Fetching available balance for hierarchyId: {}, walletType: {}", hierarchyId, fromWallet);
-//            BigDecimal availableBalance = commonMethods.getCurrentBalance(hierarchyId, String.valueOf(fromWallet));
-//            log.info("Available balance in {} wallet: {}", fromWallet, availableBalance);
-//
-//            // Fetch SubProduct
-//            log.info("Fetching SubProduct for subProductId: {}", request.getSubProductId());
-//            SubProducts subProduct =
-//                    subProductsRepository.findById(request.getSubProductId())
-//                            .orElseThrow(() -> {
-//                                log.error("---- [Callback] SubProduct NOT FOUND for subProductId: {}", request.getSubProductId());
-//                                return new RuntimeException("SubProduct not found for subProductId: " + request.getSubProductId());
-//                            });
-//
-//            log.info("---- [WTW] SubProduct fetched successfully | subProductId={}, subProductName={}",
-//                    request.getSubProductId(), subProduct.getSubProductTitle());
-//
-//            // Get Product from SubProduct
-//            Products product = subProduct.getProduct();
-//            log.info("---- [WTW] Product fetched successfully | productId={}, productCode={}, transactionType={}",
-//                    product.getId(), product.getProductCode(), product.getTransactionType());
-//
-//            // Fetch Scheme
-//            log.info("Extracting hierarchy type for hierarchyId: {}", hierarchyId);
-//            String hierarchyType = walletTransactionService.extractHierarchyType(hierarchyId);
-//            log.info("Hierarchy Type: {}", hierarchyType);
-//
-//            String schemeCode;
-//
-//            if ("RU".equalsIgnoreCase(hierarchyType) || "RT".equalsIgnoreCase(hierarchyType)) {
-//
-//                // Retailer → use request scheme
-//                log.debug("Retailer/RU hierarchy detected, using scheme from request");
-//                schemeCode = request.getSchemeCode();
-//
-//                if (schemeCode == null || schemeCode.isBlank()) {
-//                    log.error("Scheme code is required for Retailer/RU but was null or blank");
-//                    throw new RuntimeException("Scheme code is required for Retailer/RU");
-//                }
-//                log.info("Scheme code from request: {}", schemeCode);
-//
-//            } else {
-//
-//                // Other hierarchy → use mapped scheme
-//                log.debug("Non-retailer hierarchy, resolving scheme from hierarchy");
-//                String schemeName = getSchemeNameByHierarchy(hierarchyId);
-//                log.info("Scheme name resolved from hierarchy: {}", schemeName);
-//
-//                Optional<Scheme> scheme = schemeRepository.findBySchemeName(schemeName);
-//
-//                if (scheme.isEmpty()) {
-//                    log.error("Scheme not found for name: {}", schemeName);
-//                    throw new RuntimeException("Scheme not found for name: " + schemeName);
-//                }
-//
-//                schemeCode = scheme.get().getSchemeCode();
-//                log.info("Scheme resolved from hierarchy | type={} | schemeCode={}", hierarchyType, schemeCode);
-//            }
-//
-//            // FINAL COMMON CALL - Get Scheme Rate
-//            log.info("Fetching exact scheme rate for schemeCode: {}, amount: {}", schemeCode, request.getConfirmAmount().doubleValue());
-//            SchemeRate schemeRate = getExactSchemeRate(
-//                    schemeCode,
-//                    request.getConfirmAmount().doubleValue()
-//            );
-//            log.info("Scheme Rate fetched - SchemeCode: {}, OperatorCode: {}, RateType: {}, Gross: {}, IM: {}",
-//                    schemeRate.getSchemeCode(),
-//                    schemeRate.getOperatorCode(),
-//                    schemeRate.getRateType(),
-//                    schemeRate.getGross(),
-//                    schemeRate.getIm()
-//            );
-//
-//            // Fetch Operator
-//            log.info("Fetching Operator for operatorCode: {}", schemeRate.getOperatorCode());
-//            Operators operator = operatorsRepository
-//                    .findByOperatorCode(schemeRate.getOperatorCode())
-//                    .orElseThrow(() -> new RuntimeException(
-//                            "Operator not found for code: " + schemeRate.getOperatorCode()
-//                    ));
-//
-//            log.info("Operator fetched successfully | operatorCode={}, operatorName={}",
-//                    operator.getOperatorCode(), operator.getOperatorName());
-//
-//            // Calculate gross charge
-//            log.debug("Calculating gross charge");
-//            BigDecimal grossCharge;
-//
-//            if (schemeRate.getRateType() == RateType.PERCENTAGE) {
-//                grossCharge = amount.multiply(BigDecimal.valueOf(schemeRate.getGross())).divide(BigDecimal.valueOf(100));
-//                log.debug("Gross charge calculated (Percentage): {}% of {} = {}", schemeRate.getGross(), amount, grossCharge);
-//            } else {
-//                grossCharge = BigDecimal.valueOf(schemeRate.getGross());
-//                log.debug("Gross charge calculated (Fixed): {}", grossCharge);
-//            }
-//
-//            BigDecimal totalRequiredAmount = amount.add(grossCharge);
-//            log.info("Total required amount: {} (Amount: {} + Gross Charge: {})", totalRequiredAmount, amount, grossCharge);
-//
-//            // Validate sufficient balance
-//            log.debug("Checking sufficient balance - Available: {}, Required: {}", availableBalance, totalRequiredAmount);
-//            if (availableBalance.compareTo(totalRequiredAmount) < 0) {
-//                log.warn("Insufficient balance. Required: {}, Available: {}",
-//                        totalRequiredAmount, availableBalance);
-//
-//                throw new IllegalArgumentException(
-//                        "Insufficient balance in " + fromWallet +
-//                                " wallet. Required: " + totalRequiredAmount +
-//                                ", Available: " + availableBalance
-//                );
-//            }
-//            log.debug("Sufficient balance available");
-//
-//            // Generate base transaction ID
-//            String baseTransactionId = commonMethods.generateBaseTransactionId();
-//            log.info("Generated base transaction ID: {}", baseTransactionId);
-//
-//            // ====== DEBIT FROM SOURCE WALLET ======
-//            log.info("Debiting from {} wallet for hierarchyId: {}", fromWallet, hierarchyId);
-//            AbstractWalletAmountTable fromWalletTable = commonMethods.getWalletByType(fromWallet.name(), hierarchyId);
-//            log.debug("Source wallet table fetched: {}", fromWalletTable.getClass().getSimpleName());
-//            updateWallet(fromWalletTable, hierarchyId, fromWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
-//            log.info("Debited {} from {} wallet. Transaction ID: {}", amount, fromWallet, baseTransactionId);
-//
-//            // ====== HIERARCHY CHAIN PROCESSING ======
-//            log.info("Processing hierarchy chain starting from: {}", hierarchyId);
-//            String currentId = hierarchyId;
-//            int hierarchyLevel = 0;
-//
-//            while (true) {
-//                hierarchyLevel++;
-//                log.debug("Hierarchy level {} - Processing: {}", hierarchyLevel, currentId);
-//
-//                Optional<String> parentOpt = commonMethods.findParentHierarchy(currentId);
-//                if (parentOpt.isEmpty()) {
-//                    log.error("No approver found for hierarchy: {}", hierarchyId);
-//                    throw new RuntimeException("No approver found for hierarchy: " + hierarchyId);
-//                }
-//
-//                String parentId = parentOpt.get();
-//                String parentType = commonMethods.extractHierarchyType(parentId);
-//                log.info("Found parent hierarchy: {} with type {}", parentId, parentType);
-//
-//                if ("WL".equals(parentType)) {
-//                    log.info("=== Processing WL level transfer ===");
-//                    whiteLabelRepository.findById(parentId).ifPresent(wl -> {
-//                        log.info("Processing WL level transfer for WL ID: {}", wl.getWhiteLabelId());
-//
-//                        log.debug("Crediting {} wallet at WL level", fromWallet);
-//                        AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), wl.getWhiteLabelId());
-//                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
-//                        log.debug("Credited {} to {} wallet at WL level", amount, fromWallet);
-//
-//                        log.debug("Debiting {} wallet at WL level", toWallet);
-//                        AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), wl.getWhiteLabelId());
-//                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
-//                        log.debug("Debited {} from {} wallet at WL level", amount, toWallet);
-//
-//                        log.info("WL level transfer completed for WL ID: {}", wl.getWhiteLabelId());
-//                    });
-//                    log.info("=== WL level processing complete ===");
-//                    break;
-//                }
-//
-//                if ("IM".equals(parentType) || "AD".equals(parentType)) {
-//                    log.info("=== Processing {} level transfer ===", parentType);
-//                    adminRepository.findById(parentId).ifPresent(ad -> {
-//                        log.info("Processing {} level transfer for Admin ID: {}", parentType, ad.getId());
-//
-//                        log.debug("Crediting {} wallet at {} level", fromWallet, parentType);
-//                        AbstractWalletAmountTable from = commonMethods.getWalletByType(fromWallet.name(), ad.getId());
-//                        updateWallet(from, parentId, fromWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
-//                        log.debug("Credited {} to {} wallet at {} level", amount, fromWallet, parentType);
-//
-//                        log.debug("Debiting {} wallet at {} level", toWallet, parentType);
-//                        AbstractWalletAmountTable to = commonMethods.getWalletByType(toWallet.name(), ad.getId());
-//                        updateWallet(to, parentId, toWallet, amount, "Debit", baseTransactionId, "SUCCESS", "DEBIT", latitude, longitude);
-//                        log.debug("Debited {} from {} wallet at {} level", amount, toWallet, parentType);
-//
-//                        log.info("{} level transfer completed for Admin ID: {}", parentType, ad.getId());
-//                    });
-//                    log.info("=== {} level processing complete ===", parentType);
-//                    break;
-//                }
-//
-//                currentId = parentId;
-//                log.debug("Moving to parent: {}", currentId);
-//            }
-//
-//            // ====== CREDIT TO DESTINATION WALLET ======
-//            log.info("Crediting to {} wallet for hierarchyId: {}", toWallet, hierarchyId);
-//            AbstractWalletAmountTable toWalletTable = commonMethods.getWalletByType(toWallet.name(), hierarchyId);
-//            log.debug("Destination wallet table fetched: {}", toWalletTable.getClass().getSimpleName());
-//            updateWallet(toWalletTable, hierarchyId, toWallet, amount, "Credit", baseTransactionId, "SUCCESS", "CREDIT", latitude, longitude);
-//            log.info("Credited {} to {} wallet. Transaction ID: {}", amount, toWallet, baseTransactionId);
-//
-//            // ====== PROCESS CHARGES ======
-//            log.info("Preparing transaction details for processing charges");
-//            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();
-//
-//            dto.setBaseTranxId(baseTransactionId);
-//            dto.setAmount(confirmAmount.doubleValue());
-//            dto.setConfirmAmount(confirmAmount.doubleValue());
-//            dto.setOperatorName(schemeRate.getOperatorName());
-//            dto.setOperatorCode(schemeRate.getSchemeCode());
-//            dto.setSchemeRate(schemeRate);
-//            dto.setTransactionType(product.getTransactionType());
-//            dto.setWalletType(subProduct.getWalletType());
-//            dto.setGstValue(String.valueOf(product.getSgst()));
-//            dto.setTdsRate(String.valueOf(product.getTds()));
-//            dto.setHierarchyId(request.getHierarchyId());
-//            dto.setProductCode(product.getProductCode());
-//            dto.setSubProductCode(subProduct.getSubProductCode());
-//            dto.setIsCommission(product.getIsCommissions());
-//            dto.setHasCharge(product.getHasCharges());
-//            dto.setLatitude(latitude);
-//            dto.setLongitude(longitude);
-//
-//            log.debug("---- [Callback] DTO prepared: {}", dto);
-//            log.info("Processing charges - IM Rate: {}, SGST: {}", schemeRate.getIm(), product.getSgst());
-//
-//            transactionEngineServiceImpl.processCharges(dto, fromWalletTable, BigDecimal.valueOf(schemeRate.getIm()), product.getSgst().toString(), baseTransactionId, "SUCCESS");
-//            log.info("Charges processed successfully for transaction ID: {}", baseTransactionId);
-//
-//            // ====== BUILD SUCCESS RESPONSE ======
-//            CommonResponse<String> response = new CommonResponse<>(200, "Transfer successful", baseTransactionId);
-//            responseJson = objectMapper.writeValueAsString(response);
-//
-//            log.info("=== Transfer completed successfully ===");
-//            log.info("Transaction ID: {}, From: {} -> To: {}, Amount: {}",
-//                    baseTransactionId, fromWallet, toWallet, amount);
-//            log.info("Hierarchy: {}, Scheme: {}, Operator: {}",
-//                    hierarchyId, schemeCode, operator.getOperatorName());
-//
-//        } catch (Exception ex) {
-//            log.error("=== Wallet-to-wallet transfer failed ===");
-//            log.error("Error: {}", ex.getMessage());
-//            log.error("Stack trace:", ex);
-//            responseJson = "{\"error\": \"" + ex.getMessage() + "\"}";
-//            throw ex;
-//
-//        } finally {
-//            LocalDateTime responseDateTime = LocalDateTime.now();
-//            log.info("Saving IM logs - Request: {}, Response: {}",
-//                    requestJson != null ? "Present" : "Null",
-//                    responseJson != null ? "Present" : "Null");
-//
-//            // Save logs whether success or failure
-//            commonFunctions.saveImLogs(
-//                    requestJson,
-//                    requestDateTime,
-//                    null,
-//                    responseJson,
-//                    responseDateTime
-//            );
-//            log.info("IM logs saved successfully");
-//            log.info("=== END Wallet-to-Wallet Transfer ===");
-//        }
-//    }
+    private String extractSubProductIdFromSchemeHash(
+            String schemeCombinationHashCode
+    ) {
 
+        if (schemeCombinationHashCode == null
+                || schemeCombinationHashCode.isBlank()) {
+
+            throw new RuntimeException(
+                    "Scheme combination hash code is missing."
+            );
+        }
+
+        String[] parts =
+                schemeCombinationHashCode.trim().split("-");
+
+        /*
+         * Example:
+         * 10-01-02-001-00001
+         *
+         * index 0 = productId
+         * index 1 = subProductId
+         */
+        if (parts.length < 2
+                || parts[1] == null
+                || parts[1].isBlank()) {
+
+            throw new RuntimeException(
+                    "Invalid scheme combination hash code: " +
+                            schemeCombinationHashCode
+            );
+        }
+
+        try {
+
+            String subProductId = parts[1].trim();
+
+            log.info(
+                    "[WTW] SubProduct ID extracted from scheme hash | " +
+                            "schemeHash={}, subProductId={}",
+                    schemeCombinationHashCode,
+                    subProductId
+            );
+
+            return subProductId;
+
+        } catch (NumberFormatException ex) {
+
+            throw new RuntimeException(
+                    "Invalid SubProduct ID in scheme combination hash: " +
+                            schemeCombinationHashCode,
+                    ex
+            );
+        }
+    }
 
 
     private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,

@@ -417,6 +417,9 @@ public class FundReversalServiceImpl implements FundReversalService {
             String hierarchyId,
             WalletType walletType) {
 
+        log.debug("Building transaction DTO for baseTransactionId: {}, hierarchyId: {}, walletType: {}",
+                baseTransactionId, hierarchyId, walletType);
+
         TransactionSchemeDetailsRequestDto dto =
                 new TransactionSchemeDetailsRequestDto();
 
@@ -436,6 +439,7 @@ public class FundReversalServiceImpl implements FundReversalService {
         dto.setIsCommission(product.getIsCommissions());
         dto.setHasCharge(product.getHasCharges());
 
+        log.debug("Transaction DTO built successfully for hierarchy: {}", hierarchyId);
         return dto;
     }
 
@@ -449,7 +453,11 @@ public class FundReversalServiceImpl implements FundReversalService {
             BigDecimal grossCharge,
             String baseTransactionId) {
 
+        log.info("Processing hierarchy charges - baseTransactionId: {}, walletType: {}, grossCharge: {}",
+                baseTransactionId, walletType, grossCharge);
+
         String currentId = request.getParentHierarchyId();
+        log.debug("Starting hierarchy traversal from currentId: {}", currentId);
 
         while (true) {
 
@@ -457,6 +465,7 @@ public class FundReversalServiceImpl implements FundReversalService {
                     commonMethods.findParentHierarchy(currentId);
 
             if (parentOpt.isEmpty()) {
+                log.error("No approver found for hierarchy: {}", currentId);
                 throw new RuntimeException(
                         "No approver found for hierarchy: " + currentId);
             }
@@ -465,10 +474,13 @@ public class FundReversalServiceImpl implements FundReversalService {
             String parentType =
                     commonMethods.extractHierarchyType(parentId);
 
+            log.debug("Found parent hierarchy - id: {}, type: {}", parentId, parentType);
+
             if ("WL".equals(parentType) ||
                     "IM".equals(parentType) ||
                     "AD".equals(parentType)) {
 
+                log.info("Processing charges for hierarchy type: {}, id: {}", parentType, parentId);
                 processChargesForHierarchy(
                         request,
                         fundReversal,
@@ -480,11 +492,12 @@ public class FundReversalServiceImpl implements FundReversalService {
                         baseTransactionId,
                         parentId
                 );
-
+                log.info("Charges processed successfully for hierarchy: {}", parentId);
                 break;
             }
 
             currentId = parentId;
+            log.debug("Continuing hierarchy traversal to parent: {}", currentId);
         }
     }
 
@@ -498,6 +511,9 @@ public class FundReversalServiceImpl implements FundReversalService {
             BigDecimal grossCharge,
             String baseTransactionId,
             String hierarchyId) {
+
+        log.info("Processing charges for hierarchy - hierarchyId: {}, walletType: {}, baseTransactionId: {}, grossCharge: {}",
+                hierarchyId, walletType, baseTransactionId, grossCharge);
 
         /* ================= PARENT HIERARCHY (DEBIT) ================= */
 
@@ -514,33 +530,40 @@ public class FundReversalServiceImpl implements FundReversalService {
 
         BigDecimal grossAmount =
                 transactionEngineServiceImpl.calculateGross(dto, grossCharge);
+        log.debug("Calculated gross amount: {} for hierarchy: {}", grossAmount, request.getParentHierarchyId());
 
         BigDecimal gstRate =
                 BigDecimal.valueOf(product.getSgst())
                         .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
+        log.debug("GST rate: {} for product: {}", gstRate, product.getProductCode());
 
         BigDecimal baseAmount =
                 grossAmount.divide(BigDecimal.ONE.add(gstRate), 2, RoundingMode.HALF_UP);
 
         BigDecimal gstAmount =
                 grossAmount.subtract(baseAmount).setScale(2, RoundingMode.HALF_UP);
+        log.debug("Calculated amounts - baseAmount: {}, gstAmount: {}, grossAmount: {}",
+                baseAmount, gstAmount, grossAmount);
 
         String parentHierarchyType =
                 commonMethods.extractHierarchyType(request.getParentHierarchyId());
 
         String parentTable =
                 transactionEngineServiceImpl.getTransactionTable(parentHierarchyType, walletType.name());
+        log.debug("Parent hierarchy - type: {}, table: {}", parentHierarchyType, parentTable);
 
         AbstractWalletAmountTable parentWallet =
                 commonMethods.getWalletByType(walletType.name(), request.getParentHierarchyId());
 
         BigDecimal parentBalance =
                 parentWallet.getAvailableBalance().setScale(2, RoundingMode.HALF_UP);
+        log.debug("Parent wallet balance for {}: {}", request.getParentHierarchyId(), parentBalance);
 
         /* CHARGE DEBIT */
 
         BigDecimal afterChargeDebit =
                 parentBalance.subtract(baseAmount).setScale(2, RoundingMode.HALF_UP);
+        log.debug("After charge debit balance: {} for parent: {}", afterChargeDebit, request.getParentHierarchyId());
 
         transactionEngineServiceImpl.insertTransactionForHierarchy(
                 parentTable,
@@ -556,11 +579,13 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "SUCCESS",
                 dto
         );
+        log.info("Charge debit transaction inserted successfully for parent: {}", request.getParentHierarchyId());
 
         /* GST DEBIT */
 
         BigDecimal afterGstDebit =
                 afterChargeDebit.subtract(gstAmount).setScale(2, RoundingMode.HALF_UP);
+        log.debug("After GST debit balance: {} for parent: {}", afterGstDebit, request.getParentHierarchyId());
 
         transactionEngineServiceImpl.insertTransactionForHierarchy(
                 parentTable,
@@ -576,9 +601,12 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "SUCCESS",
                 dto
         );
+        log.info("GST debit transaction inserted successfully for parent: {}", request.getParentHierarchyId());
 
 
         /* ================= WL / ADMIN HIERARCHY (CREDIT) ================= */
+
+        log.debug("Processing credit transactions for hierarchy: {}", hierarchyId);
 
         TransactionSchemeDetailsRequestDto dto2 =
                 buildTransactionDto(
@@ -596,17 +624,20 @@ public class FundReversalServiceImpl implements FundReversalService {
 
         String tableName2 =
                 transactionEngineServiceImpl.getTransactionTable(hierarchyType2, walletType.name());
+        log.debug("Credit hierarchy - type: {}, table: {}", hierarchyType2, tableName2);
 
         AbstractWalletAmountTable wallet =
                 commonMethods.getWalletByType(walletType.name(), hierarchyId);
 
         BigDecimal walletBalance =
                 wallet.getAvailableBalance().setScale(2, RoundingMode.HALF_UP);
+        log.debug("Wallet balance for {}: {}", hierarchyId, walletBalance);
 
         /* CHARGE CREDIT */
 
         BigDecimal afterChargeCredit =
                 walletBalance.add(baseAmount).setScale(2, RoundingMode.HALF_UP);
+        log.debug("After charge credit balance: {} for hierarchy: {}", afterChargeCredit, hierarchyId);
 
         transactionEngineServiceImpl.insertTransactionForHierarchy(
                 tableName2,
@@ -622,11 +653,13 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "SUCCESS",
                 dto2
         );
+        log.info("Charge credit transaction inserted successfully for hierarchy: {}", hierarchyId);
 
         /* GST CREDIT */
 
         BigDecimal afterGstCredit =
                 afterChargeCredit.add(gstAmount).setScale(2, RoundingMode.HALF_UP);
+        log.debug("After GST credit balance: {} for hierarchy: {}", afterGstCredit, hierarchyId);
 
         transactionEngineServiceImpl.insertTransactionForHierarchy(
                 tableName2,
@@ -642,6 +675,8 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "SUCCESS",
                 dto2
         );
+        log.info("GST credit transaction inserted successfully for hierarchy: {}", hierarchyId);
+        log.info("Completed processing all charges for hierarchy: {}", hierarchyId);
     }
 
 }
