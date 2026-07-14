@@ -380,6 +380,19 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
             // Update fields selectively
             if (superDistributor.getTitle() != null)
                 existingSuperDistributor.setTitle(superDistributor.getTitle());
+
+            if (superDistributor.getShopNumber() != null)
+                existingSuperDistributor.setShopNumber(superDistributor.getShopNumber());
+
+            if (superDistributor.getAadhaarNumber() != null)
+                existingSuperDistributor.setAadhaarNumber(superDistributor.getAadhaarNumber());
+
+            if (superDistributor.getPanNumber() != null)
+                existingSuperDistributor.setPanNumber(superDistributor.getPanNumber());
+
+            if (superDistributor.getBankDetails() != null)
+                existingSuperDistributor.setPanNumber(superDistributor.getPanNumber());
+
             if (superDistributor.getName() != null)
                 existingSuperDistributor.setName(superDistributor.getName());
 //            if (superDistributor.getMobileNumber() != null)
@@ -392,6 +405,29 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
                 existingSuperDistributor.setAddress(superDistributor.getAddress());
             if (superDistributor.getOutletAddress() != null)
                 existingSuperDistributor.setOutletAddress(superDistributor.getOutletAddress());
+
+            if (superDistributor.getBankDetails() != null &&
+                    existingSuperDistributor.getBankDetails() != null) {
+
+                BanksDetails existingBank = existingSuperDistributor.getBankDetails();
+                BanksDetails requestBank = superDistributor.getBankDetails();
+
+                if (requestBank.getBankName() != null) {
+                    existingBank.setBankName(requestBank.getBankName());
+                }
+
+                if (requestBank.getBankHolderName() != null) {
+                    existingBank.setBankHolderName(requestBank.getBankHolderName());
+                }
+
+                if (requestBank.getBankAccountNumber() != null) {
+                    existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
+                }
+
+                if (requestBank.getIfscCode() != null) {
+                    existingBank.setIfscCode(requestBank.getIfscCode());
+                }
+            }
 
             // Image updates
             String folder = "Super Distributor";
