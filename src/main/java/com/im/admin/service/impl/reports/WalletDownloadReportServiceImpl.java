@@ -6,6 +6,7 @@ import com.im.admin.entities.enums.WalletReportType;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.properties.ReportProperties;
 import com.im.admin.repositories.WalletDownloadReportRepository;
+import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.reports.MyTransactionReportResponse;
 import com.im.admin.response.reports.WalletDownloadReportResponse;
@@ -46,6 +47,9 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired
+    private SubProductsRepository subProductsRepository;
 
     private static final DateTimeFormatter DATE_FMT   = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter HOUR_FMT   = DateTimeFormatter.ofPattern("yyyyMMdd_HH");
@@ -291,7 +295,19 @@ public class WalletDownloadReportServiceImpl implements WalletDownloadReportServ
                 dto.setBalBefore((BigDecimal) row[3]);
                 dto.setAmount((BigDecimal) row[4]);
                 dto.setBalAfter((BigDecimal) row[5]);
-                dto.setSubProductName((String) row[6]);
+
+                // Look up subProductTitle from sub_products table using the sub_product_name value
+                String subProductKey = (String) row[6];
+                String subProductTitle = subProductsRepository
+                        .findBySubProductTitle(subProductKey)
+                        .map(sp -> sp.getSubProductTitle())
+                        .orElseGet(() ->
+                                subProductsRepository.findBySubProductCode(subProductKey)
+                                        .map(sp -> sp.getSubProductTitle())
+                                        .orElse(subProductKey)
+                        );
+
+                dto.setSubProductName(subProductTitle);
                 dto.setProductName((String) row[7]);
                 dto.setSchemeName((String) row[8]);
                 dto.setActionOnBalanceAmount((String) row[9]);
