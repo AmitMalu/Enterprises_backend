@@ -57,6 +57,9 @@ public class TransactionDownloadReportServiceImpl implements TransactionDownload
     private CommonMethods commonMethods;
 
     @Autowired
+    private SubProductsRepository subProductsRepository;
+
+    @Autowired
     private RetailerRepository retailerRepository;
 
     @Autowired
@@ -262,7 +265,20 @@ public class TransactionDownloadReportServiceImpl implements TransactionDownload
                 dto.setBalBefore((BigDecimal) row[3]);
                 dto.setAmount((BigDecimal) row[4]);
                 dto.setBalAfter((BigDecimal) row[5]);
-                dto.setSubProductName((String) row[6]);
+
+                // Look up subProductTitle from sub_products table using the sub_product_name value
+                String subProductKey = (String) row[6];
+                String subProductTitle = subProductsRepository
+                        .findBySubProductTitle(subProductKey)
+                        .map(sp -> sp.getSubProductTitle())
+                        .orElseGet(() ->
+                                subProductsRepository.findBySubProductCode(subProductKey)
+                                        .map(sp -> sp.getSubProductTitle())
+                                        .orElse(subProductKey)
+                        );
+
+//                dto.setSubProductName((String) row[6]);
+                dto.setSubProductName(subProductTitle);
                 dto.setProductName((String) row[7]);
                 dto.setSchemeName((String) row[8]);
                 dto.setActionOnBalanceAmount((String) row[9]);
