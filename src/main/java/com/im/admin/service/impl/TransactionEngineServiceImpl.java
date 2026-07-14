@@ -418,7 +418,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         throw new IllegalArgumentException("Invalid wallet type for Admin: " + walletType);
     }
 
-    private void processChargesAndCommission(TransactionSchemeDetailsRequestDto dto,
+    public void processChargesAndCommission(TransactionSchemeDetailsRequestDto dto,
                                              AbstractWalletAmountTable wallet,
                                              BigDecimal grossAmount,
                                              String gstValue,
