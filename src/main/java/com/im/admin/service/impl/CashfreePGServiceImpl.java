@@ -489,6 +489,8 @@ public class CashfreePGServiceImpl implements CashfreePGService {
             dto.setClientIp(txn.getClientIp());
             dto.setRequestDomainName(txn.getRequestDomainName());
 
+            dto.setTransactionType("CREDIT");
+
             // ===== 11. PROCESS TRANSACTION =====
             transactionServiceImpl.processTransaction(dto, status);
 

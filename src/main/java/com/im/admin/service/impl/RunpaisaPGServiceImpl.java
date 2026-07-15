@@ -1025,11 +1025,14 @@ public class RunpaisaPGServiceImpl {
         dto.setHasCharge(product.getHasCharges());
         dto.setLatitude(pgTransactionMapping.getLatitude());
         dto.setLongitude(pgTransactionMapping.getLongitude());
-        dto.setVendorName("Runpaisa PG");
+        dto.setVendorName("Runpaisa Payment Gateway");
         dto.setVendorTxnId(callback.getBankTxnId());
         dto.setMedium(pgTransactionMapping.getMedium());
         dto.setClientIp(pgTransactionMapping.getClientIp());
         dto.setRequestDomainName(pgTransactionMapping.getRequestDomainName());
+
+        //new fields added on 15/07/2026
+        dto.setTransactionType("CREDIT");
 
         log.debug("---- [Callback] DTO prepared: {}", dto);
         log.info("---- [Callback] DTO prepared: {}", dto);

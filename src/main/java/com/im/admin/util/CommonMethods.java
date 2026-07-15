@@ -12,6 +12,7 @@ import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
+import jakarta.persistence.Column;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.Query;
@@ -705,7 +706,9 @@ public class CommonMethods {
             String narration,
             String remark,
             String schemeCode,
-            RetailersExtraColumnsDto retailersExtraColumnsDto) { //new
+            RetailersExtraColumnsDto retailersExtraColumnsDto,
+            String vendorName,
+            String operatorName) { //new
 
 
         log.debug("Starting wallet update process for transaction type: {}, wallet type: {}", tranxType, walletType);
@@ -750,7 +753,9 @@ public class CommonMethods {
                     narration,
                     remark,
                     schemeCode,
-                    retailersExtraColumnsDto
+                    retailersExtraColumnsDto,
+                    vendorName,
+                    operatorName
             );
 
             log.info("Transaction record inserted successfully.");
@@ -777,7 +782,9 @@ public class CommonMethods {
             String narration,
             String remark,
             String schemeCode,
-            RetailersExtraColumnsDto retailersExtraColumnsDto) {
+            RetailersExtraColumnsDto retailersExtraColumnsDto,
+            String vendorName,
+            String operatorName) {
 
         log.debug("Preparing to insert transaction record.");
 
@@ -807,12 +814,12 @@ public class CommonMethods {
                     (includeHierarchy ? ", hierarchy_id" : "") +
                     ", service, amount, date_of_transaction, time_of_transaction, " +
                     "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status," +
-                    " sub_product_name, narration, remarks, scheme_name, latitude, longitude" + extraColumns + ") " +
+                    " sub_product_name, narration, remarks, scheme_name, latitude, longitude, transaction_type, vendor_name, operator_name" + extraColumns + ") " +
                     "VALUES (:hierarchyId" +
                     (includeHierarchy ? ", :relatedHierarchyId" : "") +
                     ", :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                     ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId," +
-                    " :tranStatus, :subProductName, :narration, :remark, :schemeCode, :latitude, :longitude" + extraValues + ")";
+                    " :tranStatus, :subProductName, :narration, :remark, :schemeCode, :latitude, :longitude, :transactionType, :vendorName, :operatorName" + extraValues + ")";
 
             Query query = entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
@@ -831,7 +838,10 @@ public class CommonMethods {
                     .setParameter("remark", remark)
                     .setParameter("schemeCode", schemeCode)
                     .setParameter("latitude", retailersExtraColumnsDto.getLatitude())
-                    .setParameter("longitude", retailersExtraColumnsDto.getLongitude());
+                    .setParameter("longitude", retailersExtraColumnsDto.getLongitude())
+                    .setParameter("transactionType", service)
+                    .setParameter("vendorName", vendorName)
+                    .setParameter("operatorName", operatorName);
 
                     if (includeHierarchy) {
                             query.setParameter("relatedHierarchyId", relatedHierarchyId);
@@ -973,7 +983,8 @@ public class CommonMethods {
         insertTransaction(
                 walletType.name(), hierarchyId, relatedHierarchyId, Status.SUCCESS.name(), amount,
                 beforeBalance, wallet.getAvailableBalance(), action,
-                baseTxnId, type.name(), subProductName, narration, remarks,"", retailersExtraColumnsDto
+                baseTxnId, type.name(), subProductName, narration, remarks,"", retailersExtraColumnsDto,
+                null, null
         );
     }
 
