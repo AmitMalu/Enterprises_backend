@@ -2376,6 +2376,7 @@ private void distributeToHierarchyChain(
                 transaction.setClientIp(dto.getClientIp());
                 transaction.setMedium(dto.getMedium());
                 transaction.setRequestDomainName(dto.getRequestDomainName());
+                transaction.setTransactionType(dto.getTransactionType());
 
                 retailerPrepaidTransactionDetailsRepository.save(transaction);
                 log.info("Prepaid transaction saved successfully | TranxId: {}", tranxId);
@@ -2410,6 +2411,7 @@ private void distributeToHierarchyChain(
                 transaction.setClientIp(dto.getClientIp());
                 transaction.setMedium(dto.getMedium());
                 transaction.setRequestDomainName(dto.getRequestDomainName());
+                transaction.setTransactionType(dto.getTransactionType());
 
                 retailerPostpaidTransactionDetailsRepository.save(transaction);
                 log.info("Postpaid transaction saved successfully | TranxId: {}", tranxId);
@@ -2887,19 +2889,24 @@ private void distributeToHierarchyChain(
 //        return new CommonResponse<>(200, "Bulk transaction processing completed", statusResponse);
 //    }
 
-
     @Override
     @Transactional
     public CommonResponse<BulkTransactionStatusResponse> updatePendingTransactionStatus(
             UpdateTransactionStatusRequest request
     ) {
 
+        log.info("Starting bulk transaction status update - request received: {}", request);
+
         if (request == null
                 || request.getTransactionIds() == null
                 || request.getTransactionIds().isEmpty()) {
 
+            log.error("Invalid request - TransactionIds is null or empty");
             throw new IllegalArgumentException("TransactionIds cannot be null or empty");
         }
+
+        log.info("Processing {} transactions with new status: {}",
+                request.getTransactionIds().size(), request.getNewStatus());
 
         BulkTransactionStatusResponse statusResponse =
                 new BulkTransactionStatusResponse();
@@ -2909,24 +2916,36 @@ private void distributeToHierarchyChain(
         List<String> failedList = new ArrayList<>();
         List<String> messages = new ArrayList<>();
 
+        int processedCount = 0;
+        int totalCount = request.getTransactionIds().size();
+
         for (String tranxId : request.getTransactionIds()) {
+            processedCount++;
+            log.debug("Processing transaction {}/{}: {}", processedCount, totalCount, tranxId);
 
             try {
 
                 String baseTxnId = tranxId.replaceFirst("^TXN", "");
                 String fullTxnId = "TXN" + baseTxnId;
+                log.debug("Extracted baseTxnId: {}, fullTxnId: {}", baseTxnId, fullTxnId);
 
                 // ================= FETCH TXN =================
+                log.debug("Fetching transaction details for: {}", fullTxnId);
                 Pair<AbstractRetailerTransactionDetails, String> result =
                         fetchTxnWithWalletType(fullTxnId);
 
                 AbstractRetailerTransactionDetails txn = result.getLeft();
                 String walletType = result.getRight();
 
+                log.debug("Transaction fetched - walletType: {}, status: {}, service: {}, amount: {}",
+                        walletType, txn.getTranStatus(), txn.getService(), txn.getAmount());
+
                 // ================= SKIP =================
                 if ("SUCCESS".equalsIgnoreCase(txn.getTranStatus())
                         || "FAILED".equalsIgnoreCase(txn.getTranStatus())) {
 
+                    log.info("Transaction {} already processed with status: {}, skipping",
+                            fullTxnId, txn.getTranStatus());
                     skippedList.add(fullTxnId);
                     messages.add(fullTxnId + " already processed");
                     continue;
@@ -2941,26 +2960,35 @@ private void distributeToHierarchyChain(
                 String hierarchyType =
                         extractHierarchyType(txn.getRetailerId());
 
+                log.debug("Transaction type - isCredit: {}, isDebit: {}, hierarchyType: {}",
+                        isCredit, isDebit, hierarchyType);
+
                 // =========================================================
                 // ================= CREDIT FLOW ===========================
                 // =========================================================
                 if (isCredit) {
+                    log.info("Processing CREDIT transaction: {}", fullTxnId);
 
                     // ================= CREDIT SUCCESS =================
                     if ("SUCCESS".equalsIgnoreCase(request.getNewStatus())) {
+                        log.info("Processing CREDIT SUCCESS for: {}", fullTxnId);
 
                         BigDecimal currentBalance =
                                 getCurrentBalance(
                                         txn.getRetailerId(),
                                         walletType
                                 );
+                        log.debug("Current balance for retailer {}: {}", txn.getRetailerId(), currentBalance);
 
                         BigDecimal txnAmount = txn.getAmount();
+                        log.debug("Transaction amount: {}", txnAmount);
 
                         BigDecimal balBefore = currentBalance;
                         BigDecimal balAfter = currentBalance.add(txnAmount);
+                        log.debug("Balance before: {}, after: {}", balBefore, balAfter);
 
                         // Update TXN
+                        log.debug("Updating transaction status to SUCCESS for: {}", fullTxnId);
                         updateTransactionStatusAndBalance(
                                 hierarchyType,
                                 txn.getRetailerId(),
@@ -2977,6 +3005,7 @@ private void distributeToHierarchyChain(
                                         walletType,
                                         txn.getRetailerId()
                                 );
+                        log.debug("Wallet fetched for retailer: {}", txn.getRetailerId());
 
                         // Wallet Credit
                         wallet.setTotalCash(
@@ -2992,8 +3021,10 @@ private void distributeToHierarchyChain(
                         wallet.setLastUpdatedTime(LocalTime.now());
 
                         saveWallet(walletType, wallet);
+                        log.info("Wallet updated successfully for retailer: {}", txn.getRetailerId());
 
                         // Prepare Scheme Context
+                        log.debug("Preparing scheme context for: {}", fullTxnId);
                         SchemeProcessingContext context =
                                 prepareSchemeContext(
                                         txn,
@@ -3005,6 +3036,7 @@ private void distributeToHierarchyChain(
                                 );
 
                         if (context == null) {
+                            log.warn("Scheme context is null for transaction: {}, skipping", fullTxnId);
                             continue;
                         }
 
@@ -3017,11 +3049,9 @@ private void distributeToHierarchyChain(
                         Products product =
                                 context.getProduct();
 
-                        log.info(
-                                "DTO prepared for txnId {}: {}",
-                                fullTxnId,
-                                dto
-                        );
+                        log.info("DTO prepared for txnId {}: {}", fullTxnId, dto);
+                        log.debug("Scheme details - gross: {}, product SGST: {}",
+                                selectedScheme.getGross(), product.getSgst());
 
                         processChargesAndCommission(
                                 dto,
@@ -3033,31 +3063,37 @@ private void distributeToHierarchyChain(
                                 baseTxnId,
                                 request.getNewStatus()
                         );
+                        log.info("Charges and commission processed successfully for: {}", fullTxnId);
                     }
 
                     // ================= CREDIT FAILED =================
                     else {
-
+                        log.info("Processing CREDIT FAILED for: {}", fullTxnId);
                         handleFailedTransaction(
                                 hierarchyType,
                                 walletType,
                                 fullTxnId,
                                 "FAILED"
                         );
+                        log.info("Failed transaction handled for: {}", fullTxnId);
                     }
 
                     successList.add(fullTxnId);
+                    log.info("Credit transaction {} processed successfully", fullTxnId);
                 }
 
                 // =========================================================
                 // ================= DEBIT FLOW ============================
                 // =========================================================
                 else if (isDebit) {
+                    log.info("Processing DEBIT transaction: {}", fullTxnId);
 
                     // ================= DEBIT SUCCESS =================
                     if ("SUCCESS".equalsIgnoreCase(request.getNewStatus())) {
+                        log.info("Processing DEBIT SUCCESS for: {}", fullTxnId);
 
                         // Update Main TXN
+                        log.debug("Updating main transaction status to SUCCESS for: {}", fullTxnId);
                         updateTransactionStatusOnly(
                                 hierarchyType,
                                 txn.getRetailerId(),
@@ -3071,21 +3107,25 @@ private void distributeToHierarchyChain(
                                         baseTxnId,
                                         walletType
                                 );
+                        log.debug("Found {} related transactions for baseTxnId: {}",
+                                relatedTxns.size(), baseTxnId);
 
                         boolean hasChargeOrGst =
                                 relatedTxns.stream().anyMatch(t ->
                                         t.getTransactionId().startsWith("CHG")
                                                 || t.getTransactionId().startsWith("GST")
                                 );
+                        log.debug("Has charge/GST transactions: {}", hasChargeOrGst);
 
                         // Update CHG/GST if exists
                         if (hasChargeOrGst) {
-
+                            log.info("Updating CHG/GST transactions for: {}", baseTxnId);
                             for (AbstractRetailerTransactionDetails t : relatedTxns) {
 
                                 if (t.getTransactionId().startsWith("CHG")
                                         || t.getTransactionId().startsWith("GST")) {
 
+                                    log.debug("Updating related transaction: {}", t.getTransactionId());
                                     updateTransactionStatusOnly(
                                             hierarchyType,
                                             txn.getRetailerId(),
@@ -3095,9 +3135,11 @@ private void distributeToHierarchyChain(
                                     );
                                 }
                             }
+                            log.info("CHG/GST transactions updated for: {}", baseTxnId);
                         }
 
                         // Prepare Scheme Context
+                        log.debug("Preparing scheme context for debit transaction: {}", fullTxnId);
                         SchemeProcessingContext context =
                                 prepareSchemeContext(
                                         txn,
@@ -3109,6 +3151,7 @@ private void distributeToHierarchyChain(
                                 );
 
                         if (context == null) {
+                            log.warn("Scheme context is null for transaction: {}, skipping", fullTxnId);
                             continue;
                         }
 
@@ -3121,31 +3164,31 @@ private void distributeToHierarchyChain(
                         Products product =
                                 context.getProduct();
 
-                        log.info(
-                                "DTO prepared for txnId {}: {}",
-                                fullTxnId,
-                                dto
-                        );
+                        log.info("DTO prepared for txnId {}: {}", fullTxnId, dto);
+                        log.debug("Scheme details - gross: {}, product SGST: {}",
+                                selectedScheme.getGross(), product.getSgst());
 
                         // If CHG/GST already exists
                         if (hasChargeOrGst) {
-
+                            log.info("Processing commission only (CHG/GST already exists) for: {}", baseTxnId);
                             processCommission(
                                     dto,
                                     baseTxnId,
                                     request.getNewStatus(),
                                     dto
                             );
+                            log.info("Commission processed for: {}", baseTxnId);
                         }
 
                         // Insert All
                         else {
-
+                            log.info("Processing charges and commission (new insertion) for: {}", baseTxnId);
                             AbstractWalletAmountTable wallet =
                                     getWalletByType(
                                             walletType,
                                             txn.getRetailerId()
                                     );
+                            log.debug("Wallet fetched for retailer: {}", txn.getRetailerId());
 
                             processChargesAndCommission(
                                     dto,
@@ -3157,21 +3200,24 @@ private void distributeToHierarchyChain(
                                     baseTxnId,
                                     request.getNewStatus()
                             );
+                            log.info("Charges and commission processed for: {}", baseTxnId);
                         }
                     }
 
                     // ================= DEBIT FAILED =================
                     else {
-
+                        log.info("Processing DEBIT FAILED for: {}", fullTxnId);
                         List<AbstractRetailerTransactionDetails> relatedTxns =
                                 getRelatedTransactions(
                                         baseTxnId,
                                         walletType
                                 );
+                        log.debug("Found {} related transactions for failed debit: {}",
+                                relatedTxns.size(), baseTxnId);
 
                         // Handle All Related Transactions
                         for (AbstractRetailerTransactionDetails relatedTxn : relatedTxns) {
-
+                            log.debug("Handling failed transaction: {}", relatedTxn.getTransactionId());
                             handleFailedTransaction(
                                     hierarchyType,
                                     walletType,
@@ -3180,43 +3226,36 @@ private void distributeToHierarchyChain(
                             );
                         }
 
-                        log.info(
-                                "Refund completed for baseTxnId={}",
-                                baseTxnId
-                        );
+                        log.info("Refund completed for baseTxnId={}", baseTxnId);
                     }
 
                     successList.add(fullTxnId);
+                    log.info("Debit transaction {} processed successfully", fullTxnId);
                 }
 
                 // =========================================================
                 // UPDATE PENDING TABLE
                 // =========================================================
+                log.debug("Updating pending transaction tables for baseTxnId: {}", baseTxnId);
                 updatePendingTransactionTables(
                         baseTxnId,
                         request.getNewStatus()
                 );
+                log.debug("Pending transaction tables updated for: {}", baseTxnId);
 
             } catch (Exception ex) {
-
-                log.error(
-                        "Error processing txnId {}: {}",
-                        tranxId,
-                        ex.getMessage(),
-                        ex
-                );
-
+                log.error("Error processing txnId {}: {}", tranxId, ex.getMessage(), ex);
                 failedList.add(tranxId);
-
-                messages.add(
-                        tranxId + " -> " + ex.getMessage()
-                );
+                messages.add(tranxId + " -> " + ex.getMessage());
             }
         }
 
         // =========================================================
         // FINAL RESPONSE
         // =========================================================
+
+        log.info("Bulk transaction processing completed - Total: {}, Success: {}, Skipped: {}, Failed: {}",
+                request.getTransactionIds().size(), successList.size(), skippedList.size(), failedList.size());
 
         statusResponse.setTotal(
                 request.getTransactionIds().size()
@@ -3241,6 +3280,8 @@ private void distributeToHierarchyChain(
         statusResponse.setFailedTxnIds(failedList);
 
         statusResponse.setMessages(messages);
+
+        log.debug("Final response: {}", statusResponse);
 
         return new CommonResponse<>(
                 200,
@@ -3448,6 +3489,9 @@ private void distributeToHierarchyChain(
             String status
     ) {
 
+        log.info("Handling failed transaction: {}, walletType: {}, status: {}",
+                transactionId, walletType, status);
+
         // =========================================
         // FETCH TXN
         // =========================================
@@ -3457,6 +3501,7 @@ private void distributeToHierarchyChain(
         AbstractRetailerTransactionDetails txn = pair.getLeft();
 
         if (txn == null) {
+            log.error("Transaction not found: {}", transactionId);
             throw new RuntimeException("Transaction not found: " + transactionId);
         }
 
@@ -3467,6 +3512,8 @@ private void distributeToHierarchyChain(
                 getWalletByType(walletType, txn.getRetailerId());
 
         if (wallet == null) {
+            log.error("Wallet not found - walletType: {}, retailerId: {}",
+                    walletType, txn.getRetailerId());
             throw new RuntimeException(
                     "Wallet not found | walletType="
                             + walletType
@@ -3483,25 +3530,28 @@ private void distributeToHierarchyChain(
 
         BigDecimal balAfterTran = currentBalance.add(refundAmount);
 
+        log.debug("Balance calculation - current: {}, refund: {}, after: {}",
+                currentBalance, refundAmount, balAfterTran);
+
         // =========================================
         // UPDATE TXN TABLE
         // =========================================
         String tableName = getTransactionTable(hierarchyType, walletType);
 
         String sql = """
-            UPDATE %s
-            SET
-                tran_status = ?,
-                updated_date = ?,
-                updated_time = ?,
-                original_transaction_id = ?,
-                bal_before_tran = ?,
-                bal_after_tran = ?,
-                final_balance = ?
-            WHERE transaction_id = ?
-            """.formatted(tableName);
+        UPDATE %s
+        SET
+            tran_status = ?,
+            updated_date = ?,
+            updated_time = ?,
+            original_transaction_id = ?,
+            bal_before_tran = ?,
+            bal_after_tran = ?,
+            final_balance = ?
+        WHERE transaction_id = ?
+        """.formatted(tableName);
 
-        jdbcTemplate.update(
+        int updated = jdbcTemplate.update(
                 sql,
                 status,
                 LocalDate.now(),
@@ -3512,6 +3562,10 @@ private void distributeToHierarchyChain(
                 balAfterTran,
                 transactionId
         );
+
+        if (updated == 0) {
+            log.warn("No transaction record found to update: {}", transactionId);
+        }
 
         // =========================================
         // REFUND WALLET
@@ -3545,25 +3599,46 @@ private void distributeToHierarchyChain(
     private void updateTransactionStatusOnly(String hierarchyType, String id, String walletType,
                                              String txnId, String status) {
 
-        String table = getTransactionTable(hierarchyType, walletType);
+        log.debug("Updating transaction status only - hierarchyType: {}, id: {}, walletType: {}, txnId: {}, status: {}",
+                hierarchyType, id, walletType, txnId, status);
 
-        int updated = jdbcTemplate.update(
-                "UPDATE " + table + " SET tran_status=?, " +
-                        "updated_date_of_transaction=NOW(), updated_time_of_transaction=NOW() " +
-                        "WHERE transaction_id=?",
-                status, txnId
-        );
+        try {
+            String table = getTransactionTable(hierarchyType, walletType);
+            log.debug("Transaction table resolved: {} for hierarchyType: {} and walletType: {}",
+                    table, hierarchyType, walletType);
 
-        if (updated == 0) {
-            log.warn("No record found for txnId: {}", txnId);
+            String sql = "UPDATE " + table + " SET tran_status=?, " +
+                    "updated_date_of_transaction=NOW(), updated_time_of_transaction=NOW() " +
+                    "WHERE transaction_id=?";
+
+            log.trace("Executing SQL: {} with parameters - status: {}, txnId: {}", sql, status, txnId);
+
+            int updated = jdbcTemplate.update(sql, status, txnId);
+
+            if (updated == 0) {
+                log.warn("No record found for txnId: {} in table: {} - update skipped", txnId, table);
+            } else {
+                log.info("Successfully updated transaction status to '{}' for txnId: {} in table: {} ({} row(s) affected)",
+                        status, txnId, table, updated);
+            }
+
+            log.debug("Transaction status update completed for txnId: {}", txnId);
+
+        } catch (Exception e) {
+            log.error("Error updating transaction status for txnId: {}, hierarchyType: {}, walletType: {}, table: {}",
+                    txnId, hierarchyType, walletType, getTransactionTable(hierarchyType, walletType), e);
+            throw e; // Re-throw to maintain existing behavior
         }
     }
 
-
     private void updatePendingTransactionTables(String baseTxnId, String status) {
+
+        log.info("Updating pending transaction tables for baseTxnId: {}, status: {}", baseTxnId, status);
 
         String orderId = "ORD" + baseTxnId;
         String txnId = "TXN" + baseTxnId;
+
+        log.debug("Derived orderId: {}, txnId: {}", orderId, txnId);
 
         // PG Transaction Mapping (PRIORITY 1)
         Optional<PgTransactionMapping> pgOpt = pgTransactionMappingRepository.findByOrderId(orderId);
@@ -3576,6 +3651,8 @@ private void distributeToHierarchyChain(
             log.info("Updated PG_TRANSACTION_MAPPING for orderId={} with status={}", orderId, status);
             return;
         }
+
+        log.debug("No PG_TRANSACTION_MAPPING found for orderId: {}", orderId);
 
         // Payout Pending (PRIORITY 2)
         Optional<PayoutPendingTransactions> payoutOpt =
@@ -3590,6 +3667,8 @@ private void distributeToHierarchyChain(
             return;
         }
 
+        log.debug("No PAYOUT_PENDING_TRANSACTIONS found for txnId: {}", txnId);
+
         // BBPS Pending (PRIORITY 3)
         Optional<BBPSPendingTransactions> bbpsOpt =
                 Optional.ofNullable(bbpsPendingTransactionsRepository.findByTransactionId(txnId));
@@ -3602,6 +3681,8 @@ private void distributeToHierarchyChain(
             log.info("Updated BBPS_PENDING_TRANSACTIONS for txnId={} with status={}", txnId, status);
             return;
         }
+
+        log.debug("No BBPS_PENDING_TRANSACTIONS found for txnId: {}", txnId);
 
         log.warn("No pending transaction record found for baseTxnId={} (orderId={}, txnId={})",
                 baseTxnId, orderId, txnId);

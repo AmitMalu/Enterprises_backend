@@ -256,8 +256,11 @@ public class PayoutOrchestrator {
                     subProducts.getSubProductCode(),
                     req.getBeneficiaryName() + " #" + req.getAccountNumber(),
                     "Fund Transferred #" + req.getAccountNumber(),
-                    "",
-                    retailerExtraColumns
+                    selectedScheme.getSchemeCode(),
+                    retailerExtraColumns,
+                    vendor.getVendorName(),
+                    selectedScheme.getOperatorName()
+
             );
 
             log.debug("[PROCESS PAYOUT ORCH] Wallet debited (PENDING) for retailer={}, amount={}", req.getRetailerId(), req.getAmount());

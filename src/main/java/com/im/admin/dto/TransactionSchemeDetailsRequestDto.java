@@ -30,7 +30,7 @@ public class TransactionSchemeDetailsRequestDto {
 
     private Boolean hasCharge;
     private Boolean isCommission;
-    private String transactionType;        //credit, debit
+    private String transactionType;        //credit, debit , imps , neft
     private String baseTranxId;              //25041815234800204
     private String callbackUrl;
     private Double latitude;
@@ -41,5 +41,8 @@ public class TransactionSchemeDetailsRequestDto {
     private String medium;
     private String clientIp;
     private String requestDomainName;
+
+    private String mobileNumber;
+
 
 }

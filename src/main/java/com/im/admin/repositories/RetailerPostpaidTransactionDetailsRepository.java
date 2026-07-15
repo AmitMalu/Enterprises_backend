@@ -28,11 +28,13 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
     Optional<RetailerPostpaidTransactionDetails> findByTransactionId(String transactionId);
 
     @Query(value = """
-            SELECT * 
-            FROM retailer_postpaid_transaction_details 
-            WHERE base_transaction_id = :baseTxnId
-            """, nativeQuery = true)
-    List<RetailerPostpaidTransactionDetails> findByBaseTransactionId(@Param("baseTxnId") String baseTxnId);
+        SELECT *
+        FROM retailer_postpaid_transaction_details
+        WHERE transaction_id = :baseTxnId
+        """, nativeQuery = true)
+    List<RetailerPostpaidTransactionDetails> findByBaseTransactionId(
+            @Param("baseTxnId") String baseTxnId
+    );
 
     @Query("""
                 SELECT r FROM RetailerPostpaidTransactionDetails r

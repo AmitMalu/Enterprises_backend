@@ -405,7 +405,9 @@ public class DmtOrchestrator {
                     req.getBeneficiaryName() + " #" + req.getAccountNumber(),
                     "Fund Transferred #" + req.getAccountNumber(),
                     schemeCode,
-                    retailerExtraColumns
+                    retailerExtraColumns,
+                    vendor.getVendorName(),
+                    selectedScheme.getOperatorName()
             );
 
             log.debug("[PROCESS DMT] Wallet debited (PENDING) for retailer={}, amount={}",

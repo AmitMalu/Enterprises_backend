@@ -582,8 +582,10 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                     subProducts.getSubProductTitle(),
                     "Bill Avenue BillPay",
                     "Bill payment initiated",
-                    "",
-                    retailerExtraColumns
+                    selectedScheme.getSchemeCode(),
+                    retailerExtraColumns,
+                    vendor.getVendorName(),
+                    selectedScheme.getOperatorName()
             );
 
             bbpsRelatedTransactions.processCharges(bbpsDto, walletAmountTable);

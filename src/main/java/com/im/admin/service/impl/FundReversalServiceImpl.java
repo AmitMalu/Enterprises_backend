@@ -359,7 +359,9 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "Payment",
                 "Fund Reverse to " + request.getParentHierarchyId(),
                 "",
-                retailerExtraColumns
+                retailerExtraColumns,
+                null,
+                null
         );
 
         AbstractWalletAmountTable toWallet =
@@ -380,7 +382,9 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "Payment",
                 "Fund Reversed By " + request.getChildHierarchyId(),
                 "",
-                retailerExtraColumns
+                retailerExtraColumns,
+                null,
+                null
         );
     }
 

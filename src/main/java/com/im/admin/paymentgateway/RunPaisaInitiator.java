@@ -57,9 +57,9 @@ public class RunPaisaInitiator implements PaymentGatewayInitiator {
             req.setUsername(command.getUsername());
             req.setCallbackUrl(command.getCallbackUrl());
             req.setTransactionScheme(command.getSchemeDetails());
-            req.setMedium(command.getMedium());
+            req.setMedium(requestHeaderMetaDto.getMedium());
             req.setClientIp(requestHeaderMetaDto.getIpAddress());
-            req.setRequestDomainName(command.getRequestDomainName());
+            req.setRequestDomainName(requestHeaderMetaDto.getRequestDomainName());
 
             // ===== LOG REQUEST BEFORE CREATE ORDER CALL =====
             log.info("=== PREPARING TO CALL RUNPAISA CREATE ORDER ===");
