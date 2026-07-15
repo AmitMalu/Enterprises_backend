@@ -3,7 +3,8 @@ package com.im.admin.entities.enums;
 public enum ServiceType {
 
     TXN,  //Transaction
-    FTR, // Fund Transfer
+    FTR, //
+    // Fund Transfer
     CHG, // Charge
     COM, // Commission
     GST, //Goods & Service Tax

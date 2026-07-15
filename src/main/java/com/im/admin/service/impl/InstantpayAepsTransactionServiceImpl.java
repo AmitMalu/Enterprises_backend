@@ -232,18 +232,22 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                 return CommonResponse.error(500, "Vendor returned empty response");
             }
 
+
+            String txnId = buildTransactionId("TXN", baseTxnId);
+
             // ===============================
             // SAVE TRANSACTION LOG
             // ===============================
 
-            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())) {
+//            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())) {
 
                 AepsCashWithdrawalLog logEntry = new AepsCashWithdrawalLog();
 
                 logEntry.setRetailerId(req.getRetailerId());
                 logEntry.setVendorId(vendor.getId());
                 logEntry.setMerchantTxnId(externalRef);
-                logEntry.setTransactionId(vendorResp.getOrderid());
+//                logEntry.setTransactionId(vendorResp.getOrderid());
+                logEntry.setTransactionId(txnId);
                 logEntry.setTransactionAmount(
                         Double.valueOf(vendorResp.getData().getTransactionValue())
                 );
@@ -257,8 +261,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                 logEntry.setResponsePayload(mapper.writeValueAsString(vendorResp));
 
                 cashWithdrawalRepository.save(logEntry);
-
-            }
+//            }
 
             SchemeRate selectedScheme = schemeRateRepository
                     .findSchemeRateByCodeAndOperatorAndAmount(
@@ -471,16 +474,20 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                 );
             }
 
+            String txnId = buildTransactionId("TXN", baseTxnId);
+
+
             // ===== SAVE AEPS BALANCE LOG =====
-            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())
-                    && vendorResp.getData() != null) {
+//            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())
+//                    && vendorResp.getData() != null) {
 
                 AepsBalanceEnquiry logEntry = new AepsBalanceEnquiry();
 
                 logEntry.setRetailerId(req.getRetailerId());
                 logEntry.setVendorId(vendor.getId());
                 logEntry.setMerchantTxnId(externalRef);
-                logEntry.setTransactionId(vendorResp.getOrderid());
+//                logEntry.setTransactionId(vendorResp.getOrderid());
+                logEntry.setTransactionId(txnId);
 
                 logEntry.setBalanceAmount(
                         Double.valueOf(vendorResp.getData().getBankAccountBalance())
@@ -498,7 +505,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
 
                 aepsBalanceEnquiryRepository.save(logEntry);
 
-            }
+//            }
 
             log.info(
                     "Fetching Scheme Rate | SchemeCode={}, TransactionType={}, Amount={}",
@@ -757,9 +764,8 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             String txnId = buildTransactionId("TXN", baseTxnId);
 
             // ===== SAVE MINI STATEMENT LOG =====
-
-            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())
-                    && vendorResp.getData() != null) {
+//            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())
+//                    && vendorResp.getData() != null) {
 
                 AepsMiniStatement log = new AepsMiniStatement();
 
@@ -780,7 +786,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                 log.setResponsePayload(responseJson);
 
                 aepsMiniStatementRepository.save(log);
-            }
+//            }
 
             SchemeRate selectedScheme = schemeRateRepository
                     .findSchemeRateByCodeAndOperatorAndAmount(

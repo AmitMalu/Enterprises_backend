@@ -698,12 +698,26 @@ public class FundingServiceImpl implements FundingService {
         });
     }
 
+//    private Map<String, SubProducts> getSubProductMap() {
+//        return subProductsRepository.findAll().stream()
+//                .collect(Collectors.toMap(
+//                        SubProducts::getSubProductCode,
+//                        sp -> sp
+//                ));
+//    }
+
     private Map<String, SubProducts> getSubProductMap() {
-        return subProductsRepository.findAll().stream()
-                .collect(Collectors.toMap(
-                        SubProducts::getSubProductCode,
-                        sp -> sp
-                ));
+        Map<String, SubProducts> map = new HashMap<>();
+
+        for (SubProducts sp : subProductsRepository.findAll()) {
+            map.put(sp.getSubProductCode(), sp);
+
+            if (sp.getSubProductTitle() != null) {
+                map.put(sp.getSubProductTitle(), sp);
+            }
+        }
+
+        return map;
     }
 
 
