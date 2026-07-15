@@ -1048,4 +1048,197 @@ public class CommonMethods {
         return ip.trim().matches(ipv4Pattern);
     }
 
+    public BigDecimal resolveTdsRateForHierarchy(
+            String hierarchyId,
+            String hierarchyType) {
+
+        Boolean aadhaarPanVerified =
+                switch (hierarchyType) {
+
+                    case "ET" ->
+                            enterprisesRepository.findById(hierarchyId)
+                                    .map(Enterprises::getAadhaarPanVerified)
+                                    .orElseThrow(() ->
+                                            hierarchyNotFound(
+                                                    hierarchyId,
+                                                    hierarchyType
+                                            )
+                                    );
+
+                    case "WL" ->
+                            whiteLabelsRepository.findById(hierarchyId)
+                                    .map(WhiteLabels::getAadhaarPanVerified)
+                                    .orElseThrow(() ->
+                                            hierarchyNotFound(
+                                                    hierarchyId,
+                                                    hierarchyType
+                                            )
+                                    );
+
+                    case "SD" ->
+                            superDistributorRepository.findById(hierarchyId)
+                                    .map(SuperDistributor::getAadhaarPanVerified)
+                                    .orElseThrow(() ->
+                                            hierarchyNotFound(
+                                                    hierarchyId,
+                                                    hierarchyType
+                                            )
+                                    );
+
+                    case "PT" ->
+                            partnerRepository.findById(hierarchyId)
+                                    .map(Partner::getAadhaarPanVerified)
+                                    .orElseThrow(() ->
+                                            hierarchyNotFound(
+                                                    hierarchyId,
+                                                    hierarchyType
+                                            )
+                                    );
+
+                    case "DT" ->
+                            distributorRepository.findById(hierarchyId)
+                                    .map(Distributor::getAadhaarPanVerified)
+                                    .orElseThrow(() ->
+                                            hierarchyNotFound(
+                                                    hierarchyId,
+                                                    hierarchyType
+                                            )
+                                    );
+
+                    case "RT" ->
+                            retailerRepository.findById(hierarchyId)
+                                    .map(Retailer::getAadhaarPanVerified)
+                                    .orElseThrow(() ->
+                                            hierarchyNotFound(
+                                                    hierarchyId,
+                                                    hierarchyType
+                                            )
+                                    );
+
+                    /*
+                     * Retailer user acts using the retailer account.
+                     * Resolve its parent retailer and use the retailer's verification flag.
+                     */
+                    case "RU" -> {
+                        RetailerUser retailerUser =
+                                retailerUserRepository.findById(hierarchyId)
+                                        .orElseThrow(() ->
+                                                hierarchyNotFound(
+                                                        hierarchyId,
+                                                        hierarchyType
+                                                )
+                                        );
+
+                        String retailerId =
+                                trimToNull(
+                                        retailerUser.getParentAccount()
+                                );
+
+                        if (retailerId == null) {
+                            throw new IllegalStateException(
+                                    "Parent retailer is missing for retailer user: "
+                                            + hierarchyId
+                            );
+                        }
+
+                        yield retailerRepository.findById(retailerId)
+                                .map(Retailer::getAadhaarPanVerified)
+                                .orElseThrow(() ->
+                                        new IllegalStateException(
+                                                "Parent retailer not found: "
+                                                        + retailerId
+                                                        + ", retailerUserId: "
+                                                        + hierarchyId
+                                        )
+                                );
+                    }
+
+                    /*
+                     * Admin and Admin User TDS are not calculated here.
+                     */
+                    case "AD", "AU" -> {
+                        log.debug(
+                                "[COMMISSION] Admin hierarchy does not require verification-based TDS | HierarchyId={} | Type={}",
+                                hierarchyId,
+                                hierarchyType
+                        );
+
+                        yield null;
+                    }
+
+                    default ->
+                            throw new IllegalArgumentException(
+                                    "Unsupported hierarchy type for TDS calculation: "
+                                            + hierarchyType
+                                            + ", hierarchyId: "
+                                            + hierarchyId
+                            );
+                };
+
+        if ("AD".equals(hierarchyType) || "AU".equals(hierarchyType)) {
+            return ZERO_TDS_RATE;
+        }
+
+        return resolveTdsRate(
+                aadhaarPanVerified,
+                hierarchyId
+        );
+    }
+
+    public BigDecimal resolveTdsRate(
+            Boolean aadhaarPanVerified,
+            String hierarchyId) {
+
+        boolean verified =
+                Boolean.TRUE.equals(aadhaarPanVerified);
+
+        BigDecimal applicableTdsRate =
+                verified
+                        ? VERIFIED_TDS_RATE
+                        : UNVERIFIED_TDS_RATE;
+
+        log.info(
+                "[COMMISSION] TDS rate resolved | HierarchyId={} | AadhaarPanVerified={} | TdsRate={}",
+                hierarchyId,
+                verified,
+                applicableTdsRate
+        );
+
+        return applicableTdsRate;
+    }
+
+    private IllegalStateException hierarchyNotFound(
+            String hierarchyId,
+            String hierarchyType) {
+
+        return new IllegalStateException(
+                "Hierarchy entity not found while resolving TDS"
+                        + " | hierarchyId=" + hierarchyId
+                        + " | hierarchyType=" + hierarchyType
+        );
+    }
+
+    public String trimToNull(String value) {
+
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed =
+                value.trim();
+
+        return trimmed.isEmpty()
+                ? null
+                : trimmed;
+    }
+
+    private static final BigDecimal VERIFIED_TDS_RATE =
+            new BigDecimal("2.00");
+
+    private static final BigDecimal UNVERIFIED_TDS_RATE =
+            new BigDecimal("20.00");
+
+    private static final BigDecimal ZERO_TDS_RATE =
+            BigDecimal.ZERO;
+
 }
