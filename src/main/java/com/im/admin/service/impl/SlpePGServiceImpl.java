@@ -254,11 +254,13 @@ public class SlpePGServiceImpl implements SlpePGService {
             dto.setHasCharge(product.getHasCharges());
             dto.setLatitude(pgTransactionMapping.getLatitude());
             dto.setLongitude(pgTransactionMapping.getLongitude());
-            dto.setVendorName("SLPE PG");
+            dto.setVendorName("SLPE Payment Gateway");
             dto.setVendorTxnId(txnId);
             dto.setMedium(pgTransactionMapping.getMedium());
             dto.setClientIp(pgTransactionMapping.getClientIp());
             dto.setRequestDomainName(pgTransactionMapping.getRequestDomainName());
+
+            dto.setTransactionType("CREDIT");
 
             log.debug("---- [Callback] DTO prepared: {}", dto);
             log.info("---- [Callback] DTO prepared: {}", dto);

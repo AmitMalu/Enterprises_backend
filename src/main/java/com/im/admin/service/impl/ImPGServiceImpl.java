@@ -357,7 +357,6 @@ public class ImPGServiceImpl implements ImPGService {
         Double txnAmt = pgTransactionMapping.getAmount();
         log.info("---- [Callback] Parsed transaction amount: {}", txnAmt);
 
-
         String operator = imCallbackRequest.getOperator();
 
         String operatorName = commonMethods.formatOperatorName(operator);
@@ -437,6 +436,8 @@ public class ImPGServiceImpl implements ImPGService {
         dto.setMedium(pgTransactionMapping.getMedium());
         dto.setClientIp(pgTransactionMapping.getClientIp());
         dto.setRequestDomainName(pgTransactionMapping.getRequestDomainName());
+
+        dto.setTransactionType("CREDIT");
 
         log.debug("---- [Callback] DTO prepared: {}", dto);
         log.info("---- [Callback] DTO prepared: {}", dto);

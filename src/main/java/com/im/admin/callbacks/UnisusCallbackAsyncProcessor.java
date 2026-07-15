@@ -177,8 +177,10 @@ public class UnisusCallbackAsyncProcessor {
             dto.setSubProductCode(subProduct.getSubProductCode());
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
-            dto.setVendorName("UnisusPay PG");
+            dto.setVendorName("UnisusPay Payment Gateway");
             dto.setVendorTxnId(request.getTransaction().getTransactionID());
+
+            dto.setTransactionType("CREDIT");
 
             log.debug("---- [Callback] DTO prepared: {}", dto);
             log.info("---- [Callback] DTO prepared: {}", dto);
@@ -188,10 +190,6 @@ public class UnisusCallbackAsyncProcessor {
             transactionServiceImpl.processTransaction(dto, vendorStatus);
 
             log.info("---- [Callback] Processing complete for Order ID: {} | Status: {}", trnRefNo, vendorStatus);
-
-            // Call your internal transaction engine here
-//            TransactionSchemeDetailsRequestDto transactionSchemeDetailsRequestDto = new TransactionSchemeDetailsRequestDto();
-//            transactionServiceImpl.processTransaction(transactionSchemeDetailsRequestDto, vendorStatus);
 
         } catch (Exception e) {
             log.error("Async processing failed for orderId: {}", trnRefNo, e);

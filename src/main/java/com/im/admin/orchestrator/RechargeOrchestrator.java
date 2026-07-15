@@ -148,8 +148,10 @@ public class RechargeOrchestrator {
                 subProducts.getSubProductCode(),
                 request.getCustomerNumber(),
                 "Recharge for " + request.getCustomerNumber(),
-                "",
-                retailerExtraColumns
+                selectedScheme.getSchemeCode(),
+                retailerExtraColumns,
+                vendor.getVendorName(),
+                selectedScheme.getOperatorName()
         );
 
         return vendorService.recharge(request,orderId, credentials);

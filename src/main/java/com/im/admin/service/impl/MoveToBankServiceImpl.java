@@ -123,7 +123,10 @@ public class MoveToBankServiceImpl implements MoveToBankService {
             } else {
 
                 AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(walletType.name(), sendPayoutRequest.getRetailerId());
-                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit", "TXN" + baseTransactionId, "VENDOR_PENDING", "DEBIT", "Move To Bank", sendPayoutRequest.getBeneficiaryName() + "#" + sendPayoutRequest.getAccountNumber(), "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber(),"", null);
+                commonMethods.updateWallet(walletAmountTable, sendPayoutRequest.getRetailerId(), walletType, sendPayoutRequest.getAmount(), "Debit",
+                        "TXN" + baseTransactionId, "VENDOR_PENDING", "DEBIT",
+                        "Move To Bank", sendPayoutRequest.getBeneficiaryName() + "#" + sendPayoutRequest.getAccountNumber(),
+                        "Fund Transferred " + "#" + sendPayoutRequest.getAccountNumber(),"", null, vendor.getVendorName(), "");
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
