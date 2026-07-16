@@ -3,6 +3,8 @@ package com.im.admin.service;
 import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.dto.SubProductsResponseDTO;
 import com.im.admin.entities.SubProducts;
+import com.im.admin.request.SubproductListRequest;
+import com.im.admin.response.SubproductListResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -29,6 +31,10 @@ public interface SubProductsService {
     List<SubProductDropdownResponseDto> getActiveSubProductsByProductId(Short productId,Boolean isSettlement);
 
     List<SubProductDropdownResponseDto> getSubProductDropdown();
+
+    SubproductListResponse getSubproductList(
+            SubproductListRequest request, String geoLocation
+    );
 
 }
 
