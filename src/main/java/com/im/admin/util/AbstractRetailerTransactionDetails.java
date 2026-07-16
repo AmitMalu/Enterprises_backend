@@ -2,6 +2,8 @@ package com.im.admin.util;
 
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 public interface AbstractRetailerTransactionDetails {
     String getRetailerId();
@@ -19,6 +21,14 @@ public interface AbstractRetailerTransactionDetails {
     String getService();
     Double getLatitude();
     Double getLongitude();
+
+    LocalDate getDateOfTransaction();
+
+    LocalTime getTimeOfTransaction();
+
+    String getMobileNo();
+
+    String getBankRefId();
 
 }
 

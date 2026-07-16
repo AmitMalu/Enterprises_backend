@@ -9,7 +9,10 @@ import com.im.admin.util.AbstractRetailerTransactionDetails;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -83,9 +86,16 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
         }
 
         //  Step 2: Get SubProduct
-        SubProducts sp =
-                subProductsRepository.findBySubProductCode(txn.getSubProductName())
-                        .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+//        SubProducts sp =
+//                subProductsRepository.findBySubProductCode(txn.getSubProductName())
+//                        .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+
+        SubProducts sp = subProductsRepository
+                .findBySubProductCodeOrSubProductTitle(
+                        txn.getSubProductName(),
+                        txn.getSubProductName()
+                )
+                .orElseThrow(() -> new RuntimeException("SubProduct not found"));
 
         String productName = sp.getProduct().getName();
 
@@ -248,21 +258,85 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                     .build();
         }
 
+//        // ======================= PG ============================
+//
+//        if (productName != null &&
+//                productName.trim().equalsIgnoreCase("payment gateway")) {
+//
+//            // Step 1: Get mapping
+////            PgTransactionMapping pg =
+////                    pgTransactionMappingRepository
+////                            .findByTxnId(request.getTxnId())
+////                            .orElseThrow(() ->
+////                                    new RuntimeException("PG mapping not found"));
+//
+//            String txnId = request.getTxnId();
+//
+//            String orderIdPart = txnId.replace("TXN", "")
+//                    .replace("FLD", "");
+//
+//            PgTransactionMapping pg =
+//                    pgTransactionMappingRepository
+//                            .findByOrderIdLike(orderIdPart)
+//                            .orElseThrow(() ->
+//                                    new RuntimeException("PG mapping not found"));
+//
+//            String orderId = pg.getOrderId();
+//            String cardBin = pg.getCardBinNo();
+//
+//            // Step 2: Get callback log
+////            String txnPart = orderId.replace("ORD", "");
+//
+////            CallbackEventLog callback =
+////                    callbackEventLogRepository
+////                            .findLatestPgCallback(txnPart)
+////                            .orElseThrow(() ->
+////                                    new RuntimeException("Callback log not found"));
+//
+//            CallbackEventLog callback =
+//                    callbackEventLogRepository
+//                            .findLatestPgCallback(orderId)
+//                            .orElseThrow(() ->
+//                                    new RuntimeException("Callback log not found"));
+//
+//            Map<String, String> parsedRequest = parseRequest(callback.getRequest());
+//
+//            String status = parsedRequest.get("STATUS");
+//            String txnAmount = parsedRequest.get("TXN_AMOUNT");
+//            String txnDate = parsedRequest.get("TXN_DATE");
+//            String paymentMode = parsedRequest.get("CARD_CATEGORY");
+//            String phone = parsedRequest.get("CUSTOMER_PHONE");
+//            String bankRefNo = parsedRequest.get("BANK_TXNID");
+//
+//            // Step 3: Get bank name from card_type_master
+//            String bankName = cardTypeMasterRepository
+//                    .findByCardBinNo(cardBin)
+//                    .map(CardTypeMaster::getIssuerName)
+//                    .orElse("Unknown");
+//
+//            return PgReceiptResponseDto.builder()
+//                    .dateTime(txnDate.replace(" ", "T"))
+//                    .txnId(request.getTxnId())
+//                    .orderId(orderId)
+//                    .number(phone)
+//                    .txnAmount(Long.parseLong(txnAmount))
+//                    .paymentMode(paymentMode)
+//                    .bankName(bankName)
+//                    .bankRefNo(bankRefNo)
+//                    .txnStatus(status)
+//                    .build();
+//        }
+
         // ======================= PG ============================
 
         if (productName != null &&
                 productName.trim().equalsIgnoreCase("payment gateway")) {
 
-            // Step 1: Get mapping
-//            PgTransactionMapping pg =
-//                    pgTransactionMappingRepository
-//                            .findByTxnId(request.getTxnId())
-//                            .orElseThrow(() ->
-//                                    new RuntimeException("PG mapping not found"));
-
+            // Step 1 : Get PG Mapping
             String txnId = request.getTxnId();
 
-            String orderIdPart = txnId.replace("TXN", "");
+            String orderIdPart = txnId.replace("TXN", "")
+                    .replace("FLD", "");
 
             PgTransactionMapping pg =
                     pgTransactionMappingRepository
@@ -273,42 +347,34 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
             String orderId = pg.getOrderId();
             String cardBin = pg.getCardBinNo();
 
-            // Step 2: Get callback log
-//            String txnPart = orderId.replace("ORD", "");
+            // Step 2 : Get transaction details from already fetched txn
+            String status = txn.getTranStatus();
 
-//            CallbackEventLog callback =
-//                    callbackEventLogRepository
-//                            .findLatestPgCallback(txnPart)
-//                            .orElseThrow(() ->
-//                                    new RuntimeException("Callback log not found"));
+            BigDecimal txnAmount = txn.getAmount();
 
-            CallbackEventLog callback =
-                    callbackEventLogRepository
-                            .findLatestPgCallback(orderId)
-                            .orElseThrow(() ->
-                                    new RuntimeException("Callback log not found"));
+            LocalDate date = txn.getDateOfTransaction();
+            LocalTime time = txn.getTimeOfTransaction();
 
-            Map<String, String> parsedRequest = parseRequest(callback.getRequest());
+            String txnDate = LocalDateTime.of(date, time).toString();
 
-            String status = parsedRequest.get("STATUS");
-            String txnAmount = parsedRequest.get("TXN_AMOUNT");
-            String txnDate = parsedRequest.get("TXN_DATE");
-            String paymentMode = parsedRequest.get("CARD_CATEGORY");
-            String phone = parsedRequest.get("CUSTOMER_PHONE");
-            String bankRefNo = parsedRequest.get("BANK_TXNID");
+            String paymentMode = txn.getOperatorName();
 
-            // Step 3: Get bank name from card_type_master
+            String phone = txn.getMobileNo();
+
+            String bankRefNo = txn.getBankRefId();
+
+            // Step 3 : Get bank name
             String bankName = cardTypeMasterRepository
                     .findByCardBinNo(cardBin)
                     .map(CardTypeMaster::getIssuerName)
                     .orElse("Unknown");
 
             return PgReceiptResponseDto.builder()
-                    .dateTime(txnDate.replace(" ", "T"))
+                    .dateTime(txnDate)
                     .txnId(request.getTxnId())
                     .orderId(orderId)
                     .number(phone)
-                    .txnAmount(Long.parseLong(txnAmount))
+                    .txnAmount(txnAmount.longValue())
                     .paymentMode(paymentMode)
                     .bankName(bankName)
                     .bankRefNo(bankRefNo)

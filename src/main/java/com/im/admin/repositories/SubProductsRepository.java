@@ -16,7 +16,10 @@ import java.util.Optional;
 @Repository
 public interface SubProductsRepository extends JpaRepository<SubProducts, String>, JpaSpecificationExecutor<SubProducts> {
 
-    Optional<SubProducts> findBySubProductCodeOrSubProductTitle(String subProductCode, String subProductTitle);
+    Optional<SubProducts> findBySubProductCodeOrSubProductTitle(
+            String subProductCode,
+            String subProductTitle
+    );
 
     List<SubProducts> findByProductIdAndIsActiveTrue(Short productId);
 

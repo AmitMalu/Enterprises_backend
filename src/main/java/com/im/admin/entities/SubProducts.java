@@ -39,7 +39,6 @@ public class SubProducts {
             message = "Invalid sub product title"
     )
     private String subProductTitle;
-
     @Column(name = "sub_product_code", nullable = false, unique = true)
     private String subProductCode;
 
