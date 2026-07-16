@@ -64,4 +64,6 @@ public interface PartnerPrepaidTransactionDetailsRepository extends JpaRepositor
             @Param("partnerId") String partnerId
     );
 
+    boolean existsByTransactionId(String transactionId);
+
 }
