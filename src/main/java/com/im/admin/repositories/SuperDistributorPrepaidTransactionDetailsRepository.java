@@ -64,4 +64,7 @@ public interface SuperDistributorPrepaidTransactionDetailsRepository extends Jpa
     List<DashboardTransactionDto> fetchDashboardTransactions(
             @Param("superDistributorId") String superDistributorId
     );
+
+    boolean existsByTransactionId(String transactionId);
+
 }

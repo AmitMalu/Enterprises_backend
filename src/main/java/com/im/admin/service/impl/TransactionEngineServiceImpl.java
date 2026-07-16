@@ -84,6 +84,24 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     private RetailerPrepaidTransactionDetailsRepository retailerPrepaidTransactionDetailsRepository;
 
     @Autowired
+    private DistributorPostpaidTransactionDetailsRepository distributorPostpaidTransactionDetailsRepo;
+
+    @Autowired
+    private DistributorPrepaidTransactionDetailsRepository distributorPrepaidTransactionDetailsRepo;
+
+    @Autowired
+    private PartnerPostpaidTransactionDetailsRepository partnerPostpaidTransactionDetailsRepo;
+
+    @Autowired
+    private PartnerPrepaidTransactionDetailsRepository partnerPrepaidTransactionDetailsRepo;
+
+    @Autowired
+    private SuperDistributorPostpaidTransactionDetailsRepository superDistributorPostpaidTransactionDetailsRepo;
+
+    @Autowired
+    private SuperDistributorPrepaidTransactionDetailsRepository superDistributorPrepaidTransactionDetailsRepo;
+
+    @Autowired
     private DynamicWalletRepository dynamicWalletRepository;
 
     @Autowired
@@ -2365,7 +2383,7 @@ private void distributeToHierarchyChain(
 
                 // Fast duplicate check
                 if (retailerPrepaidTransactionDetailsRepository.existsByTransactionId(tranxId)) {
-                    log.warn("Duplicate prepaid transaction skipped (exists check) | TranxId: {}", tranxId);
+                    log.warn("[RT] Duplicate prepaid transaction skipped (exists check) | TranxId: {}", tranxId);
                     return;
                 }
 
@@ -2394,13 +2412,13 @@ private void distributeToHierarchyChain(
                 transaction.setTransactionType(dto.getTransactionType());
 
                 retailerPrepaidTransactionDetailsRepository.save(transaction);
-                log.info("Prepaid transaction saved successfully | TranxId: {}", tranxId);
+                log.info("[RT] Prepaid transaction saved successfully | TranxId: {}", tranxId);
 
             } else if (wallet instanceof RetailerPostpaidAmount) {
 
                 // Fast duplicate check
                 if (retailerPostpaidTransactionDetailsRepository.existsByTransactionId(tranxId)) {
-                    log.warn("Duplicate postpaid transaction skipped (exists check) | TranxId: {}", tranxId);
+                    log.warn("[RT] Duplicate postpaid transaction skipped (exists check) | TranxId: {}", tranxId);
                     return;
                 }
 
@@ -2429,7 +2447,181 @@ private void distributeToHierarchyChain(
                 transaction.setTransactionType(dto.getTransactionType());
 
                 retailerPostpaidTransactionDetailsRepository.save(transaction);
-                log.info("Postpaid transaction saved successfully | TranxId: {}", tranxId);
+                log.info("[RT] Postpaid transaction saved successfully | TranxId: {}", tranxId);
+
+            } else if (wallet instanceof DistributorPrepaidAmount) {
+
+                // Fast duplicate check
+                if (distributorPrepaidTransactionDetailsRepo.existsByTransactionId(tranxId)) {
+                    log.warn("[DT] Duplicate prepaid transaction skipped (exists check) | TranxId: {}", tranxId);
+                    return;
+                }
+
+                DistributorPrepaidTransactionDetails transaction = new DistributorPrepaidTransactionDetails();
+                transaction.setTransactionId(tranxId);
+                transaction.setDateOfTransaction(LocalDate.now());
+                transaction.setTimeOfTransaction(LocalTime.now());
+                transaction.setService(service);
+                transaction.setBalBeforeTran(balanceBeforeTranx);
+                transaction.setAmount(amount);
+                transaction.setBalAfterTran(balanceAfterTranx);
+                transaction.setActionOnBalanceAmount(actionOnBalance);
+                transaction.setTranStatus(tranStatus);
+                transaction.setFinalBalance(balanceAfterTranx);
+                transaction.setDistributorId(((DistributorPrepaidAmount) wallet).getDistributorId().getDistributorId());
+                transaction.setOperatorName(dto.getOperatorName());
+                transaction.setSubProductName(dto.getSubProductCode());
+                transaction.setSchemeName(scheme.getSchemeName());
+                transaction.setLatitude(dto.getLatitude());
+                transaction.setLongitude(dto.getLongitude());
+
+                distributorPrepaidTransactionDetailsRepo.save(transaction);
+                log.info("[DT] Prepaid transaction saved successfully | TranxId: {}", tranxId);
+
+            } else if (wallet instanceof DistributorPostpaidAmount) {
+
+                // Fast duplicate check
+                if (distributorPostpaidTransactionDetailsRepo.existsByTransactionId(tranxId)) {
+                    log.warn("[DT] Duplicate postpaid transaction skipped (exists check) | TranxId: {}", tranxId);
+                    return;
+                }
+
+                DistributorPostpaidTransactionDetails transaction = new DistributorPostpaidTransactionDetails();
+                transaction.setTransactionId(tranxId);
+                transaction.setDateOfTransaction(LocalDate.now());
+                transaction.setTimeOfTransaction(LocalTime.now());
+                transaction.setService(service);
+                transaction.setBalBeforeTran(balanceBeforeTranx);
+                transaction.setAmount(amount);
+                transaction.setBalAfterTran(balanceAfterTranx);
+                transaction.setActionOnBalanceAmount(actionOnBalance);
+                transaction.setTranStatus(tranStatus);
+                transaction.setFinalBalance(balanceAfterTranx);
+                transaction.setDistributorId(((DistributorPostpaidAmount) wallet).getDistributorId().getDistributorId());
+                transaction.setOperatorName(dto.getOperatorName());
+                transaction.setSubProductName(dto.getSubProductCode());
+                transaction.setSchemeName(scheme.getSchemeName());
+                transaction.setLatitude(dto.getLatitude());
+                transaction.setLongitude(dto.getLongitude());
+
+                distributorPostpaidTransactionDetailsRepo.save(transaction);
+                log.info("[DT] Postpaid transaction saved successfully | TranxId: {}", tranxId);
+
+            } else if (wallet instanceof PartnerPrepaidAmount) {
+
+                // Fast duplicate check
+                if (partnerPrepaidTransactionDetailsRepo.existsByTransactionId(tranxId)) {
+                    log.warn("[PT] Duplicate prepaid transaction skipped (exists check) | TranxId: {}", tranxId);
+                    return;
+                }
+
+                PartnerPrepaidTransactionDetails transaction = new PartnerPrepaidTransactionDetails();
+                transaction.setTransactionId(tranxId);
+                transaction.setDateOfTransaction(LocalDate.now());
+                transaction.setTimeOfTransaction(LocalTime.now());
+                transaction.setService(service);
+                transaction.setBalBeforeTran(balanceBeforeTranx);
+                transaction.setAmount(amount);
+                transaction.setBalAfterTran(balanceAfterTranx);
+                transaction.setActionOnBalanceAmount(actionOnBalance);
+                transaction.setTranStatus(tranStatus);
+                transaction.setFinalBalance(balanceAfterTranx);
+                transaction.setPartnerId(((PartnerPrepaidAmount) wallet).getPartnerId().getPartnerId());
+                transaction.setOperatorName(dto.getOperatorName());
+                transaction.setSubProductName(dto.getSubProductCode());
+                transaction.setSchemeName(scheme.getSchemeName());
+                transaction.setLatitude(dto.getLatitude());
+                transaction.setLongitude(dto.getLongitude());
+
+                partnerPrepaidTransactionDetailsRepo.save(transaction);
+                log.info("[PT] Prepaid transaction saved successfully | TranxId: {}", tranxId);
+
+            } else if (wallet instanceof PartnerPostpaidAmount) {
+
+                // Fast duplicate check
+                if (distributorPostpaidTransactionDetailsRepo.existsByTransactionId(tranxId)) {
+                    log.warn("[PT] Duplicate postpaid transaction skipped (exists check) | TranxId: {}", tranxId);
+                    return;
+                }
+
+                PartnerPostpaidTransactionDetails transaction = new PartnerPostpaidTransactionDetails();
+                transaction.setTransactionId(tranxId);
+                transaction.setDateOfTransaction(LocalDate.now());
+                transaction.setTimeOfTransaction(LocalTime.now());
+                transaction.setService(service);
+                transaction.setBalBeforeTran(balanceBeforeTranx);
+                transaction.setAmount(amount);
+                transaction.setBalAfterTran(balanceAfterTranx);
+                transaction.setActionOnBalanceAmount(actionOnBalance);
+                transaction.setTranStatus(tranStatus);
+                transaction.setFinalBalance(balanceAfterTranx);
+                transaction.setPartnerId(((PartnerPostpaidAmount) wallet).getPartnerId().getPartnerId());
+                transaction.setOperatorName(dto.getOperatorName());
+                transaction.setSubProductName(dto.getSubProductCode());
+                transaction.setSchemeName(scheme.getSchemeName());
+                transaction.setLatitude(dto.getLatitude());
+                transaction.setLongitude(dto.getLongitude());
+
+                partnerPostpaidTransactionDetailsRepo.save(transaction);
+                log.info("[PT] Postpaid transaction saved successfully | TranxId: {}", tranxId);
+
+            } else if (wallet instanceof SuperDistributorPrepaidAmount) {
+
+                // Fast duplicate check
+                if (superDistributorPrepaidTransactionDetailsRepo.existsByTransactionId(tranxId)) {
+                    log.warn("[SD] Duplicate prepaid transaction skipped (exists check) | TranxId: {}", tranxId);
+                    return;
+                }
+
+                SuperDistributorPrepaidTransactionDetails transaction = new SuperDistributorPrepaidTransactionDetails();
+                transaction.setTransactionId(tranxId);
+                transaction.setDateOfTransaction(LocalDate.now());
+                transaction.setTimeOfTransaction(LocalTime.now());
+                transaction.setService(service);
+                transaction.setBalBeforeTran(balanceBeforeTranx);
+                transaction.setAmount(amount);
+                transaction.setBalAfterTran(balanceAfterTranx);
+                transaction.setActionOnBalanceAmount(actionOnBalance);
+                transaction.setTranStatus(tranStatus);
+                transaction.setFinalBalance(balanceAfterTranx);
+                transaction.setSuperDistributorId(((SuperDistributorPrepaidAmount) wallet).getSuperDistributorId().getSuperDistributorId());
+                transaction.setOperatorName(dto.getOperatorName());
+                transaction.setSubProductName(dto.getSubProductCode());
+                transaction.setSchemeName(scheme.getSchemeName());
+                transaction.setLatitude(dto.getLatitude());
+                transaction.setLongitude(dto.getLongitude());
+
+                superDistributorPrepaidTransactionDetailsRepo.save(transaction);
+                log.info("[SD] Prepaid transaction saved successfully | TxnId: {}", tranxId);
+
+            } else if (wallet instanceof SuperDistributorPostpaidAmount) {
+
+                // Fast duplicate check
+                if (superDistributorPostpaidTransactionDetailsRepo.existsByTransactionId(tranxId)) {
+                    log.warn("[SD] Duplicate postpaid transaction skipped (exists check) | TranxId: {}", tranxId);
+                    return;
+                }
+
+                SuperDistributorPostpaidTransactionDetails transaction = new SuperDistributorPostpaidTransactionDetails();
+                transaction.setTransactionId(tranxId);
+                transaction.setDateOfTransaction(LocalDate.now());
+                transaction.setTimeOfTransaction(LocalTime.now());
+                transaction.setService(service);
+                transaction.setBalBeforeTran(balanceBeforeTranx);
+                transaction.setAmount(amount);
+                transaction.setBalAfterTran(balanceAfterTranx);
+                transaction.setActionOnBalanceAmount(actionOnBalance);
+                transaction.setTranStatus(tranStatus);
+                transaction.setFinalBalance(balanceAfterTranx);
+                transaction.setSuperDistributorId(((SuperDistributorPostpaidAmount) wallet).getSuperDistributorId().getSuperDistributorId());
+                transaction.setOperatorName(dto.getOperatorName());
+                transaction.setSubProductName(dto.getSubProductCode());
+                transaction.setSchemeName(scheme.getSchemeName());
+                transaction.setLatitude(dto.getLatitude());
+                transaction.setLongitude(dto.getLongitude());
+
+                superDistributorPostpaidTransactionDetailsRepo.save(transaction);
+                log.info("[SD] Postpaid transaction saved successfully | TxnId: {}", tranxId);
 
             } else {
                 log.warn("Unsupported wallet type detected: {}", wallet.getClass().getSimpleName());
