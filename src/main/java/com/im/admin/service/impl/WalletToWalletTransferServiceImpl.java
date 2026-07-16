@@ -1222,7 +1222,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     product.getSgst()
             );
 
-            transactionEngineServiceImpl.processChargesAndCommission(
+            transactionEngineServiceImpl.processCharges(
                     dto,
                     fromWalletTable,
                     BigDecimal.valueOf(schemeRate.getIm()),

@@ -512,93 +512,125 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 "[CHARGES] Start | BaseTxnId={} | WalletType={} | Hierarchy={} | Status={}",
                 baseTransactionId, dto.getWalletType(), dto.getHierarchyId(), tranStatus);
 
-        BigDecimal grossAmount = calculateGross(dto, grossAmountInput)
-                .setScale(MONEY_SCALE, ROUNDING_MODE);
+        log.debug("[CHARGES] Input parameters - grossAmountInput: {}, gstValue: {}",
+                grossAmountInput, gstValue);
 
-        BigDecimal gstPercentage = new BigDecimal(gstValue);
+        try {
+            BigDecimal grossAmount = calculateGross(dto, grossAmountInput)
+                    .setScale(MONEY_SCALE, ROUNDING_MODE);
 
-        BigDecimal gstRate = gstPercentage.divide(
-                BigDecimal.valueOf(100), CALCULATION_SCALE, ROUNDING_MODE);
+            log.debug("[CHARGES] Gross amount calculated: {}", grossAmount);
 
-        /*
-         * Calculate the base charge before GST.
-         *
-         * Example:
-         * Gross charge including GST = 118
-         * GST rate                   = 18%
-         * Base charge                = 100
-         */
-        BigDecimal calculatedBaseAmount = grossAmount.divide(
-                BigDecimal.ONE.add(gstRate), CALCULATION_SCALE, ROUNDING_MODE);
+            BigDecimal gstPercentage = new BigDecimal(gstValue);
+            log.debug("[CHARGES] GST percentage: {}%", gstPercentage);
 
-        /*
-         * Final wallet amounts use the same monetary scale.
-         */
-        BigDecimal baseAmount = calculatedBaseAmount.setScale(MONEY_SCALE, ROUNDING_MODE);
+            BigDecimal gstRate = gstPercentage.divide(
+                    BigDecimal.valueOf(100), CALCULATION_SCALE, ROUNDING_MODE);
 
-        /*
-         * GST is calculated as the balancing amount so that:
-         *
-         * baseAmount + gstAmount = grossAmount
-         */
-        BigDecimal gstAmount = grossAmount.subtract(baseAmount)
-                .setScale(MONEY_SCALE, ROUNDING_MODE);
+            /*
+             * Calculate the base charge before GST.
+             *
+             * Example:
+             * Gross charge including GST = 118
+             * GST rate                   = 18%
+             * Base charge                = 100
+             */
+            BigDecimal calculatedBaseAmount = grossAmount.divide(
+                    BigDecimal.ONE.add(gstRate), CALCULATION_SCALE, ROUNDING_MODE);
 
-        BigDecimal totalDeduction = baseAmount.add(gstAmount)
-                .setScale(MONEY_SCALE, ROUNDING_MODE);
+            /*
+             * Final wallet amounts use the same monetary scale.
+             */
+            BigDecimal baseAmount = calculatedBaseAmount.setScale(MONEY_SCALE, ROUNDING_MODE);
 
-        log.debug(
-                "[CHARGES] Split amounts | Gross={} | Base={} | GST={} | Total={} | GST%={}",
-                                        grossAmount, baseAmount, gstAmount, totalDeduction, gstValue);
+            /*
+             * GST is calculated as the balancing amount so that:
+             *
+             * baseAmount + gstAmount = grossAmount
+             */
+            BigDecimal gstAmount = grossAmount.subtract(baseAmount)
+                    .setScale(MONEY_SCALE, ROUNDING_MODE);
 
-        deductChargeAndGST(wallet, dto, baseAmount, "CHG", "Deduct Funds (Charge)", baseTransactionId, tranStatus);
-        deductChargeAndGST(wallet, dto, gstAmount, "GST", "Deduct Funds (GST)", baseTransactionId, tranStatus);
+            BigDecimal totalDeduction = baseAmount.add(gstAmount)
+                    .setScale(MONEY_SCALE, ROUNDING_MODE);
 
-        updateWalletMeta(wallet, totalDeduction, gstAmount);
+            log.debug(
+                    "[CHARGES] Split amounts | Gross={} | Base={} | GST={} | Total={} | GST%={}",
+                    grossAmount, baseAmount, gstAmount, totalDeduction, gstValue);
 
-        log.info(
-                "[CHARGES] Completed | BaseTxnId={} | WalletType={} | Gross={} | Base={} | GST={}",
-                baseTransactionId,
-                dto.getWalletType(),
-                grossAmount,
-                baseAmount,
-                gstAmount
-        );
+            log.debug("[CHARGES] Deducting charge and GST from wallet - hierarchyId: {}, walletType: {}",
+                    dto.getHierarchyId(), dto.getWalletType());
+
+            deductChargeAndGST(wallet, dto, baseAmount, "CHG", "Deduct Funds (Charge)", baseTransactionId, tranStatus);
+            log.debug("[CHARGES] Charge deduction completed for amount: {}", baseAmount);
+
+            deductChargeAndGST(wallet, dto, gstAmount, "GST", "Deduct Funds (GST)", baseTransactionId, tranStatus);
+            log.debug("[CHARGES] GST deduction completed for amount: {}", gstAmount);
+
+            log.debug("[CHARGES] Updating wallet metadata - totalDeduction: {}, gstAmount: {}",
+                    totalDeduction, gstAmount);
+            updateWalletMeta(wallet, totalDeduction, gstAmount);
+
+            log.info(
+                    "[CHARGES] Completed | BaseTxnId={} | WalletType={} | Gross={} | Base={} | GST={}",
+                    baseTransactionId,
+                    dto.getWalletType(),
+                    grossAmount,
+                    baseAmount,
+                    gstAmount
+            );
+
+        } catch (Exception e) {
+            log.error("[CHARGES] Error processing charges | BaseTxnId={} | WalletType={} | Hierarchy={} | Error={}",
+                    baseTransactionId, dto.getWalletType(), dto.getHierarchyId(), e.getMessage(), e);
+            throw e;
+        }
     }
-
 
     public BigDecimal calculateGross(
             TransactionSchemeDetailsRequestDto dto,
             BigDecimal grossAmountInput
     ) {
 
+        log.debug("[CHARGES] Calculating gross amount - dto: {}, grossAmountInput: {}",
+                dto != null ? dto.getHierarchyId() : "null", grossAmountInput);
+
         if (dto == null) {
+            log.error("[CHARGES] Transaction scheme details cannot be null");
             throw new IllegalArgumentException("Transaction scheme details cannot be null");
         }
 
         if (dto.getSchemeRate() == null) {
+            log.error("[CHARGES] Scheme rate details cannot be null for hierarchyId: {}", dto.getHierarchyId());
             throw new IllegalArgumentException("Scheme rate details cannot be null");
         }
 
         if (dto.getSchemeRate().getRateType() == null) {
+            log.error("[CHARGES] Scheme rate type cannot be null for hierarchyId: {}", dto.getHierarchyId());
             throw new IllegalArgumentException("Scheme rate type cannot be null");
         }
 
         if ("PERCENTAGE".equalsIgnoreCase(
                 dto.getSchemeRate().getRateType().toString()
         )) {
+            log.debug("[CHARGES] Processing percentage-based gross calculation");
 
             if (dto.getAmount() == null) {
+                log.error("[CHARGES] Transaction amount cannot be null for percentage charge - hierarchyId: {}",
+                        dto.getHierarchyId());
                 throw new IllegalArgumentException("Transaction amount cannot be null for percentage charge");
             }
 
             if (dto.getSchemeRate().getGross() == null) {
+                log.error("[CHARGES] Gross percentage cannot be null for hierarchyId: {}", dto.getHierarchyId());
                 throw new IllegalArgumentException("Gross percentage cannot be null");
             }
 
             BigDecimal transactionAmount = BigDecimal.valueOf(dto.getAmount());
-
             BigDecimal percentage = BigDecimal.valueOf(dto.getSchemeRate().getGross());
+
+            log.debug("[CHARGES] Percentage calculation - transactionAmount: {}, percentage: {}%",
+                    transactionAmount, percentage);
 
             /*
              * Example:
@@ -622,7 +654,10 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
             return grossAmount;
         }
 
+        log.debug("[CHARGES] Processing fixed gross amount calculation");
+
         if (grossAmountInput == null) {
+            log.error("[CHARGES] Fixed gross amount cannot be null for hierarchyId: {}", dto.getHierarchyId());
             throw new IllegalArgumentException(
                     "Fixed gross amount cannot be null"
             );
@@ -631,8 +666,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         BigDecimal fixedGrossAmount = grossAmountInput.setScale(MONEY_SCALE, ROUNDING_MODE);
 
         log.debug(
-                "[CHARGES] Gross taken as fixed | Gross={}",
-                fixedGrossAmount
+                "[CHARGES] Gross taken as fixed | Gross={} | HierarchyId={}",
+                fixedGrossAmount, dto.getHierarchyId()
         );
 
         return fixedGrossAmount;
@@ -743,26 +778,6 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
         log.info("[COMMISSION] END | TxnId={} | HierarchyId={}", baseTransactionId, dto.getHierarchyId());
     }
-
-//    private void processRetailerCommission(TransactionSchemeDetailsRequestDto dto,
-//                                           BigDecimal txnAmount, BigDecimal tdsRate,
-//                                           String baseTxnId, String tranStatus,
-//                                           TransactionSchemeDetailsRequestDto request, String rateType) {
-//
-//        BigDecimal retailerRate = BigDecimal.valueOf(dto.getSchemeRate().getRetailer());
-//        if (retailerRate.compareTo(BigDecimal.ZERO) <= 0) {
-//            log.info("[COMMISSION] Retailer commission skipped | Rate=0");
-//            return;
-//        }
-//
-//        BigDecimal commission = calculateCommissionAmount(retailerRate.doubleValue(), txnAmount, rateType);
-//        log.info("[COMMISSION] Retailer Commission | HierarchyId={} | Rate={} | Amount={}",
-//                dto.getHierarchyId(), retailerRate, commission);
-//
-//        creditHierarchy("RT", dto.getHierarchyId(), commission, dto.getWalletType(),
-//                tdsRate, baseTxnId, tranStatus, request);
-//
-//    }
 
     private void processRetailerCommission(
             TransactionSchemeDetailsRequestDto dto,

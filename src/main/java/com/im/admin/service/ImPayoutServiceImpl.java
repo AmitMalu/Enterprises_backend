@@ -334,6 +334,8 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
             log.warn("[IM PAYOUT] Vendor rejected transaction | TxnID={} | Status={} | Message={}",
                     orderId, vendorStatus, errorMessage);
 
+            savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef);
+
             return failed(orderId, errorMessage);
         }
 
