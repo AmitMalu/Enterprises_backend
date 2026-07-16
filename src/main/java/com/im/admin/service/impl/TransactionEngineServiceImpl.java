@@ -683,8 +683,8 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         BigDecimal after = wallet.getAvailableBalance();
 
         String transactionId = buildTransactionId(prefix, baseTransactionId);
-        log.info("[CHARGES] Deduct {} | Before={} | Amount={} | After={} | TxnId={}",
-                prefix, before, amount, after, transactionId);
+        log.info("[CHARGES] Deduct {} | Before={} | Amount={} | After={} | TxnId={} | HierarchyId={}",
+                prefix, before, amount, after, transactionId, dto.getHierarchyId());
 
         insertTransaction(wallet, tranStatus, amount, before, after,
                 remark + " - " + dto.getWalletType().toUpperCase(), transactionId, "DEBIT", dto);
@@ -2353,8 +2353,8 @@ private void distributeToHierarchyChain(
                                   TransactionSchemeDetailsRequestDto dto) {
 
         log.info("=== [insertTransaction] START ===");
-        log.info("Transaction Details | TranxId: {} | Service: {} | Status: {} | Amount: {} | WalletType: {}",
-                tranxId, service, tranStatus, amount, wallet.getClass().getSimpleName());
+        log.info("Transaction Details | TranxId: {} | Service: {} | Status: {} | Amount: {} | WalletType: {} | HierarchyType: {}",
+                tranxId, service, tranStatus, amount, wallet.getClass().getSimpleName(), dto.getHierarchyId());
 
         try {
 
