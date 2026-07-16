@@ -237,7 +237,6 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                     vendorResp.getOrderid()
             );
 
-
             String txnId;
             if ("SUCCESS".equalsIgnoreCase(vendorStatus)) {
                 txnId = buildTransactionId("TXN", baseTxnId);
@@ -250,10 +249,8 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             // ===============================
             // SAVE TRANSACTION LOG
             // ===============================
-
 //            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())) {
             AepsCashWithdrawalLog logEntry = new AepsCashWithdrawalLog();
-
             logEntry.setRetailerId(
                     req.getRetailerId() != null ? req.getRetailerId() : null
             );
@@ -635,7 +632,6 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
 //            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())
 //                    && vendorResp.getData() != null) {
             log.info("Preparing AEPS Balance Enquiry Log");
-
             AepsBalanceEnquiry logEntry = new AepsBalanceEnquiry();
 
             logEntry.setRetailerId(req.getRetailerId());
@@ -990,9 +986,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             // ===== SAVE MINI STATEMENT LOG =====
 //            if ("TXN".equalsIgnoreCase(vendorResp.getStatuscode())
 //                    && vendorResp.getData() != null) {
-
             AepsMiniStatement log = new AepsMiniStatement();
-
             log.setRetailerId(
                     req.getRetailerId() != null ? req.getRetailerId() : null
             );
