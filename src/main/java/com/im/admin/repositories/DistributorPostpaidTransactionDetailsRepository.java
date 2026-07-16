@@ -45,4 +45,6 @@ public interface DistributorPostpaidTransactionDetailsRepository extends JpaRepo
             @Param("toDate") LocalDate toDate
     );
 
+    boolean existsByTransactionId(String transactionId);
+
 }
