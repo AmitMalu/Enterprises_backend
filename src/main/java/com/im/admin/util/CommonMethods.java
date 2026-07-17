@@ -12,10 +12,7 @@ import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
 import com.im.admin.request.SendPayoutRequest;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
-import jakarta.persistence.Column;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.Query;
+import jakarta.persistence.*;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -796,8 +793,12 @@ public class CommonMethods {
 
             boolean isRetailer = "RT".equalsIgnoreCase(hierarchyType);
 
-            // ===== CHECK IF ADMIN TABLE =====
+            // ===== CHECK IF ADMIN OR WHITE LABEL TABLE =====
             boolean isAdminTable = transactionTableName.contains("admin");
+            boolean isWhiteLabelTable = transactionTableName.contains("white_label");
+
+            // These tables don't have transaction_type, vendor_name, operator_name columns
+            boolean excludeExtraColumns = isAdminTable || isWhiteLabelTable;
 
             String extraColumns = "";
             String extraValues = "";
@@ -807,20 +808,20 @@ public class CommonMethods {
                 extraValues = ", :requestDomainName, :clientIp, :medium";
             }
 
-            // ===== BUILD DYNAMIC COLUMNS FOR ADMIN TABLES =====
-            String adminColumns = "";
-            String adminValues = "";
+            // ===== BUILD DYNAMIC COLUMNS =====
+            String conditionalColumns = "";
+            String conditionalValues = "";
 
-            if (!isAdminTable) {
-                // Only add these columns for NON-ADMIN tables (retailer tables)
-                adminColumns = ", transaction_type, vendor_name, operator_name";
-                adminValues = ", :transactionType, :vendorName, :operatorName";
+            if (!excludeExtraColumns) {
+                // Only add these columns for tables that support them (retailer tables)
+                conditionalColumns = ", transaction_type, vendor_name, operator_name";
+                conditionalValues = ", :transactionType, :vendorName, :operatorName";
             }
 
             boolean includeHierarchy = shouldInsertHierarchyColumn(hierarchyType);
 
-            log.info("Transaction details: Type={}, Amount={}, Status={}, Service={}",
-                    service, amount, tranStatus, walletType);
+            log.info("Transaction details: Type={}, Amount={}, Status={}, Service={}, Table={}",
+                    service, amount, tranStatus, walletType, transactionTableName);
 
             // ===== DYNAMIC SQL QUERY =====
             String sql = "INSERT INTO " + transactionTableName +
@@ -829,18 +830,18 @@ public class CommonMethods {
                     ", service, amount, date_of_transaction, time_of_transaction, " +
                     "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status," +
                     " sub_product_name, narration, remarks, scheme_name, latitude, longitude" +
-                    adminColumns +  // Add conditional columns
+                    conditionalColumns +  // Add conditional columns
                     extraColumns + ") " +
-                    "VALUES (:hierarchyId" +
+                    "VALUES (:" + columnName +
                     (includeHierarchy ? ", :relatedHierarchyId" : "") +
                     ", :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                     ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId," +
                     " :tranStatus, :subProductName, :narration, :remark, :schemeCode, :latitude, :longitude" +
-                    adminValues +  // Add conditional values
+                    conditionalValues +  // Add conditional values
                     extraValues + ")";
 
             Query query = entityManager.createNativeQuery(sql)
-                    .setParameter("hierarchyId", hierarchyId)
+                    .setParameter(columnName, hierarchyId)
                     .setParameter("service", service)
                     .setParameter("amount", amount)
                     .setParameter("dateOfTransaction", LocalDate.now())
@@ -858,8 +859,8 @@ public class CommonMethods {
                     .setParameter("latitude", retailersExtraColumnsDto.getLatitude())
                     .setParameter("longitude", retailersExtraColumnsDto.getLongitude());
 
-            // ===== SET CONDITIONAL PARAMETERS ONLY IF NOT ADMIN =====
-            if (!isAdminTable) {
+            // ===== SET CONDITIONAL PARAMETERS ONLY IF NOT EXCLUDED =====
+            if (!excludeExtraColumns) {
                 query.setParameter("transactionType", service)
                         .setParameter("vendorName", vendorName)
                         .setParameter("operatorName", operatorName);

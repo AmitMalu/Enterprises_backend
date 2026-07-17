@@ -31,5 +31,15 @@ public class SchemeAllocation {
     @Column(name = "scheme_code", nullable = false)
     private String schemeCode;
 
+    // Add this if you want to fetch product/scheme details from other tables
+    @Transient
+    private String productName;
+
+    @Transient
+    private String schemeName;
+
+    @Transient
+    private String subProductName;
+
 }
 
