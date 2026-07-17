@@ -796,6 +796,9 @@ public class CommonMethods {
 
             boolean isRetailer = "RT".equalsIgnoreCase(hierarchyType);
 
+            // ===== CHECK IF ADMIN TABLE =====
+            boolean isAdminTable = transactionTableName.contains("admin");
+
             String extraColumns = "";
             String extraValues = "";
 
@@ -804,22 +807,37 @@ public class CommonMethods {
                 extraValues = ", :requestDomainName, :clientIp, :medium";
             }
 
+            // ===== BUILD DYNAMIC COLUMNS FOR ADMIN TABLES =====
+            String adminColumns = "";
+            String adminValues = "";
+
+            if (!isAdminTable) {
+                // Only add these columns for NON-ADMIN tables (retailer tables)
+                adminColumns = ", transaction_type, vendor_name, operator_name";
+                adminValues = ", :transactionType, :vendorName, :operatorName";
+            }
+
             boolean includeHierarchy = shouldInsertHierarchyColumn(hierarchyType);
 
             log.info("Transaction details: Type={}, Amount={}, Status={}, Service={}",
                     service, amount, tranStatus, walletType);
 
+            // ===== DYNAMIC SQL QUERY =====
             String sql = "INSERT INTO " + transactionTableName +
                     " (" + columnName +
                     (includeHierarchy ? ", hierarchy_id" : "") +
                     ", service, amount, date_of_transaction, time_of_transaction, " +
                     "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status," +
-                    " sub_product_name, narration, remarks, scheme_name, latitude, longitude, transaction_type, vendor_name, operator_name" + extraColumns + ") " +
+                    " sub_product_name, narration, remarks, scheme_name, latitude, longitude" +
+                    adminColumns +  // Add conditional columns
+                    extraColumns + ") " +
                     "VALUES (:hierarchyId" +
                     (includeHierarchy ? ", :relatedHierarchyId" : "") +
                     ", :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                     ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId," +
-                    " :tranStatus, :subProductName, :narration, :remark, :schemeCode, :latitude, :longitude, :transactionType, :vendorName, :operatorName" + extraValues + ")";
+                    " :tranStatus, :subProductName, :narration, :remark, :schemeCode, :latitude, :longitude" +
+                    adminValues +  // Add conditional values
+                    extraValues + ")";
 
             Query query = entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
@@ -838,14 +856,18 @@ public class CommonMethods {
                     .setParameter("remark", remark)
                     .setParameter("schemeCode", schemeCode)
                     .setParameter("latitude", retailersExtraColumnsDto.getLatitude())
-                    .setParameter("longitude", retailersExtraColumnsDto.getLongitude())
-                    .setParameter("transactionType", service)
-                    .setParameter("vendorName", vendorName)
-                    .setParameter("operatorName", operatorName);
+                    .setParameter("longitude", retailersExtraColumnsDto.getLongitude());
 
-                    if (includeHierarchy) {
-                            query.setParameter("relatedHierarchyId", relatedHierarchyId);
-                    }
+            // ===== SET CONDITIONAL PARAMETERS ONLY IF NOT ADMIN =====
+            if (!isAdminTable) {
+                query.setParameter("transactionType", service)
+                        .setParameter("vendorName", vendorName)
+                        .setParameter("operatorName", operatorName);
+            }
+
+            if (includeHierarchy) {
+                query.setParameter("relatedHierarchyId", relatedHierarchyId);
+            }
 
             if (isRetailer) {
                 query.setParameter("requestDomainName", retailersExtraColumnsDto.getRequestDomainName())
