@@ -140,8 +140,8 @@ public class SubProductsController {
         return ResponseEntity.ok(CommonResponse.success(dropdownList, "SubProduct dropdown loaded successfully"));
     }
 
-    @PostMapping("/list")
-    public ResponseEntity<SubproductListResponse> getSubproductList(
+    @PostMapping("/im/list")
+    public ResponseEntity<SubproductListResponse> getSubProductList(
             @RequestBody SubproductListRequest request,
             HttpServletRequest httpServletRequest
     ) {
@@ -149,7 +149,7 @@ public class SubProductsController {
         RequestHeaderMetaDto requestHeaderMetaDtoMeta = RequestHeaderMetaDto.from(httpServletRequest);
 
         log.info(
-                "[SUBPRODUCT LIST] Request received | serviceType={} | geolocation={}",
+                "[SUB PRODUCT LIST] Request received | serviceType={} | geolocation={}",
                 request != null
                         ? request.getServiceType()
                         : null,
@@ -161,7 +161,7 @@ public class SubProductsController {
         String geoLocation = requestHeaderMetaDtoMeta.getLatitude() + "," + requestHeaderMetaDtoMeta.getLongitude();
 
         SubproductListResponse response =
-                subProductsService.getSubproductList(
+                subProductsService.getSubProductList(
                         request,
                         geoLocation
                 );
