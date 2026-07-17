@@ -25,5 +25,6 @@ public class GenericPendingRecordDto {
     private String parentAccount;
     private String remarks;
     private String editedBy;
+    private String lastEditedOn;
 
 }
