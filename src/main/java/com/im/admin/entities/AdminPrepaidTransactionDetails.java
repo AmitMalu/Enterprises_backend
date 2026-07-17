@@ -63,9 +63,6 @@ public class AdminPrepaidTransactionDetails implements CommonSearchTransactionDe
     @Column(name = "mobile_no")
     private String mobileNo;
 
-    @Column(name = "transaction_type")  // ADD THIS FIELD
-    private String transactionType;
-
     @Column(name = "scheme_name")
     private String schemeName;
 
