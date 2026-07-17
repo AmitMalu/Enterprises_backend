@@ -32,7 +32,7 @@ public interface SubProductsService {
 
     List<SubProductDropdownResponseDto> getSubProductDropdown();
 
-    SubproductListResponse getSubproductList(
+    SubproductListResponse getSubProductList(
             SubproductListRequest request, String geoLocation
     );
 

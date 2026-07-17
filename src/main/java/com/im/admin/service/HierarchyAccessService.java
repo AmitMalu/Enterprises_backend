@@ -368,7 +368,7 @@ public class HierarchyAccessService {
 
         if (userInfo != null) {
             treeNode.setMobileNumber(userInfo.getMobileNumber());
-            treeNode.setOpt(userInfo.getOtp());
+            treeNode.setOtp(userInfo.getOtp());
         }
 
         List<AccessHierarchyNode> children =
