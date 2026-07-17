@@ -56,10 +56,10 @@ public class SubProductsServiceImpl implements SubProductsService {
     private AccessHierarchyNodeRepository accessHierarchyNodeRepository;
 
     private static final String PG_SUBPRODUCT_PATH =
-            "/services/paymentgatwayAPI/subproduct-list";
+            "/paymentgatwayAPI/subproduct-list";
 
     private static final String PAYOUT_SUBPRODUCT_PATH =
-            "/services/payoutAPI/subproduct-list";
+            "/payoutAPI/subproduct-list";
 
     @Autowired
     private RestTemplate restTemplate;
