@@ -403,7 +403,7 @@ public class SubProductsServiceImpl implements SubProductsService {
     }
 
     @Override
-    public SubproductListResponse getSubproductList(
+    public SubproductListResponse getSubProductList(
             SubproductListRequest request, String geoLocation
     ) {
 

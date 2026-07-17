@@ -10,6 +10,7 @@ import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.tags.Tag;
 import java.util.List;
 import java.util.Set;
@@ -32,6 +33,16 @@ public class SwaggerConfig implements WebMvcConfigurer {
     public OpenAPI customOpenAPI() {
         final String securitySchemeName = "BearerAuth";
         return new OpenAPI()
+                // ===== ADD SERVERS HERE =====
+                .servers(List.of(
+                        new Server()
+                                .url("https://api.nfttech.in/enterprises")
+                                .description("Production Server (HTTPS)"),
+                        new Server()
+                                .url("http://api.nfttech.in/enterprises")
+                                .description("Development Server (HTTP)")
+                ))
+                // ===== END OF SERVERS CONFIGURATION =====
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .components(new Components()
                         .addSecuritySchemes(securitySchemeName, new SecurityScheme()

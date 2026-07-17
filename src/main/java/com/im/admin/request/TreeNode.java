@@ -29,7 +29,7 @@ public class TreeNode {
     private BigDecimal prepaidBalance;
     private BigDecimal postpaidBalance;
     private String mobileNumber;
-    private String opt;
+    private String otp;
 
     public TreeNode(String id, String type, String parentId, String createdOn) {
         this.id = id;
