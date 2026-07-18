@@ -129,6 +129,29 @@ public class FundingServiceImpl implements FundingService {
         AbstractWalletAmountTable userWallet = commonMethods.getWalletByType(walletType.name(), userId);
         AbstractWalletAmountTable adminWallet = commonMethods.getWalletByType(walletType.name(), adminId);
 
+        // ===== VALIDATE SUFFICIENT BALANCE =====
+        if (transactionType.equals(TransactionType.DEBIT)) {
+            if (userWallet.getAvailableBalance().compareTo(amount) < 0) {
+                log.error("Insufficient balance in user wallet. Available: {}, Required: {}",
+                        userWallet.getAvailableBalance(), amount);
+                throw new IllegalArgumentException(
+                        String.format("Insufficient balance. Available: %s, Required: %s",
+                                userWallet.getAvailableBalance(), amount)
+                );
+            }
+        } else if (transactionType.equals(TransactionType.CREDIT)) {
+            // For CREDIT, check if admin has sufficient balance (if admin is the source)
+            if (adminWallet.getAvailableBalance().compareTo(amount) < 0) {
+                log.error("Insufficient balance in admin wallet. Available: {}, Required: {}",
+                        adminWallet.getAvailableBalance(), amount);
+                throw new IllegalArgumentException(
+                        String.format("Insufficient admin balance. Available: %s, Required: %s",
+                                adminWallet.getAvailableBalance(), amount)
+                );
+            }
+        }
+
+
         // Generate transaction ID prefix
         String txnIdPrefix = transactionType == TransactionType.CREDIT ? "FCR" : "FDR";
         String userTxnId = txnIdPrefix + baseTxnId;
