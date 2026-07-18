@@ -260,7 +260,7 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
 //        // ======================= PG ============================
 //
 //        if (productName != null &&
-//                productName.trim().equalsIgnoreCase("payment gateway")) {
+//           hie     productName.trim().equalsIgnoreCase("payment gateway")) {
 //
 //            // Step 1: Get mapping
 ////            PgTransactionMapping pg =

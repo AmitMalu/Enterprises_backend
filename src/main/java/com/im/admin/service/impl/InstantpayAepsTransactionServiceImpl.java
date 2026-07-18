@@ -288,9 +288,17 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                             : null
             );
 
+//            logEntry.setTransactionStatus(
+//                    vendorResp.getStatuscode() != null
+//                            ? vendorResp.getStatuscode()
+//                            : null
+//            );
+
             logEntry.setTransactionStatus(
-                    vendorResp.getStatuscode() != null
-                            ? vendorResp.getStatuscode()
+                    "TXN".equalsIgnoreCase(vendorResp.getStatuscode())
+                            ? "SUCCESS"
+                            : "ERR".equalsIgnoreCase(vendorResp.getStatuscode())
+                            ? "FAILED"
                             : null
             );
 
@@ -303,6 +311,12 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             logEntry.setRequestPayload(
                     requestJson != null
                             ? requestJson
+                            : null
+            );
+
+            logEntry.setAadhaarNumber(
+                    req.getAadhaarNumber() != null
+                            ? req.getAadhaarNumber()
                             : null
             );
 
@@ -653,9 +667,17 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
                             : null
             );
 
+//            logEntry.setTransactionStatus(
+//                    vendorResp.getStatuscode() != null
+//                            ? vendorResp.getStatuscode()
+//                            : null
+//            );
+
             logEntry.setTransactionStatus(
-                    vendorResp.getStatuscode() != null
-                            ? vendorResp.getStatuscode()
+                    "TXN".equalsIgnoreCase(vendorResp.getStatuscode())
+                            ? "SUCCESS"
+                            : "ERR".equalsIgnoreCase(vendorResp.getStatuscode())
+                            ? "FAILED"
                             : null
             );
 
@@ -1042,6 +1064,14 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             log.setResponsePayload(
                     responseJson != null
                             ? responseJson
+                            : null
+            );
+
+            log.setTransactionStatus(
+                    "TXN".equalsIgnoreCase(vendorResp.getStatuscode())
+                            ? "SUCCESS"
+                            : "ERR".equalsIgnoreCase(vendorResp.getStatuscode())
+                            ? "FAILED"
                             : null
             );
 
