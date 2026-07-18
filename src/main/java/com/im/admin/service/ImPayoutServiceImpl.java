@@ -186,7 +186,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                 responseBody.getData().getStatus());
 
         // Save pending transaction (like NixaSoft)
-        savePendingTransaction(req, orderId, requestHeaderMetaDtoMeta.getLongitude(), requestHeaderMetaDtoMeta.getLatitude(), null);
+        savePendingTransaction(req, orderId, requestHeaderMetaDtoMeta.getLongitude(), requestHeaderMetaDtoMeta.getLatitude(), null, "PENDING");
 
         return PayoutResponseDto.builder()
                 .orderId("TXN" + baseTxnId)
@@ -278,7 +278,8 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
             String orderId,
             Double latitude,
             Double longitude,
-            String vendorTxRef ) {
+            String vendorTxRef,
+            String status) {
 
         PayoutPendingTransactions pending = new PayoutPendingTransactions();
         pending.setTransactionId(orderId);
@@ -286,7 +287,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         pending.setRetailerId(req.getRetailerId());
         pending.setAmount(req.getAmount());
         pending.setTransactionType(req.getPaymentMode());
-        pending.setStatus("PENDING");
+        pending.setStatus(status);
         pending.setCreatedAt(LocalDateTime.now());
         pending.setIfscCode(req.getIfscCode());
         pending.setAccountNumber(req.getAccountNumber());
@@ -322,33 +323,103 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         String vendorData = String.valueOf(vendorResp.get("data"));
         String vendorTxRef = String.valueOf(vendorResp.get("tx_ref"));
 
-        boolean accepted = "waiting".equalsIgnoreCase(vendorStatus);
+        // ===== HANDLE BASED ON STATUS =====
+        switch (vendorStatus.toLowerCase()) {
+            case "success":
+                return handleSuccessResponse(req, orderId, vendorTxnId, vendorTxRef,
+                        vendorMessage, latitude, longitude);
 
-        if (!accepted) {
-            String errorMessage = vendorMessage;
+            case "waiting":
+                return handleWaitingResponse(req, orderId, vendorTxnId, vendorTxRef,
+                        vendorMessage, latitude, longitude);
 
-            if (vendorData != null && !"null".equalsIgnoreCase(vendorData) && !vendorData.isBlank()) {
-                errorMessage = vendorMessage + " - " + vendorData;
-            }
+            case "error":
+            case "failed":
+                return handleErrorResponse(req, orderId, vendorTxnId, vendorTxRef,
+                        vendorStatus, vendorMessage, vendorData, latitude, longitude);
 
-            log.warn("[IM PAYOUT] Vendor rejected transaction | TxnID={} | Status={} | Message={}",
-                    orderId, vendorStatus, errorMessage);
-
-            savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef);
-
-            return failed(orderId, errorMessage);
+            default:
+                // Unknown status - treat as PENDING
+                log.warn("[IM PAYOUT] Unknown status from vendor: {}, treating as PENDING", vendorStatus);
+                savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef, "PENDING");
+                return PayoutResponseDto.builder()
+                        .orderId(orderId)
+                        .vendorName(getVendorName())
+                        .status("PENDING")
+                        .message("Transaction is being processed")
+                        .amount(req.getAmount())
+                        .beneficiaryName(req.getBeneficiaryName())
+                        .accountNumber(req.getAccountNumber())
+                        .ifscCode(req.getIfscCode())
+                        .build();
         }
+    }
 
-        savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef);
+    // ===== HANDLE SUCCESS RESPONSE =====
+    private PayoutResponseDto handleSuccessResponse(SendPayoutRequest req, String orderId,
+                                                    String vendorTxnId, String vendorTxRef,
+                                                    String vendorMessage, Double latitude,
+                                                    Double longitude) {
+        log.info("[IM PAYOUT] Transaction SUCCESS | OrderID={} | VendorTxnID={}", orderId, vendorTxnId);
 
-        log.info("[IM PAYOUT] Transaction saved | TxnID={} | VendorTxnID={} | Status={}",
-                orderId, vendorTxnId, vendorStatus);
+        savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef, "SUCCESS");
+
+        return PayoutResponseDto.builder()
+                .orderId(orderId)
+                .vendorName(getVendorName())
+                .status("SUCCESS")
+                .message(vendorMessage != null ? vendorMessage : "Transaction completed successfully")
+                .amount(req.getAmount())
+                .beneficiaryName(req.getBeneficiaryName())
+                .accountNumber(req.getAccountNumber())
+                .ifscCode(req.getIfscCode())
+                .build();
+    }
+
+    // ===== HANDLE WAITING RESPONSE =====
+    private PayoutResponseDto handleWaitingResponse(SendPayoutRequest req, String orderId,
+                                                    String vendorTxnId, String vendorTxRef,
+                                                    String vendorMessage, Double latitude,
+                                                    Double longitude) {
+        log.info("[IM PAYOUT] Transaction PENDING | OrderID={} | VendorTxnID={}", orderId, vendorTxnId);
+
+        savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef, "PENDING");
 
         return PayoutResponseDto.builder()
                 .orderId(orderId)
                 .vendorName(getVendorName())
                 .status("PENDING")
-                .message(vendorMessage)
+                .message(vendorMessage != null ? vendorMessage : "Transaction is being processed")
+                .amount(req.getAmount())
+                .beneficiaryName(req.getBeneficiaryName())
+                .accountNumber(req.getAccountNumber())
+                .ifscCode(req.getIfscCode())
+                .build();
+    }
+
+    // ===== HANDLE ERROR RESPONSE =====
+    private PayoutResponseDto handleErrorResponse(SendPayoutRequest req, String orderId,
+                                                  String vendorTxnId, String vendorTxRef,
+                                                  String vendorStatus, String vendorMessage,
+                                                  String vendorData, Double latitude,
+                                                  Double longitude) {
+        // Build error message
+        String errorMessage = vendorMessage != null ? vendorMessage : "Transaction failed";
+
+        if (vendorData != null && !"null".equalsIgnoreCase(vendorData) && !vendorData.isBlank()) {
+            errorMessage = errorMessage + " - " + vendorData;
+        }
+
+        log.warn("[IM PAYOUT] Transaction FAILED | OrderID={} | Status={} | Message={}",
+                orderId, vendorStatus, errorMessage);
+
+        savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef, "FAILED");
+
+        return PayoutResponseDto.builder()
+                .orderId(orderId)
+                .vendorName(getVendorName())
+                .status("FAILED")
+                .message(errorMessage)
                 .amount(req.getAmount())
                 .beneficiaryName(req.getBeneficiaryName())
                 .accountNumber(req.getAccountNumber())
