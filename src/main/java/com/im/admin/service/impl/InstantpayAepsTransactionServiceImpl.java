@@ -330,7 +330,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             dto.setAmount(req.getAmount().doubleValue());
 //            dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
             dto.setConfirmAmount(req.getAmount().doubleValue());
-            dto.setOperatorName("BE");
+            dto.setOperatorName("CW");
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);
 
@@ -1060,7 +1060,7 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
             dto.setBaseTranxId(baseTxnId);
             dto.setAmount(req.getAmount().doubleValue());
             dto.setConfirmAmount(req.getAmount().doubleValue());
-            dto.setOperatorName("BE");
+            dto.setOperatorName("MS");
             dto.setOperatorCode(selectedScheme.getOperatorCode());
             dto.setSchemeRate(selectedScheme);
 
