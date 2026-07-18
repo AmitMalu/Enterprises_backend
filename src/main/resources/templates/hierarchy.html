@@ -172,6 +172,15 @@
             border-left: 2px solid #4db6ac;
         }
 
+        /* ===== COLLAPSED STATE ===== */
+        .org-chart li.collapsed > ul {
+            display: none !important;
+        }
+
+        .org-chart li.collapsed > .node-card .toggle-btn {
+            content: 'Show Children';
+        }
+
         .node-card {
             min-width: 175px;
             display: inline-block;
@@ -244,10 +253,13 @@
             border-radius: 12px;
             font-weight: 800;
             user-select: none;
+            border: none;
+            transition: 0.2s;
         }
 
-        .collapsed > ul {
-            display: none;
+        .toggle-btn:hover {
+            background: rgba(255,255,255,1);
+            transform: scale(1.05);
         }
 
         .AD, .legend-AD {
@@ -368,38 +380,44 @@
         }
 
         .view-more-btn {
-    margin-top: 8px;
-    border: none;
-    cursor: pointer;
-    font-size: 11px;
-    color: #0d47a1;
-    background: rgba(255,255,255,0.9);
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-weight: 800;
-}
+            margin-top: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 11px;
+            color: #0d47a1;
+            background: rgba(255,255,255,0.9);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 800;
+            transition: 0.2s;
+        }
 
-.node-details {
-    display: none;
-    margin-top: 8px;
-    text-align: left;
-    background: rgba(255,255,255,0.18);
-    padding: 8px;
-    border-radius: 8px;
-}
+        .view-more-btn:hover {
+            background: rgba(255,255,255,1);
+            transform: scale(1.05);
+        }
 
-.node-details.open {
-    display: block;
-}
+        .node-details {
+            display: none;
+            margin-top: 8px;
+            text-align: left;
+            background: rgba(255,255,255,0.18);
+            padding: 8px;
+            border-radius: 8px;
+        }
 
-.detail-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    margin: 4px 0;
-    font-size: 11px;
-    font-weight: 700;
-}
+        .node-details.open {
+            display: block;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 4px 0;
+            font-size: 11px;
+            font-weight: 700;
+        }
 
         @media (max-width: 768px) {
             body { padding: 10px; }
@@ -515,13 +533,13 @@
                     <span>📅 Created</span>
                     <strong th:text="${node.createdOn != null ? #strings.substring(node.createdOn, 0, 10) : '-'}">-</strong>
                 </div>
-
-
             </div>
 
             <span th:if="${!#lists.isEmpty(node.children)}"
                   class="toggle-btn"
-                  onclick="toggleChildren(this)">Hide Children</span>
+                  onclick="toggleChildren(this)">
+                Hide Children
+            </span>
         </div>
 
         <ul th:if="${!#lists.isEmpty(node.children)}">
@@ -534,7 +552,27 @@
 
 </th:block>
 
+<!-- ===== JAVASCRIPT ===== -->
 <script>
+    /**
+     * Toggle the visibility of child nodes (Show/Hide Children)
+     */
+    function toggleChildren(button) {
+        // Get the parent <li> element
+        const listItem = button.closest('li');
+        if (!listItem) return;
+
+        // Toggle the 'collapsed' class on the <li>
+        listItem.classList.toggle('collapsed');
+
+        // Update button text
+        const isCollapsed = listItem.classList.contains('collapsed');
+        button.textContent = isCollapsed ? 'Show Children' : 'Hide Children';
+    }
+
+    /**
+     * Toggle the visibility of node details (View More / Hide Info)
+     */
     function toggleNodeDetails(button) {
         const card = button.closest('.node-card');
         const details = card.querySelector('.node-details');
@@ -547,6 +585,13 @@
             ? 'Hide Info'
             : 'View More';
     }
+
+    // Optional: Auto-expand first level on load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Expand all nodes by default (optional)
+        // Uncomment the line below if you want all nodes expanded initially
+        // document.querySelectorAll('li').forEach(li => li.classList.remove('collapsed'));
+    });
 </script>
 
 </body>
