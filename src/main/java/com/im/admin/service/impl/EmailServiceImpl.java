@@ -22,17 +22,11 @@ import java.util.Properties;
 @Service
 public class EmailServiceImpl implements EmailService {
 
-//    @Autowired
-//    private JavaMailSender mailSender;
-
     @Autowired
     private EmailLogRepository emailLogRepository;
 
     @Autowired
     private EmailTemplateRepository emailTemplateRepository;
-
-//    @Value("${spring.mail.username}")
-//    private String fromEmails;
 
     @Override
     @Transactional
@@ -69,24 +63,22 @@ public class EmailServiceImpl implements EmailService {
 
             response = "Mail sent successfully to " + toEmail;
 
-        }catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
-
-        LocalDateTime responseTime = LocalDateTime.now();
 
         // Save log
         EmailLog emailLog = new EmailLog();
         emailLog.setRequest(request);
         emailLog.setResponse(response);
         emailLog.setRequestDateTime(requestTime);
-        emailLog.setResponseDateTime(responseTime);
+        emailLog.setResponseDateTime(LocalDateTime.now());
         emailLog.setIpAddress(null);
 
         emailLogRepository.save(emailLog);
 
-        System.out.println(response);
     }
+
     @Override
     public String buildWelcomeEmail(String userName, String mobileNo, String password) {
         return "Dear " + userName + ",\n\n" +

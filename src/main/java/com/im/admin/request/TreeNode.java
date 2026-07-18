@@ -1,5 +1,7 @@
 package com.im.admin.request;
 
+import com.im.admin.dto.SchemeAllocationDetailsDTO;
+import com.im.admin.entities.SchemeAllocation;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author SHUBHAM KHOPADE
@@ -30,6 +33,10 @@ public class TreeNode {
     private BigDecimal postpaidBalance;
     private String mobileNumber;
     private String otp;
+
+    // ===== CLEAN SCHEME STRUCTURE =====
+    private List<ProductSchemeGroup> products;  // Grouped by product with schemes
+    private boolean hasSchemes;
 
     public TreeNode(String id, String type, String parentId, String createdOn) {
         this.id = id;
