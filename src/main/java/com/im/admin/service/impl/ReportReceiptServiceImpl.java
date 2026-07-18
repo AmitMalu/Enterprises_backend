@@ -67,7 +67,6 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
     PayoutPendingTransactionRepository payoutPendingTransactionRepository;
 
 
-
     @Override
     public Object getReceipt(ReportReceiptRequestDto request) {
 
@@ -102,7 +101,7 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
 
         // ======================= Recharge =============================//
 
-        if(productName != null &&
+        if (productName != null &&
                 productName.toLowerCase().contains("recharge")) {
 
             RechargeTransaction rechargeTransaction =
@@ -382,6 +381,108 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                     .build();
         }
 
+//        // ======================= PAYOUT ============================
+//
+//        if (productName != null &&
+//                productName.trim().equalsIgnoreCase("payout")) {
+//
+//            // Step 1: Get payout record
+//            PayoutPendingTransactions payout =
+//                    payoutPendingTransactionRepository
+//                            .findByTransactionId(request.getTxnId())
+//                            .orElseThrow(() ->
+//                                    new RuntimeException("Payout record not found"));
+//
+//            // Step 2: Get callback
+//
+////            CallbackEventLog callback =
+////                    callbackEventLogRepository
+////                            .findLatestByTxnIdInRequest(payout.getTransactionId())
+////                            .orElseThrow(() ->
+////                                    new RuntimeException("Callback log not found"));
+//
+//            CallbackEventLog callback =
+//                    callbackEventLogRepository
+//                            .findLatestByTxnIdInRequest(payout.getTransactionId())
+//                            .orElse(null);
+//
+//            if (callback == null
+//                    && payout.getTempTxnId() != null
+//                    && !payout.getTempTxnId().isBlank()) {
+//
+//                callback = callbackEventLogRepository
+//                        .findLatestByTxRef(payout.getTempTxnId())
+//                        .orElse(null);
+//            }
+//
+//            if (callback == null) {
+//                throw new RuntimeException("Callback log not found");
+//            }
+//
+//            BeneficiaryBankAccount bankAccount =
+//                    beneficiaryBankAccountRepository
+//                            .findTopByRetailerIdAndAccountNumberOrderByIdDesc(
+//                                    payout.getRetailerId(),
+//                                    payout.getAccountNumber()
+//                            )
+//                            .orElse(null);
+//
+//            String bankName = bankAccount != null
+//                    ? bankAccount.getBankName()
+//                    : "Unknown";
+//
+//            Map<String, String> parsed = parseRequest(callback.getRequest());
+//
+//            String status = parsed.containsKey("STATUS")
+//                    ? parsed.get("STATUS")
+//                    : parsed.containsKey("txnStatus")
+//                    ? parsed.get("txnStatus")
+//                    : parsed.get("status");
+//
+//            String txnMode = parsed.containsKey("TXN_MODE")
+//                    ? parsed.get("TXN_MODE")
+//                    : parsed.containsKey("paymentMode")
+//                    ? parsed.get("paymentMode")
+//                    : parsed.get("operator");
+//
+//            String txnAmount = parsed.containsKey("TXN_AMOUNT")
+//                    ? parsed.get("TXN_AMOUNT")
+//                    : parsed.containsKey("amount")
+//                    ? parsed.get("amount")
+//                    : payout.getAmount().toPlainString();
+//
+//            String utr = parsed.containsKey("UTRNO")
+//                    ? parsed.get("UTRNO")
+//                    : parsed.get("rrn");
+//
+//            String processedTime = parsed.containsKey("PROCESSED_TIME")
+//                    ? parsed.get("PROCESSED_TIME")
+//                    : null;
+//
+//            return PayoutReceiptResponseDto.builder()
+//                    .txnId(payout.getTransactionId())
+//                    .txnStatus(status)
+//                    .txnAmount(txnAmount != null ? Long.parseLong(txnAmount) : 0L)
+//                    .dateTime(processedTime != null
+//                            ? processedTime.replace(" ", "T")
+//                            : payout.getCreatedAt().toString())
+//                    .accountNumber(payout.getAccountNumber())
+//                    .ifscCode(payout.getIfscCode())
+//                    .bankName(bankName)
+//                    .accountName(
+//                            bankAccount != null
+//                                    ? bankAccount.getBankHolderName()
+//                                    : payout.getBeneficiaryName()
+//                    )
+//                    .txnMode(txnMode)
+//                    .utrNumber(utr)
+//                    .guid(payout.getRetailerId())
+//                    .build();
+//        }
+//
+//        throw new RuntimeException("Unsupported Product");
+//    }
+
         // ======================= PAYOUT ============================
 
         if (productName != null &&
@@ -394,32 +495,7 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                             .orElseThrow(() ->
                                     new RuntimeException("Payout record not found"));
 
-            // Step 2: Get callback
-
-//            CallbackEventLog callback =
-//                    callbackEventLogRepository
-//                            .findLatestByTxnIdInRequest(payout.getTransactionId())
-//                            .orElseThrow(() ->
-//                                    new RuntimeException("Callback log not found"));
-
-            CallbackEventLog callback =
-                    callbackEventLogRepository
-                            .findLatestByTxnIdInRequest(payout.getTransactionId())
-                            .orElse(null);
-
-            if (callback == null
-                    && payout.getTempTxnId() != null
-                    && !payout.getTempTxnId().isBlank()) {
-
-                callback = callbackEventLogRepository
-                        .findLatestByTxRef(payout.getTempTxnId())
-                        .orElse(null);
-            }
-
-            if (callback == null) {
-                throw new RuntimeException("Callback log not found");
-            }
-
+            // Step 2: Get beneficiary bank details
             BeneficiaryBankAccount bankAccount =
                     beneficiaryBankAccountRepository
                             .findTopByRetailerIdAndAccountNumberOrderByIdDesc(
@@ -432,41 +508,32 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                     ? bankAccount.getBankName()
                     : "Unknown";
 
-            Map<String, String> parsed = parseRequest(callback.getRequest());
+            // Step 3: Get details from already fetched transaction table
+            String status = txn.getTranStatus();
 
-            String status = parsed.containsKey("STATUS")
-                    ? parsed.get("STATUS")
-                    : parsed.containsKey("txnStatus")
-                    ? parsed.get("txnStatus")
-                    : parsed.get("status");
+            BigDecimal txnAmount = txn.getAmount();
 
-            String txnMode = parsed.containsKey("TXN_MODE")
-                    ? parsed.get("TXN_MODE")
-                    : parsed.containsKey("paymentMode")
-                    ? parsed.get("paymentMode")
-                    : parsed.get("operator");
+            String txnMode = txn.getOperatorName();
 
-            String txnAmount = parsed.containsKey("TXN_AMOUNT")
-                    ? parsed.get("TXN_AMOUNT")
-                    : parsed.containsKey("amount")
-                    ? parsed.get("amount")
-                    : payout.getAmount().toPlainString();
+            LocalDate date = txn.getDateOfTransaction();
+            LocalTime time = txn.getTimeOfTransaction();
 
-            String utr = parsed.containsKey("UTRNO")
-                    ? parsed.get("UTRNO")
-                    : parsed.get("rrn");
+            String dateTime = LocalDateTime.of(date, time).toString();
 
-            String processedTime = parsed.containsKey("PROCESSED_TIME")
-                    ? parsed.get("PROCESSED_TIME")
-                    : null;
+//             UTR is currently not available in the transaction table.
+//             Later, after adding the UTR/bank reference column to the
+//             prepaid/postpaid transaction table, get it from txn:
+//              String utr = txn.getBankRefId();
+//             Currently keeping it null
+            String utr = null;
 
             return PayoutReceiptResponseDto.builder()
                     .txnId(payout.getTransactionId())
                     .txnStatus(status)
-                    .txnAmount(txnAmount != null ? Long.parseLong(txnAmount) : 0L)
-                    .dateTime(processedTime != null
-                            ? processedTime.replace(" ", "T")
-                            : payout.getCreatedAt().toString())
+                    .txnAmount(txnAmount != null
+                            ? txnAmount.longValue()
+                            : 0L)
+                    .dateTime(dateTime)
                     .accountNumber(payout.getAccountNumber())
                     .ifscCode(payout.getIfscCode())
                     .bankName(bankName)
