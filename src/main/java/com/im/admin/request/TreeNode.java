@@ -26,13 +26,13 @@ public class TreeNode {
     private String id;
     private String type;
     private String parentId;
+    private String mobileNumber;
+    private String otp;
     private String createdOn;
     private Integer depth;
     private List<TreeNode> children;
     private BigDecimal prepaidBalance;
     private BigDecimal postpaidBalance;
-    private String mobileNumber;
-    private String otp;
 
     // ===== CLEAN SCHEME STRUCTURE =====
     private List<ProductSchemeGroup> products;  // Grouped by product with schemes
