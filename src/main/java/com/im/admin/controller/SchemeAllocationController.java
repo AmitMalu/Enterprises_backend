@@ -88,35 +88,65 @@ public class SchemeAllocationController {
         return ResponseEntity.ok(CommonResponse.success(result, "Scheme allocation data loaded successfully"));
     }
 
-    @GetMapping("/active-retailers")
-    public ResponseEntity<CommonResponse<Page<UserSearchResponseDto>>> ActiveRetailers(
+    @GetMapping({
+            "/active-hierarchies",
+            "/active-retailers"
+    })
+    public ResponseEntity<CommonResponse<Page<UserSearchResponseDto>>> getActiveHierarchies(
+
             @RequestParam(required = false) String mobileNumber,
+
             @RequestParam(required = false) String hierarchyId,
+
             @RequestParam(required = false) String hierarchyCode,
+
             @RequestParam(required = false) String createdDate,
+
             @RequestParam(required = false) String lastLoginDate,
+
             @RequestParam(required = false) String emailId,
-            @RequestParam String keyword,
+
+            @RequestParam(required = false, defaultValue = "") String keyword,
+
             @RequestParam(defaultValue = "0") int page,
+
             @RequestParam(defaultValue = "10") int size
     ) {
 
-        log.info("Searching active retailers with filters, page: {}, size: {}", page, size);
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
-
-        Page<UserSearchResponseDto> result = allocationService.searchActiveRetailers(
-                mobileNumber, hierarchyId, hierarchyCode, createdDate, lastLoginDate, emailId, pageable, keyword
+        log.info(
+                "[ACTIVE HIERARCHY CONTROLLER] Search request. " +
+                        "keyword={}, hierarchyCode={}, page={}, size={}",
+                keyword,
+                hierarchyCode,
+                page,
+                size
         );
 
-        if (result.isEmpty()) {
-            log.warn("No active retailers found for given filters");
-            return ResponseEntity.ok(CommonResponse.success(result, "No active retailers found."));
-        }
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdDate")
+        );
 
-        log.info("Retailer search successful. Found {} retailers.", result.getTotalElements());
+        Page<UserSearchResponseDto> result =
+                allocationService.searchActiveHierarchies(
+                        mobileNumber,
+                        hierarchyId,
+                        hierarchyCode,
+                        createdDate,
+                        lastLoginDate,
+                        emailId,
+                        keyword,
+                        pageable
+                );
 
-        return ResponseEntity.ok(CommonResponse.success(result, "Retailer search successful"));
+        String message = result.isEmpty()
+                ? "No active hierarchy users found."
+                : "Active hierarchy users fetched successfully.";
+
+        return ResponseEntity.ok(
+                CommonResponse.success(result, message)
+        );
     }
 
 }

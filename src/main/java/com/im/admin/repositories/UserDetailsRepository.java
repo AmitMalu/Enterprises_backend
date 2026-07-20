@@ -29,48 +29,150 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
     @Query("SELECT u FROM UserDetails u WHERE u.userStatus = 'Active' AND u.hierarchyId LIKE %:keyword%")
     Page<UserDetails> searchActiveUsersByHierarchyId(@Param("keyword") String keyword, Pageable pageable);
 
+//    @Query("""
+//            SELECT u
+//            FROM UserDetails u
+//            WHERE
+//                u.userStatus = 'Active'
+//
+//            AND u.hierarchyCode = 'RT'
+//
+//            AND
+//            (
+//                :accessibleIds IS NULL
+//                OR u.hierarchyId IN :accessibleIds
+//            )
+//
+//            AND
+//            (
+//                :keyword IS NULL
+//                OR :keyword = ''
+//
+//                OR LOWER(u.mobileNumber)
+//                    LIKE LOWER(
+//                        CONCAT('%', :keyword, '%')
+//                    )
+//
+//                OR LOWER(u.emailId)
+//                    LIKE LOWER(
+//                        CONCAT('%', :keyword, '%')
+//                    )
+//
+//                OR LOWER(u.hierarchyId)
+//                    LIKE LOWER(
+//                        CONCAT('%', :keyword, '%')
+//                    )
+//            )
+//            """)
+//    Page<UserDetails> searchActiveRetailers(
+//
+//            @Param("keyword")
+//            String keyword,
+//
+//            @Param("accessibleIds")
+//            List<String> accessibleIds,
+//
+//            Pageable pageable
+//    );
+
     @Query("""
-            SELECT u
-            FROM UserDetails u
-            WHERE
-                u.userStatus = 'Active'
-            
-            AND u.hierarchyCode = 'RT'
-            
-            AND
-            (
-                :accessibleIds IS NULL
+        SELECT u
+        FROM UserDetails u
+        WHERE u.userStatus = 'Active'
+
+          AND UPPER(u.hierarchyCode) IN :allowedHierarchyCodes
+
+          AND (
+                :fullAccess = true
                 OR u.hierarchyId IN :accessibleIds
-            )
-            
-            AND
-            (
+          )
+
+          AND (
                 :keyword IS NULL
                 OR :keyword = ''
-            
                 OR LOWER(u.mobileNumber)
-                    LIKE LOWER(
-                        CONCAT('%', :keyword, '%')
-                    )
-            
+                    LIKE LOWER(CONCAT('%', :keyword, '%'))
                 OR LOWER(u.emailId)
-                    LIKE LOWER(
-                        CONCAT('%', :keyword, '%')
-                    )
-            
+                    LIKE LOWER(CONCAT('%', :keyword, '%'))
                 OR LOWER(u.hierarchyId)
-                    LIKE LOWER(
-                        CONCAT('%', :keyword, '%')
-                    )
-            )
-            """)
-    Page<UserDetails> searchActiveRetailers(
+                    LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(u.hierarchyCode)
+                    LIKE LOWER(CONCAT('%', :keyword, '%'))
+          )
+
+          AND (
+                :mobileNumber IS NULL
+                OR :mobileNumber = ''
+                OR LOWER(u.mobileNumber)
+                    LIKE LOWER(CONCAT('%', :mobileNumber, '%'))
+          )
+
+          AND (
+                :hierarchyId IS NULL
+                OR :hierarchyId = ''
+                OR LOWER(u.hierarchyId)
+                    LIKE LOWER(CONCAT('%', :hierarchyId, '%'))
+          )
+
+          AND (
+                :hierarchyCode IS NULL
+                OR :hierarchyCode = ''
+                OR LOWER(u.hierarchyCode)
+                    LIKE LOWER(CONCAT('%', :hierarchyCode, '%'))
+          )
+
+          AND (
+                :emailId IS NULL
+                OR :emailId = ''
+                OR LOWER(u.emailId)
+                    LIKE LOWER(CONCAT('%', :emailId, '%'))
+          )
+
+          AND (
+                :createdDate IS NULL
+                OR :createdDate = ''
+                OR CAST(u.createdDate AS string)
+                    LIKE CONCAT('%', :createdDate, '%')
+          )
+
+          AND (
+                :lastLoginDate IS NULL
+                OR :lastLoginDate = ''
+                OR CAST(u.lastLoginDate AS string)
+                    LIKE CONCAT('%', :lastLoginDate, '%')
+          )
+        """)
+    Page<UserDetails> searchActiveHierarchies(
+
+            @Param("allowedHierarchyCodes")
+            List<String> allowedHierarchyCodes,
+
+            @Param("fullAccess")
+            boolean fullAccess,
+
+            @Param("accessibleIds")
+            List<String> accessibleIds,
 
             @Param("keyword")
             String keyword,
 
-            @Param("accessibleIds")
-            List<String> accessibleIds,
+            @Param("mobileNumber")
+            String mobileNumber,
+
+            @Param("hierarchyId")
+            String hierarchyId,
+
+            @Param("hierarchyCode")
+            String hierarchyCode,
+
+            @Param("createdDate")
+            String createdDate,
+
+            @Param("lastLoginDate")
+            String lastLoginDate,
+
+            @Param("emailId")
+            String emailId,
 
             Pageable pageable
     );
