@@ -11,6 +11,7 @@ import com.im.admin.entities.enums.SubproductServiceType;
 import com.im.admin.entities.product.Products;
 import com.im.admin.repositories.AccessHierarchyNodeRepository;
 import com.im.admin.repositories.ProductsRepository;
+import com.im.admin.repositories.SchemeAllocationRepository;
 import com.im.admin.repositories.SubProductsRepository;
 import com.im.admin.request.SubproductListRequest;
 import com.im.admin.response.SubproductListResponse;
@@ -54,6 +55,9 @@ public class SubProductsServiceImpl implements SubProductsService {
 
     @Autowired
     private AccessHierarchyNodeRepository accessHierarchyNodeRepository;
+
+    @Autowired
+    private SchemeAllocationRepository schemeAllocationRepository;
 
     private static final String PG_SUBPRODUCT_PATH =
             "/paymentgatwayAPI/subproduct-list";
@@ -131,45 +135,269 @@ public class SubProductsServiceImpl implements SubProductsService {
     @Override
     @Transactional
     public SubProducts updateSubProduct(String id, SubProducts subProduct) {
-        SubProducts existingSubProduct = subProductsRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("SubProduct with ID " + id + " not found."));
 
-        // Check if productId is changed and fetch product
-        if (!Objects.equals(existingSubProduct.getProduct().getId(), subProduct.getProduct().getId())) {
-            Products product = productsRepository.findById(subProduct.getProduct().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid productId: " + subProduct.getProduct().getId()));
-            existingSubProduct.setProduct(product);
+        log.info("=== START: updateSubProduct ===");
+        log.info("Updating subProduct. subProductId={}, subProductTitle={}", id, subProduct.getSubProductTitle());
+
+        long startTime = System.currentTimeMillis();
+
+        // ===== FETCH EXISTING SUBPRODUCT =====
+        log.debug("Fetching existing subProduct from database. subProductId={}", id);
+
+        SubProducts existingSubProduct = subProductsRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.error("SubProduct not found. subProductId={}", id);
+                    return new IllegalArgumentException("SubProduct with ID " + id + " not found.");
+                });
+
+        log.debug("Existing subProduct found. subProductCode={}, currentWhiteLabelId={}, isWhiteLabelAdmin={}",
+                existingSubProduct.getSubProductCode(),
+                existingSubProduct.getWhiteLabelAdminId(),
+                existingSubProduct.getIsWhiteLabelAdmin());
+
+        /*
+         * Capture the existing values before changing them.
+         *
+         * This is important because after calling:
+         *
+         * existingSubProduct.setWhiteLabelAdminId(...)
+         *
+         * we will lose the previous White Label ID.
+         */
+        String oldWhiteLabelId = normalizeWhiteLabelId(existingSubProduct.getWhiteLabelAdminId());
+        String newWhiteLabelId = Boolean.TRUE.equals(subProduct.getIsWhiteLabelAdmin())
+                ? normalizeWhiteLabelId(subProduct.getWhiteLabelAdminId())
+                : null;
+
+        String subProductCode = existingSubProduct.getSubProductCode();
+
+        log.info(
+                "Subproduct White Label assignment comparison. " +
+                        "subProductCode={}, oldWhiteLabelId={}, newWhiteLabelId={}, isWhiteLabelEnabled={}",
+                subProductCode,
+                oldWhiteLabelId,
+                newWhiteLabelId,
+                subProduct.getIsWhiteLabelAdmin()
+        );
+
+        /*
+         * Check whether the subproduct is being:
+         *
+         * 1. Moved to another White Label
+         * 2. Removed from White Label assignment completely
+         */
+        boolean whiteLabelAssignmentChanged = !Objects.equals(oldWhiteLabelId, newWhiteLabelId);
+        log.debug("White Label assignment changed: {}", whiteLabelAssignmentChanged);
+
+        /*
+         * Product update
+         */
+        log.debug("Validating product update. Product ID from request: {}",
+                subProduct.getProduct() != null ? subProduct.getProduct().getId() : "null");
+
+        if (subProduct.getProduct() == null || subProduct.getProduct().getId() == null) {
+            log.error("Product ID is missing in request");
+            throw new IllegalArgumentException("Product ID is required.");
         }
 
-        existingSubProduct.setSubProductTitle(subProduct.getSubProductTitle());
-//        existingSubProduct.setSubProductCode(subProduct.getSubProductCode()); // ******chnage code****
+        if (existingSubProduct.getProduct() == null || !Objects.equals(
+                existingSubProduct.getProduct().getId(), subProduct.getProduct().getId()
+        )) {
 
-//        existingSubProduct.setProductId(subProduct.getProductId());
-        existingSubProduct.setIsSettlement(subProduct.getIsSettlement());
-        existingSubProduct.setWalletType(subProduct.getWalletType());
-        existingSubProduct.setIsVisible(subProduct.getIsVisible());
-        existingSubProduct.setIsBlocked(subProduct.getIsBlocked());
-        existingSubProduct.setEditedBy(subProduct.getEditedBy());
-        existingSubProduct.setIsActive(subProduct.getIsActive());
+            String oldProductId = existingSubProduct.getProduct() != null
+                    ? String.valueOf(existingSubProduct.getProduct().getId())
+                    : "null";
+            String newProductId = String.valueOf(subProduct.getProduct().getId());
+
+            log.info("Product is being changed. oldProductId={}, newProductId={}", oldProductId, newProductId);
+
+            Products product = productsRepository
+                    .findById(subProduct.getProduct().getId())
+                    .orElseThrow(() -> {
+                        log.error("Invalid productId: {}", subProduct.getProduct().getId());
+                        return new IllegalArgumentException(
+                                "Invalid productId: " + subProduct.getProduct().getId()
+                        );
+                    });
+
+            existingSubProduct.setProduct(product);
+            log.debug("Product updated successfully. productId={}, productTitle={}",
+                    product.getId(), product.getName());
+
+        } else {
+            log.debug("Product is unchanged. productId={}",
+                    existingSubProduct.getProduct() != null ? existingSubProduct.getProduct().getId() : "null");
+        }
+
+        /*
+         * Update normal subproduct fields
+         */
+        log.debug("Updating basic subProduct fields for subProductId={}", id);
+
+        String oldTitle = existingSubProduct.getSubProductTitle();
+        String newTitle = subProduct.getSubProductTitle();
+
+        existingSubProduct.setSubProductTitle(newTitle);
+        log.debug("SubProduct title updated. oldTitle={}, newTitle={}", oldTitle, newTitle);
+
+        // Do not change the subproduct code here because scheme allocation
+        // records are linked using this code.
+        log.info("SubProduct code remains unchanged. subProductCode={}", existingSubProduct.getSubProductCode());
+
+        Boolean oldSettlement = existingSubProduct.getIsSettlement();
+        Boolean newSettlement = subProduct.getIsSettlement();
+        existingSubProduct.setIsSettlement(newSettlement);
+        log.debug("Settlement flag updated. oldSettlement={}, newSettlement={}", oldSettlement, newSettlement);
+
+        String oldWalletType = existingSubProduct.getWalletType();
+        String newWalletType = subProduct.getWalletType();
+        existingSubProduct.setWalletType(newWalletType);
+        log.debug("Wallet type updated. oldWalletType={}, newWalletType={}", oldWalletType, newWalletType);
+
+        Boolean oldVisible = existingSubProduct.getIsVisible();
+        Boolean newVisible = subProduct.getIsVisible();
+        existingSubProduct.setIsVisible(newVisible);
+        log.debug("Visibility flag updated. oldVisible={}, newVisible={}", oldVisible, newVisible);
+
+        Boolean oldBlocked = existingSubProduct.getIsBlocked();
+        Boolean newBlocked = subProduct.getIsBlocked();
+        existingSubProduct.setIsBlocked(newBlocked);
+        log.debug("Blocked flag updated. oldBlocked={}, newBlocked={}", oldBlocked, newBlocked);
+
+        String oldEditedBy = existingSubProduct.getEditedBy();
+        String newEditedBy = subProduct.getEditedBy();
+        existingSubProduct.setEditedBy(newEditedBy);
+        log.debug("EditedBy updated. oldEditedBy={}, newEditedBy={}", oldEditedBy, newEditedBy);
+
+        Boolean oldActive = existingSubProduct.getIsActive();
+        Boolean newActive = subProduct.getIsActive();
+        existingSubProduct.setIsActive(newActive);
+        log.debug("Active flag updated. oldActive={}, newActive={}", oldActive, newActive);
+
+        /*
+         * Settlement configuration
+         */
+        log.debug("Processing settlement configuration for subProductId={}", id);
 
         if (Boolean.TRUE.equals(subProduct.getIsSettlement())) {
+            String oldSettlementTime = existingSubProduct.getSettlementTime();
+            String newSettlementTime = subProduct.getSettlementTime();
+
             existingSubProduct.setIsSettlement(true);
-            existingSubProduct.setSettlementTime(subProduct.getSettlementTime());
+            existingSubProduct.setSettlementTime(newSettlementTime);
+
+            log.info("Settlement enabled. oldSettlementTime={}, newSettlementTime={}",
+                    oldSettlementTime, newSettlementTime);
         } else {
             existingSubProduct.setIsSettlement(false);
             existingSubProduct.setSettlementTime("-");
+            log.debug("Settlement disabled. SettlementTime set to '-'");
         }
+
+        /*
+         * White Label configuration
+         */
+        log.debug("Processing White Label configuration for subProductId={}", id);
 
         if (Boolean.TRUE.equals(subProduct.getIsWhiteLabelAdmin())) {
+            log.info("White Label assignment is enabled for subProductId={}", id);
+
+            if (newWhiteLabelId == null) {
+                log.error("White Label ID is required but was null");
+                throw new IllegalArgumentException(
+                        "White Label ID is required when White Label assignment is enabled."
+                );
+            }
+
+            log.debug("Setting White Label configuration. newWhiteLabelId={}", newWhiteLabelId);
             existingSubProduct.setIsWhiteLabelAdmin(true);
-            existingSubProduct.setWhiteLabelAdminId(subProduct.getWhiteLabelAdminId());
+            existingSubProduct.setWhiteLabelAdminId(newWhiteLabelId);
+            log.info("White Label assignment configured. whiteLabelId={}", newWhiteLabelId);
+
         } else {
+            log.info("White Label assignment is disabled for subProductId={}", id);
             existingSubProduct.setIsWhiteLabelAdmin(false);
             existingSubProduct.setWhiteLabelAdminId("-");
+            log.debug("White Label assignment cleared. whiteLabelId set to '-'");
         }
 
+        /*
+         * Save the changed subproduct.
+         */
+        log.info("Saving updated subProduct to database. subProductId={}, subProductCode={}", id, subProductCode);
+        long saveStartTime = System.currentTimeMillis();
+
         SubProducts updatedSubProduct = subProductsRepository.save(existingSubProduct);
-        log.info("Updated SubProduct with ID: {}", id);
+
+        log.info("SubProduct saved successfully. Time taken: {} ms",
+                System.currentTimeMillis() - saveStartTime);
+
+        /*
+         * Clean scheme allocations belonging to the previous White Label.
+         *
+         * Example:
+         *
+         * Old White Label: NFT-WL-001
+         * New White Label: LPS-WL-001
+         *
+         * This deletes the subproduct allocation from:
+         *
+         * NFT-WL-001
+         * NFT-SD-...
+         * NFT-PT-...
+         * NFT-DT-...
+         * NFT-RT-...
+         *
+         * It will not delete anything under LPS-WL-001.
+         */
+        if (whiteLabelAssignmentChanged && oldWhiteLabelId != null) {
+            log.info("=== START: Scheme Allocation Cleanup ===");
+            log.info("White Label assignment changed. Cleaning old scheme allocations.");
+            log.info("Cleanup details: subProductCode={}, oldWhiteLabelId={}, newWhiteLabelId={}",
+                    subProductCode, oldWhiteLabelId, newWhiteLabelId);
+
+            long deleteStartTime = System.currentTimeMillis();
+
+            int deletedAllocationCount = schemeAllocationRepository
+                    .deleteSubProductAllocationsUnderWhiteLabel(oldWhiteLabelId, subProductCode);
+
+            long deleteDuration = System.currentTimeMillis() - deleteStartTime;
+
+            log.info(
+                    "Scheme allocation cleanup completed. " +
+                            "deletedRecords={}, timeTaken={} ms, subProductCode={}, oldWhiteLabelId={}",
+                    deletedAllocationCount, deleteDuration, subProductCode, oldWhiteLabelId
+            );
+            log.info("=== END: Scheme Allocation Cleanup ===");
+
+        } else {
+            if (whiteLabelAssignmentChanged && oldWhiteLabelId == null) {
+                log.debug("White Label assignment changed from null to {}. No cleanup needed.", newWhiteLabelId);
+            } else {
+                log.info(
+                        "White Label assignment did not change. " +
+                                "No scheme allocation cleanup required. " +
+                                "subProductCode={}, whiteLabelId={}",
+                        subProductCode, oldWhiteLabelId
+                );
+            }
+        }
+
+        long totalDuration = System.currentTimeMillis() - startTime;
+
+        log.info(
+                "=== END: updateSubProduct ===" +
+                        "\n  subProductId={}" +
+                        "\n  subProductCode={}" +
+                        "\n  subProductTitle={}" +
+                        "\n  oldWhiteLabelId={}" +
+                        "\n  newWhiteLabelId={}" +
+                        "\n  whiteLabelAssignmentChanged={}" +
+                        "\n  totalTimeTaken={} ms",
+                id, subProductCode, updatedSubProduct.getSubProductTitle(),
+                oldWhiteLabelId, newWhiteLabelId, whiteLabelAssignmentChanged, totalDuration
+        );
+
         return updatedSubProduct;
     }
 
@@ -863,6 +1091,23 @@ public class SubProductsServiceImpl implements SubProductsService {
                 .build();
     }
 
+    private String normalizeWhiteLabelId(String whiteLabelId) {
+
+        if (whiteLabelId == null) {
+            return null;
+        }
+
+        String normalizedValue = whiteLabelId.trim();
+
+        if (normalizedValue.isEmpty()
+                || "-".equals(normalizedValue)
+                || "null".equalsIgnoreCase(normalizedValue)) {
+
+            return null;
+        }
+
+        return normalizedValue;
+    }
 
 }
 

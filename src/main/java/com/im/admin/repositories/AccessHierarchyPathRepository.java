@@ -120,4 +120,18 @@ public interface AccessHierarchyPathRepository
             @Param("ancestorId") String ancestorId
     );
 
+    @Query(
+            value = """
+                    SELECT COUNT(*)
+                    FROM access_hierarchy_path
+                    WHERE ancestor_id = :whiteLabelId
+                      AND descendant_id = :hierarchyId
+                    """,
+            nativeQuery = true
+    )
+    long countHierarchyUnderWhiteLabel(
+            @Param("whiteLabelId") String whiteLabelId,
+            @Param("hierarchyId") String hierarchyId
+    );
+
 }
