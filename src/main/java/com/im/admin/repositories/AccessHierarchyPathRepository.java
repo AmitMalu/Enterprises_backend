@@ -66,16 +66,6 @@ public interface AccessHierarchyPathRepository
             String descendantId
     );
 
-    @Query(value = """
-        SELECT COUNT(*)
-        FROM access_hierarchy_path
-        WHERE ancestor_id = :ancestorId
-          AND descendant_id = :descendantId
-        """, nativeQuery = true)
-    Long countHierarchyPath(
-            @Param("ancestorId") String ancestorId,
-            @Param("descendantId") String descendantId
-    );
 
     @Query("""
             SELECT
@@ -109,8 +99,35 @@ public interface AccessHierarchyPathRepository
             @Param("hierarchyId") String hierarchyId
     );
 
-    List<AccessHierarchyPath> findByIdAncestorId(String ancestorId);
+    @Query("""
+            SELECT path.id.descendantId
+            FROM AccessHierarchyPath path
+            WHERE path.id.ancestorId = :ancestorId
+            """)
+    List<String> findAllDescendantIds(
+            @Param("ancestorId") String ancestorId
+    );
 
-    boolean existsByIdAncestorIdAndIdDescendantId(String ancestorId,String descendantId);
+    @Query("""
+            SELECT COUNT(path)
+            FROM AccessHierarchyPath path
+            WHERE path.id.ancestorId = :ancestorId
+              AND path.id.descendantId = :descendantId
+            """)
+    long countHierarchyPath(
+            @Param("ancestorId") String ancestorId,
+            @Param("descendantId") String descendantId
+    );
 
+
+//    @Query(value = """
+//        SELECT COUNT(*)
+//        FROM access_hierarchy_path
+//        WHERE ancestor_id = :ancestorId
+//          AND descendant_id = :descendantId
+//        """, nativeQuery = true)
+//    Long countHierarchyPath(
+//            @Param("ancestorId") String ancestorId,
+//            @Param("descendantId") String descendantId
+//    );
 }

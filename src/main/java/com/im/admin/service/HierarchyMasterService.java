@@ -6,7 +6,9 @@ import com.im.admin.dto.HierarchyResponseDto;
 import java.util.List;
 
 public interface HierarchyMasterService {
+
     List<HierarchyMasterDto> getAllNameAndCode();
 
     List<HierarchyResponseDto> getHierarchyDetails(String hierarchyCode);
+
 }
