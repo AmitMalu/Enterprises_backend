@@ -33,7 +33,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -94,6 +96,12 @@ public class OnboardingServiceImpl implements OnboardingService {
     @Autowired
     private AccessHierarchyPathRepository accessHierarchyPathRepository;
 
+    private static final Map<String, String>
+            DELEGATED_PARENT_TYPES = Map.of(
+            "AU", "AD",
+            "WLAU", "WL"
+    );
+
     @Override
     @Transactional(readOnly = true)
     public Page<GenericPendingRecordDto> getAllRecordsByStatus(
@@ -108,198 +116,515 @@ public class OnboardingServiceImpl implements OnboardingService {
             String mobileNumber,
             String emailId,
             String parentAccount,
-            String rejectionReason) {
+            String rejectionReason
+    ) {
 
-        log.info("===== FETCHING PENDING RECORDS =====");
-        log.info("Status: {}, Page: {}, Size: {}", status, page, size);
+        log.info(
+                "===== FETCHING USER RECORDS BY STATUS ====="
+        );
 
-        UserContext ctx = tokenUtil.getUserContext();
+        log.info(
+                "Request filters | status={} | page={} | size={} | "
+                        + "type={} | id={} | name={}",
+                status,
+                page,
+                size,
+                type,
+                id,
+                name
+        );
 
-        String loginHierarchyId = ctx.getHierarchyId();
-        String loginHierarchyType = commonMethods.extractHierarchyType(loginHierarchyId);
-
-        String accessRoot = loginHierarchyId;
-
-        if ("AU".equalsIgnoreCase(loginHierarchyType)
-                || "WLAU".equalsIgnoreCase(loginHierarchyType)) {
-
-            accessRoot = hierarchyAccessValidator
-                    .findParentHierarchy(loginHierarchyId)
-                    .orElse(loginHierarchyId);
-
-            log.info("{} Login detected. LoginHierarchyId={}, AccessRoot={}",
-                    loginHierarchyType,
-                    loginHierarchyId,
-                    accessRoot);
-        }
-
-        log.info("Logged In User Hierarchy Id : {}", loginHierarchyId);
-        log.info("Logged In User Hierarchy Type : {}", loginHierarchyType);
-        log.info("Final Access Root : {}", accessRoot);
-
-        CompletableFuture<List<Retailer>> retailersFuture =
-                asyncPendingFetcher.fetchRetailers(status);
-
-        CompletableFuture<List<Distributor>> distributorsFuture =
-                asyncPendingFetcher.fetchDistributors(status);
-
-        CompletableFuture<List<Partner>> partnersFuture =
-                asyncPendingFetcher.fetchPartners(status);
-
-        CompletableFuture<List<SuperDistributor>> superDistributorsFuture =
-                asyncPendingFetcher.fetchSuperDistributors(status);
-
-        CompletableFuture<List<WhiteLabels>> whiteLabelsFuture =
-                asyncPendingFetcher.fetchWhiteLabels(status);
-
-        CompletableFuture<List<Enterprises>> enterprisesFuture =
-                asyncPendingFetcher.fetchEnterprises(status);
-
-        CompletableFuture.allOf(
-                retailersFuture,
-                distributorsFuture,
-                partnersFuture,
-                superDistributorsFuture,
-                whiteLabelsFuture,
-                enterprisesFuture
-        ).join();
-
-        log.info("Retailers fetched : {}", retailersFuture.join().size());
-        log.info("Distributors fetched : {}", distributorsFuture.join().size());
-        log.info("Partners fetched : {}", partnersFuture.join().size());
-        log.info("SuperDistributors fetched : {}", superDistributorsFuture.join().size());
-        log.info("WhiteLabels fetched : {}", whiteLabelsFuture.join().size());
-        log.info("Enterprises fetched : {}", enterprisesFuture.join().size());
-
-        List<Object> allEntities = Stream.of(
-                        (List<?>) retailersFuture.join(),
-                        (List<?>) distributorsFuture.join(),
-                        (List<?>) partnersFuture.join(),
-                        (List<?>) superDistributorsFuture.join(),
-                        (List<?>) whiteLabelsFuture.join(),
-                        (List<?>) enterprisesFuture.join()
-                )
-                .flatMap(Collection::stream)
-                .map(o -> (Object) o)
-                .toList();
-
-        log.info("Total entities before hierarchy filtering : {}", allEntities.size());
-
-        final String finalAccessRoot = accessRoot;
-
-        List<GenericPendingRecordDto> records = allEntities.stream()
-                .filter(entity -> {
-
-                    String recordHierarchyId = extractId(entity);
-
-                    if (recordHierarchyId == null
-                            || loginHierarchyId == null
-                            || loginHierarchyType == null
-                            || finalAccessRoot == null) {
-
-                        log.warn("Hierarchy check failed due to null values. recordHierarchyId={}, loginHierarchyId={}, loginHierarchyType={}, accessRoot={}",
-                                recordHierarchyId,
-                                loginHierarchyId,
-                                loginHierarchyType,
-                                finalAccessRoot);
-
-                        return false;
-                    }
-
-                    if ("AD".equalsIgnoreCase(loginHierarchyType)) {
-                        log.info("AD Access Granted. Record={}", recordHierarchyId);
-                        return true;
-                    }
-
-                    Long pathCount = accessHierarchyPathRepository.countHierarchyPath(
-                            finalAccessRoot,
-                            recordHierarchyId
-                    );
-
-                    boolean belongs = pathCount != null && pathCount > 0;
-
-                    log.info("Hierarchy Check: Login={}, Type={}, AccessRoot={}, Record={}, Count={}, Result={}",
-                            loginHierarchyId,
-                            loginHierarchyType,
-                            finalAccessRoot,
-                            recordHierarchyId,
-                            pathCount,
-                            belongs);
-
-                    return belongs;
-                })
-                .map(this::mapToDto)
-                .toList();
-
-        log.info("Records after hierarchy filtering : {}", records.size());
-
-        if (records.isEmpty()) {
-            log.warn("No records found after hierarchy filtering.");
-
-            throw new NoPendingRecordsFoundException(
-                    "No " + status + " records found in your hierarchy scope."
+        if (page < 0) {
+            throw new IllegalArgumentException(
+                    "Page number cannot be negative"
             );
         }
 
-        List<GenericPendingRecordDto> filteredRecords = records.stream()
-
-                .filter(r -> status == null || status.isEmpty()
-                        || r.getStatus().equalsIgnoreCase(status))
-
-                .filter(r -> type == null || type.isEmpty()
-                        || r.getType().toLowerCase().contains(type.toLowerCase()))
-
-                .filter(r -> id == null || id.isEmpty()
-                        || r.getId().toLowerCase().contains(id.toLowerCase()))
-
-                .filter(r -> name == null || name.isEmpty()
-                        || r.getName().toLowerCase().contains(name.toLowerCase()))
-
-                .filter(r -> createdBy == null || createdBy.isEmpty()
-                        || r.getCreatedBy().toLowerCase().contains(createdBy.toLowerCase()))
-
-                .filter(r -> createdOn == null || createdOn.isEmpty()
-                        || r.getCreatedOn().contains(createdOn))
-
-                .filter(r -> mobileNumber == null || mobileNumber.isEmpty()
-                        || r.getMobileNumber().contains(mobileNumber))
-
-                .filter(r -> emailId == null || emailId.isEmpty()
-                        || r.getEmailId().toLowerCase().contains(emailId.toLowerCase()))
-
-                .filter(r -> parentAccount == null || parentAccount.isEmpty()
-                        || r.getParentAccount().toLowerCase().contains(parentAccount.toLowerCase()))
-
-                .filter(r -> rejectionReason == null || rejectionReason.isEmpty()
-                        || (r.getRemarks() != null
-                        && r.getRemarks().toLowerCase().contains(rejectionReason.toLowerCase())))
-
-                .sorted((a, b) -> b.getCreatedOn().compareTo(a.getCreatedOn()))
-                .toList();
-
-        log.info("Records after applying search filters : {}", filteredRecords.size());
-
-        Pageable pageable = PageRequest.of(page, size);
-
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), filteredRecords.size());
-
-        List<GenericPendingRecordDto> paginated;
-
-        if (start >= filteredRecords.size()) {
-            log.info("Requested page exceeds available records.");
-            paginated = List.of();
-        } else {
-            paginated = filteredRecords.subList(start, end);
+        if (size <= 0) {
+            throw new IllegalArgumentException(
+                    "Page size must be greater than zero"
+            );
         }
 
-        log.info("Returning {} records. Total Records : {}",
+        UserContext ctx =
+                tokenUtil.getUserContext();
+
+        if (ctx == null) {
+            throw new IllegalStateException(
+                    "Unable to obtain logged-in user context"
+            );
+        }
+
+        String loginHierarchyId =
+                ctx.getHierarchyId();
+
+        if (!CommonMethods.hasText(loginHierarchyId)) {
+            throw new IllegalStateException(
+                    "Login hierarchy ID is missing from token"
+            );
+        }
+
+        loginHierarchyId =
+                loginHierarchyId.trim();
+
+        String loginHierarchyType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        if (!CommonMethods.hasText(loginHierarchyType)) {
+            throw new IllegalStateException(
+                    "Unable to determine hierarchy type for: "
+                            + loginHierarchyId
+            );
+        }
+
+        loginHierarchyType =
+                loginHierarchyType
+                        .trim()
+                        .toUpperCase(Locale.ROOT);
+
+        String accessRoot =
+                resolveAccessRoot(
+                        loginHierarchyId,
+                        loginHierarchyType
+                );
+
+        boolean fullSystemAccess =
+                commonMethods.hasFullSystemAccess(
+                        loginHierarchyType
+                );
+
+        log.info(
+                "Hierarchy access resolved | "
+                        + "loginHierarchyId={} | "
+                        + "loginHierarchyType={} | "
+                        + "accessRoot={} | "
+                        + "fullSystemAccess={}",
+                loginHierarchyId,
+                loginHierarchyType,
+                accessRoot,
+                fullSystemAccess
+        );
+
+        /*
+         * For non-AD users, load the complete accessible hierarchy
+         * only once.
+         *
+         * HashSet gives fast contains() checking for every record.
+         */
+        Set<String> accessibleHierarchyIds;
+
+        if (fullSystemAccess) {
+
+            accessibleHierarchyIds =
+                    Collections.emptySet();
+
+        } else {
+
+            List<String> descendantIds =
+                    accessHierarchyPathRepository
+                            .findAllDescendantIds(
+                                    accessRoot
+                            );
+
+            accessibleHierarchyIds =
+                    descendantIds == null
+                            ? Collections.emptySet()
+                            : descendantIds.stream()
+                            .filter(this::hasText)
+                            .map(String::trim)
+                            .collect(Collectors.toSet());
+
+            /*
+             * Defensive fallback:
+             *
+             * The closure table should already contain:
+             *
+             * accessRoot -> accessRoot -> depth 0
+             *
+             * We still add it to avoid accidental denial if the
+             * depth-zero row is temporarily missing.
+             */
+            accessibleHierarchyIds.add(accessRoot);
+
+            log.info(
+                    "Accessible hierarchy IDs loaded | "
+                            + "accessRoot={} | count={}",
+                    accessRoot,
+                    accessibleHierarchyIds.size()
+            );
+        }
+
+        /*
+         * Start all entity fetches concurrently.
+         */
+        CompletableFuture<List<Retailer>>
+                retailersFuture =
+                asyncPendingFetcher.fetchRetailers(
+                        status
+                );
+
+        CompletableFuture<List<Distributor>>
+                distributorsFuture =
+                asyncPendingFetcher.fetchDistributors(
+                        status
+                );
+
+        CompletableFuture<List<Partner>>
+                partnersFuture =
+                asyncPendingFetcher.fetchPartners(
+                        status
+                );
+
+        CompletableFuture<List<SuperDistributor>>
+                superDistributorsFuture =
+                asyncPendingFetcher.fetchSuperDistributors(
+                        status
+                );
+
+        CompletableFuture<List<WhiteLabels>>
+                whiteLabelsFuture =
+                asyncPendingFetcher.fetchWhiteLabels(
+                        status
+                );
+
+        CompletableFuture<List<Enterprises>>
+                enterprisesFuture =
+                asyncPendingFetcher.fetchEnterprises(
+                        status
+                );
+
+        try {
+
+            CompletableFuture.allOf(
+                    retailersFuture,
+                    distributorsFuture,
+                    partnersFuture,
+                    superDistributorsFuture,
+                    whiteLabelsFuture,
+                    enterprisesFuture
+            ).join();
+
+        } catch (CompletionException ex) {
+
+            log.error(
+                    "Failed to fetch user records asynchronously",
+                    ex
+            );
+
+            throw new IllegalStateException(
+                    "Unable to fetch user records",
+                    ex.getCause() != null
+                            ? ex.getCause()
+                            : ex
+            );
+        }
+
+        List<Retailer> retailers =
+                safeFutureResult(
+                        retailersFuture,
+                        "Retailers"
+                );
+
+        List<Distributor> distributors =
+                safeFutureResult(
+                        distributorsFuture,
+                        "Distributors"
+                );
+
+        List<Partner> partners =
+                safeFutureResult(
+                        partnersFuture,
+                        "Partners"
+                );
+
+        List<SuperDistributor> superDistributors =
+                safeFutureResult(
+                        superDistributorsFuture,
+                        "SuperDistributors"
+                );
+
+        List<WhiteLabels> whiteLabels =
+                safeFutureResult(
+                        whiteLabelsFuture,
+                        "WhiteLabels"
+                );
+
+        List<Enterprises> enterprises =
+                safeFutureResult(
+                        enterprisesFuture,
+                        "Enterprises"
+                );
+
+        log.info(
+                "Fetched entity counts | retailers={} | "
+                        + "distributors={} | partners={} | "
+                        + "superDistributors={} | whiteLabels={} | "
+                        + "enterprises={}",
+                retailers.size(),
+                distributors.size(),
+                partners.size(),
+                superDistributors.size(),
+                whiteLabels.size(),
+                enterprises.size()
+        );
+
+        List<Object> allEntities =
+                Stream.of(
+                                retailers,
+                                distributors,
+                                partners,
+                                superDistributors,
+                                whiteLabels,
+                                enterprises
+                        )
+                        .flatMap(Collection::stream)
+                        .map(entity -> (Object) entity)
+                        .toList();
+
+        log.info(
+                "Total entities before hierarchy filtering: {}",
+                allEntities.size()
+        );
+
+        final String finalLoginHierarchyId =
+                loginHierarchyId;
+
+        final String finalLoginHierarchyType =
+                loginHierarchyType;
+
+        final String finalAccessRoot =
+                accessRoot;
+
+        final Set<String> finalAccessibleHierarchyIds =
+                accessibleHierarchyIds;
+
+        /*
+         * Apply hierarchy authorization.
+         */
+        List<GenericPendingRecordDto> hierarchyScopedRecords =
+                allEntities.stream()
+                        .filter(Objects::nonNull)
+                        .filter(entity -> {
+
+                            String recordHierarchyId =
+                                    extractId(entity);
+
+                            if (!CommonMethods.hasText(recordHierarchyId)) {
+
+                                log.warn(
+                                        "Skipping entity because hierarchy ID "
+                                                + "could not be extracted | "
+                                                + "entityType={}",
+                                        entity.getClass()
+                                                .getSimpleName()
+                                );
+
+                                return false;
+                            }
+
+                            recordHierarchyId =
+                                    recordHierarchyId.trim();
+
+                            /*
+                             * AD has complete system visibility.
+                             */
+                            if (fullSystemAccess) {
+                                return true;
+                            }
+
+                            boolean belongs =
+                                    finalAccessibleHierarchyIds
+                                            .contains(
+                                                    recordHierarchyId
+                                            );
+
+                            log.debug(
+                                    "Hierarchy authorization | "
+                                            + "loginHierarchyId={} | "
+                                            + "loginHierarchyType={} | "
+                                            + "accessRoot={} | "
+                                            + "recordHierarchyId={} | "
+                                            + "allowed={}",
+                                    finalLoginHierarchyId,
+                                    finalLoginHierarchyType,
+                                    finalAccessRoot,
+                                    recordHierarchyId,
+                                    belongs
+                            );
+
+                            return belongs;
+                        })
+                        .map(this::mapToDto)
+                        .filter(Objects::nonNull)
+                        .toList();
+
+        log.info(
+                "Records after hierarchy filtering: {}",
+                hierarchyScopedRecords.size()
+        );
+
+        /*
+         * Apply frontend search filters.
+         *
+         * All checks are null-safe.
+         */
+        List<GenericPendingRecordDto> filteredRecords =
+                hierarchyScopedRecords.stream()
+
+                        .filter(record ->
+                                matchesExactIgnoreCase(
+                                        record.getStatus(),
+                                        status
+                                )
+                        )
+
+                        .filter(record ->
+                                containsIgnoreCase(
+                                        record.getType(),
+                                        type
+                                )
+                        )
+
+                        .filter(record ->
+                                containsIgnoreCase(
+                                        record.getId(),
+                                        id
+                                )
+                        )
+
+                        .filter(record ->
+                                containsIgnoreCase(
+                                        record.getName(),
+                                        name
+                                )
+                        )
+
+                        .filter(record ->
+                                containsIgnoreCase(
+                                        record.getCreatedBy(),
+                                        createdBy
+                                )
+                        )
+
+                        .filter(record ->
+                                containsIgnoreCase(
+                                        record.getCreatedOn(),
+                                        createdOn
+                                )
+                        )
+
+                        .filter(record ->
+                                containsIgnoreCase(
+                                        record.getMobileNumber(),
+                                        mobileNumber
+                                )
+                        )
+
+                        .filter(record ->
+                                containsIgnoreCase(
+                                        record.getEmailId(),
+                                        emailId
+                                )
+                        )
+
+                        .filter(record ->
+                                containsIgnoreCase(
+                                        record.getParentAccount(),
+                                        parentAccount
+                                )
+                        )
+
+                        .filter(record ->
+                                containsIgnoreCase(
+                                        record.getRemarks(),
+                                        rejectionReason
+                                )
+                        )
+
+                        .sorted(
+                                Comparator.comparing(
+                                                GenericPendingRecordDto::getCreatedOn,
+                                                Comparator.nullsLast(
+                                                        Comparator.naturalOrder()
+                                                )
+                                        )
+                                        .reversed()
+                        )
+                        .toList();
+
+        log.info(
+                "Records after search filters: {}",
+                filteredRecords.size()
+        );
+
+        /*
+         * Do not throw NoPendingRecordsFoundException before pagination.
+         *
+         * Returning an empty page is normally easier for the frontend
+         * and works correctly when a requested page is beyond the last
+         * available page.
+         */
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size
+                );
+
+        int start =
+                Math.toIntExact(
+                        pageable.getOffset()
+                );
+
+        if (start >= filteredRecords.size()) {
+
+            log.info(
+                    "No records available for requested page | "
+                            + "page={} | size={} | totalRecords={}",
+                    page,
+                    size,
+                    filteredRecords.size()
+            );
+
+            return new PageImpl<>(
+                    Collections.emptyList(),
+                    pageable,
+                    filteredRecords.size()
+            );
+        }
+
+        int end =
+                Math.min(
+                        start + pageable.getPageSize(),
+                        filteredRecords.size()
+                );
+
+        List<GenericPendingRecordDto> paginated =
+                filteredRecords.subList(
+                        start,
+                        end
+                );
+
+        log.info(
+                "Returning pending records | "
+                        + "page={} | size={} | "
+                        + "pageElements={} | totalElements={}",
+                page,
+                size,
                 paginated.size(),
-                filteredRecords.size());
+                filteredRecords.size()
+        );
 
-        log.info("===== FETCH PENDING RECORDS COMPLETED =====");
+        log.info(
+                "===== FETCH USER RECORDS COMPLETED ====="
+        );
 
-        return new PageImpl<>(paginated, pageable, filteredRecords.size());
+        return new PageImpl<>(
+                paginated,
+                pageable,
+                filteredRecords.size()
+        );
     }
 
     private String extractId(Object entity) {
@@ -956,7 +1281,204 @@ public class OnboardingServiceImpl implements OnboardingService {
     }
 
 
+    private String resolveAccessRoot(
+            String loginHierarchyId,
+            String loginHierarchyType
+    ) {
 
+        if (!CommonMethods.hasText(loginHierarchyId)) {
+            throw new IllegalStateException(
+                    "Login hierarchy ID is missing"
+            );
+        }
 
+        if (!CommonMethods.hasText(loginHierarchyType)) {
+            throw new IllegalStateException(
+                    "Login hierarchy type is missing for: "
+                            + loginHierarchyId
+            );
+        }
 
+        String normalizedLoginType =
+                loginHierarchyType
+                        .trim()
+                        .toUpperCase(Locale.ROOT);
+
+        String expectedParentType =
+                DELEGATED_PARENT_TYPES.get(
+                        normalizedLoginType
+                );
+
+        /*
+         * This is a normal business hierarchy account:
+         *
+         * AD, WL, SD, PT, DT, RT, ET, etc.
+         *
+         * It uses its own hierarchy ID as the root.
+         */
+        if (expectedParentType == null) {
+
+            log.info(
+                    "Normal hierarchy account detected | "
+                            + "loginHierarchyId={} | "
+                            + "loginHierarchyType={} | "
+                            + "accessRoot={}",
+                    loginHierarchyId,
+                    normalizedLoginType,
+                    loginHierarchyId
+            );
+
+            return loginHierarchyId;
+        }
+
+        /*
+         * Delegated account:
+         *
+         * AU   -> parent AD
+         * WLAU -> parent WL
+         */
+        String parentHierarchyId =
+                hierarchyAccessValidator
+                        .findParentHierarchy(
+                                loginHierarchyId
+                        )
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "Parent hierarchy not found for delegated user: "
+                                                + loginHierarchyId
+                                )
+                        );
+
+        if (!CommonMethods.hasText(parentHierarchyId)
+                || "-".equals(parentHierarchyId.trim())) {
+
+            throw new IllegalStateException(
+                    "Invalid parent hierarchy for delegated user: "
+                            + loginHierarchyId
+            );
+        }
+
+        String actualParentType =
+                commonMethods.extractHierarchyType(
+                        parentHierarchyId
+                );
+
+        if (!CommonMethods.hasText(actualParentType)) {
+            throw new IllegalStateException(
+                    "Unable to determine parent hierarchy type. "
+                            + "Login hierarchy: "
+                            + loginHierarchyId
+                            + ", parent hierarchy: "
+                            + parentHierarchyId
+            );
+        }
+
+        actualParentType =
+                actualParentType
+                        .trim()
+                        .toUpperCase(Locale.ROOT);
+
+        if (!expectedParentType.equals(actualParentType)) {
+
+            throw new IllegalStateException(
+                    "Invalid delegated hierarchy relationship. "
+                            + "Login hierarchy: "
+                            + loginHierarchyId
+                            + ", login type: "
+                            + normalizedLoginType
+                            + ", parent hierarchy: "
+                            + parentHierarchyId
+                            + ", expected parent type: "
+                            + expectedParentType
+                            + ", actual parent type: "
+                            + actualParentType
+            );
+        }
+
+        log.info(
+                "Delegated hierarchy authority resolved | "
+                        + "loginHierarchyId={} | "
+                        + "loginHierarchyType={} | "
+                        + "parentHierarchyId={} | "
+                        + "parentHierarchyType={}",
+                loginHierarchyId,
+                normalizedLoginType,
+                parentHierarchyId,
+                actualParentType
+        );
+
+        return parentHierarchyId;
+    }
+
+    private <T> List<T> safeFutureResult(
+            CompletableFuture<List<T>> future,
+            String entityName
+    ) {
+
+        try {
+
+            List<T> result =
+                    future.join();
+
+            return result != null
+                    ? result
+                    : Collections.emptyList();
+
+        } catch (CompletionException ex) {
+
+            log.error(
+                    "Failed to fetch {}",
+                    entityName,
+                    ex
+            );
+
+            throw new IllegalStateException(
+                    "Failed to fetch " + entityName,
+                    ex.getCause() != null
+                            ? ex.getCause()
+                            : ex
+            );
+        }
+    }
+
+    private boolean containsIgnoreCase(
+            String actualValue,
+            String filterValue
+    ) {
+
+        if (!CommonMethods.hasText(filterValue)) {
+            return true;
+        }
+
+        if (!CommonMethods.hasText(actualValue)) {
+            return false;
+        }
+
+        return actualValue
+                .toLowerCase(Locale.ROOT)
+                .contains(
+                        filterValue
+                                .trim()
+                                .toLowerCase(Locale.ROOT)
+                );
+    }
+
+    private boolean matchesExactIgnoreCase(
+            String actualValue,
+            String filterValue
+    ) {
+
+        if (!CommonMethods.hasText(filterValue)) {
+            return true;
+        }
+
+        return actualValue != null
+                && actualValue.equalsIgnoreCase(
+                filterValue.trim()
+        );
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
 }

@@ -6,7 +6,11 @@ package com.im.admin.service.impl;
 
 import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
+import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.*;
+import com.im.admin.response.HierarchyOptionResponse;
+import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import com.im.admin.util.UnderHierarchyProjection;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +55,18 @@ public class HierarchyDataService {
 
     private final AccessHierarchyNodeRepository
             accessHierarchyNodeRepository;
+
+    private final TokenUtil tokenUtil;
+
+    private static final Set<String> ALLOWED_HIERARCHY_CODES =
+            Set.of(
+                    "RT",
+                    "DT",
+                    "PT",
+                    "SD"
+            );
+
+    private final CommonMethods commonMethods;
 
     public Map<String, Object> getCompleteHierarchyData(
             String hierarchyId,
@@ -220,7 +236,7 @@ public class HierarchyDataService {
         return users.get(0);
     }
 
-    private String normalizeHierarchyCode(
+    private String normalizeHierarchyCodeOption(
             String hierarchyCode
     ) {
 
@@ -1985,4 +2001,497 @@ public class HierarchyDataService {
             default -> "DESCENDANT";
         };
     }
+
+    @Transactional(readOnly = true)
+    public Map<String, List<String>> getGroupedHierarchyUnderLogin() {
+
+        long startTime = System.currentTimeMillis();
+
+        String loginHierarchyId = tokenUtil.extractHierarchyId();
+
+        log.info(
+                "[GROUPED HIERARCHY] START loginHierarchyId={}",
+                loginHierarchyId
+        );
+
+        AccessHierarchyNode loginNode =
+                accessHierarchyNodeRepository
+                        .findById(loginHierarchyId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Hierarchy not found: " + loginHierarchyId
+                                )
+                        );
+
+        String loginHierarchyType =
+                loginNode.getHierarchyType() == null
+                        ? ""
+                        : loginNode.getHierarchyType().trim().toUpperCase();
+
+        /*
+         * Default ancestor is the logged-in hierarchy.
+         *
+         * For WLAU, use its parent WL because WLAU works on behalf
+         * of the White Label.
+         */
+        String ancestorHierarchyId = loginHierarchyId;
+
+        if (
+                loginHierarchyType.endsWith("AU")
+                        && loginNode.getParentHierarchyId() != null
+                        && loginNode
+                        .getParentHierarchyId()
+                        .contains("-WL-")
+        ) {
+
+            ancestorHierarchyId =
+                    loginNode.getParentHierarchyId().trim();
+
+            log.info(
+                    "[GROUPED HIERARCHY] WLAU detected. loginHierarchyId={}, parentWL={}",
+                    loginHierarchyId,
+                    ancestorHierarchyId
+            );
+        }
+
+        List<String> descendantIds =
+                new ArrayList<>(
+                        accessHierarchyPathRepository
+                                .findDescendantsByAncestor(
+                                        ancestorHierarchyId
+                                )
+                );
+
+        /*
+         * Remove the logged-in hierarchy itself.
+         *
+         * Example:
+         * When NFT-WL-001 logs in, NFT-WL-001 should not
+         * appear in the result.
+         */
+        descendantIds.removeIf(
+                hierarchyId ->
+                        hierarchyId == null
+                                || hierarchyId.equalsIgnoreCase(loginHierarchyId)
+        );
+
+        /*
+         * For WLAU, also remove the parent WL itself.
+         *
+         * The response should only contain users below the WL.
+         */
+        String finalAncestorHierarchyId = ancestorHierarchyId;
+
+        descendantIds.removeIf(
+                hierarchyId ->
+                        hierarchyId.equalsIgnoreCase(
+                                finalAncestorHierarchyId
+                        )
+        );
+
+        if (descendantIds.isEmpty()) {
+
+            log.info(
+                    "[GROUPED HIERARCHY] No descendants found. loginHierarchyId={}",
+                    loginHierarchyId
+            );
+
+            return new LinkedHashMap<>();
+        }
+
+        List<UserDetails> hierarchyUsers =
+                userDetailsRepository
+                        .findActiveUsersByHierarchyIds(
+                                descendantIds
+                        );
+
+        /*
+         * Hierarchy codes to return.
+         *
+         * Add or remove codes here according to your requirement.
+         */
+        Set<String> allowedHierarchyCodes =
+                Set.of(
+                        "WL",
+                        "SD",
+                        "PT",
+                        "DT",
+                        "RT"
+                );
+
+        /*
+         * LinkedHashMap keeps the hierarchy order.
+         */
+        Map<String, List<String>> groupedResponse =
+                new LinkedHashMap<>();
+
+        List<String> hierarchyOrder =
+                List.of(
+                        "WL",
+                        "SD",
+                        "PT",
+                        "DT",
+                        "RT"
+                );
+
+        Map<String, List<String>> groupedUsers =
+                hierarchyUsers
+                        .stream()
+                        .filter(user ->
+                                user.getHierarchyCode() != null
+                                        && user.getHierarchyId() != null
+                        )
+                        .filter(user ->
+                                allowedHierarchyCodes.contains(
+                                        user.getHierarchyCode()
+                                                .trim()
+                                                .toUpperCase()
+                                )
+                        )
+                        .collect(
+                                Collectors.groupingBy(
+                                        user ->
+                                                user.getHierarchyCode()
+                                                        .trim()
+                                                        .toUpperCase(),
+                                        Collectors.mapping(
+                                                UserDetails::getHierarchyId,
+                                                Collectors.toList()
+                                        )
+                                )
+                        );
+
+        /*
+         * Add only hierarchy groups that contain records.
+         */
+        for (String hierarchyCode : hierarchyOrder) {
+
+            List<String> hierarchyIds =
+                    groupedUsers.get(hierarchyCode);
+
+            if (hierarchyIds != null && !hierarchyIds.isEmpty()) {
+
+                groupedResponse.put(
+                        hierarchyCode,
+                        hierarchyIds
+                                .stream()
+                                .distinct()
+                                .sorted()
+                                .toList()
+                );
+            }
+        }
+
+        log.info(
+                "[GROUPED HIERARCHY] SUCCESS loginHierarchyId={}, " +
+                        "ancestorHierarchyId={}, groups={}, totalUsers={}, timeTaken={}ms",
+                loginHierarchyId,
+                ancestorHierarchyId,
+                groupedResponse.keySet(),
+                hierarchyUsers.size(),
+                System.currentTimeMillis() - startTime
+        );
+
+        return groupedResponse;
+    }
+
+
+    @Transactional(readOnly = true)
+    public List<HierarchyOptionResponse> getHierarchyOptions(
+            String hierarchyCode
+    ) {
+
+        String requestedHierarchyCode =
+                normalizeHierarchyCodeOption(hierarchyCode);
+
+        validateRequestedHierarchyCode(
+                requestedHierarchyCode
+        );
+
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
+
+        if (loginHierarchyId == null
+                || loginHierarchyId.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Login hierarchy ID is missing from token"
+            );
+        }
+
+        loginHierarchyId =
+                loginHierarchyId.trim();
+
+        String loginHierarchyType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        if (loginHierarchyType == null
+                || loginHierarchyType.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Unable to identify hierarchy type for login user: "
+                            + loginHierarchyId
+            );
+        }
+
+        loginHierarchyType =
+                loginHierarchyType.trim().toUpperCase();
+
+        log.info(
+                "Fetching hierarchy options | "
+                        + "loginHierarchyId={} | "
+                        + "loginHierarchyType={} | "
+                        + "requestedHierarchyCode={}",
+                loginHierarchyId,
+                loginHierarchyType,
+                requestedHierarchyCode
+        );
+
+        List<AccessHierarchyNode> hierarchyNodes;
+
+        /*
+         * AD and AU have complete system access.
+         *
+         * Example:
+         * NFT-AD-001 can see all RT users.
+         * AU-AU-006 can also see all RT users.
+         */
+        if (commonMethods.hasFullSystemAccess(loginHierarchyType)) {
+
+            hierarchyNodes =
+                    accessHierarchyNodeRepository
+                            .findAllByHierarchyType(
+                                    requestedHierarchyCode
+                            );
+
+            log.info(
+                    "Full hierarchy option access granted | "
+                            + "loginHierarchyId={} | "
+                            + "requestedHierarchyCode={} | "
+                            + "resultCount={}",
+                    loginHierarchyId,
+                    requestedHierarchyCode,
+                    hierarchyNodes.size()
+            );
+
+        } else {
+
+            /*
+             * For WLAU, this resolves its parent WL.
+             *
+             * NFT-WLAU-001 -> NFT-WL-001
+             * LPS-WLAU-001 -> LPS-WL-001
+             *
+             * Other hierarchy users use their own hierarchy ID.
+             */
+            String effectiveHierarchyId =
+                    resolveEffectiveHierarchyId(
+                            loginHierarchyId,
+                            loginHierarchyType
+                    );
+
+            hierarchyNodes =
+                    accessHierarchyNodeRepository
+                            .findByTypeUnderHierarchy(
+                                    effectiveHierarchyId,
+                                    requestedHierarchyCode
+                            );
+
+            log.info(
+                    "Hierarchy-scoped options fetched | "
+                            + "loginHierarchyId={} | "
+                            + "loginHierarchyType={} | "
+                            + "effectiveHierarchyId={} | "
+                            + "requestedHierarchyCode={} | "
+                            + "resultCount={}",
+                    loginHierarchyId,
+                    loginHierarchyType,
+                    effectiveHierarchyId,
+                    requestedHierarchyCode,
+                    hierarchyNodes.size()
+            );
+        }
+
+        return hierarchyNodes
+                .stream()
+                .map(node ->
+                        HierarchyOptionResponse.builder()
+                                .hierarchyId(
+                                        node.getHierarchyId()
+                                )
+                                .hierarchyCode(
+                                        node.getHierarchyType()
+                                )
+                                .build()
+                )
+                .toList();
+    }
+
+    public String resolveEffectiveHierarchyId(
+            String loginHierarchyId,
+            String loginHierarchyType
+    ) {
+
+        if (loginHierarchyId == null
+                || loginHierarchyId.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Login hierarchy ID is required"
+            );
+        }
+
+        if (loginHierarchyType == null
+                || loginHierarchyType.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Login hierarchy type is required"
+            );
+        }
+
+        final String normalizedLoginHierarchyId =
+                loginHierarchyId.trim();
+
+        final String normalizedLoginType =
+                loginHierarchyType
+                        .trim()
+                        .toUpperCase();
+
+        final String expectedParentType;
+
+        switch (normalizedLoginType) {
+
+            case "AU" -> expectedParentType = "AD";
+
+            case "WLAU" -> expectedParentType = "WL";
+
+            default -> {
+                // AD, WL, SD, PT, DT, RT, ET use their own tree.
+                return normalizedLoginHierarchyId;
+            }
+        }
+
+        AccessHierarchyNode delegatedUserNode =
+                accessHierarchyNodeRepository
+                        .findById(normalizedLoginHierarchyId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Hierarchy node not found: "
+                                                + normalizedLoginHierarchyId
+                                )
+                        );
+
+        if (!normalizedLoginType.equalsIgnoreCase(
+                delegatedUserNode.getHierarchyType()
+        )) {
+
+            throw new IllegalStateException(
+                    "Hierarchy type mismatch. "
+                            + "Hierarchy ID: "
+                            + normalizedLoginHierarchyId
+                            + ", expected type: "
+                            + normalizedLoginType
+                            + ", actual type: "
+                            + delegatedUserNode.getHierarchyType()
+            );
+        }
+
+        String rawParentHierarchyId =
+                delegatedUserNode.getParentHierarchyId();
+
+        if (rawParentHierarchyId == null
+                || rawParentHierarchyId.isBlank()
+                || "-".equals(rawParentHierarchyId.trim())) {
+
+            throw new IllegalStateException(
+                    "Parent hierarchy is not configured for: "
+                            + normalizedLoginHierarchyId
+            );
+        }
+
+        final String parentHierarchyId =
+                rawParentHierarchyId.trim();
+
+        AccessHierarchyNode parentNode =
+                accessHierarchyNodeRepository
+                        .findById(parentHierarchyId)
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "Parent hierarchy node not found. "
+                                                + "Login hierarchy: "
+                                                + normalizedLoginHierarchyId
+                                                + ", parent hierarchy: "
+                                                + parentHierarchyId
+                                )
+                        );
+
+        if (!expectedParentType.equalsIgnoreCase(
+                parentNode.getHierarchyType()
+        )) {
+
+            throw new IllegalStateException(
+                    "Invalid delegated hierarchy relationship. "
+                            + "Login hierarchy: "
+                            + normalizedLoginHierarchyId
+                            + ", login type: "
+                            + normalizedLoginType
+                            + ", parent hierarchy: "
+                            + parentHierarchyId
+                            + ", expected parent type: "
+                            + expectedParentType
+                            + ", actual parent type: "
+                            + parentNode.getHierarchyType()
+            );
+        }
+
+        log.info(
+                "Effective hierarchy resolved | "
+                        + "loginHierarchyId={} | "
+                        + "loginHierarchyType={} | "
+                        + "effectiveHierarchyId={} | "
+                        + "effectiveHierarchyType={}",
+                normalizedLoginHierarchyId,
+                normalizedLoginType,
+                parentHierarchyId,
+                expectedParentType
+        );
+
+        return parentHierarchyId;
+    }
+
+    private String normalizeHierarchyCode(
+            String hierarchyCode
+    ) {
+
+        if (hierarchyCode == null
+                || hierarchyCode.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Hierarchy code is required"
+            );
+        }
+
+        return hierarchyCode
+                .trim()
+                .toUpperCase();
+    }
+
+    private void validateRequestedHierarchyCode(
+            String hierarchyCode
+    ) {
+
+        if (!ALLOWED_HIERARCHY_CODES.contains(
+                hierarchyCode
+        )) {
+
+            throw new IllegalArgumentException(
+                    "Invalid hierarchy code: "
+                            + hierarchyCode
+                            + ". Allowed values are: "
+                            + ALLOWED_HIERARCHY_CODES
+            );
+        }
+    }
+
 }

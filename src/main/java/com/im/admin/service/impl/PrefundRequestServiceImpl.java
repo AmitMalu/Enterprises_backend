@@ -87,6 +87,9 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
     @Autowired
     private FileUrlUtil fileUrlUtil;
 
+    @Autowired
+    private AccessHierarchyNodeRepository accessHierarchyNodeRepository;
+
     @Override
     public CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile, RequestHeaderMetaDto requestHeaderMetaDtoMeta) throws IOException {
 
@@ -182,12 +185,136 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                 "Prefund request submitted successfully : " + dto.getConfirmAmount(), saved);
     }
 
+//    @Override
+//    public Page<PrefundRequestResponseDTO> getAllPrefundRequests(
+//            int page, int size, Long id, String requestedBy,
+//            String mobileNumber, Double depositAmount,
+//            String status, LocalDate depositDate,
+//            LocalDate fromDate, LocalDate toDate,
+//            LocalDate createDateTime,
+//            String bankHolderName,
+//            String bankAccountName,
+//            String bankAccountNumber,
+//            String bankTranId,
+//            String paymentMode,
+//            String narration,
+//            String ipAddress,
+//            LocalDate approveOrRejectDate,
+//            String approveOrRejectTime,
+//            String remarks,
+//            String depositType
+//    ) {
+//
+//        String loginHierarchyId =
+//                tokenUtil.extractHierarchyId();
+//
+//        String loginType =
+//                commonMethods.extractHierarchyType(
+//                        loginHierarchyId);
+//
+//        Pageable pageable = PageRequest.of(
+//                page,
+//                size,
+//                Sort.by(Sort.Direction.DESC, "createDateTime")
+//        );
+//
+//        Specification<PrefundRequest> spec =
+//                PrefundRequestSpecification.getFilter(
+//                        id,
+//                        requestedBy,
+//                        mobileNumber,
+//                        depositAmount,
+//                        status,
+//                        depositDate,
+//                        fromDate,
+//                        toDate,
+//                        createDateTime,
+//                        bankHolderName,
+//                        bankAccountName,
+//                        bankAccountNumber,
+//                        bankTranId,
+//                        paymentMode,
+//                        narration,
+//                        ipAddress,
+//                        approveOrRejectDate,
+//                        approveOrRejectTime,
+//                        remarks,
+//                        depositType
+//                );
+//
+//        if (!"AD".equalsIgnoreCase(loginType)) {
+//
+//            spec = spec.and(
+//                    PrefundRequestSpecification
+//                            .hierarchyScope(
+//                                    loginHierarchyId
+//                            )
+//            );
+//        }
+//
+//        Page<PrefundRequest> pageResult =
+//                repository.findAll(spec, pageable);
+//
+//        return pageResult.map(p ->
+//                PrefundRequestResponseDTO.builder()
+//                        .id(p.getId())
+//                        .requestedBy(p.getRequestedBy())
+//                        .mobileNumber(p.getMobileNumber())
+//                        .depositAmount(p.getDepositAmount())
+//                        .status(p.getStatus())
+//                        .depositDate(p.getDepositDate())
+//                        .createDateTime(p.getCreateDateTime())
+//                        .bankHolderName(p.getBankHolderName())
+//                        .bankAccountName(p.getBankAccountName())
+//                        .bankAccountNumber(p.getBankAccountNumber())
+//                        .bankTranId(p.getBankTranId())
+//                        .narration(p.getNarration())
+//                        .paymentMode(p.getPaymentMode())
+//                        .ipAddress(p.getIpAddress())
+//                        .approveOrRejectDate(
+//                                p.getApproveOrRejectDate())
+//                        .approveOrRejectTime(
+//                                p.getApproveOrRejectTime())
+//                        .remarks(p.getRemarks())
+//                        .depositType(p.getDepositType())
+//                        .depositeImage(fileUrlUtil.getFullUrl(p.getDepositImage()))
+//                        .subProductName(
+//                                p.getSubProducts() != null
+//                                        ? p.getSubProducts()
+//                                        .getSubProductTitle()
+//                                        : null
+//                        )
+//                        .productName(
+//                                p.getSubProducts() != null
+//                                        && p.getSubProducts()
+//                                        .getProduct() != null
+//                                        ? p.getSubProducts()
+//                                        .getProduct()
+//                                        .getName()
+//                                        : null
+//                        )
+//                        .schemeName(
+//                                p.getScheme() != null
+//                                        ? p.getScheme()
+//                                        .getSchemeName()
+//                                        : null
+//                        )
+//                        .build()
+//        );
+//    }
+
     @Override
     public Page<PrefundRequestResponseDTO> getAllPrefundRequests(
-            int page, int size, Long id, String requestedBy,
-            String mobileNumber, Double depositAmount,
-            String status, LocalDate depositDate,
-            LocalDate fromDate, LocalDate toDate,
+            int page,
+            int size,
+            Long id,
+            String requestedBy,
+            String mobileNumber,
+            Double depositAmount,
+            String status,
+            LocalDate depositDate,
+            LocalDate fromDate,
+            LocalDate toDate,
             LocalDate createDateTime,
             String bankHolderName,
             String bankAccountName,
@@ -205,14 +332,47 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         String loginHierarchyId =
                 tokenUtil.extractHierarchyId();
 
+        if (loginHierarchyId == null
+                || loginHierarchyId.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Login hierarchy ID is missing from token"
+            );
+        }
+
+        loginHierarchyId =
+                loginHierarchyId.trim();
+
         String loginType =
                 commonMethods.extractHierarchyType(
-                        loginHierarchyId);
+                        loginHierarchyId
+                );
+
+        if (loginType == null
+                || loginType.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Unable to identify hierarchy type for: "
+                            + loginHierarchyId
+            );
+        }
+
+        loginType = loginType.trim().toUpperCase();
+
+        log.info(
+                "Fetching prefund requests | "
+                        + "loginHierarchyId={} | loginType={}",
+                loginHierarchyId,
+                loginType
+        );
 
         Pageable pageable = PageRequest.of(
                 page,
                 size,
-                Sort.by(Sort.Direction.DESC, "createDateTime")
+                Sort.by(
+                        Sort.Direction.DESC,
+                        "createDateTime"
+                )
         );
 
         Specification<PrefundRequest> spec =
@@ -239,18 +399,90 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                         depositType
                 );
 
-        if (!"AD".equalsIgnoreCase(loginType)) {
+        /*
+         * Access rules
+         *
+         * AD:
+         * Super admin, can see all records.
+         *
+         * AU:
+         * AD's internal user, works with AD authority.
+         * Therefore, AU can also see all records.
+         *
+         * WLAU:
+         * WL's internal user.
+         * It gets the authority of its direct parent WL.
+         *
+         * WL, SD, PT, DT and RT:
+         * Use their own hierarchy ID and see only their subtree.
+         */
+        boolean hasFullSystemAccess =
+                "AD".equalsIgnoreCase(loginType)
+                        || "AU".equalsIgnoreCase(loginType);
+
+        if (hasFullSystemAccess) {
+
+            log.info(
+                    "Full prefund access granted | "
+                            + "loginHierarchyId={} | loginType={}",
+                    loginHierarchyId,
+                    loginType
+            );
+
+            /*
+             * No hierarchy specification is added.
+             *
+             * AD and AU receive all records while normal search
+             * filters are still applied.
+             */
+
+        } else {
+
+            String effectiveHierarchyId =
+                    resolveEffectiveHierarchyId(
+                            loginHierarchyId,
+                            loginType
+                    );
+
+            log.info(
+                    "Applying prefund hierarchy scope | "
+                            + "loginHierarchyId={} | "
+                            + "loginType={} | "
+                            + "effectiveHierarchyId={}",
+                    loginHierarchyId,
+                    loginType,
+                    effectiveHierarchyId
+            );
 
             spec = spec.and(
                     PrefundRequestSpecification
                             .hierarchyScope(
-                                    loginHierarchyId
+                                    effectiveHierarchyId
                             )
             );
         }
 
         Page<PrefundRequest> pageResult =
-                repository.findAll(spec, pageable);
+                repository.findAll(
+                        spec,
+                        pageable
+                );
+
+        log.info(
+                "Prefund requests fetched successfully | "
+                        + "loginHierarchyId={} | "
+                        + "loginType={} | "
+                        + "pageNumber={} | "
+                        + "pageSize={} | "
+                        + "totalElements={} | "
+                        + "totalPages={}",
+                loginHierarchyId,
+                loginType,
+                page,
+                size,
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages()
+        );
 
         return pageResult.map(p ->
                 PrefundRequestResponseDTO.builder()
@@ -268,13 +500,15 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                         .narration(p.getNarration())
                         .paymentMode(p.getPaymentMode())
                         .ipAddress(p.getIpAddress())
-                        .approveOrRejectDate(
-                                p.getApproveOrRejectDate())
-                        .approveOrRejectTime(
-                                p.getApproveOrRejectTime())
+                        .approveOrRejectDate(p.getApproveOrRejectDate())
+                        .approveOrRejectTime(p.getApproveOrRejectTime())
                         .remarks(p.getRemarks())
                         .depositType(p.getDepositType())
-                        .depositeImage(fileUrlUtil.getFullUrl(p.getDepositImage()))
+                        .depositeImage(
+                                fileUrlUtil.getFullUrl(
+                                        p.getDepositImage()
+                                )
+                        )
                         .subProductName(
                                 p.getSubProducts() != null
                                         ? p.getSubProducts()
@@ -570,6 +804,104 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
             case "DT" -> "Fund_Request_DT_Scheme";
             default -> throw new RuntimeException("No scheme defined for hierarchy: " + type);
         };
+    }
+
+    private String resolveEffectiveHierarchyId(
+            String loginHierarchyId,
+            String loginHierarchyType
+    ) {
+
+        /*
+         * Normal hierarchy accounts use their own ID.
+         *
+         * Examples:
+         * WL -> its own complete subtree
+         * SD -> its own complete subtree
+         * PT -> its own complete subtree
+         * DT -> its own complete subtree
+         * RT -> only itself because its depth=0 entry exists
+         */
+        if (!"WLAU".equalsIgnoreCase(loginHierarchyType)) {
+            return loginHierarchyId;
+        }
+
+        /*
+         * WLAU works on behalf of its direct parent WL.
+         *
+         * Example:
+         * NFT-WLAU-001 -> NFT-WL-001
+         */
+        AccessHierarchyNode wlauNode =
+                accessHierarchyNodeRepository
+                        .findById(loginHierarchyId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Hierarchy node not found for WLAU: "
+                                                + loginHierarchyId
+                                )
+                        );
+
+        if (!"WLAU".equalsIgnoreCase(
+                wlauNode.getHierarchyType()
+        )) {
+            throw new IllegalStateException(
+                    "Invalid hierarchy node type. "
+                            + "Hierarchy ID: "
+                            + loginHierarchyId
+                            + ", expected type: WLAU"
+                            + ", actual type: "
+                            + wlauNode.getHierarchyType()
+            );
+        }
+
+        String parentHierarchyId =
+                wlauNode.getParentHierarchyId();
+
+        if (parentHierarchyId == null
+                || parentHierarchyId.isBlank()
+                || "-".equals(parentHierarchyId.trim())) {
+
+            throw new IllegalStateException(
+                    "Parent WL is not configured for WLAU: "
+                            + loginHierarchyId
+            );
+        }
+
+        AccessHierarchyNode parentNode =
+                accessHierarchyNodeRepository
+                        .findById(parentHierarchyId)
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "Parent hierarchy node not found. "
+                                                + "WLAU: "
+                                                + loginHierarchyId
+                                                + ", parent hierarchy: "
+                                                + parentHierarchyId
+                                )
+                        );
+
+        if (!"WL".equalsIgnoreCase(
+                parentNode.getHierarchyType()
+        )) {
+            throw new IllegalStateException(
+                    "WLAU must belong directly to a WL. "
+                            + "WLAU: "
+                            + loginHierarchyId
+                            + ", parent: "
+                            + parentHierarchyId
+                            + ", parent type: "
+                            + parentNode.getHierarchyType()
+            );
+        }
+
+        log.info(
+                "WLAU authority resolved to parent WL | "
+                        + "wlauId={} | parentWlId={}",
+                loginHierarchyId,
+                parentHierarchyId
+        );
+
+        return parentHierarchyId;
     }
 
 }

@@ -214,4 +214,15 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
 
     List<UserDetails> findAllByMobileNumber(String mobileNumber);
 
+    @Query("""
+        SELECT u
+        FROM UserDetails u
+        WHERE u.hierarchyId IN :hierarchyIds
+          AND u.userStatus = 'Active'
+        ORDER BY u.hierarchyCode ASC, u.hierarchyId ASC
+        """)
+    List<UserDetails> findActiveUsersByHierarchyIds(
+            @Param("hierarchyIds") List<String> hierarchyIds
+    );
+
 }
