@@ -60,43 +60,187 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
     @Autowired
     private AccessHierarchyNodeRepository accessHierarchyNodeRepository;
 
+//    @Override
+//    @Transactional
+//    public List<SchemeAllocation> assignOrUpdateSchemes(SchemeAllocationRequestDto request) {
+//        List<SchemeAllocation> result = new ArrayList<>();
+//
+//        for (SchemeAllocationDto dto : request.getCodes()) {
+//            // 1. Find product by subproduct
+//            SubProducts subProduct = subProductsRepository.findBySubProductCode(dto.getSubProductCode())
+//                    .orElseThrow(() -> new ResourceNotFoundException("SubProduct not found: " + dto.getSubProductCode()));
+//
+//            String productCode = subProduct.getProduct().getProductCode();
+//
+//            // 2. Check if record already exists
+//            Optional<SchemeAllocation> existing = schemeAllocationRepository
+//                    .findByHierarchyIdAndProductCodeAndSubProductCode(
+//                            request.getHierarchyId(), productCode, dto.getSubProductCode()
+//                    );
+//
+//            SchemeAllocation allocation;
+//            if (existing.isPresent()) {
+//                // Update
+//                allocation = existing.get();
+//                allocation.setSchemeCode(dto.getSchemeCode());
+//            } else {
+//                // Insert
+//                allocation = new SchemeAllocation();
+//                allocation.setHierarchyId(request.getHierarchyId());
+//                allocation.setProductCode(productCode);
+//                allocation.setSubProductCode(dto.getSubProductCode());
+//                allocation.setSchemeCode(dto.getSchemeCode());
+//            }
+//
+//            result.add(allocation);
+//        }
+//
+//        // Save all at once (JPA handles insert/update automatically)
+//        return schemeAllocationRepository.saveAll(result);
+//    }
+
     @Override
     @Transactional
-    public List<SchemeAllocation> assignOrUpdateSchemes(SchemeAllocationRequestDto request) {
+    public List<SchemeAllocation> assignOrUpdateSchemes(
+            SchemeAllocationRequestDto request
+    ) {
+
+        log.info(
+                "Starting scheme allocation. hierarchyId={}, requestedSubProducts={}",
+                request.getHierarchyId(),
+                request.getCodes() != null ? request.getCodes().size() : 0
+        );
+
+        validateSchemeAllocationRequest(request);
+
+        String targetHierarchyId = request.getHierarchyId().trim();
+
         List<SchemeAllocation> result = new ArrayList<>();
 
         for (SchemeAllocationDto dto : request.getCodes()) {
-            // 1. Find product by subproduct
-            SubProducts subProduct = subProductsRepository.findBySubProductCode(dto.getSubProductCode())
-                    .orElseThrow(() -> new ResourceNotFoundException("SubProduct not found: " + dto.getSubProductCode()));
 
-            String productCode = subProduct.getProduct().getProductCode();
+            if (dto == null) {
+                throw new IllegalArgumentException(
+                        "Scheme allocation details cannot be null."
+                );
+            }
 
-            // 2. Check if record already exists
-            Optional<SchemeAllocation> existing = schemeAllocationRepository
-                    .findByHierarchyIdAndProductCodeAndSubProductCode(
-                            request.getHierarchyId(), productCode, dto.getSubProductCode()
+            String subProductCode = normalizeRequiredValue(
+                    dto.getSubProductCode(),
+                    "Subproduct code is required."
+            );
+
+            String schemeCode = normalizeRequiredValue(
+                    dto.getSchemeCode(),
+                    "Scheme code is required for subproduct: " + subProductCode
+            );
+
+            log.info(
+                    "Processing scheme allocation. hierarchyId={}, " +
+                            "subProductCode={}, schemeCode={}",
+                    targetHierarchyId,
+                    subProductCode,
+                    schemeCode
+            );
+
+            /*
+             * Step 1: Find the subproduct.
+             */
+            SubProducts subProduct = subProductsRepository
+                    .findBySubProductCode(subProductCode)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "SubProduct not found: " + subProductCode
+                            )
                     );
 
+            /*
+             * Step 2: Validate whether the target hierarchy belongs to the
+             * White Label currently assigned to this subproduct.
+             */
+            validateHierarchyCanReceiveSubProduct(
+                    targetHierarchyId,
+                    subProduct
+            );
+
+            /*
+             * Step 3: Get product code from subproduct.
+             */
+            if (subProduct.getProduct() == null
+                    || subProduct.getProduct().getProductCode() == null
+                    || subProduct.getProduct().getProductCode().isBlank()) {
+
+                throw new IllegalStateException(
+                        "Product configuration is missing for subproduct: "
+                                + subProductCode
+                );
+            }
+
+            String productCode =
+                    subProduct.getProduct().getProductCode().trim();
+
+            /*
+             * Step 4: Find existing scheme allocation.
+             */
+            Optional<SchemeAllocation> existing =
+                    schemeAllocationRepository
+                            .findByHierarchyIdAndProductCodeAndSubProductCode(
+                                    targetHierarchyId,
+                                    productCode,
+                                    subProductCode
+                            );
+
             SchemeAllocation allocation;
+
             if (existing.isPresent()) {
-                // Update
+
                 allocation = existing.get();
-                allocation.setSchemeCode(dto.getSchemeCode());
+
+                log.info(
+                        "Existing scheme allocation found. Updating scheme. " +
+                                "allocationId={}, hierarchyId={}, " +
+                                "subProductCode={}, oldSchemeCode={}, newSchemeCode={}",
+                        allocation.getId(),
+                        targetHierarchyId,
+                        subProductCode,
+                        allocation.getSchemeCode(),
+                        schemeCode
+                );
+
+                allocation.setSchemeCode(schemeCode);
+
             } else {
-                // Insert
+
+                log.info(
+                        "Creating new scheme allocation. hierarchyId={}, " +
+                                "productCode={}, subProductCode={}, schemeCode={}",
+                        targetHierarchyId,
+                        productCode,
+                        subProductCode,
+                        schemeCode
+                );
+
                 allocation = new SchemeAllocation();
-                allocation.setHierarchyId(request.getHierarchyId());
+                allocation.setHierarchyId(targetHierarchyId);
                 allocation.setProductCode(productCode);
-                allocation.setSubProductCode(dto.getSubProductCode());
-                allocation.setSchemeCode(dto.getSchemeCode());
+                allocation.setSubProductCode(subProductCode);
+                allocation.setSchemeCode(schemeCode);
             }
 
             result.add(allocation);
         }
 
-        // Save all at once (JPA handles insert/update automatically)
-        return schemeAllocationRepository.saveAll(result);
+        List<SchemeAllocation> savedAllocations =
+                schemeAllocationRepository.saveAll(result);
+
+        log.info(
+                "Scheme allocation completed successfully. hierarchyId={}, " +
+                        "savedRecords={}",
+                targetHierarchyId,
+                savedAllocations.size()
+        );
+
+        return savedAllocations;
     }
 
     @Override
@@ -392,244 +536,626 @@ public class SchemeAllocationServiceImpl implements SchemeAllocationService {
         log.error("[RETAILER ALLOCATION] ERROR - {}", message, ex);
     }
 
+//    @Override
+//    public Page<UserSearchResponseDto> searchActiveRetailers(
+//            String mobileNumber,
+//            String hierarchyId,
+//            String hierarchyCode,
+//            String createdDate,
+//            String lastLoginDate,
+//            String emailId,
+//            Pageable pageable,
+//            String keyword
+//    ) {
+//
+//        long start = System.currentTimeMillis();
+//
+//        try {
+//
+//            String loginHierarchy = tokenUtil.extractHierarchyId();
+//
+//            log.info("[SEARCH RETAILER] START login={} keyword={}",loginHierarchy,keyword);
+//
+//            AccessHierarchyNode loginNode =
+//                    accessHierarchyNodeRepository
+//                            .findById(loginHierarchy)
+//                            .orElseThrow(() ->
+//                                    new RuntimeException(
+//                                            "Hierarchy not found : "
+//                                                    + loginHierarchy
+//                                    )
+//                            );
+//
+//            String type = loginNode.getHierarchyType();
+//
+//            List<String> accessibleIds = null;
+//
+//            /*
+//             * AD
+//             * full access
+//             */
+//            if ("AD".equalsIgnoreCase(type)) {
+//
+//                log.info("[SEARCH RETAILER] FULL ACCESS");
+//            }
+//
+//            /*
+//             * WLAU
+//             * use parent WL
+//             */
+//            else if (
+//                    type.endsWith("AU")
+//                            &&
+//                            loginNode.getParentHierarchyId() != null
+//                            &&
+//                            loginNode
+//                                    .getParentHierarchyId()
+//                                    .contains("-WL-")
+//            ) {
+//
+//                String parent = loginNode.getParentHierarchyId();
+//
+//                accessibleIds =
+//                        accessHierarchyPathRepository
+//                                .findDescendantsByAncestor(
+//                                        parent
+//                                );
+//
+//                accessibleIds.add(parent);
+//
+//                log.info("[SEARCH RETAILER] WLAU ACCESS parent={} total={}",parent,accessibleIds.size());
+//            }
+//
+//            /*
+//             * ALL OTHER USERS
+//             */
+//            else {
+//
+//                accessibleIds =
+//                        accessHierarchyPathRepository
+//                                .findDescendantsByAncestor(
+//                                        loginHierarchy
+//                                );
+//
+//                accessibleIds.add(loginHierarchy);
+//
+//                log.info("[SEARCH RETAILER] ACCESS ids={}",accessibleIds.size());
+//            }
+//
+//            if (
+//                    accessibleIds != null && accessibleIds.isEmpty()
+//            ) {
+//
+//                log.warn("[SEARCH RETAILER] NO ACCESS");
+//
+//                return Page.empty(pageable);
+//            }
+//
+//            Page<UserDetails> page =
+//
+//                    userDetailsRepository
+//                            .searchActiveRetailers(
+//                                    keyword,
+//                                    accessibleIds,
+//                                    pageable
+//                            );
+//
+//            List<UserSearchResponseDto> filtered =
+//
+//                    page.getContent()
+//
+//                            .stream()
+//
+//                            .map(u -> {
+//
+//                                UserSearchResponseDto dto =
+//                                        new UserSearchResponseDto();
+//
+//                                dto.setMobileNumber(
+//                                        u.getMobileNumber()
+//                                );
+//
+//                                dto.setHierarchyId(
+//                                        u.getHierarchyId()
+//                                );
+//
+//                                dto.setHierarchyCode(
+//                                        u.getHierarchyCode()
+//                                );
+//
+//                                dto.setCreatedDate(
+//                                        u.getCreatedDate()
+//                                );
+//
+//                                dto.setLastLoginDate(
+//                                        u.getLastLoginDate()
+//                                );
+//
+//                                dto.setEmailId(
+//                                        u.getEmailId()
+//                                );
+//
+//                                return dto;
+//
+//                            })
+//
+//                            .filter(dto ->
+//                                    mobileNumber == null
+//                                            || mobileNumber.isBlank()
+//                                            || dto.getMobileNumber()
+//                                            .toLowerCase()
+//                                            .contains(
+//                                                    mobileNumber.toLowerCase()
+//                                            )
+//                            )
+//
+//                            .filter(dto ->
+//                                    hierarchyId == null
+//                                            || hierarchyId.isBlank()
+//                                            || dto.getHierarchyId()
+//                                            .toLowerCase()
+//                                            .contains(
+//                                                    hierarchyId.toLowerCase()
+//                                            )
+//                            )
+//
+//                            .filter(dto ->
+//                                    hierarchyCode == null
+//                                            || hierarchyCode.isBlank()
+//                                            || dto.getHierarchyCode()
+//                                            .toLowerCase()
+//                                            .contains(
+//                                                    hierarchyCode.toLowerCase()
+//                                            )
+//                            )
+//
+//                            .filter(dto ->
+//                                    createdDate == null
+//                                            || createdDate.isBlank()
+//                                            || dto.getCreatedDate()
+//                                            .toString()
+//                                            .contains(
+//                                                    createdDate
+//                                            )
+//                            )
+//
+//                            .filter(dto ->
+//                                    lastLoginDate == null
+//                                            || lastLoginDate.isBlank()
+//                                            || (
+//                                            dto.getLastLoginDate()
+//                                                    != null
+//                                                    &&
+//                                                    dto.getLastLoginDate()
+//                                                            .toString()
+//                                                            .contains(
+//                                                                    lastLoginDate
+//                                                            )
+//                                    )
+//                            )
+//
+//                            .filter(dto ->
+//                                    emailId == null
+//                                            || emailId.isBlank()
+//                                            || (
+//                                            dto.getEmailId()
+//                                                    != null
+//                                                    &&
+//                                                    dto.getEmailId()
+//                                                            .toLowerCase()
+//                                                            .contains(
+//                                                                    emailId.toLowerCase()
+//                                                            )
+//                                    )
+//                            )
+//
+//                            .toList();
+//
+//            log.info(
+//                    "[SEARCH RETAILER] SUCCESS total={} time={}ms",
+//                    filtered.size(),
+//                    System.currentTimeMillis() - start
+//            );
+//
+//            return new PageImpl<>(
+//
+//                    filtered,
+//
+//                    pageable,
+//
+//                    page.getTotalElements()
+//            );
+//
+//        }
+//
+//        catch (Exception ex) {
+//
+//            log.error("[SEARCH RETAILER] ERROR",ex);
+//
+//            throw new RuntimeException("Failed to search retailers",ex);
+//        }
+//    }
+
     @Override
-    public Page<UserSearchResponseDto> searchActiveRetailers(
+    @Transactional(readOnly = true)
+    public Page<UserSearchResponseDto> searchActiveHierarchies(
+
             String mobileNumber,
+
             String hierarchyId,
+
             String hierarchyCode,
+
             String createdDate,
+
             String lastLoginDate,
+
             String emailId,
-            Pageable pageable,
-            String keyword
+
+            String keyword,
+
+            Pageable pageable
     ) {
 
-        long start = System.currentTimeMillis();
+        long startTime = System.currentTimeMillis();
 
         try {
 
-            String loginHierarchy = tokenUtil.extractHierarchyId();
+            String loginHierarchyId = tokenUtil.extractHierarchyId();
 
-            log.info("[SEARCH RETAILER] START login={} keyword={}",loginHierarchy,keyword);
+            log.info(
+                    "[ACTIVE HIERARCHY SEARCH] START. loginHierarchyId={}, " +
+                            "keyword={}, hierarchyCode={}, page={}, size={}",
+                    loginHierarchyId,
+                    keyword,
+                    hierarchyCode,
+                    pageable.getPageNumber(),
+                    pageable.getPageSize()
+            );
 
             AccessHierarchyNode loginNode =
                     accessHierarchyNodeRepository
-                            .findById(loginHierarchy)
+                            .findById(loginHierarchyId)
                             .orElseThrow(() ->
                                     new RuntimeException(
-                                            "Hierarchy not found : "
-                                                    + loginHierarchy
+                                            "Hierarchy not found: "
+                                                    + loginHierarchyId
                                     )
                             );
 
-            String type = loginNode.getHierarchyType();
-
-            List<String> accessibleIds = null;
-
-            /*
-             * AD
-             * full access
-             */
-            if ("AD".equalsIgnoreCase(type)) {
-
-                log.info("[SEARCH RETAILER] FULL ACCESS");
-            }
+            String loginHierarchyType =
+                    normalizeValue(loginNode.getHierarchyType());
 
             /*
-             * WLAU
-             * use parent WL
+             * Only these hierarchy types should appear
+             * on the Scheme Allocation screen.
              */
-            else if (
-                    type.endsWith("AU")
-                            &&
-                            loginNode.getParentHierarchyId() != null
-                            &&
-                            loginNode
-                                    .getParentHierarchyId()
-                                    .contains("-WL-")
+            List<String> allowedHierarchyCodes =
+                    List.of(
+                            "WL",
+                            "SD",
+                            "PT",
+                            "DT",
+                            "RT"
+                    );
+
+            boolean fullAccess =
+                    "AD".equalsIgnoreCase(loginHierarchyType);
+
+            List<String> accessibleIds;
+
+            if (fullAccess) {
+
+                accessibleIds = List.of("__FULL_ACCESS__");
+
+                log.info(
+                        "[ACTIVE HIERARCHY SEARCH] Admin full access enabled."
+                );
+
+            } else if (
+                    loginHierarchyType != null
+                            && loginHierarchyType.endsWith("AU")
+                            && loginNode.getParentHierarchyId() != null
+                            && loginNode
+                            .getParentHierarchyId()
+                            .contains("-WL-")
             ) {
 
-                String parent = loginNode.getParentHierarchyId();
+                String parentWhiteLabelId =
+                        loginNode.getParentHierarchyId().trim();
 
-                accessibleIds =
+                accessibleIds = new ArrayList<>(
                         accessHierarchyPathRepository
                                 .findDescendantsByAncestor(
-                                        parent
-                                );
+                                        parentWhiteLabelId
+                                )
+                );
 
-                accessibleIds.add(parent);
+                /*
+                 * Hide the logged-in WLAU.
+                 * Keep parent WL and its descendants.
+                 */
+                accessibleIds.removeIf(
+                        id -> id.equalsIgnoreCase(loginHierarchyId)
+                );
 
-                log.info("[SEARCH RETAILER] WLAU ACCESS parent={} total={}",parent,accessibleIds.size());
-            }
+                log.info(
+                        "[ACTIVE HIERARCHY SEARCH] WLAU access enabled. " +
+                                "loginHierarchyId={}, parentWhiteLabelId={}, accessibleCount={}",
+                        loginHierarchyId,
+                        parentWhiteLabelId,
+                        accessibleIds.size()
+                );
 
-            /*
-             * ALL OTHER USERS
-             */
-            else {
+            } else {
 
-                accessibleIds =
+                accessibleIds = new ArrayList<>(
                         accessHierarchyPathRepository
                                 .findDescendantsByAncestor(
-                                        loginHierarchy
-                                );
+                                        loginHierarchyId
+                                )
+                );
 
-                accessibleIds.add(loginHierarchy);
+                /*
+                 * Hide the currently logged-in hierarchy.
+                 */
+                accessibleIds.removeIf(
+                        id -> id.equalsIgnoreCase(loginHierarchyId)
+                );
 
-                log.info("[SEARCH RETAILER] ACCESS ids={}",accessibleIds.size());
+                log.info(
+                        "[ACTIVE HIERARCHY SEARCH] Restricted access enabled. " +
+                                "loginHierarchyId={}, accessibleCount={}",
+                        loginHierarchyId,
+                        accessibleIds.size()
+                );
             }
 
-            if (
-                    accessibleIds != null && accessibleIds.isEmpty()
-            ) {
+//            if (!fullAccess && accessibleIds.isEmpty()) {
+//
+//                log.warn(
+//                        "[ACTIVE HIERARCHY SEARCH] No accessible hierarchy found. " +
+//                                "loginHierarchyId={}",
+//                        loginHierarchyId
+//                );
+//
+//                return Page.empty(pageable);
+//            }
 
-                log.warn("[SEARCH RETAILER] NO ACCESS");
-
-                return Page.empty(pageable);
-            }
-
-            Page<UserDetails> page =
-
+            Page<UserDetails> userPage =
                     userDetailsRepository
-                            .searchActiveRetailers(
-                                    keyword,
+                            .searchActiveHierarchies(
+                                    allowedHierarchyCodes,
+                                    fullAccess,
                                     accessibleIds,
+                                    normalizeValue(keyword),
+                                    normalizeValue(mobileNumber),
+                                    normalizeValue(hierarchyId),
+                                    normalizeValue(hierarchyCode),
+                                    normalizeValue(createdDate),
+                                    normalizeValue(lastLoginDate),
+                                    normalizeValue(emailId),
                                     pageable
                             );
 
-            List<UserSearchResponseDto> filtered =
-
-                    page.getContent()
-
-                            .stream()
-
-                            .map(u -> {
-
-                                UserSearchResponseDto dto =
-                                        new UserSearchResponseDto();
-
-                                dto.setMobileNumber(
-                                        u.getMobileNumber()
-                                );
-
-                                dto.setHierarchyId(
-                                        u.getHierarchyId()
-                                );
-
-                                dto.setHierarchyCode(
-                                        u.getHierarchyCode()
-                                );
-
-                                dto.setCreatedDate(
-                                        u.getCreatedDate()
-                                );
-
-                                dto.setLastLoginDate(
-                                        u.getLastLoginDate()
-                                );
-
-                                dto.setEmailId(
-                                        u.getEmailId()
-                                );
-
-                                return dto;
-
-                            })
-
-                            .filter(dto ->
-                                    mobileNumber == null
-                                            || mobileNumber.isBlank()
-                                            || dto.getMobileNumber()
-                                            .toLowerCase()
-                                            .contains(
-                                                    mobileNumber.toLowerCase()
-                                            )
-                            )
-
-                            .filter(dto ->
-                                    hierarchyId == null
-                                            || hierarchyId.isBlank()
-                                            || dto.getHierarchyId()
-                                            .toLowerCase()
-                                            .contains(
-                                                    hierarchyId.toLowerCase()
-                                            )
-                            )
-
-                            .filter(dto ->
-                                    hierarchyCode == null
-                                            || hierarchyCode.isBlank()
-                                            || dto.getHierarchyCode()
-                                            .toLowerCase()
-                                            .contains(
-                                                    hierarchyCode.toLowerCase()
-                                            )
-                            )
-
-                            .filter(dto ->
-                                    createdDate == null
-                                            || createdDate.isBlank()
-                                            || dto.getCreatedDate()
-                                            .toString()
-                                            .contains(
-                                                    createdDate
-                                            )
-                            )
-
-                            .filter(dto ->
-                                    lastLoginDate == null
-                                            || lastLoginDate.isBlank()
-                                            || (
-                                            dto.getLastLoginDate()
-                                                    != null
-                                                    &&
-                                                    dto.getLastLoginDate()
-                                                            .toString()
-                                                            .contains(
-                                                                    lastLoginDate
-                                                            )
-                                    )
-                            )
-
-                            .filter(dto ->
-                                    emailId == null
-                                            || emailId.isBlank()
-                                            || (
-                                            dto.getEmailId()
-                                                    != null
-                                                    &&
-                                                    dto.getEmailId()
-                                                            .toLowerCase()
-                                                            .contains(
-                                                                    emailId.toLowerCase()
-                                                            )
-                                    )
-                            )
-
-                            .toList();
+            Page<UserSearchResponseDto> responsePage =
+                    userPage.map(this::mapToUserSearchResponseDto);
 
             log.info(
-                    "[SEARCH RETAILER] SUCCESS total={} time={}ms",
-                    filtered.size(),
-                    System.currentTimeMillis() - start
+                    "[ACTIVE HIERARCHY SEARCH] SUCCESS. " +
+                            "loginHierarchyId={}, currentPageRecords={}, " +
+                            "totalRecords={}, totalPages={}, timeTaken={}ms",
+                    loginHierarchyId,
+                    responsePage.getNumberOfElements(),
+                    responsePage.getTotalElements(),
+                    responsePage.getTotalPages(),
+                    System.currentTimeMillis() - startTime
             );
 
-            return new PageImpl<>(
+            return responsePage;
 
-                    filtered,
+        } catch (Exception ex) {
 
-                    pageable,
-
-                    page.getTotalElements()
+            log.error(
+                    "[ACTIVE HIERARCHY SEARCH] ERROR. message={}",
+                    ex.getMessage(),
+                    ex
             );
 
+            throw new RuntimeException(
+                    "Failed to search active hierarchy users: "
+                            + ex.getMessage(),
+                    ex
+            );
+        }
+    }
+
+    private void validateSchemeAllocationRequest(
+            SchemeAllocationRequestDto request
+    ) {
+
+        if (request == null) {
+            throw new IllegalArgumentException(
+                    "Scheme allocation request cannot be null."
+            );
         }
 
-        catch (Exception ex) {
+        if (request.getHierarchyId() == null
+                || request.getHierarchyId().isBlank()) {
 
-            log.error("[SEARCH RETAILER] ERROR",ex);
-
-            throw new RuntimeException("Failed to search retailers",ex);
+            throw new IllegalArgumentException(
+                    "Hierarchy ID is required."
+            );
         }
+
+        if (request.getCodes() == null
+                || request.getCodes().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "At least one subproduct and scheme must be provided."
+            );
+        }
+    }
+
+    private String normalizeRequiredValue(
+            String value,
+            String errorMessage
+    ) {
+
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(errorMessage);
+        }
+
+        return value.trim();
+    }
+
+    private String normalizeWhiteLabelId(String whiteLabelId) {
+
+        if (whiteLabelId == null) {
+            return null;
+        }
+
+        String normalized = whiteLabelId.trim();
+
+        if (normalized.isEmpty()
+                || "-".equals(normalized)
+                || "null".equalsIgnoreCase(normalized)) {
+
+            return null;
+        }
+
+        return normalized;
+    }
+
+
+    private void validateHierarchyCanReceiveSubProduct(
+            String targetHierarchyId,
+            SubProducts subProduct
+    ) {
+
+        String subProductCode = subProduct.getSubProductCode();
+
+        /*
+         * When the subproduct is White Label controlled,
+         * it must have a valid assigned White Label.
+         */
+        if (!Boolean.TRUE.equals(subProduct.getIsWhiteLabelAdmin())) {
+
+            log.debug(
+                    "Subproduct is not restricted by White Label. " +
+                            "Skipping hierarchy validation. subProductCode={}",
+                    subProductCode
+            );
+
+            return;
+        }
+
+        String assignedWhiteLabelId =
+                normalizeWhiteLabelId(subProduct.getWhiteLabelAdminId());
+
+        if (assignedWhiteLabelId == null) {
+
+            log.error(
+                    "Subproduct has White Label restriction enabled, " +
+                            "but White Label ID is missing. subProductCode={}",
+                    subProductCode
+            );
+
+            throw new IllegalStateException(
+                    "Subproduct " + subProductCode
+                            + " has no valid White Label assigned."
+            );
+        }
+
+        /*
+         * Verify that:
+         *
+         * assignedWhiteLabelId is ancestor
+         * targetHierarchyId is descendant
+         */
+        long hierarchyPathCount =
+                accessHierarchyPathRepository
+                        .countHierarchyUnderWhiteLabel(
+                                assignedWhiteLabelId,
+                                targetHierarchyId
+                        );
+
+        if (hierarchyPathCount <= 0) {
+
+            log.warn(
+                    "Scheme allocation rejected. Target hierarchy does not " +
+                            "belong to the White Label assigned to the subproduct. " +
+                            "hierarchyId={}, subProductCode={}, assignedWhiteLabelId={}",
+                    targetHierarchyId,
+                    subProductCode,
+                    assignedWhiteLabelId
+            );
+
+            throw new IllegalArgumentException(
+                    "Cannot assign subproduct "
+                            + subProductCode
+                            + " to hierarchy "
+                            + targetHierarchyId
+                            + ". This subproduct belongs to White Label "
+                            + assignedWhiteLabelId
+                            + ", but the selected hierarchy is not under that White Label."
+            );
+        }
+
+        log.info(
+                "White Label hierarchy validation successful. " +
+                        "hierarchyId={}, subProductCode={}, assignedWhiteLabelId={}",
+                targetHierarchyId,
+                subProductCode,
+                assignedWhiteLabelId
+        );
+    }
+
+    private String normalizeValue(String value) {
+
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value.trim();
+
+        return normalized.isEmpty()
+                ? null
+                : normalized;
+    }
+
+    private UserSearchResponseDto mapToUserSearchResponseDto(
+            UserDetails user
+    ) {
+
+        UserSearchResponseDto dto =
+                new UserSearchResponseDto();
+
+        dto.setMobileNumber(
+                user.getMobileNumber()
+        );
+
+        dto.setHierarchyId(
+                user.getHierarchyId()
+        );
+
+        dto.setHierarchyCode(
+                user.getHierarchyCode()
+        );
+
+        dto.setCreatedDate(
+                user.getCreatedDate()
+        );
+
+        dto.setLastLoginDate(
+                user.getLastLoginDate()
+        );
+
+        dto.setEmailId(
+                user.getEmailId()
+        );
+
+        return dto;
     }
 
 
