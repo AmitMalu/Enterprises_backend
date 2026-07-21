@@ -269,6 +269,42 @@ public class RetailerServiceImpl implements RetailerService {
         if (retailer.getAddress() != null) existingRetailer.setAddress(retailer.getAddress());
         if (retailer.getOutletAddress() != null) existingRetailer.setOutletAddress(retailer.getOutletAddress());
 
+        if (retailer.getShopNumber() != null)
+            existingRetailer.setShopNumber(existingRetailer.getShopNumber());
+
+        if (retailer.getAadhaarNumber() != null)
+            existingRetailer.setAadhaarNumber(existingRetailer.getAadhaarNumber());
+
+        if (retailer.getPanNumber() != null)
+            existingRetailer.setPanNumber(existingRetailer.getPanNumber());
+
+        if (retailer.getBusinessNumber() != null)
+            existingRetailer.setBusinessNumber(existingRetailer.getBusinessNumber());
+
+        if (retailer.getBankDetails() != null &&
+                existingRetailer.getBankDetails() != null) {
+
+            BanksDetails existingBank = existingRetailer.getBankDetails();
+            BanksDetails requestBank = retailer.getBankDetails();
+
+            if (requestBank.getBankName() != null) {
+                existingBank.setBankName(requestBank.getBankName());
+            }
+
+            if (requestBank.getBankHolderName() != null) {
+                existingBank.setBankHolderName(requestBank.getBankHolderName());
+            }
+
+            if (requestBank.getBankAccountNumber() != null) {
+                existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
+            }
+
+            if (requestBank.getIfscCode() != null) {
+                existingBank.setIfscCode(requestBank.getIfscCode());
+            }
+        }
+
+
         // Optional image updates
         String folder = "Retailer";
 

@@ -387,6 +387,9 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
             if (superDistributor.getAadhaarNumber() != null)
                 existingSuperDistributor.setAadhaarNumber(superDistributor.getAadhaarNumber());
 
+            if (superDistributor.getBusinessNumber() != null)
+                existingSuperDistributor.setBusinessNumber(superDistributor.getBusinessNumber());
+
             if (superDistributor.getPanNumber() != null)
                 existingSuperDistributor.setPanNumber(superDistributor.getPanNumber());
 

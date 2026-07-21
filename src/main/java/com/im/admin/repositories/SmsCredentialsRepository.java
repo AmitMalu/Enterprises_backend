@@ -22,6 +22,11 @@ public interface SmsCredentialsRepository extends JpaRepository<SmsCredentialsMa
 
     boolean existsByWhitelabelIdAndType(String whitelabelId, String type);
 
+    Optional<SmsCredentialsMaster> findByWhitelabelIdAndType(
+            String whitelabelId,
+            String type
+    );
+
 
 
 }
