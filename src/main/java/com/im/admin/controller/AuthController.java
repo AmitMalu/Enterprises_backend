@@ -1240,6 +1240,277 @@ public class AuthController {
                 responseMap.put("role", "WLAU");
                 break;
 
+            case "SD":
+
+                responseMap.put("role_id", user.getRole_id());
+
+                ImSubRole sdSubRole =
+                        imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+
+                if (sdSubRole != null) {
+                    responseMap.put("sub_role_id", sdSubRole.getSubRoleId());
+                }
+                // Build product / subProduct list
+
+                List<SchemeAllocation> sdSchemeAllocationList =
+                        schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
+
+                // Fetch ALL products
+                List<Products> sdAllProducts = productsRepository.findAll();
+
+                Map<String, List<Map<String, Object>>> sdProductSubMap =
+                        new LinkedHashMap<>();
+
+                Map<String, Products> sdProductIdToEntity =
+                        new HashMap<>();
+
+                // Initialize all products first
+                // So products without subProducts will also appear
+                for (Products product : sdAllProducts) {
+
+                    String productId = String.valueOf(product.getId());
+
+                    sdProductSubMap.putIfAbsent(
+                            productId,
+                            new ArrayList<>()
+                    );
+
+                    sdProductIdToEntity.put(
+                            productId,
+                            product
+                    );
+                }
+
+                // Process scheme allocations
+                for (SchemeAllocation sa : sdSchemeAllocationList) {
+
+                    if (sa.getSchemeCode() == null ||
+                            sa.getSchemeCode().equalsIgnoreCase("No scheme assigned")) {
+
+                        continue;
+                    }
+
+                    // Check scheme exists
+                    boolean schemeExists =
+                            schemeRepository.existsBySchemeCode(
+                                    sa.getSchemeCode()
+                            );
+
+                    if (!schemeExists) {
+
+                        log.warn(
+                                "Skipping allocation because schemeCode {} does not exist in scheme table",
+                                sa.getSchemeCode()
+                        );
+
+                        continue;
+                    }
+
+                    // Find sub-product
+                    Optional<SubProducts> subProductOpt =
+                            subProductsRepository
+                                    .findBySubProductCodeAndIsVisibleTrue(
+                                            sa.getSubProductCode()
+                                    );
+
+                    if (subProductOpt.isEmpty()) {
+
+                        log.warn(
+                                "Skipping scheme due to missing subProductCode={}",
+                                sa.getSubProductCode()
+                        );
+
+                        continue;
+                    }
+
+                    SubProducts subProductEntity =
+                            subProductOpt.get();
+
+                    // Find product
+                    Products productEntity =
+                            sdAllProducts.stream()
+                                    .filter(p ->
+                                            p.getProductCode()
+                                                    .equals(sa.getProductCode())
+                                    )
+                                    .findFirst()
+                                    .orElse(null);
+
+                    if (productEntity == null) {
+                        continue;
+                    }
+
+                    // Fetch transaction limits
+                    Optional<ProductTransactionLimit> limitOpt =
+                            productTransactionLimitRepository
+                                    .findByProductAndSubProduct(
+                                            productEntity,
+                                            subProductEntity
+                                    );
+
+                    BigDecimal maxAmount = null;
+                    String perDayLimit = null;
+                    String monthlyLimit = null;
+
+                    if (limitOpt.isPresent()) {
+
+                        ProductTransactionLimit limit =
+                                limitOpt.get();
+
+                        maxAmount = limit.getMaxAmount();
+                        perDayLimit =
+                                limit.getPerDayTransactionLimit();
+
+                        monthlyLimit =
+                                limit.getMonthlyTransactionLimit();
+                    }
+
+                    String productId =
+                            String.valueOf(productEntity.getId());
+
+                    String subProductId =
+                            String.valueOf(subProductEntity.getId());
+
+                    String subProductName =
+                            subProductEntity.getSubProductTitle();
+
+                    // Fetch vendor routing
+                    VendorRouting routing =
+                            vendorRoutingRepository
+                                    .findBySubProduct(subProductEntity);
+
+                    String vendorName = "N/A";
+
+                    if (routing != null &&
+                            routing.getRoutingPriority1() != null) {
+
+                        vendorName =
+                                routing.getRoutingPriority1()
+                                        .getVendorName();
+                    }
+
+                    Map<String, Object> subProductMap =
+                            new HashMap<>();
+
+                    subProductMap.put(
+                            "subProductId",
+                            subProductId
+                    );
+
+                    subProductMap.put(
+                            "subProductName",
+                            subProductName
+                    );
+
+                    subProductMap.put(
+                            "schemeCode",
+                            sa.getSchemeCode()
+                    );
+
+                    subProductMap.put(
+                            "vendorName",
+                            vendorName
+                    );
+
+                    // Sub-product flags
+                    subProductMap.put(
+                            "active",
+                            subProductEntity.getIsActive()
+                    );
+
+                    subProductMap.put(
+                            "blocked",
+                            subProductEntity.getIsBlocked()
+                    );
+
+                    subProductMap.put(
+                            "isVisible",
+                            subProductEntity.getIsVisible()
+                    );
+
+                    // Transaction limits
+                    subProductMap.put(
+                            "maxAmount",
+                            maxAmount
+                    );
+
+                    subProductMap.put(
+                            "perDayTransactionLimit",
+                            perDayLimit
+                    );
+
+                    subProductMap.put(
+                            "monthlyTransactionLimit",
+                            monthlyLimit
+                    );
+
+                    sdProductSubMap
+                            .get(productId)
+                            .add(subProductMap);
+                }
+
+                // Build final product list
+                List<Map<String, Object>> sdProductList =
+                        new ArrayList<>();
+
+                for (
+                        Map.Entry<String, List<Map<String, Object>>> entry
+                        : sdProductSubMap.entrySet()
+                ) {
+
+                    Products productEntity =
+                            sdProductIdToEntity.get(
+                                    entry.getKey()
+                            );
+
+                    Map<String, Object> product =
+                            new HashMap<>();
+
+                    product.put(
+                            "productId",
+                            entry.getKey()
+                    );
+
+                    product.put(
+                            "productName",
+                            productEntity.getName()
+                    );
+
+                    product.put(
+                            "active",
+                            productEntity.getActive()
+                    );
+
+                    product.put(
+                            "blocked",
+                            productEntity.getBlocked()
+                    );
+
+                    product.put(
+                            "isVisible",
+                            productEntity.getIsVisible()
+                    );
+
+                    product.put(
+                            "subProducts",
+                            entry.getValue()
+                    );
+
+                    sdProductList.add(product);
+                }
+
+                responseMap.put(
+                        "products",
+                        sdProductList
+                );
+
+                responseMap.put(
+                        "role",
+                        hierarchyCode
+                );
+
+                break;
+
             case "RT":
                 responseMap.put("role_id", user.getRole_id());
 
@@ -1395,8 +1666,7 @@ public class AuthController {
                 break;
 
             case "RU":
-                responseMap.put("role_id", user.getRole_id());
-                ImSubRole ruSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+                responseMap.put("role_id", user.getRole_id());                ImSubRole ruSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
                 if (ruSubRole != null) {
                     responseMap.put("sub_role_id", ruSubRole.getSubRoleId());
                 }

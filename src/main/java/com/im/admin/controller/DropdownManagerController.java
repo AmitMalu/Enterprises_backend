@@ -23,7 +23,7 @@ public class DropdownManagerController {
     public ResponseEntity<CommonResponse<Page<ChildUserDto>>> getFilteredChildUsers(
             @PathVariable String hierarchyId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "10000") int size,
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String parentAccount,
             @RequestParam(required = false) String abbreviation,
