@@ -17,7 +17,6 @@ public interface AccessHierarchyNodeRepository
         extends JpaRepository<AccessHierarchyNode, String> {
 
 
-    boolean existsByHierarchyId(String hierarchyId);
-
+    Optional<AccessHierarchyNode> findByHierarchyId(String hierarchyId);
 
 }
