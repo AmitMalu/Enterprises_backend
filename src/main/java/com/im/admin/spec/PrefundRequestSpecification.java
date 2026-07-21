@@ -1,8 +1,9 @@
 package com.im.admin.spec;
 
+
 import com.im.admin.entities.AccessHierarchyPath;
 import com.im.admin.entities.PrefundRequest;
-import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
@@ -11,7 +12,10 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PrefundRequestSpecification {
+public final class PrefundRequestSpecification {
+
+    private PrefundRequestSpecification() {
+    }
 
     public static Specification<PrefundRequest> getFilter(
             Long id,
@@ -35,107 +39,263 @@ public class PrefundRequestSpecification {
             String remarks,
             String depositType
     ) {
+
         return (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
 
-            if (id != null) predicates.add(cb.equal(root.get("id"), id));
+            List<jakarta.persistence.criteria.Predicate> predicates =
+                    new ArrayList<>();
 
-            if (requestedBy != null)
-                predicates.add(cb.like(
-                        cb.lower(root.get("requestedBy")),
-                        "%" + requestedBy.toLowerCase() + "%"
-                ));
-
-            if (mobileNumber != null)
-                predicates.add(cb.like(cb.lower(root.get("mobileNumber")), "%" + mobileNumber.toLowerCase() + "%"));
-
-            if (depositAmount != null)
-                predicates.add(cb.equal(root.get("depositAmount"), depositAmount));
-
-            if (status != null)
-                predicates.add(cb.like(cb.lower(root.get("status")), "%" + status.toLowerCase() + "%"));
-
-            if (depositDate != null)
-                predicates.add(cb.equal(root.get("depositDate"), depositDate));
-
-            //  FROM – TO DATE FILTER (createDateTime)
-            if (fromDate != null && toDate != null) {
-                predicates.add(cb.between(
-                        root.get("createDateTime"),
-                        fromDate.atStartOfDay(),
-                        toDate.atTime(23, 59, 59)
-                ));
+            if (id != null) {
+                predicates.add(
+                        cb.equal(root.get("id"), id)
+                );
             }
 
-            if (createDateTime != null)
-                predicates.add(cb.between(
-                        root.get("createDateTime"),
-                        createDateTime.atStartOfDay(),
-                        createDateTime.atTime(23, 59, 59)
-                ));
+            if (hasText(requestedBy)) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("requestedBy")),
+                                "%" + requestedBy.trim()
+                                        .toLowerCase() + "%"
+                        )
+                );
+            }
 
-            if (bankHolderName != null)
-                predicates.add(cb.like(cb.lower(root.get("bankHolderName")), "%" + bankHolderName.toLowerCase() + "%"));
+            if (hasText(mobileNumber)) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("mobileNumber")),
+                                "%" + mobileNumber.trim()
+                                        .toLowerCase() + "%"
+                        )
+                );
+            }
 
-            if (bankAccountName != null)
-                predicates.add(cb.like(cb.lower(root.get("bankAccountName")), "%" + bankAccountName.toLowerCase() + "%"));
+            if (depositAmount != null) {
+                predicates.add(
+                        cb.equal(
+                                root.get("depositAmount"),
+                                depositAmount
+                        )
+                );
+            }
 
-            if (bankAccountNumber != null)
-                predicates.add(cb.like(cb.lower(root.get("bankAccountNumber")), "%" + bankAccountNumber.toLowerCase() + "%"));
+            if (hasText(status)) {
+                predicates.add(
+                        cb.equal(
+                                cb.lower(root.get("status")),
+                                status.trim().toLowerCase()
+                        )
+                );
+            }
 
-            if (bankTranId != null)
-                predicates.add(cb.like(cb.lower(root.get("bankTranId")), "%" + bankTranId.toLowerCase() + "%"));
+            if (depositDate != null) {
+                predicates.add(
+                        cb.equal(
+                                root.get("depositDate"),
+                                depositDate
+                        )
+                );
+            }
 
-            if (paymentMode != null)
-                predicates.add(cb.like(cb.lower(root.get("paymentMode")), "%" + paymentMode.toLowerCase() + "%"));
+            if (fromDate != null) {
+                predicates.add(
+                        cb.greaterThanOrEqualTo(
+                                root.get("depositDate"),
+                                fromDate
+                        )
+                );
+            }
 
-            if (narration != null)
-                predicates.add(cb.like(cb.lower(root.get("narration")), "%" + narration.toLowerCase() + "%"));
+            if (toDate != null) {
+                predicates.add(
+                        cb.lessThanOrEqualTo(
+                                root.get("depositDate"),
+                                toDate
+                        )
+                );
+            }
 
-            if (ipAddress != null)
-                predicates.add(cb.like(cb.lower(root.get("ipAddress")), "%" + ipAddress.toLowerCase() + "%"));
+            if (createDateTime != null) {
+                predicates.add(
+                        cb.equal(
+                                root.get("createDateTime")
+                                        .as(LocalDate.class),
+                                createDateTime
+                        )
+                );
+            }
 
-            if (approveOrRejectDate != null)
-                predicates.add(cb.equal(root.get("approveOrRejectDate"), approveOrRejectDate));
+            if (hasText(bankHolderName)) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("bankHolderName")),
+                                "%" + bankHolderName.trim()
+                                        .toLowerCase() + "%"
+                        )
+                );
+            }
 
-            if (approveOrRejectTime != null)
-                predicates.add(cb.like(cb.lower(root.get("approveOrRejectTime")), "%" + approveOrRejectTime.toLowerCase() + "%"));
+            if (hasText(bankAccountName)) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("bankAccountName")),
+                                "%" + bankAccountName.trim()
+                                        .toLowerCase() + "%"
+                        )
+                );
+            }
 
-            if (remarks != null)
-                predicates.add(cb.like(cb.lower(root.get("remarks")), "%" + remarks.toLowerCase() + "%"));
+            if (hasText(bankAccountNumber)) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("bankAccountNumber")),
+                                "%" + bankAccountNumber.trim()
+                                        .toLowerCase() + "%"
+                        )
+                );
+            }
 
-            if(depositType != null)
-                predicates.add(cb.like(cb.lower(root.get("depositType")), "%" + depositType.toLowerCase() + "%" ));
+            if (hasText(bankTranId)) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("bankTranId")),
+                                "%" + bankTranId.trim()
+                                        .toLowerCase() + "%"
+                        )
+                );
+            }
 
-            return cb.and(predicates.toArray(new Predicate[0]));
+            if (hasText(paymentMode)) {
+                predicates.add(
+                        cb.equal(
+                                cb.lower(root.get("paymentMode")),
+                                paymentMode.trim().toLowerCase()
+                        )
+                );
+            }
+
+            if (hasText(narration)) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("narration")),
+                                "%" + narration.trim()
+                                        .toLowerCase() + "%"
+                        )
+                );
+            }
+
+            if (hasText(ipAddress)) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("ipAddress")),
+                                "%" + ipAddress.trim()
+                                        .toLowerCase() + "%"
+                        )
+                );
+            }
+
+            if (approveOrRejectDate != null) {
+                predicates.add(
+                        cb.equal(
+                                root.get("approveOrRejectDate"),
+                                approveOrRejectDate
+                        )
+                );
+            }
+
+            if (hasText(approveOrRejectTime)) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(
+                                        root.get("approveOrRejectTime")
+                                ),
+                                "%" + approveOrRejectTime.trim()
+                                        .toLowerCase() + "%"
+                        )
+                );
+            }
+
+            if (hasText(remarks)) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("remarks")),
+                                "%" + remarks.trim()
+                                        .toLowerCase() + "%"
+                        )
+                );
+            }
+
+            if (hasText(depositType)) {
+                predicates.add(
+                        cb.equal(
+                                cb.lower(root.get("depositType")),
+                                depositType.trim().toLowerCase()
+                        )
+                );
+            }
+
+            return cb.and(
+                    predicates.toArray(
+                            new jakarta.persistence.criteria.Predicate[0]
+                    )
+            );
         };
     }
 
+    /**
+     * Fetches requests raised by:
+     *
+     * 1. The effective hierarchy itself because depth=0 exists.
+     * 2. Every descendant below the effective hierarchy.
+     */
     public static Specification<PrefundRequest> hierarchyScope(
-            String loginHierarchyId) {
+            String effectiveHierarchyId
+    ) {
 
         return (root, query, cb) -> {
 
-            assert query != null;
-            Subquery<String> subquery = query.subquery(String.class);
+            if (!hasText(effectiveHierarchyId)) {
+                throw new IllegalArgumentException(
+                        "Effective hierarchy ID cannot be empty"
+                );
+            }
 
-            Root<AccessHierarchyPath> path =
-                    subquery.from(AccessHierarchyPath.class);
+            Subquery<String> descendantSubquery =
+                    query.subquery(String.class);
 
-            subquery.select(
-                    path.get("id")
-                            .get("descendantId")
-            );
+            Root<AccessHierarchyPath> hierarchyPath =
+                    descendantSubquery.from(
+                            AccessHierarchyPath.class
+                    );
 
-            subquery.where(
+            Path<String> ancestorId =
+                    hierarchyPath
+                            .get("id")
+                            .get("ancestorId");
+
+            Path<String> descendantId =
+                    hierarchyPath
+                            .get("id")
+                            .get("descendantId");
+
+            descendantSubquery.select(descendantId);
+
+            descendantSubquery.where(
                     cb.equal(
-                            path.get("id")
-                                    .get("ancestorId"),
-                            loginHierarchyId
+                            ancestorId,
+                            effectiveHierarchyId.trim()
                     )
             );
 
-            return root.get("requestedBy").in(subquery);
+            return root
+                    .get("requestedBy")
+                    .in(descendantSubquery);
         };
+    }
+
+    private static boolean hasText(String value) {
+        return value != null
+                && !value.trim().isEmpty();
     }
 }

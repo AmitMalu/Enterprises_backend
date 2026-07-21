@@ -35,25 +35,11 @@ public interface AccessHierarchyPathRepository
             select p.id.descendantId
             from AccessHierarchyPath p
             where p.id.ancestorId = :ancestorId
-            and p.id.descendantId like '%-RT-%'
-            """)
-    List<String> findRetailerDescendants(
-            @Param("ancestorId") String ancestorId);
-
-    @Query("""
-            select p.id.descendantId
-            from AccessHierarchyPath p
-            where p.id.ancestorId = :ancestorId
             and p.id.descendantId like concat('%-', :type, '-%')
             """)
     List<String> findDescendantsByAncestorAndType(
             @Param("ancestorId") String ancestorId,
             @Param("type") String type);
-
-    List<AccessHierarchyPath>
-    findByIdAncestorId(
-            String ancestorId
-    );
 
     boolean existsById(AccessHierarchyPathId id);
 
@@ -78,17 +64,6 @@ public interface AccessHierarchyPathRepository
     void deleteByDescendantExcludingSelf(
             @Param("descendantId")
             String descendantId
-    );
-
-    @Query("""
-        SELECT p.id.ancestorId
-        FROM AccessHierarchyPath p
-        WHERE p.id.descendantId = :descendant
-        ORDER BY p.depth
-    """)
-    List<String> findAncestors(
-            @Param("descendant")
-            String descendant
     );
 
     @Query(value = """
@@ -133,5 +108,9 @@ public interface AccessHierarchyPathRepository
             @Param("whiteLabelId") String whiteLabelId,
             @Param("hierarchyId") String hierarchyId
     );
+
+    List<AccessHierarchyPath> findByIdAncestorId(String ancestorId);
+
+    boolean existsByIdAncestorIdAndIdDescendantId(String ancestorId,String descendantId);
 
 }

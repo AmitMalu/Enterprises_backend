@@ -6,7 +6,9 @@ package com.im.admin.service.impl;
 
 import com.im.admin.entities.*;
 import com.im.admin.entities.product.Products;
+import com.im.admin.exception.ResourceNotFoundException;
 import com.im.admin.repositories.*;
+import com.im.admin.util.TokenUtil;
 import com.im.admin.util.UnderHierarchyProjection;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +53,8 @@ public class HierarchyDataService {
 
     private final AccessHierarchyNodeRepository
             accessHierarchyNodeRepository;
+
+    private final TokenUtil tokenUtil;
 
     public Map<String, Object> getCompleteHierarchyData(
             String hierarchyId,
@@ -1984,5 +1988,198 @@ public class HierarchyDataService {
 
             default -> "DESCENDANT";
         };
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, List<String>> getGroupedHierarchyUnderLogin() {
+
+        long startTime = System.currentTimeMillis();
+
+        String loginHierarchyId = tokenUtil.extractHierarchyId();
+
+        log.info(
+                "[GROUPED HIERARCHY] START loginHierarchyId={}",
+                loginHierarchyId
+        );
+
+        AccessHierarchyNode loginNode =
+                accessHierarchyNodeRepository
+                        .findById(loginHierarchyId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Hierarchy not found: " + loginHierarchyId
+                                )
+                        );
+
+        String loginHierarchyType =
+                loginNode.getHierarchyType() == null
+                        ? ""
+                        : loginNode.getHierarchyType().trim().toUpperCase();
+
+        /*
+         * Default ancestor is the logged-in hierarchy.
+         *
+         * For WLAU, use its parent WL because WLAU works on behalf
+         * of the White Label.
+         */
+        String ancestorHierarchyId = loginHierarchyId;
+
+        if (
+                loginHierarchyType.endsWith("AU")
+                        && loginNode.getParentHierarchyId() != null
+                        && loginNode
+                        .getParentHierarchyId()
+                        .contains("-WL-")
+        ) {
+
+            ancestorHierarchyId =
+                    loginNode.getParentHierarchyId().trim();
+
+            log.info(
+                    "[GROUPED HIERARCHY] WLAU detected. loginHierarchyId={}, parentWL={}",
+                    loginHierarchyId,
+                    ancestorHierarchyId
+            );
+        }
+
+        List<String> descendantIds =
+                new ArrayList<>(
+                        accessHierarchyPathRepository
+                                .findDescendantsByAncestor(
+                                        ancestorHierarchyId
+                                )
+                );
+
+        /*
+         * Remove the logged-in hierarchy itself.
+         *
+         * Example:
+         * When NFT-WL-001 logs in, NFT-WL-001 should not
+         * appear in the result.
+         */
+        descendantIds.removeIf(
+                hierarchyId ->
+                        hierarchyId == null
+                                || hierarchyId.equalsIgnoreCase(loginHierarchyId)
+        );
+
+        /*
+         * For WLAU, also remove the parent WL itself.
+         *
+         * The response should only contain users below the WL.
+         */
+        String finalAncestorHierarchyId = ancestorHierarchyId;
+
+        descendantIds.removeIf(
+                hierarchyId ->
+                        hierarchyId.equalsIgnoreCase(
+                                finalAncestorHierarchyId
+                        )
+        );
+
+        if (descendantIds.isEmpty()) {
+
+            log.info(
+                    "[GROUPED HIERARCHY] No descendants found. loginHierarchyId={}",
+                    loginHierarchyId
+            );
+
+            return new LinkedHashMap<>();
+        }
+
+        List<UserDetails> hierarchyUsers =
+                userDetailsRepository
+                        .findActiveUsersByHierarchyIds(
+                                descendantIds
+                        );
+
+        /*
+         * Hierarchy codes to return.
+         *
+         * Add or remove codes here according to your requirement.
+         */
+        Set<String> allowedHierarchyCodes =
+                Set.of(
+                        "WL",
+                        "SD",
+                        "PT",
+                        "DT",
+                        "RT"
+                );
+
+        /*
+         * LinkedHashMap keeps the hierarchy order.
+         */
+        Map<String, List<String>> groupedResponse =
+                new LinkedHashMap<>();
+
+        List<String> hierarchyOrder =
+                List.of(
+                        "WL",
+                        "SD",
+                        "PT",
+                        "DT",
+                        "RT"
+                );
+
+        Map<String, List<String>> groupedUsers =
+                hierarchyUsers
+                        .stream()
+                        .filter(user ->
+                                user.getHierarchyCode() != null
+                                        && user.getHierarchyId() != null
+                        )
+                        .filter(user ->
+                                allowedHierarchyCodes.contains(
+                                        user.getHierarchyCode()
+                                                .trim()
+                                                .toUpperCase()
+                                )
+                        )
+                        .collect(
+                                Collectors.groupingBy(
+                                        user ->
+                                                user.getHierarchyCode()
+                                                        .trim()
+                                                        .toUpperCase(),
+                                        Collectors.mapping(
+                                                UserDetails::getHierarchyId,
+                                                Collectors.toList()
+                                        )
+                                )
+                        );
+
+        /*
+         * Add only hierarchy groups that contain records.
+         */
+        for (String hierarchyCode : hierarchyOrder) {
+
+            List<String> hierarchyIds =
+                    groupedUsers.get(hierarchyCode);
+
+            if (hierarchyIds != null && !hierarchyIds.isEmpty()) {
+
+                groupedResponse.put(
+                        hierarchyCode,
+                        hierarchyIds
+                                .stream()
+                                .distinct()
+                                .sorted()
+                                .toList()
+                );
+            }
+        }
+
+        log.info(
+                "[GROUPED HIERARCHY] SUCCESS loginHierarchyId={}, " +
+                        "ancestorHierarchyId={}, groups={}, totalUsers={}, timeTaken={}ms",
+                loginHierarchyId,
+                ancestorHierarchyId,
+                groupedResponse.keySet(),
+                hierarchyUsers.size(),
+                System.currentTimeMillis() - startTime
+        );
+
+        return groupedResponse;
     }
 }
