@@ -367,10 +367,17 @@ public class AuthController {
 
             String companyName = getCompanyName(fromId);
 
-            SmsCredentialsMaster smsConfig = getSmsCredentials(
-                    user.getHierarchyCode(),
-                    user.getHierarchyId()
-            );
+//            SmsCredentialsMaster smsConfig = getSmsCredentials(
+//                    user.getHierarchyCode(),
+//                    user.getHierarchyId()
+//            );
+
+            SmsCredentialsMaster smsConfig =
+                    getSmsCredentials(
+                            user.getHierarchyCode(),
+                            user.getHierarchyId(),
+                            "LOGIN_ALERT"
+                    );
 
             shivSmsService.sendOtpSms(
                     smsConfig,
@@ -414,15 +421,24 @@ public class AuthController {
         return "NFT NETWORK TECHNOLOGIES PRIVATE LIMITED..";
     }
 
-    private SmsCredentialsMaster getSmsCredentials(String hierarchyType, String hierarchyId) {
 
+//    private SmsCredentialsMaster getSmsCredentials(String hierarchyType, String hierarchyId) {
+//
+//        String fromId = resolveFromEmail(hierarchyType, hierarchyId);
+//
+//        return smsCredentialsRepository
+//                .findByWhitelabelId(fromId)
+//                .orElseGet(() -> smsCredentialsRepository
+//                        .findByWhitelabelId("NFT-AD-001")
+//                        .orElseThrow(() -> new RuntimeException("Default SMS credentials not found")));
+//    }
+
+    private SmsCredentialsMaster getSmsCredentials(String hierarchyType, String hierarchyId, String smsType) {
         String fromId = resolveFromEmail(hierarchyType, hierarchyId);
 
-        return smsCredentialsRepository
-                .findByWhitelabelId(fromId)
-                .orElseGet(() -> smsCredentialsRepository
-                        .findByWhitelabelId("NFT-AD-001")
-                        .orElseThrow(() -> new RuntimeException("Default SMS credentials not found")));
+        return smsCredentialsRepository.findByWhitelabelIdAndType(fromId, smsType)
+                .orElseGet(() -> smsCredentialsRepository.findByWhitelabelIdAndType("NFT-AD-001", smsType)
+                        .orElseThrow(() -> new RuntimeException("SMS credentials not found for type: " + smsType)));
     }
 
     private String resolveFromEmail(String hierarchyType, String hierarchyId) {
@@ -1581,7 +1597,8 @@ public class AuthController {
 
                 SmsCredentialsMaster smsConfig = getSmsCredentials(
                         user.getHierarchyCode(),
-                        user.getHierarchyId()
+                        user.getHierarchyId(),
+                        "LOGIN_ALERT"
                 );
 
                 // String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), newOtp);
@@ -1740,7 +1757,8 @@ public class AuthController {
 
                 SmsCredentialsMaster smsConfig = getSmsCredentials(
                         user.getHierarchyCode(),
-                        user.getHierarchyId()
+                        user.getHierarchyId(),
+                        "LOGIN_ALERT"
                 );
 
                 //  String smsResponse = smsGatewayAPI.sendOTPSms(user.getMobileNumber(), otp);

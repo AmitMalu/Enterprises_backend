@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.commons.SMSGatewayAPI;
+import com.im.admin.commons.ShivSmsService;
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.RateType;
@@ -18,7 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Query;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
@@ -33,8 +36,37 @@ import java.util.Optional;
 @Slf4j
 public class FundReversalServiceImpl implements FundReversalService {
 
+    @PersistenceContext
+    private EntityManager entityManager;
+    @Autowired
+    private RetailerRepository retailerRepository;
+    @Autowired
+    private WhiteLabelUserRepository whiteLabelUserRepository;
+
+    @Autowired
+    private DistributorRepository distributorRepository;
+
+    @Autowired
+    private PartnerRepository partnerRepository;
+
+    @Autowired
+    private SuperDistributorRepository superDistributorRepository;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelsRepository;
+
+    @Autowired
+    private EnterprisesRepository enterprisesRepository;
+
     @Autowired
     private UserDetailsRepository userDetailsRepository;
+
+    @Autowired
+    private ShivSmsService shivSmsService;
+
+    @Autowired
+    private SmsCredentialsRepository smsCredentialsRepository;
+
 
     @Autowired
     private FundReversalRepository fundReversalRepository;
@@ -166,8 +198,10 @@ public class FundReversalServiceImpl implements FundReversalService {
         if (request.getOtp() == null || request.getOtp().isEmpty()) {
             log.info("Step 2: No OTP provided. Generating new OTP...");
 
-            String otp = OtpUtil.generateOtp();
+            String otp = OtpUtil.generateOtp(); // otp
             log.debug("Generated OTP: {} for ChildHierarchyId: {}", otp, request.getChildHierarchyId());
+            //opt servcie logic sms
+            sendFundReversalOtpSms(request, otp);
 
             FundReversal reversal = new FundReversal();
             reversal.setParentHierarchyId(request.getParentHierarchyId());
@@ -681,6 +715,215 @@ public class FundReversalServiceImpl implements FundReversalService {
         );
         log.info("GST credit transaction inserted successfully for hierarchy: {}", hierarchyId);
         log.info("Completed processing all charges for hierarchy: {}", hierarchyId);
+    }
+
+
+    private SmsCredentialsMaster getSmsCredentials(String hierarchyType, String hierarchyId, String smsType) {
+        String fromId = resolveFromEmail(hierarchyType, hierarchyId);
+        return smsCredentialsRepository.findByWhitelabelIdAndType(fromId, smsType)
+                .orElseGet(() -> smsCredentialsRepository.findByWhitelabelIdAndType("NFT-AD-001", smsType)
+                        .orElseThrow(() -> new RuntimeException("SMS credentials not found for type: " + smsType)));
+    }
+
+    private String resolveFromEmail(String hierarchyType, String hierarchyId) {
+
+        switch (hierarchyType) {
+
+            case "RT" -> {
+                Retailer rt = retailerRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Retailer not found"));
+
+                String parentId = rt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "DT" -> {
+                Distributor dt = distributorRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Distributor not found"));
+
+                String parentId = dt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "PT" -> {
+                Partner pt = partnerRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Partner not found"));
+
+                String parentId = pt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "SD" -> {
+                SuperDistributor sd = superDistributorRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("SuperDistributor not found"));
+
+                String parentId = sd.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "WL" -> {
+                WhiteLabels wl = whiteLabelsRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("WhiteLabel not found"));
+
+                if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+                    return wl.getWhiteLabelId();
+                }
+
+                String parentId = wl.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "WLAU" -> {
+                Optional<WhiteLabelUser> wlauOpt =
+                        whiteLabelUserRepository.findById(hierarchyId);
+
+                if (wlauOpt.isEmpty()) {
+                    return wlauOpt.get().getId();
+                }
+
+                WhiteLabelUser wlau = wlauOpt.get();
+                String parentId = wlau.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+
+            }
+
+            case "ET" -> {
+                Enterprises et = enterprisesRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Enterprise not found"));
+
+                String parentId = et.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "AD", "IM" -> {
+                Admin ad = adminRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+                return ad.getId();
+            }
+
+            default -> throw new RuntimeException("Invalid hierarchy type: " + hierarchyType);
+        }
+    }
+
+    private void sendFundReversalOtpSms(
+            FundReversalRequestDto request,
+            String otp
+    ) {
+
+        // Find child user
+        UserDetails childUser =
+                userDetailsRepository
+                        .findByHierarchyId(
+                                request.getChildHierarchyId()
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Child user not found"
+                                )
+                        );
+
+        String mobileNumber =
+                childUser.getMobileNumber();
+
+        if (mobileNumber == null
+                || mobileNumber.isBlank()) {
+
+            throw new RuntimeException(
+                    "Mobile number not found for child user"
+            );
+        }
+
+        // Get parent hierarchy type
+        String hierarchyType =
+                commonMethods.extractHierarchyType(
+                        request.getParentHierarchyId()
+                );
+
+        String entityName =
+                commonMethods.getEntityName(
+                        hierarchyType
+                );
+
+        // Get primary key column dynamically
+        String idColumnName =
+                switch (hierarchyType) {
+                    case "RT" -> "retailer_id";
+                    case "DT" -> "distributor_id";
+                    case "PT" -> "partner_id";
+                    case "SD" -> "super_distributor_id";
+                    case "WL" -> "white_label_id";
+                    case "ET" -> "enterprise_id";
+                    case "AD" -> "id";
+                    default -> "id";
+                };
+
+        String sql =
+                "SELECT outlet_name FROM "
+                        + entityName
+                        + " WHERE "
+                        + idColumnName
+                        + " = :hierarchyId";
+
+        Query query =
+                entityManager.createNativeQuery(
+                        sql
+                );
+
+        query.setParameter(
+                "hierarchyId",
+                request.getParentHierarchyId()
+        );
+
+        Object result =
+                query.getResultStream()
+                        .findFirst()
+                        .orElse(null);
+
+        String parentOutletName =
+                result != null
+                        ? result.toString()
+                        : "User";
+
+        // Get SMS configuration
+        SmsCredentialsMaster smsConfig =
+                getSmsCredentials(
+                        childUser.getHierarchyCode(),
+                        childUser.getHierarchyId(),
+                        "FUND_REVERSAL"
+                );
+
+        // Send SMS
+        String smsResponse =
+                shivSmsService.sendFundReversalOtpSms(
+                        smsConfig,
+                        mobileNumber,
+                        otp,
+                        request.getWalletType().name(),
+                        "Reverse",
+                        parentOutletName,
+                        request.getReversalAmount()
+                );
+
+        log.info(
+                "Fund Reversal OTP SMS sent to mobile: {}. Response: {}",
+                mobileNumber,
+                smsResponse
+        );
     }
 
 }

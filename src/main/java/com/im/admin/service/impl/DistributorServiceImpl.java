@@ -270,6 +270,41 @@ public class DistributorServiceImpl implements DistributorService {
             if (distributor.getOutletAddress() != null)
                 existingDistributor.setOutletAddress(distributor.getOutletAddress());
 
+            if (distributor.getShopNumber() != null)
+                existingDistributor.setShopNumber(existingDistributor.getShopNumber());
+
+            if (distributor.getAadhaarNumber() != null)
+                existingDistributor.setAadhaarNumber(existingDistributor.getAadhaarNumber());
+
+            if (distributor.getPanNumber() != null)
+                existingDistributor.setPanNumber(existingDistributor.getPanNumber());
+
+            if (distributor.getBusinessNumber() != null)
+                existingDistributor.setBusinessNumber(existingDistributor.getBusinessNumber());
+
+            if (distributor.getBankDetails() != null &&
+                    existingDistributor.getBankDetails() != null) {
+
+                BanksDetails existingBank = existingDistributor.getBankDetails();
+                BanksDetails requestBank = distributor.getBankDetails();
+
+                if (requestBank.getBankName() != null) {
+                    existingBank.setBankName(requestBank.getBankName());
+                }
+
+                if (requestBank.getBankHolderName() != null) {
+                    existingBank.setBankHolderName(requestBank.getBankHolderName());
+                }
+
+                if (requestBank.getBankAccountNumber() != null) {
+                    existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
+                }
+
+                if (requestBank.getIfscCode() != null) {
+                    existingBank.setIfscCode(requestBank.getIfscCode());
+                }
+            }
+
             // Optional image updates
             String folder = "Distributor";
             if (aadhaarCardFrontImage != null && !aadhaarCardFrontImage.isEmpty()) {
