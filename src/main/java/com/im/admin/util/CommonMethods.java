@@ -1275,4 +1275,17 @@ public class CommonMethods {
     private static final BigDecimal ZERO_TDS_RATE =
             BigDecimal.ZERO;
 
+    public boolean hasFullSystemAccess(
+            String loginHierarchyType
+    ) {
+
+        return "AD".equalsIgnoreCase(loginHierarchyType)
+                || "AU".equalsIgnoreCase(loginHierarchyType);
+    }
+
+    public static boolean hasText(String value) {
+        return value != null
+                && !value.trim().isEmpty();
+    }
+
 }

@@ -3,9 +3,11 @@ package com.im.admin.spec;
 
 import com.im.admin.entities.AccessHierarchyPath;
 import com.im.admin.entities.PrefundRequest;
+import com.im.admin.util.CommonMethods;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
@@ -51,7 +53,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(requestedBy)) {
+            if (CommonMethods.hasText(requestedBy)) {
                 predicates.add(
                         cb.like(
                                 cb.lower(root.get("requestedBy")),
@@ -61,7 +63,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(mobileNumber)) {
+            if (CommonMethods.hasText(mobileNumber)) {
                 predicates.add(
                         cb.like(
                                 cb.lower(root.get("mobileNumber")),
@@ -80,7 +82,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(status)) {
+            if (CommonMethods.hasText(status)) {
                 predicates.add(
                         cb.equal(
                                 cb.lower(root.get("status")),
@@ -126,7 +128,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(bankHolderName)) {
+            if (CommonMethods.hasText(bankHolderName)) {
                 predicates.add(
                         cb.like(
                                 cb.lower(root.get("bankHolderName")),
@@ -136,7 +138,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(bankAccountName)) {
+            if (CommonMethods.hasText(bankAccountName)) {
                 predicates.add(
                         cb.like(
                                 cb.lower(root.get("bankAccountName")),
@@ -146,7 +148,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(bankAccountNumber)) {
+            if (CommonMethods.hasText(bankAccountNumber)) {
                 predicates.add(
                         cb.like(
                                 cb.lower(root.get("bankAccountNumber")),
@@ -156,7 +158,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(bankTranId)) {
+            if (CommonMethods.hasText(bankTranId)) {
                 predicates.add(
                         cb.like(
                                 cb.lower(root.get("bankTranId")),
@@ -166,7 +168,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(paymentMode)) {
+            if (CommonMethods.hasText(paymentMode)) {
                 predicates.add(
                         cb.equal(
                                 cb.lower(root.get("paymentMode")),
@@ -175,7 +177,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(narration)) {
+            if (CommonMethods.hasText(narration)) {
                 predicates.add(
                         cb.like(
                                 cb.lower(root.get("narration")),
@@ -185,7 +187,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(ipAddress)) {
+            if (CommonMethods.hasText(ipAddress)) {
                 predicates.add(
                         cb.like(
                                 cb.lower(root.get("ipAddress")),
@@ -204,7 +206,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(approveOrRejectTime)) {
+            if (CommonMethods.hasText(approveOrRejectTime)) {
                 predicates.add(
                         cb.like(
                                 cb.lower(
@@ -216,7 +218,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(remarks)) {
+            if (CommonMethods.hasText(remarks)) {
                 predicates.add(
                         cb.like(
                                 cb.lower(root.get("remarks")),
@@ -226,7 +228,7 @@ public final class PrefundRequestSpecification {
                 );
             }
 
-            if (hasText(depositType)) {
+            if (CommonMethods.hasText(depositType)) {
                 predicates.add(
                         cb.equal(
                                 cb.lower(root.get("depositType")),
@@ -255,7 +257,7 @@ public final class PrefundRequestSpecification {
 
         return (root, query, cb) -> {
 
-            if (!hasText(effectiveHierarchyId)) {
+            if (!CommonMethods.hasText(effectiveHierarchyId)) {
                 throw new IllegalArgumentException(
                         "Effective hierarchy ID cannot be empty"
                 );
@@ -292,10 +294,5 @@ public final class PrefundRequestSpecification {
                     .get("requestedBy")
                     .in(descendantSubquery);
         };
-    }
-
-    private static boolean hasText(String value) {
-        return value != null
-                && !value.trim().isEmpty();
     }
 }

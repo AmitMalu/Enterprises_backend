@@ -2,6 +2,7 @@ package com.im.admin.controller;
 
 import com.im.admin.request.HierarchyResponse;
 import com.im.admin.response.CommonResponse;
+import com.im.admin.response.HierarchyOptionResponse;
 import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.impl.HierarchyDataService;
 import lombok.extern.slf4j.Slf4j;
@@ -132,5 +133,20 @@ public class TreeDiagramController {
                         message
                 )
         );
+    }
+
+    @GetMapping("/options")
+    public ResponseEntity<List<HierarchyOptionResponse>>
+    getHierarchyOptions(
+            @RequestParam String hierarchyCode
+    ) {
+
+        List<HierarchyOptionResponse> response =
+                hierarchyDataService
+                        .getHierarchyOptions(
+                                hierarchyCode
+                        );
+
+        return ResponseEntity.ok(response);
     }
 }
