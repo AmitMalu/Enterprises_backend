@@ -117,6 +117,22 @@ public class FundReversalServiceImpl implements FundReversalService {
 
         // Generate new OTP
         String newOtp = OtpUtil.generateOtp();
+        try {
+            FundReversalRequestDto request = new FundReversalRequestDto();
+            request.setFundReversalRequestId(fundReversal.getId());
+            request.setParentHierarchyId(fundReversal.getParentHierarchyId());
+            request.setChildHierarchyId(fundReversal.getChildHierarchyId());
+            request.setWalletType(fundReversal.getWalletType());
+            request.setReversalAmount(fundReversal.getReversalAmount());
+
+            sendFundReversalOtpSms(request, newOtp);
+        } catch (Exception e) {
+            log.error(
+                    "Failed to send Fund Reversal OTP SMS for ChildHierarchyId: {}.",
+                    fundReversal.getChildHierarchyId(),
+                    e
+            );
+        }
         fundReversal.setOtp(newOtp);
         fundReversal.setOtpGeneratedTime(LocalDateTime.now());
         fundReversalRepository.save(fundReversal);
@@ -201,8 +217,15 @@ public class FundReversalServiceImpl implements FundReversalService {
             String otp = OtpUtil.generateOtp(); // otp
             log.debug("Generated OTP: {} for ChildHierarchyId: {}", otp, request.getChildHierarchyId());
             //opt servcie logic sms
-            sendFundReversalOtpSms(request, otp);
-
+            try {
+                sendFundReversalOtpSms(request, otp);
+            } catch (Exception e) {
+                log.error(
+                        "Failed to send Fund Reversal OTP SMS for ChildHierarchyId: {}.",
+                        request.getChildHierarchyId(),
+                        e
+                );
+            }
             FundReversal reversal = new FundReversal();
             reversal.setParentHierarchyId(request.getParentHierarchyId());
             reversal.setChildHierarchyId(request.getChildHierarchyId());

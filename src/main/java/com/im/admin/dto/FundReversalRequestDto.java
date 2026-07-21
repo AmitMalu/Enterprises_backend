@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+
 public class FundReversalRequestDto {
 
     private String parentHierarchyId;
