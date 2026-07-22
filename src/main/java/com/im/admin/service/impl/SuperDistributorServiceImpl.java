@@ -20,6 +20,7 @@ import com.im.admin.service.SuperDistributorService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -42,6 +43,9 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 
     @Autowired
     private SuperDistributorRepository superDistributorRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Autowired
     private SuperDistributorPrepaidAmountRepository superDistributorPrepaidAmountRepository;
@@ -353,6 +357,9 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
         LocalDateTime requestDateTime = LocalDateTime.now();
         String requestPayload = objectMapper.writeValueAsString(superDistributor);
 
+        String loginId = tokenUtil.extractHierarchyId();
+
+
         log.info("Starting updateSuperDistributor for ID: {}", id);
 
         try {
@@ -431,6 +438,9 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
                     existingBank.setIfscCode(requestBank.getIfscCode());
                 }
             }
+
+            existingSuperDistributor.setEditedBy(loginId);
+            existingSuperDistributor.setLastEditedOn(LocalDateTime.now());
 
             // Image updates
             String folder = "Super Distributor";

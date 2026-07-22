@@ -61,7 +61,7 @@ public class RetailerController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Retailer> updateRetailer(
+    public ResponseEntity<CommonResponse<Retailer>> updateRetailer(
             @PathVariable String id,
             @RequestPart("data") String retailerJson,
             @RequestPart(value = "aadhaarCardFrontImage", required = false) MultipartFile aadhaarCardFrontImage,
@@ -85,7 +85,15 @@ public class RetailerController {
         );
 
         log.info("Retailer updated successfully with ID: {}", id);
-        return ResponseEntity.ok(updatedRetailer);
+
+        CommonResponse<Retailer> response =
+                new CommonResponse<>(
+                        200,
+                        "Retailer updated successfully",
+                        updatedRetailer
+                );
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping

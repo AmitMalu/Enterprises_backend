@@ -18,6 +18,7 @@ import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -40,6 +41,9 @@ public class DistributorServiceImpl implements DistributorService {
 
     @Autowired
     private DistributorRepository distributorRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Autowired
     private DistributorPrepaidAmountRepository prepaidAmountRepository;
@@ -242,8 +246,11 @@ public class DistributorServiceImpl implements DistributorService {
         String distributorResponse = null;
         LocalDateTime responseDateTime = null;
 
+        String loginId = tokenUtil.extractHierarchyId();
+
         try {
             log.info("Starting update process for Distributor ID: {}", id);
+
 
             Distributor existingDistributor = distributorRepository.findById(id)
                     .orElseThrow(() -> {
@@ -270,17 +277,20 @@ public class DistributorServiceImpl implements DistributorService {
             if (distributor.getOutletAddress() != null)
                 existingDistributor.setOutletAddress(distributor.getOutletAddress());
 
+            existingDistributor.setEditedBy(loginId);
+            existingDistributor.setLastEditedOn(LocalDateTime.now());
+
             if (distributor.getShopNumber() != null)
-                existingDistributor.setShopNumber(existingDistributor.getShopNumber());
+                existingDistributor.setShopNumber(distributor.getShopNumber());
 
             if (distributor.getAadhaarNumber() != null)
-                existingDistributor.setAadhaarNumber(existingDistributor.getAadhaarNumber());
+                existingDistributor.setAadhaarNumber(distributor.getAadhaarNumber());
 
             if (distributor.getPanNumber() != null)
-                existingDistributor.setPanNumber(existingDistributor.getPanNumber());
+                existingDistributor.setPanNumber(distributor.getPanNumber());
 
             if (distributor.getBusinessNumber() != null)
-                existingDistributor.setBusinessNumber(existingDistributor.getBusinessNumber());
+                existingDistributor.setBusinessNumber(distributor.getBusinessNumber());
 
             if (distributor.getBankDetails() != null &&
                     existingDistributor.getBankDetails() != null) {

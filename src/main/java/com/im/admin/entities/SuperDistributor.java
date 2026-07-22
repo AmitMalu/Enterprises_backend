@@ -140,9 +140,15 @@ public class SuperDistributor {
     @Column(name = "created_by", nullable = false, updatable = false)
     private String createdBy;
 
-    @UpdateTimestamp
+//    @UpdateTimestamp
     @Column(name = "last_edited_on")
     private LocalDateTime lastEditedOn;
+
+    @Column(name = "approved_on")
+    private LocalDateTime approvedOn;
+
+    @Column(name = "approved_by")
+    private String approvedBy;
 
     @Column(name = "last_edited_by")
     private String editedBy;

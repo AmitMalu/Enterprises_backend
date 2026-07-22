@@ -26,5 +26,7 @@ public class GenericPendingRecordDto {
     private String remarks;
     private String editedBy;
     private String lastEditedOn;
+    private String approvedBy;
+    private String approvedOn;
 
 }

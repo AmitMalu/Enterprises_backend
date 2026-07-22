@@ -149,9 +149,15 @@ public class Enterprises {
     @Column(name = "created_by", nullable = false)
     private String createdBy;
 
-    @UpdateTimestamp
+//    @UpdateTimestamp
     @Column(name = "edited_on")
     private LocalDateTime editedOn;
+
+    @Column(name = "approved_on")
+    private LocalDateTime approvedOn;
+
+    @Column(name = "approved_by")
+    private String approvedBy;
 
     @Column(name = "edited_by")
     private String editedBy;

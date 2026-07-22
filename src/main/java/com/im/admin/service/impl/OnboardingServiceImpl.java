@@ -675,14 +675,12 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     rt.setStatus("APPROVED");
                     rt.setRemarks(remarks);
-                    rt.setEditedBy(loginId); ///get from amaan
-                    rt.setLastEditedOn(LocalDateTime.now());
+                    rt.setApprovedBy(loginId); ///get from amaan
+                    rt.setApprovedOn(LocalDateTime.now());
                     response = createUserDetails(hierarchyType, rt.getRetailerId(), rt.getMobileNumber(), rt.getEmailId(), rt.getName(),rt.getParentAccount(), rt.getCreatedBy(), loginId);
                 } else {
                     rt.setStatus("REJECTED");
                     rt.setRejectionReason(remarks);
-                    rt.setEditedBy(loginId); ///get from amaan
-                    rt.setLastEditedOn(LocalDateTime.now());
                 }
                 retailerRepository.save(rt);
             }
@@ -694,14 +692,12 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     dt.setStatus("APPROVED");
                     dt.setRemarks(remarks);
-                    dt.setEditedBy(loginId);
-                    dt.setLastEditedOn(LocalDateTime.now());
+                    dt.setApprovedBy(loginId);
+                    dt.setApprovedOn(LocalDateTime.now());
                     response = createUserDetails(hierarchyType, dt.getDistributorId(), dt.getMobileNumber(), dt.getEmailId(), dt.getName(),dt.getParentAccount(),dt.getCreatedBy(),loginId);
                 } else {
                     dt.setStatus("REJECTED");
                     dt.setRejectionReason(remarks);
-                    dt.setEditedBy(loginId); ///get from amaan
-                    dt.setLastEditedOn(LocalDateTime.now());
                 }
                 distributorRepository.save(dt);
             }
@@ -714,14 +710,12 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     pt.setStatus("APPROVED");
                     pt.setRemarks(remarks);
-                    pt.setEditedBy(loginId);
-                    pt.setLastEditedOn(LocalDateTime.now());
+                    pt.setApprovedBy(loginId);
+                    pt.setApprovedOn(LocalDateTime.now());
                     response = createUserDetails(hierarchyType, pt.getPartnerId(), pt.getMobileNumber(), pt.getEmailId(), pt.getName(),pt.getParentAccount(),pt.getCreatedBy(),loginId);
                 } else {
                     pt.setStatus("REJECTED");
                     pt.setRejectionReason(remarks);
-                    pt.setEditedBy(loginId);
-                    pt.setLastEditedOn(LocalDateTime.now());
                 }
                 partnerRepository.save(pt);
             }
@@ -734,14 +728,12 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     sd.setStatus("APPROVED");
                     sd.setRemarks(remarks);
-                    sd.setEditedBy(loginId);
-                    sd.setLastEditedOn(LocalDateTime.now());
+                    sd.setApprovedBy(loginId);
+                    sd.setApprovedOn(LocalDateTime.now());
                     response = createUserDetails(hierarchyType, sd.getSuperDistributorId(), sd.getMobileNumber(), sd.getEmailId(), sd.getName(),sd.getParentAccount(),sd.getCreatedBy(),loginId);
                 } else {
                     sd.setStatus("REJECTED");
                     sd.setRejectionReason(remarks);
-                    sd.setEditedBy(loginId);
-                    sd.setLastEditedOn(LocalDateTime.now());
                 }
                 superDistributorRepository.save(sd);
             }
@@ -754,14 +746,12 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     wl.setStatus("APPROVED");
                     wl.setRemarks(remarks);
-                    wl.setEditedBy(loginId);
-                    wl.setEditedOn(LocalDateTime.now());
+                    wl.setApprovedBy(loginId);
+                    wl.setApprovedOn(LocalDateTime.now());
                     response = createUserDetails(hierarchyType, wl.getWhiteLabelId(), wl.getMobileNumber(), wl.getEmailId(), wl.getTitle(),wl.getParentAccount(),wl.getCreatedBy(),loginId);
                 } else {
                     wl.setStatus("REJECTED");
                     wl.setRejectionReason(remarks);
-                    wl.setEditedBy(loginId);
-                    wl.setEditedOn(LocalDateTime.now());
                 }
                 whiteLabelsRepository.save(wl);
             }
@@ -773,14 +763,12 @@ public class OnboardingServiceImpl implements OnboardingService {
                 if (isApproved) {
                     et.setStatus("APPROVED");
                     et.setRemarks(remarks);
-                    et.setEditedBy(loginId);
-                    et.setEditedOn(LocalDateTime.now());
+                    et.setApprovedBy(loginId);
+                    et.setApprovedOn(LocalDateTime.now());
                     response = createUserDetails(hierarchyType, et.getEnterpriseId(), et.getMobileNumber(), et.getEmailId(), et.getName(),et.getParentAccount(),et.getCreatedBy(),loginId);
                 } else {
                     et.setStatus("REJECTED");
                     et.setRejectionReason(remarks);
-                    et.setEditedBy(loginId);
-                    et.setEditedOn(LocalDateTime.now());
                 }
                 enterprisesRepository.save(et);
             }
@@ -793,14 +781,12 @@ public class OnboardingServiceImpl implements OnboardingService {
                     ad.setStatus("APPROVED");
                     ad.setRejectionReason("-");
                     ad.setRemarks(remarks);
-                    ad.setEditedBy(loginId);
-                    ad.setEditedOn(LocalDateTime.now());
+                    ad.setApprovedBy(loginId);
+                    ad.setApprovedOn(LocalDateTime.now());
                     response = createUserDetails(hierarchyType, ad.getId(), ad.getMobileNumber(), ad.getEmailId(), ad.getName(),"Admin",ad.getCreatedBy(),loginId);
                 } else {
                     ad.setStatus("REJECTED");
                     ad.setRejectionReason(remarks);
-                    ad.setEditedBy(loginId);
-                    ad.setEditedOn(LocalDateTime.now());
                 }
                 adminRepository.save(ad);
             }
@@ -883,37 +869,37 @@ public class OnboardingServiceImpl implements OnboardingService {
 
         public static GenericPendingRecordDto fromRetailer(Retailer r) {
             return new GenericPendingRecordDto("RETAILER", r.getRetailerId(), r.getName(), r.getStatus(),
-                    r.getCreatedBy(), toStringOrNull(r.getCreatedOn()), r.getMobileNumber(), r.getEmailId(), r.getParentAccount(), r.getRejectionReason(), r.getEditedBy(), toStringOrNull(r.getLastEditedOn()));
+                    r.getCreatedBy(), toStringOrNull(r.getCreatedOn()), r.getMobileNumber(), r.getEmailId(), r.getParentAccount(), r.getRejectionReason(), r.getEditedBy(), toStringOrNull(r.getLastEditedOn()), r.getApprovedBy(), toStringOrNull(r.getApprovedOn()));
         }
 
         public static GenericPendingRecordDto fromDistributor(Distributor d) {
             return new GenericPendingRecordDto("DISTRIBUTOR", d.getDistributorId(), d.getName(), d.getStatus(),
-                    d.getCreatedBy(), toStringOrNull(d.getCreatedOn()), d.getMobileNumber(), d.getEmailId(), d.getParentAccount(), d.getRejectionReason(), d.getEditedBy(), toStringOrNull(d.getLastEditedOn()));
+                    d.getCreatedBy(), toStringOrNull(d.getCreatedOn()), d.getMobileNumber(), d.getEmailId(), d.getParentAccount(), d.getRejectionReason(), d.getEditedBy(), toStringOrNull(d.getLastEditedOn()), d.getApprovedBy(), toStringOrNull(d.getApprovedOn()));
         }
 
         public static GenericPendingRecordDto fromPartner(Partner p) {
             return new GenericPendingRecordDto("PARTNER", p.getPartnerId(), p.getName(), p.getStatus(),
-                    p.getCreatedBy(), toStringOrNull(p.getCreatedOn()), p.getMobileNumber(), p.getEmailId(), p.getParentAccount(), p.getRejectionReason(), p.getEditedBy(), toStringOrNull(p.getLastEditedOn()));
+                    p.getCreatedBy(), toStringOrNull(p.getCreatedOn()), p.getMobileNumber(), p.getEmailId(), p.getParentAccount(), p.getRejectionReason(), p.getEditedBy(), toStringOrNull(p.getLastEditedOn()), p.getApprovedBy(), toStringOrNull(p.getApprovedOn()));
         }
 
         public static GenericPendingRecordDto fromSuperDistributor(SuperDistributor s) {
             return new GenericPendingRecordDto("SUPER_DISTRIBUTOR", s.getSuperDistributorId(), s.getName(), s.getStatus(),
-                    s.getCreatedBy(), toStringOrNull(s.getCreatedOn()), s.getMobileNumber(), s.getEmailId(), s.getParentAccount(), s.getRejectionReason(), s.getEditedBy(), toStringOrNull(s.getLastEditedOn()));
+                    s.getCreatedBy(), toStringOrNull(s.getCreatedOn()), s.getMobileNumber(), s.getEmailId(), s.getParentAccount(), s.getRejectionReason(), s.getEditedBy(), toStringOrNull(s.getLastEditedOn()), s.getApprovedBy(), toStringOrNull(s.getApprovedOn()));
         }
 
         public static GenericPendingRecordDto fromWhiteLabel(WhiteLabels w) {
             return new GenericPendingRecordDto("WHITE_LABEL", w.getWhiteLabelId(), w.getName(), w.getStatus(),
-                    w.getCreatedBy(), toStringOrNull(w.getCreatedOn()), w.getMobileNumber(), w.getEmailId(), w.getParentAccount(), w.getRejectionReason(), w.getEditedBy(), toStringOrNull(w.getEditedOn()));
+                    w.getCreatedBy(), toStringOrNull(w.getCreatedOn()), w.getMobileNumber(), w.getEmailId(), w.getParentAccount(), w.getRejectionReason(), w.getEditedBy(), toStringOrNull(w.getEditedOn()), w.getApprovedBy(), toStringOrNull(w.getApprovedOn()));
         }
 
         public static GenericPendingRecordDto fromEnterprise(Enterprises e) {
             return new GenericPendingRecordDto("ENTERPRISE", e.getEnterpriseId(), e.getName(), e.getStatus(),
-                    e.getCreatedBy(), toStringOrNull(e.getCreatedOn()), e.getMobileNumber(), e.getEmailId(), e.getParentAccount(), e.getRejectionReason(), e.getEditedBy(), toStringOrNull(e.getEditedOn()));
+                    e.getCreatedBy(), toStringOrNull(e.getCreatedOn()), e.getMobileNumber(), e.getEmailId(), e.getParentAccount(), e.getRejectionReason(), e.getEditedBy(), toStringOrNull(e.getEditedOn()), e.getApprovedBy(), toStringOrNull(e.getApprovedOn()));
         }
 
         public static GenericPendingRecordDto fromAdmin(Admin a) {
             return new GenericPendingRecordDto("ADMIN", a.getId(), a.getName(), a.getStatus(),
-                    a.getCreatedBy(), toStringOrNull(a.getCreatedOn()), a.getMobileNumber(), a.getEmailId(), null, null, null, null);
+                    a.getCreatedBy(), toStringOrNull(a.getCreatedOn()), a.getMobileNumber(), a.getEmailId(), null, null, null, null, null, null);
         }
 
         private static String toStringOrNull(LocalDateTime dt) {
