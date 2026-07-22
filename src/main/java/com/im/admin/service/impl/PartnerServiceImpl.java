@@ -21,6 +21,7 @@ import com.im.admin.service.PartnerService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -41,6 +42,9 @@ public class PartnerServiceImpl implements PartnerService {
 
     @Autowired
     private PartnerRepository partnerRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Autowired
     private PartnerPrepaidAmountRepository partnerPrepaidAmountRepository;
@@ -222,6 +226,9 @@ public class PartnerServiceImpl implements PartnerService {
         String partnerResponse = null;
         LocalDateTime responseDateTime = null;
 
+        String loginId = tokenUtil.extractHierarchyId();
+
+
         try {
             Partner existingPartner = partnerRepository.findById(id)
                     .orElseThrow(() -> new EntityNotFoundException("Partner not found with ID: " + id));
@@ -256,6 +263,45 @@ public class PartnerServiceImpl implements PartnerService {
             }
             if (businessProofImage != null && !businessProofImage.isEmpty()) {
                 existingPartner.setBusinessProofImage(imageUtil.saveImage(businessProofImage, folder));
+            }
+
+            existingPartner.setEditedBy(loginId);
+            existingPartner.setLastEditedOn(LocalDateTime.now());
+
+
+            if (partner.getShopNumber() != null)
+                existingPartner.setShopNumber(partner.getShopNumber());
+
+            if (partner.getAadhaarNumber() != null)
+                existingPartner.setAadhaarNumber(partner.getAadhaarNumber());
+
+            if (partner.getPanNumber() != null)
+                existingPartner.setPanNumber(partner.getPanNumber());
+
+            if (partner.getBusinessNumber() != null)
+                existingPartner.setBusinessNumber(partner.getBusinessNumber());
+
+            if (partner.getBankDetails() != null &&
+                    existingPartner.getBankDetails() != null) {
+
+                BanksDetails existingBank = existingPartner.getBankDetails();
+                BanksDetails requestBank = partner.getBankDetails();
+
+                if (requestBank.getBankName() != null) {
+                    existingBank.setBankName(requestBank.getBankName());
+                }
+
+                if (requestBank.getBankHolderName() != null) {
+                    existingBank.setBankHolderName(requestBank.getBankHolderName());
+                }
+
+                if (requestBank.getBankAccountNumber() != null) {
+                    existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
+                }
+
+                if (requestBank.getIfscCode() != null) {
+                    existingBank.setIfscCode(requestBank.getIfscCode());
+                }
             }
 
             updatedPartner = partnerRepository.save(existingPartner);

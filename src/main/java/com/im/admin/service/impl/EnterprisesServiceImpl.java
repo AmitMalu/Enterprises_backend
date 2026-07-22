@@ -18,6 +18,7 @@ import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -38,6 +39,10 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
     @Autowired
     private EnterprisesRepository enterpriseRepository;
+
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Autowired
     private EnterprisesPrepaidAmountRepository prepaidRepository;
@@ -223,6 +228,8 @@ public class EnterprisesServiceImpl implements EnterprisesService {
                                         MultipartFile shopImage,
                                         MultipartFile businessProofImage) throws IOException {
 
+        String loginId = tokenUtil.extractHierarchyId();
+
         LocalDateTime requestDateTime = LocalDateTime.now();
         log.info("Request received to update Enterprise with ID [{}] at {}: {}", id, requestDateTime, enterprises);
 
@@ -260,6 +267,44 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         if (enterprises.getEmailId() != null) existingEnterprises.setEmailId(enterprises.getEmailId());
         if (enterprises.getAddress() != null) existingEnterprises.setAddress(enterprises.getAddress());
         if (enterprises.getOutletAddress() != null) existingEnterprises.setOutletAddress(enterprises.getOutletAddress());
+
+        existingEnterprises.setEditedBy(loginId);
+        existingEnterprises.setEditedOn(LocalDateTime.now());
+
+        if (enterprises.getShopNumber() != null)
+            existingEnterprises.setShopNumber(enterprises.getShopNumber());
+
+        if (enterprises.getAadhaarNumber() != null)
+            existingEnterprises.setAadhaarNumber(enterprises.getAadhaarNumber());
+
+        if (enterprises.getPanNumber() != null)
+            existingEnterprises.setPanNumber(enterprises.getPanNumber());
+
+        if (enterprises.getBusinessNumber() != null)
+            existingEnterprises.setBusinessNumber(enterprises.getBusinessNumber());
+
+        if (enterprises.getBankDetails() != null &&
+                existingEnterprises.getBankDetails() != null) {
+
+            BanksDetails existingBank = existingEnterprises.getBankDetails();
+            BanksDetails requestBank = enterprises.getBankDetails();
+
+            if (requestBank.getBankName() != null) {
+                existingBank.setBankName(requestBank.getBankName());
+            }
+
+            if (requestBank.getBankHolderName() != null) {
+                existingBank.setBankHolderName(requestBank.getBankHolderName());
+            }
+
+            if (requestBank.getBankAccountNumber() != null) {
+                existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
+            }
+
+            if (requestBank.getIfscCode() != null) {
+                existingBank.setIfscCode(requestBank.getIfscCode());
+            }
+        }
 
         log.info("Fields updated for Enterprise [{}]. Proceeding with image uploads if provided.", id);
 

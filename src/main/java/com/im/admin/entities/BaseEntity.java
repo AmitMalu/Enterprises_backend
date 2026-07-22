@@ -28,5 +28,11 @@ public abstract class BaseEntity {
 
     @Column(name = "edited_by")
     private String editedBy;
+
+    @Column(name = "approved_on")
+    private LocalDateTime approvedOn;
+
+    @Column(name = "approved_by")
+    private String approvedBy;
 }
 

@@ -145,6 +145,12 @@ public class Retailer {
     @Column(name = "last_edited_by")
     private String editedBy;
 
+    @Column(name = "approved_on")
+    private LocalDateTime approvedOn;
+
+    @Column(name = "approved_by")
+    private String approvedBy;
+
     @Column(name = "created_by_ip_address", nullable = false, updatable = false)
     private String createdByIPAddress;
 

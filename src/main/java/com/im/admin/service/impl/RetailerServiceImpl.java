@@ -17,6 +17,7 @@ import com.im.admin.service.RetailerService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -39,6 +40,9 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Autowired
     private RetailerRepository retailerRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Autowired
     private RetailerPrepaidAmountRepository prepaidAmountRepository;
@@ -225,7 +229,10 @@ public class RetailerServiceImpl implements RetailerService {
                                    MultipartFile shopImage,
                                    MultipartFile businessProofImage) throws IOException {
 
+
         LocalDateTime requestDateTime = LocalDateTime.now();
+        String loginId = tokenUtil.extractHierarchyId();
+
 
         Retailer existingRetailer = retailerRepository.findById(retailerId)
                 .orElseThrow(() -> new EntityNotFoundException("Retailer not found"));
@@ -269,17 +276,20 @@ public class RetailerServiceImpl implements RetailerService {
         if (retailer.getAddress() != null) existingRetailer.setAddress(retailer.getAddress());
         if (retailer.getOutletAddress() != null) existingRetailer.setOutletAddress(retailer.getOutletAddress());
 
+        existingRetailer.setEditedBy(loginId);
+        existingRetailer.setLastEditedOn(LocalDateTime.now());
+
         if (retailer.getShopNumber() != null)
-            existingRetailer.setShopNumber(existingRetailer.getShopNumber());
+            existingRetailer.setShopNumber(retailer.getShopNumber());
 
         if (retailer.getAadhaarNumber() != null)
-            existingRetailer.setAadhaarNumber(existingRetailer.getAadhaarNumber());
+            existingRetailer.setAadhaarNumber(retailer.getAadhaarNumber());
 
         if (retailer.getPanNumber() != null)
-            existingRetailer.setPanNumber(existingRetailer.getPanNumber());
+            existingRetailer.setPanNumber(retailer.getPanNumber());
 
         if (retailer.getBusinessNumber() != null)
-            existingRetailer.setBusinessNumber(existingRetailer.getBusinessNumber());
+            existingRetailer.setBusinessNumber(retailer.getBusinessNumber());
 
         if (retailer.getBankDetails() != null &&
                 existingRetailer.getBankDetails() != null) {

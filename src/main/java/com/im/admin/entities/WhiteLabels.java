@@ -153,12 +153,18 @@ public class WhiteLabels {
     @Column(name = "created_by", nullable = false)
     private String createdBy;
 
-    @UpdateTimestamp
+//    @UpdateTimestamp
     @Column(name = "edited_on")
     private LocalDateTime editedOn;
 
     @Column(name = "edited_by")
     private String editedBy;
+
+    @Column(name = "approved_on")
+    private LocalDateTime approvedOn;
+
+    @Column(name = "approved_by")
+    private String approvedBy;
 
     @Column(name = "created_by_ip_address", nullable = false, updatable = false)
     private String createdByIPAddress;

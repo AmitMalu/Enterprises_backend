@@ -21,6 +21,7 @@ import com.im.admin.service.WhiteLabelService;
 import com.im.admin.util.IdGenerator;
 import com.im.admin.util.ImageHandlerUtil;
 import com.im.admin.util.ImageUtil;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -43,6 +44,9 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 
     @Autowired
     private  WhiteLabelRepository whiteLabelRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Autowired
     private WhiteLabelPrepaidAmountRepository prepaidRepository;
@@ -241,6 +245,7 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
                                         MultipartFile shopImage,
                                         MultipartFile businessProofImage) throws IOException {
 
+        String loginId = tokenUtil.extractHierarchyId();
         LocalDateTime requestDateTime = LocalDateTime.now();
         String whiteLabelRequest = objectMapper.writeValueAsString(whiteLabels);
 
@@ -273,6 +278,44 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             if (whiteLabels.getEmailId() != null) existingWhiteLabels.setEmailId(whiteLabels.getEmailId());
             if (whiteLabels.getAddress() != null) existingWhiteLabels.setAddress(whiteLabels.getAddress());
             if (whiteLabels.getIsAdmin() != null) existingWhiteLabels.setIsAdmin(whiteLabels.getIsAdmin());
+
+            existingWhiteLabels.setEditedBy(loginId);
+            existingWhiteLabels.setEditedOn(LocalDateTime.now());
+
+            if (whiteLabels.getShopNumber() != null)
+                existingWhiteLabels.setShopNumber(whiteLabels.getShopNumber());
+
+            if (whiteLabels.getAadhaarNumber() != null)
+                existingWhiteLabels.setAadhaarNumber(whiteLabels.getAadhaarNumber());
+
+            if (whiteLabels.getPanNumber() != null)
+                existingWhiteLabels.setPanNumber(whiteLabels.getPanNumber());
+
+            if (whiteLabels.getBusinessNumber() != null)
+                existingWhiteLabels.setBusinessNumber(whiteLabels.getBusinessNumber());
+
+            if (whiteLabels.getBankDetails() != null &&
+                    existingWhiteLabels.getBankDetails() != null) {
+
+                BanksDetails existingBank = existingWhiteLabels.getBankDetails();
+                BanksDetails requestBank = whiteLabels.getBankDetails();
+
+                if (requestBank.getBankName() != null) {
+                    existingBank.setBankName(requestBank.getBankName());
+                }
+
+                if (requestBank.getBankHolderName() != null) {
+                    existingBank.setBankHolderName(requestBank.getBankHolderName());
+                }
+
+                if (requestBank.getBankAccountNumber() != null) {
+                    existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
+                }
+
+                if (requestBank.getIfscCode() != null) {
+                    existingBank.setIfscCode(requestBank.getIfscCode());
+                }
+            }
 
             // Handle optional image updates
             String folder = "White Label";
