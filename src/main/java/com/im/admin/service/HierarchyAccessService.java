@@ -445,13 +445,6 @@ public class HierarchyAccessService {
         return details;
     }
 
-    // ===== OPTIONAL: GET ONLY APPLICABLE SCHEMES FOR RETAILER =====
-//    private List<SchemeAllocation> getApplicableSchemes(String hierarchyId) {
-//        // You can add logic here to filter schemes based on hierarchy type
-//        // For example, only return schemes where hierarchy type is "RT" (retailer)
-//        return schemeAllocationRepository.findByHierarchyIdAndHierarchyType(hierarchyId, "RT");
-//    }
-
     private WalletBalanceMaps loadAllWalletBalances() {
         WalletBalanceMaps maps = new WalletBalanceMaps();
 

@@ -171,7 +171,7 @@ public class FundReversalServiceImpl implements FundReversalService {
 
     @Override
     @Transactional
-    public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, Double latitude, Double longitude, String ipAddress) {
+    public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, RequestHeaderMetaDto requestHeaderMetaDtoMeta) {
 
         log.info("===== Starting Fund Reversal Action =====");
         log.info("Request: ParentHierarchyId={}, ChildHierarchyId={}, ReversalAmount={}, WalletType={}",
@@ -179,7 +179,7 @@ public class FundReversalServiceImpl implements FundReversalService {
                 request.getChildHierarchyId(),
                 request.getReversalAmount(),
                 request.getWalletType());
-        log.debug("Location - Latitude: {}, Longitude: {}", latitude, longitude);
+        log.debug("Location - Latitude: {}, Longitude: {}", requestHeaderMetaDtoMeta.getLatitude(), requestHeaderMetaDtoMeta.getLongitude());
 
         long startTime = System.currentTimeMillis();
 
@@ -309,7 +309,7 @@ public class FundReversalServiceImpl implements FundReversalService {
 
         long walletTransferStart = System.currentTimeMillis();
 
-        processWalletTransfer(request, reverseAmount, walletType, baseTransactionId, latitude, longitude, ipAddress);
+        processWalletTransfer(request, reverseAmount, walletType, baseTransactionId, requestHeaderMetaDtoMeta);
 
         long walletTransferDuration = System.currentTimeMillis() - walletTransferStart;
         log.info("Wallet transfer completed successfully in {} ms", walletTransferDuration);
@@ -329,12 +329,12 @@ public class FundReversalServiceImpl implements FundReversalService {
         long chargesStart = System.currentTimeMillis();
 
         try {
-            SubProducts subProduct = getSubProduct();
+            SubProducts subProduct = getSubProduct(request.getSubProductId());
             Products product = subProduct.getProduct();
             log.debug("Product: {}, SubProduct: {}", product.getName(), subProduct.getSubProductTitle());
 
             SchemeRate schemeRate = walletToWalletTransferService
-                    .getExactSchemeRate("116", reverseAmount.doubleValue());
+                    .getExactSchemeRate(request.getSchemeCode(), reverseAmount.doubleValue());
             log.debug("Scheme Rate obtained: {}", schemeRate);
 
             BigDecimal grossCharge = calculateGrossCharge(reverseAmount, schemeRate);
@@ -356,8 +356,6 @@ public class FundReversalServiceImpl implements FundReversalService {
 
         } catch (Exception e) {
             log.error("Failed to process charges for BaseTransactionId: {}", baseTransactionId, e);
-            // Continue - the transaction is already successful, charges failure shouldn't rollback
-            // But we should log it for investigation
         }
 
         FundReversalResponseDto responseDto = new FundReversalResponseDto(
@@ -386,7 +384,7 @@ public class FundReversalServiceImpl implements FundReversalService {
             BigDecimal amount,
             WalletType walletType,
             String baseTransactionId,
-            Double latitude, Double longitude, String ipAddress) {
+            RequestHeaderMetaDto requestHeaderMetaDto) {
 
         AbstractWalletAmountTable fromWallet =
                 commonMethods.getWalletByType(
@@ -396,12 +394,11 @@ public class FundReversalServiceImpl implements FundReversalService {
         RetailersExtraColumnsDto retailerExtraColumns =
                 RetailersExtraColumnsDto.builder()
                         .medium(request.getMedium())
-                        .clientIp(ipAddress)
+                        .clientIp(requestHeaderMetaDto.getIpAddress())
                         .requestDomainName(request.getRequestDomainName())
-                        .latitude(latitude)
-                        .longitude(longitude)
+                        .latitude(requestHeaderMetaDto.getLatitude())
+                        .longitude(requestHeaderMetaDto.getLongitude())
                         .build();
-
 
         commonMethods.updateWallet(
                 fromWallet,
@@ -417,7 +414,7 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "Fund Reverse to " + request.getParentHierarchyId(),
                 "",
                 retailerExtraColumns,
-                null,
+                "Internal Product",
                 null
         );
 
@@ -459,10 +456,10 @@ public class FundReversalServiceImpl implements FundReversalService {
         return BigDecimal.valueOf(schemeRate.getGross());
     }
 
-    private SubProducts getSubProduct() {
+    private SubProducts getSubProduct(String id) {
 
         return subProductsRepository
-                .findBySubProductTitle("Fund Reversal")
+                .findById(id)
                 .orElseThrow(() ->
                         new RuntimeException(
                                 "SubProduct not found for subProductName: "

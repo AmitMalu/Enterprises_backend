@@ -2,12 +2,13 @@ package com.im.admin.service;
 
 import com.im.admin.dto.CheckBalanceRequestDto;
 import com.im.admin.dto.FundReversalRequestDto;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.FundReversalResponseDto;
 
 public interface FundReversalService {
 
-    CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, Double latitude, Double longitude, String ipAddress);
+    CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, RequestHeaderMetaDto requestHeaderMetaDtoMeta);
 
     CommonResponse<FundReversalResponseDto> resendOtpById(Long id);
 

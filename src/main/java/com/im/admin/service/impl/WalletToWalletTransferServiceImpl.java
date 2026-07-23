@@ -1245,7 +1245,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
         boolean includeExtraColumns =
                 !"AD".equalsIgnoreCase(hierarchyType)
-                        && !"WL".equalsIgnoreCase(hierarchyType);
+                        && !"SD".equalsIgnoreCase(hierarchyType) && !"PT".equalsIgnoreCase(hierarchyType)
+                        && !"DT".equalsIgnoreCase(hierarchyType) && !"WL".equalsIgnoreCase(hierarchyType);
 
         String sql = "INSERT INTO " + transactionTableName +
                 " (" + columnName + ", service, amount, date_of_transaction, time_of_transaction, " +
