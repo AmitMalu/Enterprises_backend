@@ -796,9 +796,13 @@ public class CommonMethods {
             // ===== CHECK IF ADMIN OR WHITE LABEL TABLE =====
             boolean isAdminTable = transactionTableName.contains("admin");
             boolean isWhiteLabelTable = transactionTableName.contains("white_label");
+            boolean isSuperDistributor = transactionTableName.contains("super_distributor");
+            boolean isDistributor = transactionTableName.contains("distributor");
+            boolean isPartner = transactionTableName.contains("partner");
+
 
             // These tables don't have transaction_type, vendor_name, operator_name columns
-            boolean excludeExtraColumns = isAdminTable || isWhiteLabelTable;
+            boolean excludeExtraColumns = isAdminTable || isWhiteLabelTable || isSuperDistributor || isPartner || isDistributor;
 
             String extraColumns = "";
             String extraValues = "";
