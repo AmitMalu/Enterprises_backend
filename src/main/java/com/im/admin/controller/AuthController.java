@@ -1428,6 +1428,12 @@ public class AuthController {
                             subProductEntity.getIsVisible()
                     );
 
+                    subProductMap.put(
+                            "isSettlement",
+                            subProductEntity.getIsSettlement()
+                    );
+
+
                     // Transaction limits
                     subProductMap.put(
                             "maxAmount",
@@ -1632,6 +1638,7 @@ public class AuthController {
                     subProductMap.put("active", subProductEntity.getIsActive());
                     subProductMap.put("blocked", subProductEntity.getIsBlocked());
                     subProductMap.put("isVisible", subProductEntity.getIsVisible());
+                    subProductMap.put("isSettlement", subProductEntity.getIsSettlement());
 
                     subProductMap.put("maxAmount", maxAmount);
                     subProductMap.put("perDayTransactionLimit", perDayLimit);
