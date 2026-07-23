@@ -150,32 +150,19 @@ public class SubProductsController {
 
         log.info(
                 "[SUB PRODUCT LIST] Request received | serviceType={} | geolocation={}",
-                request != null
-                        ? request.getServiceType()
-                        : null,
-                request != null
-                        ? requestHeaderMetaDtoMeta.getLatitude() +" "+ requestHeaderMetaDtoMeta.getLongitude()
-                        : null
+                request != null ? request.getServiceType() : null,
+                request != null ? requestHeaderMetaDtoMeta.getLatitude() +" "+ requestHeaderMetaDtoMeta.getLongitude() : null
         );
 
         String geoLocation = requestHeaderMetaDtoMeta.getLatitude() + "," + requestHeaderMetaDtoMeta.getLongitude();
 
-        SubproductListResponse response =
-                subProductsService.getSubProductList(
-                        request,
-                        geoLocation
-                );
+        SubproductListResponse response = subProductsService.getSubProductList(request, geoLocation);
 
-        if ("success".equalsIgnoreCase(
-                response.getStatus()
-        )) {
-
+        if ("success".equalsIgnoreCase(response.getStatus())) {
             return ResponseEntity.ok(response);
         }
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_GATEWAY)
-                .body(response);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(response);
     }
 }
 
