@@ -1232,6 +1232,7 @@ public class AuthController {
                     responseMap.put("logoUrl", whiteLabel.getBusinessProofImage());
                 } else {
                     responseMap.put("role", "WL");
+                    responseMap.put("products", buildProductsForUser(user.getHierarchyId()));
                 }
                 break;
 
@@ -1241,273 +1242,29 @@ public class AuthController {
                 break;
 
             case "SD":
+            case "PT":
+            case "DT":
+            case "ET":
 
                 responseMap.put("role_id", user.getRole_id());
 
-                ImSubRole sdSubRole =
-                        imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
-
-                if (sdSubRole != null) {
-                    responseMap.put("sub_role_id", sdSubRole.getSubRoleId());
-                }
-                // Build product / subProduct list
-
-                List<SchemeAllocation> sdSchemeAllocationList =
-                        schemeAllocationRepository.findByHierarchyId(user.getHierarchyId());
-
-                // Fetch ALL products
-                List<Products> sdAllProducts = productsRepository.findAll();
-
-                Map<String, List<Map<String, Object>>> sdProductSubMap =
-                        new LinkedHashMap<>();
-
-                Map<String, Products> sdProductIdToEntity =
-                        new HashMap<>();
-
-                // Initialize all products first
-                // So products without subProducts will also appear
-                for (Products product : sdAllProducts) {
-
-                    String productId = String.valueOf(product.getId());
-
-                    sdProductSubMap.putIfAbsent(
-                            productId,
-                            new ArrayList<>()
-                    );
-
-                    sdProductIdToEntity.put(
-                            productId,
-                            product
-                    );
-                }
-
-                // Process scheme allocations
-                for (SchemeAllocation sa : sdSchemeAllocationList) {
-
-                    if (sa.getSchemeCode() == null ||
-                            sa.getSchemeCode().equalsIgnoreCase("No scheme assigned")) {
-
-                        continue;
-                    }
-
-                    // Check scheme exists
-                    boolean schemeExists =
-                            schemeRepository.existsBySchemeCode(
-                                    sa.getSchemeCode()
-                            );
-
-                    if (!schemeExists) {
-
-                        log.warn(
-                                "Skipping allocation because schemeCode {} does not exist in scheme table",
-                                sa.getSchemeCode()
+                ImSubRole subRole =
+                        imSubRoleRepository.findByMobileNumber(
+                                user.getMobileNumber()
                         );
 
-                        continue;
-                    }
-
-                    // Find sub-product
-                    Optional<SubProducts> subProductOpt =
-                            subProductsRepository
-                                    .findBySubProductCodeAndIsVisibleTrue(
-                                            sa.getSubProductCode()
-                                    );
-
-                    if (subProductOpt.isEmpty()) {
-
-                        log.warn(
-                                "Skipping scheme due to missing subProductCode={}",
-                                sa.getSubProductCode()
-                        );
-
-                        continue;
-                    }
-
-                    SubProducts subProductEntity =
-                            subProductOpt.get();
-
-                    // Find product
-                    Products productEntity =
-                            sdAllProducts.stream()
-                                    .filter(p ->
-                                            p.getProductCode()
-                                                    .equals(sa.getProductCode())
-                                    )
-                                    .findFirst()
-                                    .orElse(null);
-
-                    if (productEntity == null) {
-                        continue;
-                    }
-
-                    // Fetch transaction limits
-                    Optional<ProductTransactionLimit> limitOpt =
-                            productTransactionLimitRepository
-                                    .findByProductAndSubProduct(
-                                            productEntity,
-                                            subProductEntity
-                                    );
-
-                    BigDecimal maxAmount = null;
-                    String perDayLimit = null;
-                    String monthlyLimit = null;
-
-                    if (limitOpt.isPresent()) {
-
-                        ProductTransactionLimit limit =
-                                limitOpt.get();
-
-                        maxAmount = limit.getMaxAmount();
-                        perDayLimit =
-                                limit.getPerDayTransactionLimit();
-
-                        monthlyLimit =
-                                limit.getMonthlyTransactionLimit();
-                    }
-
-                    String productId =
-                            String.valueOf(productEntity.getId());
-
-                    String subProductId =
-                            String.valueOf(subProductEntity.getId());
-
-                    String subProductName =
-                            subProductEntity.getSubProductTitle();
-
-                    // Fetch vendor routing
-                    VendorRouting routing =
-                            vendorRoutingRepository
-                                    .findBySubProduct(subProductEntity);
-
-                    String vendorName = "N/A";
-
-                    if (routing != null &&
-                            routing.getRoutingPriority1() != null) {
-
-                        vendorName =
-                                routing.getRoutingPriority1()
-                                        .getVendorName();
-                    }
-
-                    Map<String, Object> subProductMap =
-                            new HashMap<>();
-
-                    subProductMap.put(
-                            "subProductId",
-                            subProductId
+                if (subRole != null) {
+                    responseMap.put(
+                            "sub_role_id",
+                            subRole.getSubRoleId()
                     );
-
-                    subProductMap.put(
-                            "subProductName",
-                            subProductName
-                    );
-
-                    subProductMap.put(
-                            "schemeCode",
-                            sa.getSchemeCode()
-                    );
-
-                    subProductMap.put(
-                            "vendorName",
-                            vendorName
-                    );
-
-                    // Sub-product flags
-                    subProductMap.put(
-                            "active",
-                            subProductEntity.getIsActive()
-                    );
-
-                    subProductMap.put(
-                            "blocked",
-                            subProductEntity.getIsBlocked()
-                    );
-
-                    subProductMap.put(
-                            "isVisible",
-                            subProductEntity.getIsVisible()
-                    );
-
-                    subProductMap.put(
-                            "isSettlement",
-                            subProductEntity.getIsSettlement()
-                    );
-
-
-                    // Transaction limits
-                    subProductMap.put(
-                            "maxAmount",
-                            maxAmount
-                    );
-
-                    subProductMap.put(
-                            "perDayTransactionLimit",
-                            perDayLimit
-                    );
-
-                    subProductMap.put(
-                            "monthlyTransactionLimit",
-                            monthlyLimit
-                    );
-
-                    sdProductSubMap
-                            .get(productId)
-                            .add(subProductMap);
-                }
-
-                // Build final product list
-                List<Map<String, Object>> sdProductList =
-                        new ArrayList<>();
-
-                for (
-                        Map.Entry<String, List<Map<String, Object>>> entry
-                        : sdProductSubMap.entrySet()
-                ) {
-
-                    Products productEntity =
-                            sdProductIdToEntity.get(
-                                    entry.getKey()
-                            );
-
-                    Map<String, Object> product =
-                            new HashMap<>();
-
-                    product.put(
-                            "productId",
-                            entry.getKey()
-                    );
-
-                    product.put(
-                            "productName",
-                            productEntity.getName()
-                    );
-
-                    product.put(
-                            "active",
-                            productEntity.getActive()
-                    );
-
-                    product.put(
-                            "blocked",
-                            productEntity.getBlocked()
-                    );
-
-                    product.put(
-                            "isVisible",
-                            productEntity.getIsVisible()
-                    );
-
-                    product.put(
-                            "subProducts",
-                            entry.getValue()
-                    );
-
-                    sdProductList.add(product);
                 }
 
                 responseMap.put(
                         "products",
-                        sdProductList
+                        buildProductsForUser(
+                                user.getHierarchyId()
+                        )
                 );
 
                 responseMap.put(
@@ -1780,6 +1537,257 @@ public class AuthController {
 
         log.info("OTP verification completed successfully for user ID: {}", user.getHierarchyId());
         return ResponseEntity.ok(new CommonResponse<>(200, "OTP verified successfully", responseMap));
+    }
+
+    private List<Map<String, Object>> buildProductsForUser(String hierarchyId) {
+
+        // Fetch scheme allocations for user
+        List<SchemeAllocation> schemeAllocationList =
+                schemeAllocationRepository.findByHierarchyId(hierarchyId);
+
+        // Fetch ALL products
+        List<Products> allProducts =
+                productsRepository.findAll();
+
+        Map<String, List<Map<String, Object>>> productSubMap =
+                new LinkedHashMap<>();
+
+        Map<String, Products> productIdToEntity =
+                new HashMap<>();
+
+        // Initialize all products first
+        for (Products product : allProducts) {
+
+            String productId =
+                    String.valueOf(product.getId());
+
+            productSubMap.putIfAbsent(
+                    productId,
+                    new ArrayList<>()
+            );
+
+            productIdToEntity.put(
+                    productId,
+                    product
+            );
+        }
+
+        // Process scheme allocations
+        for (SchemeAllocation sa : schemeAllocationList) {
+
+            if (sa.getSchemeCode() == null ||
+                    sa.getSchemeCode().equalsIgnoreCase("No scheme assigned")) {
+
+                continue;
+            }
+
+            // Check scheme exists
+            boolean schemeExists =
+                    schemeRepository.existsBySchemeCode(
+                            sa.getSchemeCode()
+                    );
+
+            if (!schemeExists) {
+
+                log.warn(
+                        "Skipping allocation because schemeCode {} does not exist",
+                        sa.getSchemeCode()
+                );
+
+                continue;
+            }
+
+            // Find sub-product
+            Optional<SubProducts> subProductOpt =
+                    subProductsRepository
+                            .findBySubProductCodeAndIsVisibleTrue(
+                                    sa.getSubProductCode()
+                            );
+
+            if (subProductOpt.isEmpty()) {
+
+                log.warn(
+                        "Skipping scheme due to missing subProductCode={}",
+                        sa.getSubProductCode()
+                );
+
+                continue;
+            }
+
+            SubProducts subProductEntity =
+                    subProductOpt.get();
+
+            // Find product
+            Products productEntity =
+                    allProducts.stream()
+                            .filter(p ->
+                                    p.getProductCode()
+                                            .equals(sa.getProductCode())
+                            )
+                            .findFirst()
+                            .orElse(null);
+
+            if (productEntity == null) {
+                continue;
+            }
+
+            // Transaction limit
+            Optional<ProductTransactionLimit> limitOpt =
+                    productTransactionLimitRepository
+                            .findByProductAndSubProduct(
+                                    productEntity,
+                                    subProductEntity
+                            );
+
+            BigDecimal maxAmount = null;
+            String perDayLimit = null;
+            String monthlyLimit = null;
+
+            if (limitOpt.isPresent()) {
+
+                ProductTransactionLimit limit =
+                        limitOpt.get();
+
+                maxAmount =
+                        limit.getMaxAmount();
+
+                perDayLimit =
+                        limit.getPerDayTransactionLimit();
+
+                monthlyLimit =
+                        limit.getMonthlyTransactionLimit();
+            }
+
+            String productId =
+                    String.valueOf(productEntity.getId());
+
+            String subProductId =
+                    String.valueOf(subProductEntity.getId());
+
+            // Vendor routing
+            VendorRouting routing =
+                    vendorRoutingRepository
+                            .findBySubProduct(subProductEntity);
+
+            String vendorName = "N/A";
+
+            if (routing != null &&
+                    routing.getRoutingPriority1() != null) {
+
+                vendorName =
+                        routing.getRoutingPriority1()
+                                .getVendorName();
+            }
+
+            Map<String, Object> subProductMap =
+                    new HashMap<>();
+
+            subProductMap.put(
+                    "subProductId",
+                    subProductId
+            );
+
+            subProductMap.put(
+                    "subProductName",
+                    subProductEntity.getSubProductTitle()
+            );
+
+            subProductMap.put(
+                    "schemeCode",
+                    sa.getSchemeCode()
+            );
+
+            subProductMap.put(
+                    "vendorName",
+                    vendorName
+            );
+
+            subProductMap.put(
+                    "active",
+                    subProductEntity.getIsActive()
+            );
+
+            subProductMap.put(
+                    "blocked",
+                    subProductEntity.getIsBlocked()
+            );
+
+            subProductMap.put(
+                    "isVisible",
+                    subProductEntity.getIsVisible()
+            );
+
+            subProductMap.put(
+                    "maxAmount",
+                    maxAmount
+            );
+
+            subProductMap.put(
+                    "perDayTransactionLimit",
+                    perDayLimit
+            );
+
+            subProductMap.put(
+                    "monthlyTransactionLimit",
+                    monthlyLimit
+            );
+
+            productSubMap
+                    .get(productId)
+                    .add(subProductMap);
+        }
+
+        // Build final product list
+        List<Map<String, Object>> productList =
+                new ArrayList<>();
+
+        for (
+                Map.Entry<String, List<Map<String, Object>>> entry
+                : productSubMap.entrySet()
+        ) {
+
+            Products productEntity =
+                    productIdToEntity.get(
+                            entry.getKey()
+                    );
+
+            Map<String, Object> product =
+                    new HashMap<>();
+
+            product.put(
+                    "productId",
+                    entry.getKey()
+            );
+
+            product.put(
+                    "productName",
+                    productEntity.getName()
+            );
+
+            product.put(
+                    "active",
+                    productEntity.getActive()
+            );
+
+            product.put(
+                    "blocked",
+                    productEntity.getBlocked()
+            );
+
+            product.put(
+                    "isVisible",
+                    productEntity.getIsVisible()
+            );
+
+            product.put(
+                    "subProducts",
+                    entry.getValue()
+            );
+
+            productList.add(product);
+        }
+
+        return productList;
     }
 
     @PostMapping("/forget-verify-otp")
