@@ -3,9 +3,7 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
-import com.im.admin.dto.AbstractWalletAmountTable;
-import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
-import com.im.admin.dto.WalletToWalletTransferDto;
+import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.RateType;
 import com.im.admin.entities.enums.SlabType;
@@ -18,6 +16,7 @@ import com.im.admin.util.CommonMethods;
 import com.im.admin.util.WalletTransactionService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
+import jakarta.persistence.Query;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -75,8 +74,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
     @Override
     public void transferAmountWalletToWallet(
             WalletToWalletTransferDto request,
-            Double latitude,
-            Double longitude
+            RequestHeaderMetaDto requestHeaderMetaDtoMeta
     ) throws JsonProcessingException {
 
         log.info("=== START Wallet-to-Wallet Transfer ===");
@@ -108,8 +106,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
             log.info(
                     "Location Details - Latitude: {}, Longitude: {}",
-                    latitude,
-                    longitude
+                    requestHeaderMetaDtoMeta.getLatitude(),
+                    requestHeaderMetaDtoMeta.getLongitude()
             );
 
             String hierarchyId = request.getHierarchyId();
@@ -259,24 +257,14 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                 );
             }
 
-            log.info(
-                    "Early balance validation passed. Requested amount: {}, Available balance: {}",
-                    amount,
-                    availableBalance
-            );
+            log.info("Early balance validation passed. Requested amount: {}, Available balance: {}",amount,availableBalance);
 
             // =========================================================
             // RESOLVE SCHEME CODE AND SUB-PRODUCT ID
             // =========================================================
-            log.info(
-                    "Extracting hierarchy type for hierarchyId: {}",
-                    hierarchyId
-            );
+            log.info("Extracting hierarchy type for hierarchyId: {}",hierarchyId);
 
-            String hierarchyType =
-                    walletTransactionService.extractHierarchyType(
-                            hierarchyId
-                    );
+            String hierarchyType = walletTransactionService.extractHierarchyType(hierarchyId);
 
             log.info("Hierarchy Type: {}", hierarchyType);
 
@@ -332,39 +320,41 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                         "Non-retailer hierarchy detected, resolving scheme from hierarchy"
                 );
 
-                String schemeName =
-                        getSchemeNameByHierarchy(hierarchyId);
+//                String schemeName =
+//                        getSchemeNameByHierarchy(hierarchyId);
+//
+//                log.info(
+//                        "Scheme name resolved from hierarchy: {}",
+//                        schemeName
+//                );
 
-                log.info(
-                        "Scheme name resolved from hierarchy: {}",
-                        schemeName
-                );
+//                Optional<Scheme> schemeOptional =
+//                        schemeRepository.findBySchemeName(schemeName);
+//
+//                if (schemeOptional.isEmpty()) {
+//
+//                    log.error(
+//                            "Scheme not found for name: {}",
+//                            schemeName
+//                    );
+//
+//                    throw new RuntimeException(
+//                            "Scheme not found for name: " + schemeName
+//                    );
+//                }
 
-                Optional<Scheme> schemeOptional =
-                        schemeRepository.findBySchemeName(schemeName);
+                //Scheme scheme = schemeOptional.get();
 
-                if (schemeOptional.isEmpty()) {
-
-                    log.error(
-                            "Scheme not found for name: {}",
-                            schemeName
-                    );
-
-                    throw new RuntimeException(
-                            "Scheme not found for name: " + schemeName
-                    );
-                }
-
-                Scheme scheme = schemeOptional.get();
-
-                schemeCode = scheme.getSchemeCode();
+                schemeCode = request.getSchemeCode();
 
                 // Only new behavior:
                 // extract SubProduct ID from existing scheme hash.
-                resolvedSubProductId =
-                        extractSubProductIdFromSchemeHash(
-                                scheme.getSchemeCombinationHashCode()
-                        );
+//                resolvedSubProductId =
+//                        extractSubProductIdFromSchemeHash(
+//                                scheme.getSchemeCombinationHashCode()
+//                        );
+
+                resolvedSubProductId = request.getSubProductId();
 
                 log.info(
                         "Scheme resolved from hierarchy | " +
@@ -374,6 +364,15 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                         resolvedSubProductId
                 );
             }
+
+            // =========================================================
+            // FETCH SCHEME
+            // =========================================================
+
+            Optional<Scheme> schemeOptional =
+                        schemeRepository.findBySchemeCode(request.getSchemeCode());
+
+            Scheme scheme = schemeOptional.get();
 
             // =========================================================
             // FETCH SUB-PRODUCT
@@ -695,6 +694,13 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     fromWalletTable.getClass().getSimpleName()
             );
 
+            TransactionDetailsInfoDto transactionDetailsInfo =
+                    TransactionDetailsInfoDto.builder()
+                                    .subProductCode(subProduct.getSubProductCode())
+                                    .operatorName(operator.getOperatorName())
+                                    .schemeName(scheme.getSchemeName())
+                                    .build();
+
             updateWallet(
                     fromWalletTable,
                     hierarchyId,
@@ -704,8 +710,9 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     baseTransactionId,
                     "SUCCESS",
                     "DEBIT",
-                    latitude,
-                    longitude
+                    requestHeaderMetaDtoMeta,
+                    transactionDetailsInfo
+
             );
 
             log.info(
@@ -812,8 +819,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             baseTransactionId,
                             "SUCCESS",
                             "CREDIT",
-                            latitude,
-                            longitude
+                            requestHeaderMetaDtoMeta,
+                            transactionDetailsInfo
                     );
 
                     log.debug(
@@ -846,8 +853,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             baseTransactionId,
                             "SUCCESS",
                             "DEBIT",
-                            latitude,
-                            longitude
+                            requestHeaderMetaDtoMeta,
+                            transactionDetailsInfo
                     );
 
                     log.debug(
@@ -920,8 +927,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             baseTransactionId,
                             "SUCCESS",
                             "CREDIT",
-                            latitude,
-                            longitude
+                            requestHeaderMetaDtoMeta,
+                            transactionDetailsInfo
                     );
 
                     log.debug(
@@ -955,8 +962,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             baseTransactionId,
                             "SUCCESS",
                             "DEBIT",
-                            latitude,
-                            longitude
+                            requestHeaderMetaDtoMeta,
+                            transactionDetailsInfo
                     );
 
                     log.debug(
@@ -1031,8 +1038,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     baseTransactionId,
                     "SUCCESS",
                     "CREDIT",
-                    latitude,
-                    longitude
+                    requestHeaderMetaDtoMeta,
+                    transactionDetailsInfo
             );
 
             log.info(
@@ -1067,19 +1074,16 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             dto.setSubProductCode(subProduct.getSubProductCode());
             dto.setIsCommission(product.getIsCommissions());
             dto.setHasCharge(product.getHasCharges());
-            dto.setLatitude(latitude);
-            dto.setLongitude(longitude);
+            dto.setLatitude(requestHeaderMetaDtoMeta.getLatitude());
+            dto.setLongitude(requestHeaderMetaDtoMeta.getLongitude());
+            dto.setVendorName("Internal Product");
+            dto.setMedium(requestHeaderMetaDtoMeta.getMedium());
+            dto.setClientIp(requestHeaderMetaDtoMeta.getIpAddress());
+            dto.setRequestDomainName(requestHeaderMetaDtoMeta.getRequestDomainName());
 
-            log.debug(
-                    "[WTW] Transaction charge DTO prepared: {}",
-                    dto
-            );
+            log.debug("[WTW] Transaction charge DTO prepared: {}", dto);
 
-            log.info(
-                    "Processing charges - IM Rate: {}, SGST: {}",
-                    schemeRate.getIm(),
-                    product.getSgst()
-            );
+            log.info("Processing charges - IM Rate: {}, SGST: {}", schemeRate.getIm(), product.getSgst());
 
             transactionEngineServiceImpl.processCharges(
                     dto,
@@ -1198,64 +1202,9 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
         }
     }
 
-    private String extractSubProductIdFromSchemeHash(
-            String schemeCombinationHashCode
-    ) {
-
-        if (schemeCombinationHashCode == null
-                || schemeCombinationHashCode.isBlank()) {
-
-            throw new RuntimeException(
-                    "Scheme combination hash code is missing."
-            );
-        }
-
-        String[] parts =
-                schemeCombinationHashCode.trim().split("-");
-
-        /*
-         * Example:
-         * 10-01-02-001-00001
-         *
-         * index 0 = productId
-         * index 1 = subProductId
-         */
-        if (parts.length < 2
-                || parts[1] == null
-                || parts[1].isBlank()) {
-
-            throw new RuntimeException(
-                    "Invalid scheme combination hash code: " +
-                            schemeCombinationHashCode
-            );
-        }
-
-        try {
-
-            String subProductId = parts[1].trim();
-
-            log.info(
-                    "[WTW] SubProduct ID extracted from scheme hash | " +
-                            "schemeHash={}, subProductId={}",
-                    schemeCombinationHashCode,
-                    subProductId
-            );
-
-            return subProductId;
-
-        } catch (NumberFormatException ex) {
-
-            throw new RuntimeException(
-                    "Invalid SubProduct ID in scheme combination hash: " +
-                            schemeCombinationHashCode,
-                    ex
-            );
-        }
-    }
-
-
     private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
-                                                                    String tranxType, String baseTransactionId, String tranStatus, String service, Double latitude, Double longitude) {
+                                                                    String tranxType, String baseTransactionId, String tranStatus, String service,
+                                                                    RequestHeaderMetaDto requestHeaderMetaDtoMeta, TransactionDetailsInfoDto transactionDetailsInfo) {
 
         log.debug("Updating wallet: {} | Type: {} | Amount: {} | TranxType: {}", hierarchyId, walletType, amount, tranxType);
 
@@ -1279,13 +1228,13 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
         log.debug("Wallet updated. Before: {} | After: {}", balanceBefore, wallet.getAvailableBalance());
 
         insertTransaction(walletType.name(), hierarchyId, tranStatus, amount, balanceBefore,
-                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service, latitude, longitude);
+                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service, requestHeaderMetaDtoMeta, transactionDetailsInfo);
     }
 
 
     private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount,
                                    BigDecimal beforeBalance, BigDecimal afterBalance, String actionOnBalanceAmount,
-                                   String tranxId, String service, Double latitude, Double longitude) {
+                                   String tranxId, String service, RequestHeaderMetaDto requestHeaderMetaDtoMeta, TransactionDetailsInfoDto transactionDetailsInfo) {
 
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
@@ -1294,14 +1243,27 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
         log.info("Inserting into {} | Type: {} | Amount: {} | Hierarchy ID: {} | Before Balance: {} | After Balance: {}",
                 transactionTableName, service, amount, hierarchyId, beforeBalance, afterBalance);
 
+        boolean includeExtraColumns =
+                !"AD".equalsIgnoreCase(hierarchyType)
+                        && !"WL".equalsIgnoreCase(hierarchyType);
+
         String sql = "INSERT INTO " + transactionTableName +
                 " (" + columnName + ", service, amount, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, latitude, longitude) " +
+                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, " +
+                "scheme_name, sub_product_name, operator_name, " +
+                (includeExtraColumns
+                        ? "client_ip, medium, request_domain_name, vendor_name, "
+                        : "") +
+                "latitude, longitude) " +
                 "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :latitude, :longitude)";
-
+                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, " +
+                ":schemeName, :subProductName, :operatorName, " +
+                (includeExtraColumns
+                        ? ":clientIp, :medium, :requestDomainName, :vendorName, "
+                        : "") +
+                ":latitude, :longitude)";
         try {
-            entityManager.createNativeQuery(sql)
+            Query query = entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
                     .setParameter("service", service)
                     .setParameter("amount", amount)
@@ -1313,9 +1275,21 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     .setParameter("finalBalance", afterBalance)
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
-                    .setParameter("latitude", latitude)
-                    .setParameter("longitude", longitude)
-                    .executeUpdate();
+                    .setParameter("schemeName", transactionDetailsInfo != null ? transactionDetailsInfo.getSchemeName() : null)
+                    .setParameter("subProductName", transactionDetailsInfo != null ? transactionDetailsInfo.getSubProductCode() : null)
+                    .setParameter("operatorName", transactionDetailsInfo != null ? transactionDetailsInfo.getOperatorName() : null)
+                    .setParameter("latitude", requestHeaderMetaDtoMeta.getLatitude())
+                    .setParameter("longitude", requestHeaderMetaDtoMeta.getLongitude());
+
+            if (includeExtraColumns) {
+                query.setParameter("clientIp", requestHeaderMetaDtoMeta.getIpAddress())
+                        .setParameter("medium", requestHeaderMetaDtoMeta.getMedium())
+                        .setParameter("requestDomainName", requestHeaderMetaDtoMeta.getRequestDomainName())
+                        .setParameter("vendorName", "Internal Product");
+
+            }
+
+            query.executeUpdate();
 
             log.info("Transaction inserted successfully | TranxID={}", tranxId);
 
@@ -1388,15 +1362,4 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
         throw new RuntimeException("No slab found for amount: " + txnAmount);
     }
 
-    public String getSchemeNameByHierarchy(String hierarchyId) {
-
-        String type = walletTransactionService.extractHierarchyType(hierarchyId);
-
-        return switch (type.toUpperCase()) {
-            case "SD" -> "wallet_to_wallet_SD_Scheme";
-            case "PT" -> "wallet_to_wallet_PT_Scheme";
-            case "DT" -> "wallet_to_wallet_DT_Scheme";
-            default -> throw new RuntimeException("No scheme defined for hierarchy: " + type);
-        };
-    }
 }
