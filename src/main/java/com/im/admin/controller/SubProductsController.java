@@ -141,7 +141,7 @@ public class SubProductsController {
     }
 
     @PostMapping("/im/list")
-    public ResponseEntity<SubproductListResponse> getSubProductList(
+    public ResponseEntity<SubproductListResponse> getImSubProductList(
             @RequestBody SubproductListRequest request,
             HttpServletRequest httpServletRequest
     ) {
