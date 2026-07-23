@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -120,90 +121,6 @@ public class DropdownManagerImpl implements DropdownManagerService {
         return new PageImpl<>(paginated, pageable, filtered.size());
     }
 
-
-//    private void fetchHierarchyRecursively(
-//            String parentId,
-//            String parentType,
-//            List<ChildUserDto> result
-//    ) {
-//        // Fetch ALL children of this parent from user_details (type-agnostic)
-//        List<UserDetails> children = userDetailsRepository.findByParentAccount(parentId);
-//
-//        for (UserDetails child : children) {
-//            String childType = child.getHierarchyCode();
-//            if (childType == null) continue;
-//
-//            // Map the child to ChildUserDto using the correct entity repo
-//            ChildUserDto dto = resolveChildDto(child.getHierarchyId(), childType);
-//            if (dto != null) {
-//                result.add(dto);
-//                // Recurse into this child's children
-//                fetchHierarchyRecursively(child.getHierarchyId(), childType, result);
-//            }
-//        }
-//    }
-
-    private void fetchHierarchyRecursively(
-            String parentId,
-            String parentType,
-            List<ChildUserDto> result
-    ) {
-
-        List<UserDetails> children =
-                userDetailsRepository.findByParentAccount(parentId);
-
-        for (UserDetails child : children) {
-
-            String childHierarchyId = child.getHierarchyId();
-            String childHierarchyCode = child.getHierarchyCode();
-
-            if (childHierarchyId == null || childHierarchyCode == null) {
-                continue;
-            }
-
-            ChildUserDto dto =
-                    resolveChildDto(
-                            childHierarchyId,
-                            childHierarchyCode
-                    );
-
-            if (dto != null) {
-
-                try {
-
-                    Map<String, Object> walletInformation =
-                            hierarchyWalletService.getWalletInformation(
-                                    childHierarchyCode.toUpperCase(),
-                                    childHierarchyId
-                            );
-
-                    dto.setWalletInformation(walletInformation);
-
-                } catch (Exception exception) {
-
-                    log.error(
-                            "Unable to fetch wallet information for child hierarchyId: {}, hierarchyCode: {}",
-                            childHierarchyId,
-                            childHierarchyCode,
-                            exception
-                    );
-
-                    dto.setWalletInformation(
-                            createEmptyWalletInformation()
-                    );
-                }
-
-                result.add(dto);
-
-                fetchHierarchyRecursively(
-                        childHierarchyId,
-                        childHierarchyCode,
-                        result
-                );
-            }
-        }
-    }
-
     /**
      * Resolves a ChildUserDto for any hierarchy type by looking up the correct entity repo.
      */
@@ -246,6 +163,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                         .map(UserDetails::getIsBlocked).orElse(false),
                 p.getRejectionReason(),
                 p.getCreatedOn(),
+                null,
                 null
         );
     }
@@ -266,6 +184,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                         .map(UserDetails::getIsBlocked).orElse(false),
                 e.getRejectionReason(),
                 e.getCreatedOn(),
+                null,
                 null
         );
     }
@@ -287,6 +206,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                         .map(UserDetails::getIsBlocked).orElse(false),
                 wl.getRejectionReason(),
                 wl.getCreatedOn(),
+                null,
                 null
         );
     }
@@ -307,6 +227,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                         .map(UserDetails::getIsBlocked).orElse(false),
                 s.getRejectionReason(),
                 s.getCreatedOn(),
+                null,
                 null
         );
     }
@@ -328,6 +249,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                         .map(UserDetails::getIsBlocked).orElse(false),
                 d.getRejectionReason(),
                 d.getCreatedOn(),
+                null,
                 null
         );
     }
@@ -348,6 +270,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                         .map(UserDetails::getIsBlocked).orElse(false),
                 r.getRejectionReason(),
                 r.getCreatedOn(),
+                null,
                 null
         );
     }
@@ -400,7 +323,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             e.getName(), e.getMobileNumber(), e.getEmailId(), e.getDob(), e.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId()).map(UserDetails::getIsBlocked).orElse(false),
                             e.getRejectionReason(),
-                            e.getCreatedOn(), null
+                            e.getCreatedOn(), null,null
                     )).toList();
 
             case "white_labels" -> whiteLabelRepository.findByParentAccount(parentHierarchyId).stream()
@@ -410,7 +333,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             wl.getName(), wl.getMobileNumber(), wl.getEmailId(), wl.getDob(), wl.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId()).map(UserDetails::getIsBlocked).orElse(false),
                             wl.getRejectionReason(),
-                            wl.getCreatedOn(), null
+                            wl.getCreatedOn(), null,null
                     )).toList();
 
             case "super_distributor" -> superDistributorRepository.findByParentAccount(parentHierarchyId).stream()
@@ -420,7 +343,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             s.getName(), s.getMobileNumber(), s.getEmailId(), s.getDob(), s.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(s.getSuperDistributorId()).map(UserDetails::getIsBlocked).orElse(false),
                             s.getRejectionReason(),
-                            s.getCreatedOn(), null
+                            s.getCreatedOn(), null,null
                     )).toList();
 
             case "partner" -> partnerRepository.findByParentAccount(parentHierarchyId).stream()
@@ -430,7 +353,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             p.getName(), p.getMobileNumber(), p.getEmailId(), p.getDob(), p.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(p.getPartnerId()).map(UserDetails::getIsBlocked).orElse(false),
                             p.getRejectionReason(),
-                            p.getCreatedOn(), null
+                            p.getCreatedOn(), null,null
                     )).toList();
 
             case "distributor" -> distributorRepository.findByParentAccount(parentHierarchyId).stream()
@@ -440,7 +363,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             d.getName(), d.getMobileNumber(), d.getEmailId(), d.getDob(), d.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(d.getDistributorId()).map(UserDetails::getIsBlocked).orElse(false),
                             d.getRejectionReason(),
-                            d.getCreatedOn(), null
+                            d.getCreatedOn(), null,null
                     )).toList();
 
             case "retailer" -> retailerRepository.findByParentAccount(parentHierarchyId).stream()
@@ -450,7 +373,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
                             r.getName(), r.getMobileNumber(), r.getEmailId(), r.getDob(), r.getStatus(),
                             userDetailsRepository.findFirstByHierarchyId(r.getRetailerId()).map(UserDetails::getIsBlocked).orElse(false),
                             r.getRejectionReason(),
-                            r.getCreatedOn(), null
+                            r.getCreatedOn(), null,null
                     )).toList();
 
             default -> throw new RuntimeException("Invalid child entity type: " + childEntity);
@@ -459,33 +382,52 @@ public class DropdownManagerImpl implements DropdownManagerService {
         // <-- PASTE THIS HERE
         approvedUsers.forEach(user -> {
             try {
-                String hierarchyCode = commonMethods.extractHierarchyType(user.getUserId());
 
-                user.setWalletInformation(
+                String hierarchyCode =
+                        commonMethods.extractHierarchyType(user.getUserId());
+
+                Map<String, Object> wallet =
                         hierarchyWalletService.getWalletInformation(
                                 hierarchyCode,
                                 user.getUserId()
-                        )
-                );
+                        );
+
+                // Default values
+                user.setPrepaidBalance(BigDecimal.ZERO);
+                user.setPostpaidBalance(BigDecimal.ZERO);
+
+                // Prepaid Balance
+                Object prepaidObj = wallet.get("prepaid");
+                if (prepaidObj instanceof Map<?, ?> prepaidMap) {
+
+                    Object balance = prepaidMap.get("availableBalance");
+
+                    if (balance instanceof BigDecimal bd) {
+                        user.setPrepaidBalance(bd);
+                    } else if (balance != null) {
+                        user.setPrepaidBalance(new BigDecimal(balance.toString()));
+                    }
+                }
+
+                // Postpaid Balance
+                Object postpaidObj = wallet.get("postpaid");
+                if (postpaidObj instanceof Map<?, ?> postpaidMap) {
+
+                    Object balance = postpaidMap.get("availableBalance");
+
+                    if (balance instanceof BigDecimal bd) {
+                        user.setPostpaidBalance(bd);
+                    } else if (balance != null) {
+                        user.setPostpaidBalance(new BigDecimal(balance.toString()));
+                    }
+                }
 
             } catch (Exception e) {
 
                 log.error("Unable to fetch wallet for {}", user.getUserId(), e);
 
-                Map<String, Object> wallet = new LinkedHashMap<>();
-
-                Map<String, Object> prepaid = new LinkedHashMap<>();
-                prepaid.put("available", false);
-                prepaid.put("message", "Wallet not found");
-
-                Map<String, Object> postpaid = new LinkedHashMap<>();
-                postpaid.put("available", false);
-                postpaid.put("message", "Wallet not found");
-
-                wallet.put("prepaid", prepaid);
-                wallet.put("postpaid", postpaid);
-
-                user.setWalletInformation(wallet);
+                user.setPrepaidBalance(BigDecimal.ZERO);
+                user.setPostpaidBalance(BigDecimal.ZERO);
             }
         });
 
