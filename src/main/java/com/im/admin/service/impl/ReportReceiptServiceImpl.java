@@ -548,6 +548,95 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                     .build();
         }
 
+        // ======================= MTB ============================
+
+        if (productName != null &&
+                productName.trim().equalsIgnoreCase("Move To Bank")) {
+
+            // Step 1: Get payout record
+            PayoutPendingTransactions payout =
+                    payoutPendingTransactionRepository
+                            .findByTransactionId(request.getTxnId())
+                            .orElseThrow(() ->
+                                    new RuntimeException("Payout record not found"));
+
+            // Step 2: Get beneficiary bank details
+            BeneficiaryBankAccount bankAccount =
+                    beneficiaryBankAccountRepository
+                            .findTopByRetailerIdAndAccountNumberOrderByIdDesc(
+                                    payout.getRetailerId(),
+                                    payout.getAccountNumber()
+                            )
+                            .orElse(null);
+
+            String bankName = bankAccount != null
+                    ? bankAccount.getBankName()
+                    : "Unknown";
+
+            // Step 3: Get details from already fetched transaction table
+            String status = txn.getTranStatus();
+
+            BigDecimal txnAmount = txn.getAmount();
+
+            String txnMode = txn.getOperatorName();
+
+            LocalDate date = txn.getDateOfTransaction();
+            LocalTime time = txn.getTimeOfTransaction();
+
+            String dateTime = LocalDateTime.of(date, time).toString();
+
+//             UTR is currently not available in the transaction table.
+//             Later, after adding the UTR/bank reference column to the
+//             prepaid/postpaid transaction table, get it from txn:
+//              String utr = txn.getBankRefId();
+//             Currently keeping it null
+            String utr = null;
+
+            return PayoutReceiptResponseDto.builder()
+                    .txnId(payout.getTransactionId())
+                    .txnStatus(status)
+                    .txnAmount(txnAmount != null
+                            ? txnAmount.longValue()
+                            : 0L)
+                    .dateTime(dateTime)
+                    .accountNumber(payout.getAccountNumber())
+                    .ifscCode(payout.getIfscCode())
+                    .bankName(bankName)
+                    .accountName(
+                            bankAccount != null
+                                    ? bankAccount.getBankHolderName()
+                                    : payout.getBeneficiaryName()
+                    )
+                    .txnMode(txnMode)
+                    .utrNumber(utr)
+                    .guid(payout.getRetailerId())
+                    .build();
+        }
+
+        // ======================= BALANCE TRANSFER ============================
+        if (productName != null &&
+                productName.trim().equalsIgnoreCase("balance transfer")) {
+
+            String paymentMode = txn.getOperatorName();
+
+            return BalanceTransferReceiptResponseDto.builder()
+                    .dateTime(
+                            txn.getDateOfTransaction() != null &&
+                                    txn.getTimeOfTransaction() != null
+                                    ? LocalDateTime.of(
+                                    txn.getDateOfTransaction(),
+                                    txn.getTimeOfTransaction()
+                            ).toString()
+                                    : null
+                    )
+                    .txnId(request.getTxnId())
+                    .amount(txn.getAmount())
+                    .remarks(txn.getRemarks())
+                    .status(txn.getTranStatus())
+                    .paymentMode(paymentMode)
+                    .build();
+        }
+
         throw new RuntimeException("Unsupported Product");
     }
 
