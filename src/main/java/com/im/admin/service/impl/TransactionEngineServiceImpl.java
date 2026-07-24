@@ -2058,13 +2058,43 @@ private void distributeToHierarchyChain(
     }
 
     public void updateAmountTable(String hierarchyType, String hierarchyId, String amountTable, BigDecimal amount) {
-        log.info("Updating {} | Hierarchy Type: {} | Hierarchy ID: {} | Final Amount to Add: {}",
+        log.info("updateAmountTable {} | Hierarchy Type: {} | Hierarchy ID: {} | Final Amount to Add: {}",
                 amountTable, hierarchyType, hierarchyId, amount);
 
         String columnName = transactionHelperService.getHierarchyColumnName(hierarchyType);
 
         String sql = "UPDATE " + amountTable + " SET " +
                 "available_balance = available_balance + :amount, " +
+                "last_updated_amount = :amount, " +
+                " last_updated_date = :date, " +
+                " last_updated_time = :time " +
+                "WHERE " + columnName + " = :hierarchyId";
+
+        int updated = entityManager.createNativeQuery(sql)
+                .setParameter("amount", amount)
+                .setParameter("date", new Date())
+                .setParameter("time", new Time(System.currentTimeMillis()))
+                .setParameter("hierarchyId", hierarchyId)
+                .executeUpdate();
+
+        entityManager.flush();
+
+        if (updated == 0) {
+            throw new RuntimeException("Wallet update failed for: " + hierarchyId);
+        }
+
+    }
+
+    //WHEN WE HAVE TO SUBTRACT THE AMOUNT FROM TABLE USE THIS METHOD.
+
+    public void updateAmountTableSubtraction(String hierarchyType, String hierarchyId, String amountTable, BigDecimal amount) {
+        log.info("updateAmountTableSubtraction Amount {} | Hierarchy Type: {} | Hierarchy ID: {} | Final Amount to Add: {}",
+                amountTable, hierarchyType, hierarchyId, amount);
+
+        String columnName = transactionHelperService.getHierarchyColumnName(hierarchyType);
+
+        String sql = "UPDATE " + amountTable + " SET " +
+                "available_balance = available_balance - :amount, " +
                 "last_updated_amount = :amount, " +
                 " last_updated_date = :date, " +
                 " last_updated_time = :time " +

@@ -2,7 +2,9 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.BankVerificationRequest;
 import com.im.admin.dto.EmailValidationRequest;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.service.VerificationService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -57,9 +59,11 @@ public class VerificationController {
     }
 
     @PostMapping("/bank-validate")
-    public ResponseEntity<?> validateBank(@RequestBody BankVerificationRequest request) {
+    public ResponseEntity<?> validateBank(@RequestBody BankVerificationRequest request, HttpServletRequest httpServletRequest) {
         log.info("Validating Bank Account: {}", request.getId_number());
-        ResponseEntity<?> response = verificationService.validateBank(request);
+        RequestHeaderMetaDto requestHeaderMetaDtoMeta = RequestHeaderMetaDto.from(httpServletRequest);
+
+        ResponseEntity<?> response = verificationService.validateBank(request,requestHeaderMetaDtoMeta);
         log.debug("Bank validation response: {}", response);
         return response;
     }
