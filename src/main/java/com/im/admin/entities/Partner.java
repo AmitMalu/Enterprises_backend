@@ -142,6 +142,7 @@ public class Partner {
     @Column(name = "last_edited_on")
     private LocalDateTime lastEditedOn;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(name = "approved_on")
     private LocalDateTime approvedOn;
 

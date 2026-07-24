@@ -160,6 +160,7 @@ public class WhiteLabels {
     @Column(name = "edited_by")
     private String editedBy;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(name = "approved_on")
     private LocalDateTime approvedOn;
 

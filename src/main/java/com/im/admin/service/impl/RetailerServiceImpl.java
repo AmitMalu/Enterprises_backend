@@ -269,7 +269,12 @@ public class RetailerServiceImpl implements RetailerService {
 
         // Update non-null fields
         if (retailer.getTitle() != null) existingRetailer.setTitle(retailer.getTitle());
-        if (retailer.getName() != null) existingRetailer.setName(retailer.getName());
+//        if (retailer.getName() != null)
+//            existingRetailer.setName(retailer.getName());
+        if (retailer.getName() != null && !retailer.getName().isBlank()) {
+            existingRetailer.setName(retailer.getName());
+        }
+
         if (retailer.getMobileNumber() != null) existingRetailer.setMobileNumber(retailer.getMobileNumber());
         if (retailer.getEmailId() != null) existingRetailer.setEmailId(retailer.getEmailId());
         if (retailer.getDob() != null) existingRetailer.setDob(retailer.getDob());
