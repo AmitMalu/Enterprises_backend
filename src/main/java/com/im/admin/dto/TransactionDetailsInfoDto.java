@@ -24,4 +24,7 @@ public class TransactionDetailsInfoDto {
     private String operatorName;
     private String operatorCode;
 
+    private String vendorName;
+    private String vendorCode;
+
 }

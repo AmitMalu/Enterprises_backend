@@ -702,7 +702,7 @@ public class CommonMethods {
             String subProductName,
             String narration,
             String remark,
-            String schemeCode,
+            String schemeName,
             RetailersExtraColumnsDto retailersExtraColumnsDto,
             String vendorName,
             String operatorName) { //new
@@ -749,7 +749,7 @@ public class CommonMethods {
                     subProductName,
                     narration,
                     remark,
-                    schemeCode,
+                    schemeName,
                     retailersExtraColumnsDto,
                     vendorName,
                     operatorName
@@ -775,10 +775,10 @@ public class CommonMethods {
             String actionOnBalanceAmount,
             String tranxId,
             String service,
-            String subProductName,
+            String subProductCode,
             String narration,
             String remark,
-            String schemeCode,
+            String schemeName,
             RetailersExtraColumnsDto retailersExtraColumnsDto,
             String vendorName,
             String operatorName) {
@@ -840,7 +840,7 @@ public class CommonMethods {
                     (includeHierarchy ? ", :relatedHierarchyId" : "") +
                     ", :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                     ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId," +
-                    " :tranStatus, :subProductName, :narration, :remark, :schemeCode, :latitude, :longitude" +
+                    " :tranStatus, :subProductCode, :narration, :remark, :schemeName, :latitude, :longitude" +
                     conditionalValues +  // Add conditional values
                     extraValues + ")";
 
@@ -856,10 +856,10 @@ public class CommonMethods {
                     .setParameter("finalBalance", afterBalance)
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
-                    .setParameter("subProductName", subProductName)
+                    .setParameter("subProductCode", subProductCode)
                     .setParameter("narration", narration)
                     .setParameter("remark", remark)
-                    .setParameter("schemeCode", schemeCode)
+                    .setParameter("schemeName", schemeName)
                     .setParameter("latitude", retailersExtraColumnsDto.getLatitude())
                     .setParameter("longitude", retailersExtraColumnsDto.getLongitude());
 
