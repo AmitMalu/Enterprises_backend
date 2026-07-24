@@ -41,6 +41,9 @@ public class DashboardServiceImpl implements DashboardService {
     private SuperDistributorPostpaidAmountRepository superDistributorPostpaidAmountRepository;
 
     @Autowired
+    private NetworkBankMasterRepository networkBankMasterRepository;
+
+    @Autowired
     private SuperDistributorPrepaidAmountRepository superDistributorPrepaidAmountRepository;
 
     @Autowired
@@ -397,12 +400,49 @@ public class DashboardServiceImpl implements DashboardService {
             // Bank Accounts (multiple)
             List<BanksDetails> banksDetailssList = bankDetailsRepository.findByHierarchyId(dt.getDistributorId());
             List<MyBanksDto> myBanksDtoList = new java.util.ArrayList<>();
+
             for (int i = 0; i < banksDetailssList.size(); i++) {
                 BanksDetails bank = banksDetailssList.get(i);
                 MyBanksDto banksDto = new MyBanksDto();
                 banksDto.setSrNo(i + 1);
                 banksDto.setId(bank.getId());
-                banksDto.setBankName(bank.getBankName());
+
+                // bank_name contains network_bank_master ID
+                String bankMasterIdValue = bank.getBankName();
+
+                if (bankMasterIdValue != null && !bankMasterIdValue.trim().isEmpty()) {
+
+                    try {
+
+                        Long bankMasterId =
+                                Long.valueOf(bankMasterIdValue.trim());
+
+                        NetworkBankMaster networkBankMaster =
+                                networkBankMasterRepository.findById(bankMasterId)
+                                        .orElse(null);
+
+                        if (networkBankMaster != null) {
+                            banksDto.setBankName(
+                                    networkBankMaster.getBankName()
+                            );
+                        } else {
+                            banksDto.setBankName(
+                                    bank.getBankName()
+                            );
+                        }
+
+                    } catch (NumberFormatException e) {
+
+                        // If bank_name is already a bank name
+                        banksDto.setBankName(
+                                bank.getBankName()
+                        );
+                    }
+                }
+
+                banksDto.setAccountName(bank.getBankHolderName());
+                banksDto.setAccountNo(bank.getBankAccountNumber());
+//                banksDto.setBankName(bank.getBankName());
                 banksDto.setAccountName(bank.getBankHolderName());
                 banksDto.setAccountNo(bank.getBankAccountNumber());
                 banksDto.setIFCSCode(bank.getIfscCode());
