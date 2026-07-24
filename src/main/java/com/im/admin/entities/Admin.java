@@ -1,10 +1,13 @@
 package com.im.admin.entities;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 
 @Entity
@@ -55,5 +58,13 @@ public class Admin extends BaseEntity {
 
     @Column(name = "created_by_ip_address", nullable = false, updatable = false)
     private String createdByIPAddress;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Column(name = "rejected_on")
+    private LocalDateTime rejectedOn;
+
+    @Column(name = "rejected_by")
+    private String rejectedBy;
+
 
 }

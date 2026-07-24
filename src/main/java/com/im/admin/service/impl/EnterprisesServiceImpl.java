@@ -247,40 +247,27 @@ public class EnterprisesServiceImpl implements EnterprisesService {
             return existingEnterprises;
         }
 
-//        // ===== Mobile Validation =====
-//        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
-//        try {
-//            phoneNumberValidationService.validatePhoneNumber(enterprises.getMobileNumber());
-//        } catch (IllegalArgumentException ex) {
-//            log.warn("Mobile validation failed for Enterprise [{}]: {}", id, ex.getMessage());
-//            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-//        }
-//
-//        if (!errors.isEmpty()) {
-//            log.error("Validation errors for Enterprise [{}]: {}", id, errors);
-//            throw new CustomValidationException(errors);
-//        }
 
         // ===== Update Fields =====
 //        if (enterprises.getMobileNumber() != null) existingEnterprises.setMobileNumber(enterprises.getMobileNumber());
-        if (enterprises.getAbbreviation() != null) existingEnterprises.setAbbreviation(enterprises.getAbbreviation());
-        if (enterprises.getEmailId() != null) existingEnterprises.setEmailId(enterprises.getEmailId());
+        if (enterprises.getAbbreviation() != null && !enterprises.getAbbreviation().isBlank()) existingEnterprises.setAbbreviation(enterprises.getAbbreviation());
+        if (enterprises.getEmailId() != null && !enterprises.getEmailId().isBlank()) existingEnterprises.setEmailId(enterprises.getEmailId());
         if (enterprises.getAddress() != null) existingEnterprises.setAddress(enterprises.getAddress());
         if (enterprises.getOutletAddress() != null) existingEnterprises.setOutletAddress(enterprises.getOutletAddress());
 
         existingEnterprises.setEditedBy(loginId);
         existingEnterprises.setEditedOn(LocalDateTime.now());
 
-        if (enterprises.getShopNumber() != null)
+        if (enterprises.getShopNumber() != null && !enterprises.getShopNumber().isBlank())
             existingEnterprises.setShopNumber(enterprises.getShopNumber());
 
-        if (enterprises.getAadhaarNumber() != null)
+        if (enterprises.getAadhaarNumber() != null && !enterprises.getAadhaarNumber().isBlank())
             existingEnterprises.setAadhaarNumber(enterprises.getAadhaarNumber());
 
-        if (enterprises.getPanNumber() != null)
+        if (enterprises.getPanNumber() != null && !enterprises.getPanNumber().isBlank())
             existingEnterprises.setPanNumber(enterprises.getPanNumber());
 
-        if (enterprises.getBusinessNumber() != null)
+        if (enterprises.getBusinessNumber() != null && !enterprises.getBusinessNumber().isBlank())
             existingEnterprises.setBusinessNumber(enterprises.getBusinessNumber());
 
         if (enterprises.getBankDetails() != null &&
@@ -289,19 +276,19 @@ public class EnterprisesServiceImpl implements EnterprisesService {
             BanksDetails existingBank = existingEnterprises.getBankDetails();
             BanksDetails requestBank = enterprises.getBankDetails();
 
-            if (requestBank.getBankName() != null) {
+            if (requestBank.getBankName() != null && !requestBank.getBankName().isBlank()) {
                 existingBank.setBankName(requestBank.getBankName());
             }
 
-            if (requestBank.getBankHolderName() != null) {
+            if (requestBank.getBankHolderName() != null && !requestBank.getBankHolderName().isBlank()) {
                 existingBank.setBankHolderName(requestBank.getBankHolderName());
             }
 
-            if (requestBank.getBankAccountNumber() != null) {
+            if (requestBank.getBankAccountNumber() != null && !requestBank.getBankAccountNumber().isBlank()) {
                 existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
             }
 
-            if (requestBank.getIfscCode() != null) {
+            if (requestBank.getIfscCode() != null && !requestBank.getIfscCode().isBlank()) {
                 existingBank.setIfscCode(requestBank.getIfscCode());
             }
         }

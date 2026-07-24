@@ -239,9 +239,9 @@ public class PartnerServiceImpl implements PartnerService {
             }
 
             // Update only provided fields
-            if (partner.getTitle() != null) existingPartner.setTitle(partner.getTitle());
-            if (partner.getName() != null) existingPartner.setName(partner.getName());
-            if (partner.getEmailId() != null) existingPartner.setEmailId(partner.getEmailId());
+            if (partner.getTitle() != null && !partner.getTitle().isBlank()) existingPartner.setTitle(partner.getTitle());
+            if (partner.getName() != null && !partner.getName().isBlank()) existingPartner.setName(partner.getName());
+            if (partner.getEmailId() != null && !partner.getEmailId().isBlank()) existingPartner.setEmailId(partner.getEmailId());
             if (partner.getDob() != null) existingPartner.setDob(partner.getDob());
             if (partner.getAddress() != null) existingPartner.setAddress(partner.getAddress());
             if (partner.getOutletAddress() != null) existingPartner.setOutletAddress(partner.getOutletAddress());
@@ -269,16 +269,16 @@ public class PartnerServiceImpl implements PartnerService {
             existingPartner.setLastEditedOn(LocalDateTime.now());
 
 
-            if (partner.getShopNumber() != null)
+            if (partner.getShopNumber() != null && !partner.getShopNumber().isBlank())
                 existingPartner.setShopNumber(partner.getShopNumber());
 
-            if (partner.getAadhaarNumber() != null)
+            if (partner.getAadhaarNumber() != null && !partner.getAadhaarNumber().isBlank())
                 existingPartner.setAadhaarNumber(partner.getAadhaarNumber());
 
-            if (partner.getPanNumber() != null)
+            if (partner.getPanNumber() != null && !partner.getPanNumber().isBlank())
                 existingPartner.setPanNumber(partner.getPanNumber());
 
-            if (partner.getBusinessNumber() != null)
+            if (partner.getBusinessNumber() != null && !partner.getBusinessNumber().isBlank())
                 existingPartner.setBusinessNumber(partner.getBusinessNumber());
 
             if (partner.getBankDetails() != null &&
@@ -287,19 +287,19 @@ public class PartnerServiceImpl implements PartnerService {
                 BanksDetails existingBank = existingPartner.getBankDetails();
                 BanksDetails requestBank = partner.getBankDetails();
 
-                if (requestBank.getBankName() != null) {
+                if (requestBank.getBankName() != null && !requestBank.getBankName().isBlank()) {
                     existingBank.setBankName(requestBank.getBankName());
                 }
 
-                if (requestBank.getBankHolderName() != null) {
+                if (requestBank.getBankHolderName() != null && !requestBank.getBankHolderName().isBlank()) {
                     existingBank.setBankHolderName(requestBank.getBankHolderName());
                 }
 
-                if (requestBank.getBankAccountNumber() != null) {
+                if (requestBank.getBankAccountNumber() != null && !requestBank.getBankAccountNumber().isBlank()) {
                     existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
                 }
 
-                if (requestBank.getIfscCode() != null) {
+                if (requestBank.getIfscCode() != null && !requestBank.getIfscCode().isBlank()) {
                     existingBank.setIfscCode(requestBank.getIfscCode());
                 }
             }
