@@ -101,6 +101,9 @@ public class FundingServiceImpl implements FundingService {
     @Autowired
     private PlatformTransactionManager transactionManager;
 
+    @Autowired
+    private AccessHierarchyNodeRepository accessHierarchyNodeRepository;
+
     @Override
     @Transactional
     public String fundsCreditDebit(FundCreditDebitDto dto, Double latitude, Double longitude, String ipAddress) {
@@ -1706,24 +1709,54 @@ public class FundingServiceImpl implements FundingService {
     public Page<HierarchyWalletReportDto> getReport(HierarchyWalletReportRequest request) {
 
         // Same logic as MyTransactionReport — resolve network CSV from access_hierarchy_path
-        String loggedInHierarchyId = tokenUtil.extractHierarchyId();
-        String hierarchyIdsCsv     = getWalletPreviewHierarchyIdsCsv(loggedInHierarchyId);
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
 
-        log.info("getReport (wallet-preview): loggedIn={} hierarchyIdsCsv={}",
-                loggedInHierarchyId, hierarchyIdsCsv);
+        String loginHierarchyType =
+                commonMethods.extractHierarchyType(loginHierarchyId);
 
-        return repository.getReport(request, hierarchyIdsCsv);
+        String effectiveHierarchyId =
+                commonMethods.resolveEffectiveHierarchyId(
+                        loginHierarchyId,
+                        loginHierarchyType
+                );
+
+        String hierarchyIdsCsv =
+                getWalletPreviewHierarchyIdsCsv(
+                        effectiveHierarchyId
+                );
+
+        log.info(
+                "Wallet Preview | loginHierarchyId={} | loginHierarchyType={} | effectiveHierarchyId={} | hierarchyIdsCsv={}",
+                loginHierarchyId,
+                loginHierarchyType,
+                effectiveHierarchyId,
+                hierarchyIdsCsv
+        );
+
+        return repository.getReport(
+                request,
+                hierarchyIdsCsv
+        );
     }
 
-    private String getWalletPreviewHierarchyIdsCsv(String hierarchyId) {
-        List<String> hierarchyIds = accessHierarchyPathRepository
-                .findDescendantsByAncestor(hierarchyId);
+    private String getWalletPreviewHierarchyIdsCsv(
+            String hierarchyId
+    ) {
+
+        List<String> hierarchyIds =
+                accessHierarchyPathRepository
+                        .findDescendantsByAncestor(hierarchyId);
 
         if (hierarchyIds == null || hierarchyIds.isEmpty()) {
             return hierarchyId;
         }
 
-        return String.join(",", hierarchyIds);
+        return hierarchyIds.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .distinct()
+                .collect(Collectors.joining(","));
     }
 
 }
