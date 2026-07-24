@@ -385,29 +385,29 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 //            }
 
             // Update fields selectively
-            if (superDistributor.getTitle() != null)
+            if (superDistributor.getTitle() != null && !superDistributor.getTitle().isBlank())
                 existingSuperDistributor.setTitle(superDistributor.getTitle());
 
-            if (superDistributor.getShopNumber() != null)
+            if (superDistributor.getShopNumber() != null && !superDistributor.getShopNumber().isBlank())
                 existingSuperDistributor.setShopNumber(superDistributor.getShopNumber());
 
-            if (superDistributor.getAadhaarNumber() != null)
+            if (superDistributor.getAadhaarNumber() != null && !superDistributor.getAadhaarNumber().isBlank())
                 existingSuperDistributor.setAadhaarNumber(superDistributor.getAadhaarNumber());
 
-            if (superDistributor.getBusinessNumber() != null)
+            if (superDistributor.getBusinessNumber() != null && !superDistributor.getBusinessNumber().isBlank())
                 existingSuperDistributor.setBusinessNumber(superDistributor.getBusinessNumber());
 
-            if (superDistributor.getPanNumber() != null)
+            if (superDistributor.getPanNumber() != null && !superDistributor.getPanNumber().isBlank())
                 existingSuperDistributor.setPanNumber(superDistributor.getPanNumber());
 
             if (superDistributor.getBankDetails() != null)
                 existingSuperDistributor.setPanNumber(superDistributor.getPanNumber());
 
-            if (superDistributor.getName() != null)
+            if (superDistributor.getName() != null && !superDistributor.getName().isBlank())
                 existingSuperDistributor.setName(superDistributor.getName());
 //            if (superDistributor.getMobileNumber() != null)
 //                existingSuperDistributor.setMobileNumber(superDistributor.getMobileNumber());
-            if (superDistributor.getEmailId() != null)
+            if (superDistributor.getEmailId() != null && !superDistributor.getEmailId().isBlank())
                 existingSuperDistributor.setEmailId(superDistributor.getEmailId());
             if (superDistributor.getDob() != null)
                 existingSuperDistributor.setDob(superDistributor.getDob());
@@ -422,19 +422,19 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
                 BanksDetails existingBank = existingSuperDistributor.getBankDetails();
                 BanksDetails requestBank = superDistributor.getBankDetails();
 
-                if (requestBank.getBankName() != null) {
+                if (requestBank.getBankName() != null && !requestBank.getBankName().isBlank()) {
                     existingBank.setBankName(requestBank.getBankName());
                 }
 
-                if (requestBank.getBankHolderName() != null) {
+                if (requestBank.getBankHolderName() != null && !requestBank.getBankHolderName().isBlank()) {
                     existingBank.setBankHolderName(requestBank.getBankHolderName());
                 }
 
-                if (requestBank.getBankAccountNumber() != null) {
+                if (requestBank.getBankAccountNumber() != null && !requestBank.getBankAccountNumber().isBlank()) {
                     existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
                 }
 
-                if (requestBank.getIfscCode() != null) {
+                if (requestBank.getIfscCode() != null && !requestBank.getIfscCode().isBlank()) {
                     existingBank.setIfscCode(requestBank.getIfscCode());
                 }
             }

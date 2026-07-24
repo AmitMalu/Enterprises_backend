@@ -269,9 +269,9 @@ public class DistributorServiceImpl implements DistributorService {
             }
 
             // Update fields if provided
-            if (distributor.getTitle() != null) existingDistributor.setTitle(distributor.getTitle());
-            if (distributor.getName() != null) existingDistributor.setName(distributor.getName());
-            if (distributor.getEmailId() != null) existingDistributor.setEmailId(distributor.getEmailId());
+            if (distributor.getTitle() != null && !distributor.getTitle().isBlank()) existingDistributor.setTitle(distributor.getTitle());
+            if (distributor.getName() != null && !distributor.getName().isBlank()) existingDistributor.setName(distributor.getName());
+            if (distributor.getEmailId() != null && !distributor.getEmailId().isBlank()) existingDistributor.setEmailId(distributor.getEmailId());
             if (distributor.getDob() != null) existingDistributor.setDob(distributor.getDob());
             if (distributor.getAddress() != null) existingDistributor.setAddress(distributor.getAddress());
             if (distributor.getOutletAddress() != null)
@@ -280,16 +280,16 @@ public class DistributorServiceImpl implements DistributorService {
             existingDistributor.setEditedBy(loginId);
             existingDistributor.setLastEditedOn(LocalDateTime.now());
 
-            if (distributor.getShopNumber() != null)
+            if (distributor.getShopNumber() != null && !distributor.getShopNumber().isBlank())
                 existingDistributor.setShopNumber(distributor.getShopNumber());
 
-            if (distributor.getAadhaarNumber() != null)
+            if (distributor.getAadhaarNumber() != null && !distributor.getAadhaarNumber().isBlank())
                 existingDistributor.setAadhaarNumber(distributor.getAadhaarNumber());
 
-            if (distributor.getPanNumber() != null)
+            if (distributor.getPanNumber() != null && !distributor.getPanNumber().isBlank())
                 existingDistributor.setPanNumber(distributor.getPanNumber());
 
-            if (distributor.getBusinessNumber() != null)
+            if (distributor.getBusinessNumber() != null && !distributor.getBusinessNumber().isBlank())
                 existingDistributor.setBusinessNumber(distributor.getBusinessNumber());
 
             if (distributor.getBankDetails() != null &&
@@ -298,19 +298,19 @@ public class DistributorServiceImpl implements DistributorService {
                 BanksDetails existingBank = existingDistributor.getBankDetails();
                 BanksDetails requestBank = distributor.getBankDetails();
 
-                if (requestBank.getBankName() != null) {
+                if (requestBank.getBankName() != null && !requestBank.getBankName().isBlank()) {
                     existingBank.setBankName(requestBank.getBankName());
                 }
 
-                if (requestBank.getBankHolderName() != null) {
+                if (requestBank.getBankHolderName() != null && !requestBank.getBankHolderName().isBlank()) {
                     existingBank.setBankHolderName(requestBank.getBankHolderName());
                 }
 
-                if (requestBank.getBankAccountNumber() != null) {
+                if (requestBank.getBankAccountNumber() != null && !requestBank.getBankAccountNumber().isBlank()) {
                     existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
                 }
 
-                if (requestBank.getIfscCode() != null) {
+                if (requestBank.getIfscCode() != null && !requestBank.getIfscCode().isBlank()) {
                     existingBank.setIfscCode(requestBank.getIfscCode());
                 }
             }

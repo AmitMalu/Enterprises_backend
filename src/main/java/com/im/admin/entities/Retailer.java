@@ -152,6 +152,13 @@ public class Retailer {
     @Column(name = "approved_by")
     private String approvedBy;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Column(name = "rejected_on")
+    private LocalDateTime rejectedOn;
+
+    @Column(name = "rejected_by")
+    private String rejectedBy;
+
     @Column(name = "created_by_ip_address", nullable = false, updatable = false)
     private String createdByIPAddress;
 

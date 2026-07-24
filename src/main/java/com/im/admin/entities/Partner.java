@@ -149,6 +149,13 @@ public class Partner {
     @Column(name = "approved_by")
     private String approvedBy;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Column(name = "rejected_on")
+    private LocalDateTime rejectedOn;
+
+    @Column(name = "rejected_by")
+    private String rejectedBy;
+
     @Column(name = "last_edited_by")
     private String editedBy;
 

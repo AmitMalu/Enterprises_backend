@@ -272,26 +272,26 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
 //            }
 
             // Update non-null fields
-            if (whiteLabels.getTitle() != null) existingWhiteLabels.setTitle(whiteLabels.getTitle());
+            if (whiteLabels.getTitle() != null && !whiteLabels.getTitle().isBlank()) existingWhiteLabels.setTitle(whiteLabels.getTitle());
 //            if (whiteLabels.getMobileNumber() != null) existingWhiteLabels.setMobileNumber(whiteLabels.getMobileNumber());
-            if (whiteLabels.getAbbreviation() != null) existingWhiteLabels.setAbbreviation(whiteLabels.getAbbreviation());
-            if (whiteLabels.getEmailId() != null) existingWhiteLabels.setEmailId(whiteLabels.getEmailId());
+            if (whiteLabels.getAbbreviation() != null && !whiteLabels.getAbbreviation().isBlank()) existingWhiteLabels.setAbbreviation(whiteLabels.getAbbreviation());
+            if (whiteLabels.getEmailId() != null && !whiteLabels.getEmailId().isBlank()) existingWhiteLabels.setEmailId(whiteLabels.getEmailId());
             if (whiteLabels.getAddress() != null) existingWhiteLabels.setAddress(whiteLabels.getAddress());
             if (whiteLabels.getIsAdmin() != null) existingWhiteLabels.setIsAdmin(whiteLabels.getIsAdmin());
 
             existingWhiteLabels.setEditedBy(loginId);
             existingWhiteLabels.setEditedOn(LocalDateTime.now());
 
-            if (whiteLabels.getShopNumber() != null)
+            if (whiteLabels.getShopNumber() != null && !whiteLabels.getShopNumber().isBlank())
                 existingWhiteLabels.setShopNumber(whiteLabels.getShopNumber());
 
-            if (whiteLabels.getAadhaarNumber() != null)
+            if (whiteLabels.getAadhaarNumber() != null && !whiteLabels.getAadhaarNumber().isBlank())
                 existingWhiteLabels.setAadhaarNumber(whiteLabels.getAadhaarNumber());
 
-            if (whiteLabels.getPanNumber() != null)
+            if (whiteLabels.getPanNumber() != null && !whiteLabels.getPanNumber().isBlank())
                 existingWhiteLabels.setPanNumber(whiteLabels.getPanNumber());
 
-            if (whiteLabels.getBusinessNumber() != null)
+            if (whiteLabels.getBusinessNumber() != null && !whiteLabels.getBusinessNumber().isBlank())
                 existingWhiteLabels.setBusinessNumber(whiteLabels.getBusinessNumber());
 
             if (whiteLabels.getBankDetails() != null &&
@@ -300,19 +300,19 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
                 BanksDetails existingBank = existingWhiteLabels.getBankDetails();
                 BanksDetails requestBank = whiteLabels.getBankDetails();
 
-                if (requestBank.getBankName() != null) {
+                if (requestBank.getBankName() != null && !requestBank.getBankName().isBlank()) {
                     existingBank.setBankName(requestBank.getBankName());
                 }
 
-                if (requestBank.getBankHolderName() != null) {
+                if (requestBank.getBankHolderName() != null && !requestBank.getBankHolderName().isBlank()) {
                     existingBank.setBankHolderName(requestBank.getBankHolderName());
                 }
 
-                if (requestBank.getBankAccountNumber() != null) {
+                if (requestBank.getBankAccountNumber() != null && !requestBank.getBankAccountNumber().isBlank()) {
                     existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
                 }
 
-                if (requestBank.getIfscCode() != null) {
+                if (requestBank.getIfscCode() != null && !requestBank.getIfscCode().isBlank()) {
                     existingBank.setIfscCode(requestBank.getIfscCode());
                 }
             }

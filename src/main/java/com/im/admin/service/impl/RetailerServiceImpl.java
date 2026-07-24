@@ -240,17 +240,6 @@ public class RetailerServiceImpl implements RetailerService {
 
         String retailerRequest = objectMapper.writeValueAsString(retailer);
 
-//        List<FieldErrorDetailsDTO> errors = new ArrayList<>();
-//        try {
-//            phoneNumberValidationService.validatePhoneNumber(retailer.getMobileNumber());
-//        } catch (IllegalArgumentException ex) {
-//            errors.add(new FieldErrorDetailsDTO("mobile", ex.getMessage()));
-//        }
-//
-//        if (!errors.isEmpty()) {
-//            throw new CustomValidationException(errors);
-//        }
-
         List<FieldErrorDetailsDTO> errors = new ArrayList<>();
 
         if (retailer.getMobileNumber() != null
@@ -266,17 +255,13 @@ public class RetailerServiceImpl implements RetailerService {
         if (!errors.isEmpty()) {
             throw new CustomValidationException(errors);
         }
-
         // Update non-null fields
-        if (retailer.getTitle() != null) existingRetailer.setTitle(retailer.getTitle());
-//        if (retailer.getName() != null)
-//            existingRetailer.setName(retailer.getName());
+        if (retailer.getTitle() != null && !retailer.getTitle().isBlank()) existingRetailer.setTitle(retailer.getTitle());
         if (retailer.getName() != null && !retailer.getName().isBlank()) {
             existingRetailer.setName(retailer.getName());
         }
-
-        if (retailer.getMobileNumber() != null) existingRetailer.setMobileNumber(retailer.getMobileNumber());
-        if (retailer.getEmailId() != null) existingRetailer.setEmailId(retailer.getEmailId());
+        if (retailer.getMobileNumber() != null && !retailer.getMobileNumber().isBlank()) existingRetailer.setMobileNumber(retailer.getMobileNumber());
+        if (retailer.getEmailId() != null && !retailer.getEmailId().isBlank()) existingRetailer.setEmailId(retailer.getEmailId());
         if (retailer.getDob() != null) existingRetailer.setDob(retailer.getDob());
         if (retailer.getAddress() != null) existingRetailer.setAddress(retailer.getAddress());
         if (retailer.getOutletAddress() != null) existingRetailer.setOutletAddress(retailer.getOutletAddress());
@@ -284,16 +269,16 @@ public class RetailerServiceImpl implements RetailerService {
         existingRetailer.setEditedBy(loginId);
         existingRetailer.setLastEditedOn(LocalDateTime.now());
 
-        if (retailer.getShopNumber() != null)
+        if (retailer.getShopNumber() != null && !retailer.getShopNumber().isBlank())
             existingRetailer.setShopNumber(retailer.getShopNumber());
 
-        if (retailer.getAadhaarNumber() != null)
+        if (retailer.getAadhaarNumber() != null && !retailer.getAadhaarNumber().isBlank())
             existingRetailer.setAadhaarNumber(retailer.getAadhaarNumber());
 
-        if (retailer.getPanNumber() != null)
+        if (retailer.getPanNumber() != null && !retailer.getPanNumber().isBlank())
             existingRetailer.setPanNumber(retailer.getPanNumber());
 
-        if (retailer.getBusinessNumber() != null)
+        if (retailer.getBusinessNumber() != null && !retailer.getBusinessNumber().isBlank())
             existingRetailer.setBusinessNumber(retailer.getBusinessNumber());
 
         if (retailer.getBankDetails() != null &&
@@ -302,19 +287,19 @@ public class RetailerServiceImpl implements RetailerService {
             BanksDetails existingBank = existingRetailer.getBankDetails();
             BanksDetails requestBank = retailer.getBankDetails();
 
-            if (requestBank.getBankName() != null) {
+            if (requestBank.getBankName() != null && !requestBank.getBankName().isBlank()) {
                 existingBank.setBankName(requestBank.getBankName());
             }
 
-            if (requestBank.getBankHolderName() != null) {
+            if (requestBank.getBankHolderName() != null && !requestBank.getBankHolderName().isBlank()) {
                 existingBank.setBankHolderName(requestBank.getBankHolderName());
             }
 
-            if (requestBank.getBankAccountNumber() != null) {
+            if (requestBank.getBankAccountNumber() != null && !requestBank.getBankAccountNumber().isBlank()) {
                 existingBank.setBankAccountNumber(requestBank.getBankAccountNumber());
             }
 
-            if (requestBank.getIfscCode() != null) {
+            if (requestBank.getIfscCode() != null && !requestBank.getIfscCode().isBlank()) {
                 existingBank.setIfscCode(requestBank.getIfscCode());
             }
         }
