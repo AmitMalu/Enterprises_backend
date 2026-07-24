@@ -941,27 +941,6 @@ public class CommonMethods {
         return null;
     }
 
-//    public AbstractWalletAmountTable getWalletByType(String walletType, String hierarchyId) {
-//        log.debug("Resolving wallet by type for hierarchy.");
-//
-//        String hierarchyType = extractHierarchyType(hierarchyId);
-//        log.debug("Extracted hierarchy type: {}", hierarchyType);
-//
-//        return switch (hierarchyType) {
-//            case "RT" -> getRetailerWallet(walletType, hierarchyId);
-//            case "DT" -> getDistributorWallet(walletType, hierarchyId);
-//            case "PT" -> getPartnerWallet(walletType, hierarchyId);
-//            case "SD" -> getSuperDistributorWallet(walletType, hierarchyId);
-//            case "WL" -> getWhiteLabelWallet(walletType, hierarchyId);
-//            case "ET" -> getEnterprisesWallet(walletType, hierarchyId);
-//            case "AD", "IM" -> getAdminWallet(walletType, hierarchyId);
-//            default -> {
-//                log.warn("Unsupported hierarchy type encountered.");
-//                throw new IllegalArgumentException("Unsupported hierarchy type for wallet resolution.");
-//            }
-//        };
-//    }
-
     public AbstractWalletAmountTable getWalletByType(String walletType, String hierarchyId) {
 
         log.debug("Resolving wallet | hierarchyId={} | walletType={}",hierarchyId, walletType);
@@ -2108,6 +2087,132 @@ public class CommonMethods {
         );
 
         return parentHierarchyId;
+    }
+
+    public String resolveWalletOwnerHierarchyId(String hierarchyId) {
+
+        if (hierarchyId == null || hierarchyId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Hierarchy ID is required for wallet owner resolution."
+            );
+        }
+
+        String normalizedHierarchyId = hierarchyId.trim();
+
+        String hierarchyType =
+                extractHierarchyType(normalizedHierarchyId);
+
+        if (hierarchyType == null || hierarchyType.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Unable to identify hierarchy type for: "
+                            + normalizedHierarchyId
+            );
+        }
+
+        return switch (hierarchyType.toUpperCase()) {
+
+            case "AU" -> {
+
+                AdminUser adminUser =
+                        adminUserRepository
+                                .findById(normalizedHierarchyId)
+                                .orElseThrow(() ->
+                                        new IllegalArgumentException(
+                                                "AdminUser not found with ID: "
+                                                        + normalizedHierarchyId
+                                        )
+                                );
+
+                String parentAdminId =
+                        adminUser.getParentAccount();
+
+                if (parentAdminId == null ||
+                        parentAdminId.isBlank()) {
+
+                    throw new IllegalStateException(
+                            "Parent Admin is not mapped for AdminUser: "
+                                    + normalizedHierarchyId
+                    );
+                }
+
+                log.debug(
+                        "Resolved AdminUser to wallet owner | adminUserId={} | adminId={}",
+                        normalizedHierarchyId,
+                        parentAdminId
+                );
+
+                yield parentAdminId.trim();
+            }
+
+            case "WLAU" -> {
+
+                WhiteLabelUser whiteLabelUser =
+                        whiteLabelUserRepository
+                                .findById(normalizedHierarchyId)
+                                .orElseThrow(() ->
+                                        new IllegalArgumentException(
+                                                "WhiteLabelUser not found with ID: "
+                                                        + normalizedHierarchyId
+                                        )
+                                );
+
+                String parentWhiteLabelId =
+                        whiteLabelUser.getParentAccount();
+
+                if (parentWhiteLabelId == null ||
+                        parentWhiteLabelId.isBlank()) {
+
+                    throw new IllegalStateException(
+                            "Parent WhiteLabel is not mapped for WhiteLabelUser: "
+                                    + normalizedHierarchyId
+                    );
+                }
+
+                log.debug(
+                        "Resolved WhiteLabelUser to wallet owner | whiteLabelUserId={} | whiteLabelId={}",
+                        normalizedHierarchyId,
+                        parentWhiteLabelId
+                );
+
+                yield parentWhiteLabelId.trim();
+            }
+
+            case "RU" -> {
+
+                RetailerUser retailerUser =
+                        retailerUserRepository
+                                .findByIdWithRetailer(normalizedHierarchyId)
+                                .orElseThrow(() ->
+                                        new IllegalArgumentException(
+                                                "RetailerUser not found with ID: "
+                                                        + normalizedHierarchyId
+                                        )
+                                );
+
+                if (retailerUser.getRetailer() == null ||
+                        retailerUser.getRetailer().getRetailerId() == null ||
+                        retailerUser.getRetailer().getRetailerId().isBlank()) {
+
+                    throw new IllegalStateException(
+                            "Parent Retailer is not mapped for RetailerUser: "
+                                    + normalizedHierarchyId
+                    );
+                }
+
+                String retailerId =
+                        retailerUser.getRetailer().getRetailerId().trim();
+
+                log.debug(
+                        "Resolved RetailerUser to wallet owner | retailerUserId={} | retailerId={}",
+                        normalizedHierarchyId,
+                        retailerId
+                );
+
+                yield retailerId;
+            }
+
+            default -> normalizedHierarchyId;
+        };
     }
 
 }
