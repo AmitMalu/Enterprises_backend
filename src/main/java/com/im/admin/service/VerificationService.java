@@ -1,6 +1,7 @@
 package com.im.admin.service;
 
 import com.im.admin.dto.BankVerificationRequest;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import org.springframework.http.ResponseEntity;
 
 public interface VerificationService {
@@ -15,6 +16,6 @@ public interface VerificationService {
 
     ResponseEntity<?> AdharPanLink(String aadhaarNumber);
 
-    ResponseEntity<?> validateBank(BankVerificationRequest request);
+    ResponseEntity<?> validateBank(BankVerificationRequest request, RequestHeaderMetaDto requestHeaderMetaDtoMeta);
 
 }

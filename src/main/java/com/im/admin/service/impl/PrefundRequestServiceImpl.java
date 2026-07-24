@@ -578,6 +578,14 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
 
+        TransactionDetailsInfoDto transactionDetailsInfo =
+                TransactionDetailsInfoDto.builder()
+                        .subProductCode(subProduct.getSubProductCode())
+                        .schemeName("Prefund")
+                        .operatorName(schemeRate.getOperatorName())
+                        .vendorName("Internal Product")
+                        .build();
+
         // ================= WALLET FLOW =================
         if (newStatus == Status.APPROVED) {
 
@@ -624,7 +632,8 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                         subProduct,
                         schemeRate,
                         grossAmount,
-                        baseTransactionId
+                        baseTransactionId,
+                        transactionDetailsInfo
                 );
             }
 
@@ -642,7 +651,8 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                                 product,
                                 subProduct,
                                 fundRequest.getRequestedBy(),
-                                walletType
+                                walletType,
+                                transactionDetailsInfo
                         );
 
                 transactionEngineServiceImpl.processCommission(

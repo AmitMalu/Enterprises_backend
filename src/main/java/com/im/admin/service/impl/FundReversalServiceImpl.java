@@ -1075,13 +1075,13 @@ public class FundReversalServiceImpl implements FundReversalService {
                 baseTransactionId,
                 "SUCCESS",
                 "CREDIT",
-                "Fund Reversal",
+                transactionDetailsInfo.getSubProductCode(),
                 "Payment",
                 "Fund Reversed By " + request.getChildHierarchyId(),
-                "",
+                transactionDetailsInfo.getSchemeName(),
                 retailerExtraColumns,
-                null,
-                null
+                transactionDetailsInfo.getVendorName(),
+                transactionDetailsInfo.getOperatorName()
         );
     }
 
@@ -1286,6 +1286,7 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "SUCCESS",
                 dto
         );
+
         log.info("Charge debit transaction inserted successfully for parent: {}", request.getParentHierarchyId());
 
         /* GST DEBIT */
@@ -1309,6 +1310,11 @@ public class FundReversalServiceImpl implements FundReversalService {
                 dto
         );
         log.info("GST debit transaction inserted successfully for parent: {}", request.getParentHierarchyId());
+
+        String amountTable = transactionEngineServiceImpl.getAmountTable(parentHierarchyType, request.getParentHierarchyId());
+        transactionEngineServiceImpl.updateAmountTableSubtraction(parentHierarchyType, request.getParentHierarchyId(), amountTable, baseAmount.add(gstAmount));
+
+        log.info("CHARGE & GST debit successfully for parent: {}", request.getParentHierarchyId());
 
 
         /* ================= WL / ADMIN HIERARCHY (CREDIT) ================= */
@@ -1383,7 +1389,14 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "SUCCESS",
                 dto2
         );
+
         log.info("GST credit transaction inserted successfully for hierarchy: {}", hierarchyId);
+
+        String amountTable2 = transactionEngineServiceImpl.getAmountTable(hierarchyType2, hierarchyId);
+        transactionEngineServiceImpl.updateAmountTable(hierarchyType2, hierarchyId, amountTable2, baseAmount.add(gstAmount));
+
+        log.info("CHARGE & GST Credited successfully for parent: {}", hierarchyId);
+
         log.info("Completed processing all charges for hierarchy: {}", hierarchyId);
     }
 
