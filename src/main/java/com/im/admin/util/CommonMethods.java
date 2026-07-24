@@ -702,7 +702,7 @@ public class CommonMethods {
             String subProductName,
             String narration,
             String remark,
-            String schemeCode,
+            String schemeName,
             RetailersExtraColumnsDto retailersExtraColumnsDto,
             String vendorName,
             String operatorName) { //new
@@ -749,7 +749,7 @@ public class CommonMethods {
                     subProductName,
                     narration,
                     remark,
-                    schemeCode,
+                    schemeName,
                     retailersExtraColumnsDto,
                     vendorName,
                     operatorName
@@ -775,10 +775,10 @@ public class CommonMethods {
             String actionOnBalanceAmount,
             String tranxId,
             String service,
-            String subProductName,
+            String subProductCode,
             String narration,
             String remark,
-            String schemeCode,
+            String schemeName,
             RetailersExtraColumnsDto retailersExtraColumnsDto,
             String vendorName,
             String operatorName) {
@@ -796,9 +796,13 @@ public class CommonMethods {
             // ===== CHECK IF ADMIN OR WHITE LABEL TABLE =====
             boolean isAdminTable = transactionTableName.contains("admin");
             boolean isWhiteLabelTable = transactionTableName.contains("white_label");
+            boolean isSuperDistributor = transactionTableName.contains("super_distributor");
+            boolean isDistributor = transactionTableName.contains("distributor");
+            boolean isPartner = transactionTableName.contains("partner");
+
 
             // These tables don't have transaction_type, vendor_name, operator_name columns
-            boolean excludeExtraColumns = isAdminTable || isWhiteLabelTable;
+            boolean excludeExtraColumns = isAdminTable || isWhiteLabelTable || isSuperDistributor || isPartner || isDistributor;
 
             String extraColumns = "";
             String extraValues = "";
@@ -836,7 +840,7 @@ public class CommonMethods {
                     (includeHierarchy ? ", :relatedHierarchyId" : "") +
                     ", :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                     ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId," +
-                    " :tranStatus, :subProductName, :narration, :remark, :schemeCode, :latitude, :longitude" +
+                    " :tranStatus, :subProductCode, :narration, :remark, :schemeName, :latitude, :longitude" +
                     conditionalValues +  // Add conditional values
                     extraValues + ")";
 
@@ -852,10 +856,10 @@ public class CommonMethods {
                     .setParameter("finalBalance", afterBalance)
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
-                    .setParameter("subProductName", subProductName)
+                    .setParameter("subProductCode", subProductCode)
                     .setParameter("narration", narration)
                     .setParameter("remark", remark)
-                    .setParameter("schemeCode", schemeCode)
+                    .setParameter("schemeName", schemeName)
                     .setParameter("latitude", retailersExtraColumnsDto.getLatitude())
                     .setParameter("longitude", retailersExtraColumnsDto.getLongitude());
 

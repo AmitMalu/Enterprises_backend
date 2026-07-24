@@ -1,8 +1,10 @@
 package com.im.admin.controller;
 
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.WalletToWalletTransferDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.WalletToWalletTransferService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,12 +25,14 @@ public class WalletToWalletTransferController {
 
     @PostMapping("/transfer")
     public ResponseEntity<CommonResponse<String>> transferAmount(@RequestBody WalletToWalletTransferDto request,
-                                                                 @RequestHeader Double latitude,
-                                                                 @RequestHeader Double longitude) {
+                                                                 HttpServletRequest httpServletRequest) {
         log.info("Received wallet-to-wallet transfer request: {}", request);
 
         try {
-            walletTransferService.transferAmountWalletToWallet(request, latitude, longitude);
+
+            RequestHeaderMetaDto requestHeaderMetaDtoMeta = RequestHeaderMetaDto.from(httpServletRequest);
+
+            walletTransferService.transferAmountWalletToWallet(request, requestHeaderMetaDtoMeta);
             log.info("Transfer successful from wallet {} to wallet {} for amount {}",
                     request.getWalletTypeFrom(), request.getWalletTypeTo(), request.getTransferAmount());
 

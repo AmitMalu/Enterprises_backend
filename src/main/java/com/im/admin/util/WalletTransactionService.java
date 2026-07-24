@@ -1,5 +1,6 @@
 package com.im.admin.util;
 
+import com.im.admin.dto.TransactionDetailsInfoDto;
 import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.SchemeRate;
 import com.im.admin.entities.SubProducts;
@@ -45,7 +46,8 @@ public class WalletTransactionService {
             SubProducts subProduct,
             SchemeRate schemeRate,
             BigDecimal grossCharge,
-            String baseTransactionId) {
+            String baseTransactionId,
+            TransactionDetailsInfoDto transactionDetailsInfo) {
 
         /* ================= COMMON CALC ================= */
 
@@ -57,7 +59,8 @@ public class WalletTransactionService {
                         product,
                         subProduct,
                         deductedId,
-                        walletType
+                        walletType,
+                        transactionDetailsInfo
                 );
 
         BigDecimal grossAmount =
@@ -134,7 +137,9 @@ public class WalletTransactionService {
                         product,
                         subProduct,
                         creditedId,
-                        walletType
+                        walletType,
+                        transactionDetailsInfo
+
                 );
 
         String hierarchyType2 = extractHierarchyType(creditedId);
@@ -196,7 +201,8 @@ public class WalletTransactionService {
             Products product,
             SubProducts subProduct,
             String hierarchyId,
-            WalletType walletType) {
+            WalletType walletType,
+            TransactionDetailsInfoDto transactionDetailsInfo) {
 
         TransactionSchemeDetailsRequestDto dto =
                 new TransactionSchemeDetailsRequestDto();
@@ -204,7 +210,7 @@ public class WalletTransactionService {
         dto.setBaseTranxId(baseTransactionId);
         dto.setAmount(amount.doubleValue());
         dto.setConfirmAmount(amount.doubleValue());
-        dto.setOperatorName(schemeRate.getOperatorName());
+        dto.setOperatorName(transactionDetailsInfo.getOperatorName());
         dto.setOperatorCode(schemeRate.getSchemeCode());
         dto.setSchemeRate(schemeRate);
         dto.setTransactionType(product.getTransactionType());
@@ -213,9 +219,10 @@ public class WalletTransactionService {
         dto.setTdsRate(String.valueOf(product.getTds()));
         dto.setHierarchyId(hierarchyId);
         dto.setProductCode(product.getProductCode());
-        dto.setSubProductCode(subProduct.getSubProductCode());
+        dto.setSubProductCode(transactionDetailsInfo.getSubProductCode());
         dto.setIsCommission(product.getIsCommissions());
         dto.setHasCharge(product.getHasCharges());
+        dto.setVendorName(transactionDetailsInfo.getVendorName());
 
         return dto;
     }
@@ -288,7 +295,8 @@ public class WalletTransactionService {
             SubProducts subProduct,
             SchemeRate schemeRate,
             BigDecimal grossCharge,
-            String baseTransactionId) {
+            String baseTransactionId,
+            TransactionDetailsInfoDto transactionDetailsInfo) {
 
         String originalId = hierarchyId;
         String currentId = hierarchyId;
@@ -318,7 +326,8 @@ public class WalletTransactionService {
                         subProduct,
                         schemeRate,
                         grossCharge,
-                        baseTransactionId
+                        baseTransactionId,
+                        transactionDetailsInfo
                 );
 
                 break;

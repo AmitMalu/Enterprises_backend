@@ -2,9 +2,11 @@ package com.im.admin.controller;
 
 import com.im.admin.dto.CheckBalanceRequestDto;
 import com.im.admin.dto.FundReversalRequestDto;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.FundReversalResponseDto;
 import com.im.admin.service.FundReversalService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -27,8 +29,9 @@ public class FundReversalController {
     }
 
     @PostMapping
-    public ResponseEntity<CommonResponse<FundReversalResponseDto>> takeActionOnFundReversal(@RequestBody FundReversalRequestDto request, @RequestHeader Double latitude, @RequestHeader Double longitude, @RequestHeader("ipaddress") String ipAddress) {
-        CommonResponse<FundReversalResponseDto> response = fundReversalService.takeActionOnFundReversal(request, latitude, longitude, ipAddress);
+    public ResponseEntity<CommonResponse<FundReversalResponseDto>> takeActionOnFundReversal(@RequestBody FundReversalRequestDto request, HttpServletRequest httpServletRequest) {
+        RequestHeaderMetaDto requestHeaderMetaDtoMeta = RequestHeaderMetaDto.from(httpServletRequest);
+        CommonResponse<FundReversalResponseDto> response = fundReversalService.takeActionOnFundReversal(request, requestHeaderMetaDtoMeta);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 

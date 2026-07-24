@@ -520,7 +520,7 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Override
     @Transactional
-    public ResponseEntity<?> validateBank(BankVerificationRequest request) {
+    public ResponseEntity<?> validateBank(BankVerificationRequest request, RequestHeaderMetaDto requestHeaderMetaDtoMeta) {
         LocalDateTime requestDateTime = LocalDateTime.now();
         String requestJson = null;
         String responseJson = null;
@@ -580,10 +580,20 @@ public class VerificationServiceImpl implements VerificationService {
 
             String hierarchyType = walletTransactionService.extractHierarchyType(hierarchyId);
 
+            Scheme scheme;
+
             if ("RU".equalsIgnoreCase(hierarchyType) || "RT".equalsIgnoreCase(hierarchyType)) {
 
                 // Retailer / RU → use request scheme
                 schemeCode = request.getSchemeCode();
+
+                scheme = schemeRepository
+                        .findBySchemeCode(schemeCode)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "No scheme found for scheme code: " + schemeCode
+                                )
+                        );
 
                 if (schemeCode == null || schemeCode.isBlank()) {
                     throw new RuntimeException("Scheme code is required for Retailer/RU");
@@ -592,11 +602,14 @@ public class VerificationServiceImpl implements VerificationService {
             } else {
 
                 // Other hierarchy → derive scheme
-                String schemeName = getSchemeNameByHierarchy(hierarchyId);
-
-                Optional<Scheme> scheme = Optional.ofNullable(schemeRepository.findBySchemeName(schemeName).orElseThrow(() -> new RuntimeException("No Scheme Found")));
-
-                schemeCode = scheme.get().getSchemeCode();
+                scheme = schemeRepository
+                        .findBySchemeCode(request.getSchemeCode())
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "No scheme found for scheme code: " + request.getSchemeCode()
+                                )
+                        );
+                schemeCode = scheme.getSchemeCode();
 
                 log.info("Scheme resolved from hierarchy | type={} | schemeCode={}", hierarchyType, schemeCode);
             }
@@ -675,6 +688,14 @@ public class VerificationServiceImpl implements VerificationService {
 
             try {
 
+                TransactionDetailsInfoDto transactionDetailsInfo =
+                        TransactionDetailsInfoDto.builder()
+                                .subProductCode(subProduct.getSubProductCode())
+                                .schemeName(scheme.getSchemeName())
+                                .operatorName(schemeRate.getOperatorName())
+                                .vendorName(vendor.getVendorName())
+                                .build();
+
                 if(Boolean.TRUE.equals(product.getHasCharges())) {
                     processHierarchyCharges(
                             hierarchyId,
@@ -682,7 +703,8 @@ public class VerificationServiceImpl implements VerificationService {
                             subProduct,
                             schemeRate,
                             grossAmount,
-                            baseTransactionId
+                            baseTransactionId,
+                            transactionDetailsInfo
                     );
                 }
 
@@ -693,7 +715,7 @@ public class VerificationServiceImpl implements VerificationService {
                             : WalletType.PREPAID;
 
                     TransactionSchemeDetailsRequestDto dto = walletTransactionService.buildTransactionDto(grossAmount, baseTransactionId,
-                            schemeRate, product, subProduct, hierarchyId, walletType);
+                            schemeRate, product, subProduct, hierarchyId, walletType, transactionDetailsInfo);
                     transactionEngineServiceImpl.processCommission(dto, baseTransactionId, "SUCCESS", dto);
 
                 }
@@ -743,7 +765,8 @@ public class VerificationServiceImpl implements VerificationService {
             SubProducts subProduct,
             SchemeRate schemeRate,
             BigDecimal grossCharge,
-            String baseTransactionId) {
+            String baseTransactionId,
+            TransactionDetailsInfoDto transactionDetailsInfo) {
 
         String originalId = hierarchyId;
         String currentId = hierarchyId;
@@ -773,7 +796,8 @@ public class VerificationServiceImpl implements VerificationService {
                         subProduct,
                         schemeRate,
                         grossCharge,
-                        baseTransactionId
+                        baseTransactionId,
+                        transactionDetailsInfo
                 );
 
                 break;
@@ -787,17 +811,4 @@ public class VerificationServiceImpl implements VerificationService {
         return "WL".equals(type) || "IM".equals(type) || "AD".equals(type);
     }
 
-    public String getSchemeNameByHierarchy(String hierarchyId) {
-
-        String type = walletTransactionService.extractHierarchyType(hierarchyId);
-
-        return switch (type.toUpperCase()) {
-            case "ET" -> "Bank_Verification_ET_Scheme";
-            case "WL" -> "Bank_Verification_WL_Scheme";
-            case "SD" -> "Bank_Verification_SD_Scheme";
-            case "PT" -> "Bank_Verification_PT_Scheme";
-            case "DT" -> "Bank_Verification_DT_Scheme";
-            default -> throw new RuntimeException("No scheme defined for hierarchy: " + type);
-        };
-    }
 }

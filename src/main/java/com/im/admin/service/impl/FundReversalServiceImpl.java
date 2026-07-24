@@ -38,8 +38,10 @@ public class FundReversalServiceImpl implements FundReversalService {
 
     @PersistenceContext
     private EntityManager entityManager;
+
     @Autowired
     private RetailerRepository retailerRepository;
+
     @Autowired
     private WhiteLabelUserRepository whiteLabelUserRepository;
 
@@ -67,7 +69,6 @@ public class FundReversalServiceImpl implements FundReversalService {
     @Autowired
     private SmsCredentialsRepository smsCredentialsRepository;
 
-
     @Autowired
     private FundReversalRepository fundReversalRepository;
 
@@ -94,6 +95,9 @@ public class FundReversalServiceImpl implements FundReversalService {
 
     @Autowired
     private AdminRepository adminRepository;
+
+    @Autowired
+    private SchemeRepository schemeRepository;
 
     @Override
     public CommonResponse<FundReversalResponseDto> resendOtpById(Long id) {
@@ -171,214 +175,850 @@ public class FundReversalServiceImpl implements FundReversalService {
 
     @Override
     @Transactional
-    public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(FundReversalRequestDto request, Double latitude, Double longitude, String ipAddress) {
-
-        log.info("===== Starting Fund Reversal Action =====");
-        log.info("Request: ParentHierarchyId={}, ChildHierarchyId={}, ReversalAmount={}, WalletType={}",
-                request.getParentHierarchyId(),
-                request.getChildHierarchyId(),
-                request.getReversalAmount(),
-                request.getWalletType());
-        log.debug("Location - Latitude: {}, Longitude: {}", latitude, longitude);
+    public CommonResponse<FundReversalResponseDto> takeActionOnFundReversal(
+            FundReversalRequestDto request,
+            RequestHeaderMetaDto requestHeaderMetaDtoMeta
+    ) {
 
         long startTime = System.currentTimeMillis();
 
-        try {
-            // Check balance
-            log.info("Step 1: Checking balance for ChildHierarchyId: {}, WalletType: {}, Amount: {}",
-                    request.getChildHierarchyId(),
-                    request.getWalletType(),
-                    request.getReversalAmount());
+        log.info("===== Starting Fund Reversal Action =====");
 
-            long balanceCheckStart = System.currentTimeMillis();
+        try {
+
+            // ============================================================
+            // STEP 0: BASIC REQUEST VALIDATION
+            // ============================================================
+
+            if (request == null) {
+                log.warn("Fund reversal request is null");
+                return new CommonResponse<>(
+                        400,
+                        "Request body is required.",
+                        null
+                );
+            }
+
+            if (request.getParentHierarchyId() == null ||
+                    request.getParentHierarchyId().trim().isEmpty()) {
+
+                log.warn("Parent hierarchy ID is missing");
+
+                return new CommonResponse<>(
+                        400,
+                        "Parent hierarchy ID is required.",
+                        null
+                );
+            }
+
+            if (request.getChildHierarchyId() == null || request.getChildHierarchyId().trim().isEmpty()) {
+
+                log.warn("Child hierarchy ID is missing");
+
+                return new CommonResponse<>(
+                        400,
+                        "Child hierarchy ID is required.",
+                        null
+                );
+            }
+
+            if (request.getReversalAmount() == null || request.getReversalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+
+                log.warn(
+                        "Invalid reversal amount received. ChildHierarchyId: {}, Amount: {}",
+                        request.getChildHierarchyId(),
+                        request.getReversalAmount()
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        "Reversal amount must be greater than zero.",
+                        null
+                );
+            }
+
+            if (request.getWalletType() == null) {
+
+                log.warn( "Wallet type is missing. ChildHierarchyId: {}", request.getChildHierarchyId());
+
+                return new CommonResponse<>(
+                        400,
+                        "Wallet type is required.",
+                        null
+                );
+            }
+
+            if (request.getSubProductId() == null) {
+
+                log.warn("Subproduct ID is missing. ChildHierarchyId: {}",request.getChildHierarchyId());
+
+                return new CommonResponse<>(
+                        400,
+                        "Subproduct ID is required.",
+                        null
+                );
+            }
+
+            if (request.getSchemeCode() == null || request.getSchemeCode().trim().isEmpty()) {
+
+                log.warn("Scheme code is missing. ChildHierarchyId: {}",request.getChildHierarchyId());
+
+                return new CommonResponse<>(
+                        400,
+                        "Scheme code is required.",
+                        null
+                );
+            }
+
+            String parentHierarchyId = request.getParentHierarchyId().trim();
+
+            String childHierarchyId = request.getChildHierarchyId().trim();
+
+            String schemeCode = request.getSchemeCode().trim();
+
+            Scheme scheme = schemeRepository.findBySchemeCode(schemeCode)
+                    .orElseThrow(() -> new RuntimeException("Invalid Scheme Code: " + schemeCode));
+
+            String schemeName = scheme.getSchemeName();
+
+            BigDecimal requestedAmount = request.getReversalAmount();
+
+            WalletType requestedWalletType = request.getWalletType();
+
+            log.info(
+                    "Fund reversal request received. " +
+                            "ParentHierarchyId: {}, ChildHierarchyId: {}, " +
+                            "ReversalAmount: {}, WalletType: {}, " +
+                            "SubProductId: {}, SchemeName: {}",
+                    parentHierarchyId,
+                    childHierarchyId,
+                    requestedAmount,
+                    requestedWalletType,
+                    request.getSubProductId(),
+                    schemeName
+            );
+
+            if (requestHeaderMetaDtoMeta != null) {
+                log.debug(
+                        "Fund reversal request metadata. Latitude: {}, Longitude: {}",
+                        requestHeaderMetaDtoMeta.getLatitude(),
+                        requestHeaderMetaDtoMeta.getLongitude()
+                );
+            }
+
+            // ============================================================
+            // STEP 1: CHECK CHILD WALLET BALANCE
+            // ============================================================
+
+            log.info(
+                    "Step 1: Checking wallet balance. " +
+                            "ChildHierarchyId: {}, WalletType: {}, Amount: {}",
+                    childHierarchyId,
+                    requestedWalletType,
+                    requestedAmount
+            );
 
             CheckBalanceRequestDto balanceRequest = new CheckBalanceRequestDto();
-            balanceRequest.setHierarchyId(request.getChildHierarchyId());
-            balanceRequest.setWalletType(request.getWalletType());
-            balanceRequest.setAmount(request.getReversalAmount());
 
-            checkBalance(balanceRequest);
+            balanceRequest.setHierarchyId(childHierarchyId);
+            balanceRequest.setWalletType(requestedWalletType);
+            balanceRequest.setAmount(requestedAmount);
 
-            long balanceCheckDuration = System.currentTimeMillis() - balanceCheckStart;
-            log.info("Balance check completed successfully in {} ms", balanceCheckDuration);
-
-        } catch (RuntimeException e) {
-            log.error("Balance check failed for ChildHierarchyId: {}, Amount: {}",
-                    request.getChildHierarchyId(),
-                    request.getReversalAmount(),
-                    e);
-            return new CommonResponse<>(400, e.getMessage(), null);
-        }
-
-        // OTP Generation/Verification
-        if (request.getOtp() == null || request.getOtp().isEmpty()) {
-            log.info("Step 2: No OTP provided. Generating new OTP...");
-
-            String otp = OtpUtil.generateOtp(); // otp
-            log.debug("Generated OTP: {} for ChildHierarchyId: {}", otp, request.getChildHierarchyId());
-            //opt servcie logic sms
             try {
-                sendFundReversalOtpSms(request, otp);
-            } catch (Exception e) {
+
+                checkBalance(balanceRequest);
+
+                log.info(
+                        "Wallet balance check completed successfully. " +
+                                "ChildHierarchyId: {}, WalletType: {}, Amount: {}",
+                        childHierarchyId,
+                        requestedWalletType,
+                        requestedAmount
+                );
+
+            } catch (RuntimeException e) {
+
+                log.warn(
+                        "Wallet balance check failed. " +
+                                "ChildHierarchyId: {}, WalletType: {}, Amount: {}, Reason: {}",
+                        childHierarchyId,
+                        requestedWalletType,
+                        requestedAmount,
+                        e.getMessage()
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        e.getMessage(),
+                        null
+                );
+            }
+
+            // ============================================================
+            // STEP 2: GENERATE OTP
+            // ============================================================
+
+            if (request.getOtp() == null || request.getOtp().trim().isEmpty()) {
+
+                log.info(
+                        "Step 2: Generating fund reversal OTP. " +
+                                "ParentHierarchyId: {}, ChildHierarchyId: {}",
+                        parentHierarchyId,
+                        childHierarchyId
+                );
+
+                String otp = OtpUtil.generateOtp();
+
+                try {
+
+                    sendFundReversalOtpSms(request, otp);
+
+                    log.info(
+                            "Fund reversal OTP SMS sent successfully. " +
+                                    "ChildHierarchyId: {}",
+                            childHierarchyId
+                    );
+
+                } catch (Exception e) {
+
+                    log.error(
+                            "Failed to send fund reversal OTP SMS. " +
+                                    "ChildHierarchyId: {}",
+                            childHierarchyId,
+                            e
+                    );
+
+                    /*
+                     * Do not save a usable OTP if SMS delivery failed.
+                     * This avoids creating pending transactions for OTPs
+                     * that the user never received.
+                     */
+                    return new CommonResponse<>(
+                            500,
+                            "Unable to send OTP. Please try again.",
+                            null
+                    );
+                }
+
+                FundReversal reversal = new FundReversal();
+
+                reversal.setParentHierarchyId(parentHierarchyId);
+                reversal.setChildHierarchyId(childHierarchyId);
+                reversal.setReversalAmount(requestedAmount);
+                reversal.setWalletType(requestedWalletType);
+                reversal.setOtp(otp);
+                reversal.setOtpGeneratedTime(LocalDateTime.now());
+                reversal.setStatus(Status.PENDING);
+                reversal.setOtpVerified(false);
+
+                FundReversal savedReversal =
+                        fundReversalRepository.save(reversal);
+
+                log.info(
+                        "Pending fund reversal created successfully. " +
+                                "FundReversalId: {}, ParentHierarchyId: {}, ChildHierarchyId: {}",
+                        savedReversal.getId(),
+                        parentHierarchyId,
+                        childHierarchyId
+                );
+
+                /*
+                 * For production security, OTP should normally not be returned
+                 * in the API response. It should only be delivered through SMS.
+                 *
+                 * Therefore, null is passed instead of otp.
+                 */
+                FundReversalResponseDto responseDto =
+                        new FundReversalResponseDto(
+                                savedReversal.getId(),
+                                null,
+                                null
+                        );
+
+                return new CommonResponse<>(
+                        200,
+                        "OTP sent successfully. It will expire in 5 minutes.",
+                        responseDto
+                );
+            }
+
+            // ============================================================
+            // STEP 3: FIND PENDING FUND REVERSAL
+            // ============================================================
+
+            log.info(
+                    "Step 3: Verifying fund reversal OTP. " +
+                            "ParentHierarchyId: {}, ChildHierarchyId: {}",
+                    parentHierarchyId,
+                    childHierarchyId
+            );
+
+            Optional<FundReversal> optionalFundReversal =
+                    fundReversalRepository
+                            .findTopByParentHierarchyIdAndChildHierarchyIdAndStatusOrderByIdDesc(
+                                    parentHierarchyId,
+                                    childHierarchyId,
+                                    Status.PENDING
+                            );
+
+            if (optionalFundReversal.isEmpty()) {
+
+                log.warn(
+                        "No pending fund reversal found. " +
+                                "ParentHierarchyId: {}, ChildHierarchyId: {}",
+                        parentHierarchyId,
+                        childHierarchyId
+                );
+
+                return new CommonResponse<>(
+                        404,
+                        "No pending fund reversal transaction found.",
+                        null
+                );
+            }
+
+            FundReversal fundReversal =
+                    optionalFundReversal.get();
+
+            if (Boolean.TRUE.equals(fundReversal.getOtpVerified())) {
+
+                log.warn(
+                        "Fund reversal OTP has already been verified. FundReversalId: {}",
+                        fundReversal.getId()
+                );
+
+                return new CommonResponse<>(
+                        409,
+                        "This fund reversal has already been processed.",
+                        null
+                );
+            }
+
+            if (fundReversal.getStatus() != Status.PENDING) {
+
+                log.warn(
+                        "Fund reversal is not in pending status. " +
+                                "FundReversalId: {}, Status: {}",
+                        fundReversal.getId(),
+                        fundReversal.getStatus()
+                );
+
+                return new CommonResponse<>(
+                        409,
+                        "This fund reversal is no longer pending.",
+                        null
+                );
+            }
+
+            // ============================================================
+            // STEP 4: VALIDATE REQUEST AGAINST SAVED REVERSAL
+            // ============================================================
+
+            /*
+             * The amount and wallet type must come from the saved pending
+             * transaction. The frontend must not be allowed to alter them
+             * while submitting the OTP.
+             */
+
+            if (fundReversal.getReversalAmount() == null ||
+                    fundReversal.getReversalAmount()
+                            .compareTo(requestedAmount) != 0) {
+
+                log.warn(
+                        "Fund reversal amount mismatch. " +
+                                "FundReversalId: {}, SavedAmount: {}, RequestedAmount: {}",
+                        fundReversal.getId(),
+                        fundReversal.getReversalAmount(),
+                        requestedAmount
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        "Reversal amount does not match the pending transaction.",
+                        null
+                );
+            }
+
+            if (fundReversal.getWalletType() != requestedWalletType) {
+
+                log.warn(
+                        "Fund reversal wallet type mismatch. " +
+                                "FundReversalId: {}, SavedWalletType: {}, RequestedWalletType: {}",
+                        fundReversal.getId(),
+                        fundReversal.getWalletType(),
+                        requestedWalletType
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        "Wallet type does not match the pending transaction.",
+                        null
+                );
+            }
+
+            // ============================================================
+            // STEP 5: VALIDATE OTP
+            // ============================================================
+
+            String providedOtp =
+                    request.getOtp().trim();
+
+            if (fundReversal.getOtp() == null ||
+                    !fundReversal.getOtp().equals(providedOtp)) {
+
+                log.warn(
+                        "Invalid OTP received for fund reversal. FundReversalId: {}",
+                        fundReversal.getId()
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        "Invalid OTP.",
+                        null
+                );
+            }
+
+            if (fundReversal.getOtpGeneratedTime() == null) {
+
                 log.error(
-                        "Failed to send Fund Reversal OTP SMS for ChildHierarchyId: {}.",
-                        request.getChildHierarchyId(),
+                        "OTP generated time is missing. FundReversalId: {}",
+                        fundReversal.getId()
+                );
+
+                return new CommonResponse<>(
+                        500,
+                        "OTP information is invalid. Please generate a new OTP.",
+                        null
+                );
+            }
+
+            LocalDateTime otpExpiryTime =
+                    fundReversal.getOtpGeneratedTime().plusMinutes(5);
+
+            if (LocalDateTime.now().isAfter(otpExpiryTime)) {
+
+                log.warn(
+                        "Fund reversal OTP expired. " +
+                                "FundReversalId: {}, GeneratedAt: {}, ExpiredAt: {}",
+                        fundReversal.getId(),
+                        fundReversal.getOtpGeneratedTime(),
+                        otpExpiryTime
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        "OTP expired. Please generate a new OTP.",
+                        null
+                );
+            }
+
+            log.info(
+                    "Fund reversal OTP verified successfully. FundReversalId: {}",
+                    fundReversal.getId()
+            );
+
+            // ============================================================
+            // STEP 6: FETCH PRODUCT AND SUBPRODUCT
+            // ============================================================
+
+            log.info(
+                    "Step 6: Fetching transaction product details. " +
+                            "FundReversalId: {}, SubProductId: {}",
+                    fundReversal.getId(),
+                    request.getSubProductId()
+            );
+
+            SubProducts subProduct;
+
+            try {
+
+                subProduct =
+                        getSubProduct(request.getSubProductId());
+
+            } catch (Exception e) {
+
+                log.warn(
+                        "Unable to fetch subproduct. " +
+                                "FundReversalId: {}, SubProductId: {}, Reason: {}",
+                        fundReversal.getId(),
+                        request.getSubProductId(),
+                        e.getMessage()
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        "Invalid subproduct: " + e.getMessage(),
+                        null
+                );
+            }
+
+            if (subProduct == null) {
+
+                log.warn(
+                        "Subproduct not found. " +
+                                "FundReversalId: {}, SubProductId: {}",
+                        fundReversal.getId(),
+                        request.getSubProductId()
+                );
+
+                return new CommonResponse<>(
+                        404,
+                        "Subproduct not found.",
+                        null
+                );
+            }
+
+            Products product =
+                    subProduct.getProduct();
+
+            if (product == null) {
+
+                log.error(
+                        "Product is not mapped with subproduct. " +
+                                "SubProductId: {}, SubProductCode: {}",
+                        request.getSubProductId(),
+                        subProduct.getSubProductCode()
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        "Product is not configured for the selected subproduct.",
+                        null
+                );
+            }
+
+            // ============================================================
+            // STEP 7: FETCH SCHEME RATE
+            // ============================================================
+
+            BigDecimal reverseAmount = fundReversal.getReversalAmount();
+
+            WalletType walletType = fundReversal.getWalletType();
+
+            SchemeRate schemeRate;
+
+            try {
+
+                schemeRate =
+                        walletToWalletTransferService.getExactSchemeRate(
+                                schemeCode,
+                                reverseAmount.doubleValue()
+                        );
+
+            } catch (Exception e) {
+
+                log.warn(
+                        "Unable to fetch scheme rate. " +
+                                "FundReversalId: {}, SchemeCode: {}, Amount: {}, Reason: {}",
+                        fundReversal.getId(),
+                        schemeCode,
+                        reverseAmount,
+                        e.getMessage()
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        "Unable to find a valid scheme rate: " + e.getMessage(),
+                        null
+                );
+            }
+
+            if (schemeRate == null) {
+
+                log.warn(
+                        "Scheme rate not found. " +
+                                "FundReversalId: {}, SchemeCode: {}, Amount: {}",
+                        fundReversal.getId(),
+                        schemeCode,
+                        reverseAmount
+                );
+
+                return new CommonResponse<>(
+                        404,
+                        "Scheme rate not found for the entered amount.",
+                        null
+                );
+            }
+
+            // ============================================================
+            // STEP 8: PREPARE TRANSACTION METADATA
+            // ============================================================
+
+            String productName = product.getName();
+
+            String subProductCode = subProduct.getSubProductCode();
+
+            /*
+             * The uploaded code does not show an Operator object or operator ID
+             * in FundReversalRequestDto. Therefore, an internal operator value
+             * is used instead of referencing a nonexistent operator variable.
+             *
+             * Scheme code is available directly from the request. Since the
+             * exact SchemeRate-to-Scheme entity relation was not provided,
+             * schemeCode is also used as the safe schemeName value.
+             */
+            TransactionDetailsInfoDto transactionDetailsInfo =
+                    TransactionDetailsInfoDto.builder()
+                            .subProductCode(subProductCode)
+                            .schemeName(schemeName)
+                            .operatorName(schemeRate.getOperatorName())
+                            .vendorName("Internal Product")
+                            .build();
+
+            log.info(
+                    "Transaction metadata prepared. " +
+                            "FundReversalId: {}, ProductName: {}, " +
+                            "SubProductCode: {}, SchemeCode: {}",
+                    fundReversal.getId(),
+                    productName,
+                    subProductCode,
+                    schemeCode
+            );
+
+            // ============================================================
+            // STEP 9: RECHECK BALANCE BEFORE FINAL TRANSFER
+            // ============================================================
+
+            /*
+             * The first balance check happened before OTP generation.
+             * The balance may change while the user enters the OTP.
+             * Therefore, it must be checked again immediately before debit.
+             */
+
+            CheckBalanceRequestDto finalBalanceRequest =
+                    new CheckBalanceRequestDto();
+
+            finalBalanceRequest.setHierarchyId(childHierarchyId);
+            finalBalanceRequest.setWalletType(walletType);
+            finalBalanceRequest.setAmount(reverseAmount);
+
+            try {
+
+                checkBalance(finalBalanceRequest);
+
+            } catch (RuntimeException e) {
+
+                log.warn(
+                        "Final wallet balance check failed. " +
+                                "FundReversalId: {}, ChildHierarchyId: {}, Reason: {}",
+                        fundReversal.getId(),
+                        childHierarchyId,
+                        e.getMessage()
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        e.getMessage(),
+                        null
+                );
+            }
+
+            // ============================================================
+            // STEP 10: PROCESS WALLET TRANSFER
+            // ============================================================
+
+            String baseTransactionId = commonMethods.generateBaseTransactionId();
+
+            if (baseTransactionId == null || baseTransactionId.trim().isEmpty()) {
+
+                throw new IllegalStateException("Unable to generate base transaction ID.");
+            }
+
+            log.info(
+                    "Step 10: Processing wallet transfer. " +
+                            "FundReversalId: {}, BaseTransactionId: {}, " +
+                            "Amount: {}, WalletType: {}",
+                    fundReversal.getId(),
+                    baseTransactionId,
+                    reverseAmount,
+                    walletType
+            );
+
+            try {
+
+                assert requestHeaderMetaDtoMeta != null;
+                processWalletTransfer(
+                        request,
+                        reverseAmount,
+                        walletType,
+                        baseTransactionId,
+                        requestHeaderMetaDtoMeta,
+                        transactionDetailsInfo
+                );
+
+            } catch (Exception e) {
+
+                log.error(
+                        "Wallet transfer failed. " +
+                                "FundReversalId: {}, BaseTransactionId: {}",
+                        fundReversal.getId(),
+                        baseTransactionId,
+                        e
+                );
+
+                /*
+                 * Throwing the exception is intentional.
+                 * Because this method is @Transactional, Spring will roll
+                 * back database changes made during wallet processing.
+                 */
+                throw new IllegalStateException(
+                        "Wallet transfer failed.",
                         e
                 );
             }
-            FundReversal reversal = new FundReversal();
-            reversal.setParentHierarchyId(request.getParentHierarchyId());
-            reversal.setChildHierarchyId(request.getChildHierarchyId());
-            reversal.setReversalAmount(request.getReversalAmount());
-            reversal.setWalletType(request.getWalletType());
-            reversal.setOtp(otp);
-            reversal.setOtpGeneratedTime(LocalDateTime.now());
-            reversal.setStatus(Status.PENDING);
 
-            log.debug("Saving FundReversal record with OTP...");
-            fundReversalRepository.save(reversal);
-            log.info("FundReversal record saved with ID: {}", reversal.getId());
-
-            Optional<UserDetails> userOpt = userDetailsRepository.findByHierarchyId(request.getChildHierarchyId());
-            log.debug("User details found: {}", userOpt.isPresent() ? "Yes" : "No");
-
-            FundReversalResponseDto responseDto = new FundReversalResponseDto(reversal.getId(), otp, null);
-
-            log.info("OTP generated successfully for FundReversal ID: {}", reversal.getId());
-            log.info("===== Fund Reversal OTP Generation Completed =====");
-
-            return new CommonResponse<>(200,
-                    "OTP sent successfully. It will expire in 5 minutes.",
-                    responseDto);
-        }
-
-        // OTP Verification
-        log.info("Step 3: Verifying OTP for ChildHierarchyId: {}", request.getChildHierarchyId());
-        log.debug("Provided OTP: {}", request.getOtp());
-
-        Optional<FundReversal> optTxn = fundReversalRepository
-                .findTopByParentHierarchyIdAndChildHierarchyIdAndStatusOrderByIdDesc(
-                        request.getParentHierarchyId(),
-                        request.getChildHierarchyId(),
-                        Status.PENDING);
-
-        if (optTxn.isEmpty()) {
-            log.warn("No pending transaction found for ParentHierarchyId: {}, ChildHierarchyId: {}",
-                    request.getParentHierarchyId(),
-                    request.getChildHierarchyId());
-            return new CommonResponse<>(404, "No pending transaction found.", null);
-        }
-
-        FundReversal fundReversal = optTxn.get();
-        log.debug("Found FundReversal record with ID: {}, OTP generated at: {}",
-                fundReversal.getId(),
-                fundReversal.getOtpGeneratedTime());
-
-        // Validate OTP
-        if (!fundReversal.getOtp().equals(request.getOtp())) {
-            log.warn("OTP mismatch for FundReversal ID: {}. Provided: {}, Expected: {}",
+            log.info(
+                    "Wallet transfer completed successfully. " +
+                            "FundReversalId: {}, BaseTransactionId: {}",
                     fundReversal.getId(),
-                    request.getOtp(),
-                    fundReversal.getOtp());
-            return new CommonResponse<>(400, "Invalid OTP.", null);
-        }
-        log.debug("OTP verified successfully");
-
-        // Check OTP expiry
-        Duration otpAge = Duration.between(fundReversal.getOtpGeneratedTime(), LocalDateTime.now());
-        long minutesElapsed = otpAge.toMinutes();
-        log.debug("OTP age: {} minutes", minutesElapsed);
-
-        if (minutesElapsed > 5) {
-            log.warn("OTP expired for FundReversal ID: {}. Age: {} minutes",
-                    fundReversal.getId(),
-                    minutesElapsed);
-            return new CommonResponse<>(400, "OTP expired.", null);
-        }
-
-        // Process wallet transfer
-        BigDecimal reverseAmount = fundReversal.getReversalAmount();
-        WalletType walletType = fundReversal.getWalletType();
-        String baseTransactionId = commonMethods.generateBaseTransactionId();
-
-        log.info("Step 4: Processing wallet transfer");
-        log.info("Transaction Details - Amount: {}, WalletType: {}, BaseTransactionId: {}",
-                reverseAmount,
-                walletType,
-                baseTransactionId);
-
-        long walletTransferStart = System.currentTimeMillis();
-
-        processWalletTransfer(request, reverseAmount, walletType, baseTransactionId, latitude, longitude, ipAddress);
-
-        long walletTransferDuration = System.currentTimeMillis() - walletTransferStart;
-        log.info("Wallet transfer completed successfully in {} ms", walletTransferDuration);
-
-        // Update FundReversal status
-        log.info("Step 5: Updating FundReversal status to APPROVED");
-        fundReversal.setStatus(Status.APPROVED);
-        fundReversal.setOtpVerified(true);
-        fundReversal.setActionDate(LocalDate.now());
-        fundReversal.setActionTime(LocalTime.now());
-
-        fundReversalRepository.save(fundReversal);
-        log.debug("FundReversal record updated with ID: {}", fundReversal.getId());
-
-        // Process charges
-        log.info("Step 6: Processing charges");
-        long chargesStart = System.currentTimeMillis();
-
-        try {
-            SubProducts subProduct = getSubProduct();
-            Products product = subProduct.getProduct();
-            log.debug("Product: {}, SubProduct: {}", product.getName(), subProduct.getSubProductTitle());
-
-            SchemeRate schemeRate = walletToWalletTransferService
-                    .getExactSchemeRate("116", reverseAmount.doubleValue());
-            log.debug("Scheme Rate obtained: {}", schemeRate);
-
-            BigDecimal grossCharge = calculateGrossCharge(reverseAmount, schemeRate);
-            log.info("Gross Charge calculated: {} for Amount: {}", grossCharge, reverseAmount);
-
-            processHierarchyCharges(
-                    request,
-                    fundReversal,
-                    walletType,
-                    product,
-                    subProduct,
-                    schemeRate,
-                    grossCharge,
                     baseTransactionId
             );
 
-            long chargesDuration = System.currentTimeMillis() - chargesStart;
-            log.info("Charges processed successfully in {} ms", chargesDuration);
+            // ============================================================
+            // STEP 11: PROCESS HIERARCHY CHARGES
+            // ============================================================
+
+            log.info(
+                    "Step 11: Processing hierarchy charges. " +
+                            "FundReversalId: {}, BaseTransactionId: {}",
+                    fundReversal.getId(),
+                    baseTransactionId
+            );
+
+            BigDecimal grossCharge;
+
+            try {
+
+                grossCharge =
+                        calculateGrossCharge(
+                                reverseAmount,
+                                schemeRate
+                        );
+
+                if (grossCharge == null) {
+                    grossCharge = BigDecimal.ZERO;
+                }
+
+                if (grossCharge.compareTo(BigDecimal.ZERO) < 0) {
+                    throw new IllegalStateException(
+                            "Calculated gross charge cannot be negative."
+                    );
+                }
+
+                processHierarchyCharges(
+                        request,
+                        fundReversal,
+                        walletType,
+                        product,
+                        subProduct,
+                        schemeRate,
+                        grossCharge,
+                        baseTransactionId,
+                        transactionDetailsInfo
+                );
+
+            } catch (Exception e) {
+
+                log.error(
+                        "Hierarchy charge processing failed. " +
+                                "FundReversalId: {}, BaseTransactionId: {}",
+                        fundReversal.getId(),
+                        baseTransactionId,
+                        e
+                );
+
+                /*
+                 * Do not suppress this exception in production.
+                 * Wallet transfer and hierarchy charges are one business
+                 * transaction and should commit or roll back together.
+                 */
+                throw new IllegalStateException(
+                        "Hierarchy charge processing failed.",
+                        e
+                );
+            }
+
+            log.info(
+                    "Hierarchy charges processed successfully. " +
+                            "FundReversalId: {}, BaseTransactionId: {}, GrossCharge: {}",
+                    fundReversal.getId(),
+                    baseTransactionId,
+                    grossCharge
+            );
+
+            // ============================================================
+            // STEP 12: MARK REVERSAL APPROVED
+            // ============================================================
+
+            fundReversal.setStatus(Status.APPROVED);
+            fundReversal.setOtpVerified(true);
+            fundReversal.setActionDate(LocalDate.now());
+            fundReversal.setActionTime(LocalTime.now());
+
+            /*
+             * Clear OTP after successful use so it cannot be reused or
+             * exposed later from the database.
+             */
+            fundReversal.setOtp(null);
+
+            fundReversalRepository.save(fundReversal);
+
+            FundReversalResponseDto responseDto =
+                    new FundReversalResponseDto(
+                            fundReversal.getId(),
+                            null,
+                            "TXN" + baseTransactionId
+                    );
+
+            long totalDuration =
+                    System.currentTimeMillis() - startTime;
+
+            log.info(
+                    "===== Fund Reversal Completed Successfully ===== " +
+                            "FundReversalId: {}, BaseTransactionId: {}, " +
+                            "Amount: {}, WalletType: {}, DurationMs: {}",
+                    fundReversal.getId(),
+                    baseTransactionId,
+                    reverseAmount,
+                    walletType,
+                    totalDuration
+            );
+
+            return new CommonResponse<>(
+                    200,
+                    "Transaction successful. Amount debited.",
+                    responseDto
+            );
+
+        } catch (IllegalArgumentException e) {
+
+            log.warn(
+                    "Fund reversal validation failed. Reason: {}",
+                    e.getMessage()
+            );
+
+            return new CommonResponse<>(
+                    400,
+                    e.getMessage(),
+                    null
+            );
 
         } catch (Exception e) {
-            log.error("Failed to process charges for BaseTransactionId: {}", baseTransactionId, e);
-            // Continue - the transaction is already successful, charges failure shouldn't rollback
-            // But we should log it for investigation
+
+            log.error(
+                    "Unexpected error while processing fund reversal",
+                    e
+            );
+
+            /*
+             * Re-throwing is necessary for @Transactional rollback.
+             * Handle this exception through your global exception handler.
+             */
+            throw new IllegalStateException(
+                    "Fund reversal transaction failed. No changes were committed.",
+                    e
+            );
         }
-
-        FundReversalResponseDto responseDto = new FundReversalResponseDto(
-                fundReversal.getId(),
-                null,
-                "TXN" + baseTransactionId
-        );
-
-        long totalDuration = System.currentTimeMillis() - startTime;
-        log.info("===== Fund Reversal Action Completed Successfully =====");
-        log.info("Summary:");
-        log.info("  - FundReversal ID: {}", fundReversal.getId());
-        log.info("  - Base Transaction ID: {}", baseTransactionId);
-        log.info("  - Amount: {}", reverseAmount);
-        log.info("  - Wallet Type: {}", walletType);
-        log.info("  - Status: APPROVED");
-        log.info("  - Total Duration: {} ms", totalDuration);
-
-        return new CommonResponse<>(200,
-                "Transaction successful. Amount debited.",
-                responseDto);
     }
 
     private void processWalletTransfer(
@@ -386,7 +1026,8 @@ public class FundReversalServiceImpl implements FundReversalService {
             BigDecimal amount,
             WalletType walletType,
             String baseTransactionId,
-            Double latitude, Double longitude, String ipAddress) {
+            RequestHeaderMetaDto requestHeaderMetaDto,
+            TransactionDetailsInfoDto transactionDetailsInfo) {
 
         AbstractWalletAmountTable fromWallet =
                 commonMethods.getWalletByType(
@@ -396,12 +1037,11 @@ public class FundReversalServiceImpl implements FundReversalService {
         RetailersExtraColumnsDto retailerExtraColumns =
                 RetailersExtraColumnsDto.builder()
                         .medium(request.getMedium())
-                        .clientIp(ipAddress)
+                        .clientIp(requestHeaderMetaDto.getIpAddress())
                         .requestDomainName(request.getRequestDomainName())
-                        .latitude(latitude)
-                        .longitude(longitude)
+                        .latitude(requestHeaderMetaDto.getLatitude())
+                        .longitude(requestHeaderMetaDto.getLongitude())
                         .build();
-
 
         commonMethods.updateWallet(
                 fromWallet,
@@ -412,13 +1052,13 @@ public class FundReversalServiceImpl implements FundReversalService {
                 baseTransactionId,
                 "SUCCESS",
                 "DEBIT",
-                "Fund Reversal",
+                transactionDetailsInfo.getSubProductCode(),
                 "Payment",
                 "Fund Reverse to " + request.getParentHierarchyId(),
-                "",
+                transactionDetailsInfo.getSchemeName(),
                 retailerExtraColumns,
-                null,
-                null
+                transactionDetailsInfo.getVendorName(),
+                transactionDetailsInfo.getOperatorName()
         );
 
         AbstractWalletAmountTable toWallet =
@@ -435,13 +1075,13 @@ public class FundReversalServiceImpl implements FundReversalService {
                 baseTransactionId,
                 "SUCCESS",
                 "CREDIT",
-                "Fund Reversal",
+                transactionDetailsInfo.getSubProductCode(),
                 "Payment",
                 "Fund Reversed By " + request.getChildHierarchyId(),
-                "",
+                transactionDetailsInfo.getSchemeName(),
                 retailerExtraColumns,
-                null,
-                null
+                transactionDetailsInfo.getVendorName(),
+                transactionDetailsInfo.getOperatorName()
         );
     }
 
@@ -459,10 +1099,10 @@ public class FundReversalServiceImpl implements FundReversalService {
         return BigDecimal.valueOf(schemeRate.getGross());
     }
 
-    private SubProducts getSubProduct() {
+    private SubProducts getSubProduct(String id) {
 
         return subProductsRepository
-                .findBySubProductTitle("Fund Reversal")
+                .findById(id)
                 .orElseThrow(() ->
                         new RuntimeException(
                                 "SubProduct not found for subProductName: "
@@ -476,7 +1116,8 @@ public class FundReversalServiceImpl implements FundReversalService {
             Products product,
             SubProducts subProduct,
             String hierarchyId,
-            WalletType walletType) {
+            WalletType walletType,
+            TransactionDetailsInfoDto transactionDetailsInfoDto) {
 
         log.debug("Building transaction DTO for baseTransactionId: {}, hierarchyId: {}, walletType: {}",
                 baseTransactionId, hierarchyId, walletType);
@@ -487,7 +1128,7 @@ public class FundReversalServiceImpl implements FundReversalService {
         dto.setBaseTranxId(baseTransactionId);
         dto.setAmount(fundReversal.getReversalAmount().doubleValue());
         dto.setConfirmAmount(fundReversal.getReversalAmount().doubleValue());
-        dto.setOperatorName(schemeRate.getOperatorName());
+        dto.setOperatorName(transactionDetailsInfoDto.getOperatorName());
         dto.setOperatorCode(schemeRate.getSchemeCode());
         dto.setSchemeRate(schemeRate);
         dto.setTransactionType(product.getTransactionType());
@@ -496,9 +1137,10 @@ public class FundReversalServiceImpl implements FundReversalService {
         dto.setTdsRate(String.valueOf(product.getTds()));
         dto.setHierarchyId(hierarchyId);
         dto.setProductCode(product.getProductCode());
-        dto.setSubProductCode(subProduct.getSubProductCode());
+        dto.setSubProductCode(transactionDetailsInfoDto.getSubProductCode());
         dto.setIsCommission(product.getIsCommissions());
         dto.setHasCharge(product.getHasCharges());
+        dto.setVendorName(transactionDetailsInfoDto.getVendorName());
 
         log.debug("Transaction DTO built successfully for hierarchy: {}", hierarchyId);
         return dto;
@@ -512,7 +1154,8 @@ public class FundReversalServiceImpl implements FundReversalService {
             SubProducts subProduct,
             SchemeRate schemeRate,
             BigDecimal grossCharge,
-            String baseTransactionId) {
+            String baseTransactionId,
+            TransactionDetailsInfoDto transactionDetailsInfoDto) {
 
         log.info("Processing hierarchy charges - baseTransactionId: {}, walletType: {}, grossCharge: {}",
                 baseTransactionId, walletType, grossCharge);
@@ -551,7 +1194,8 @@ public class FundReversalServiceImpl implements FundReversalService {
                         schemeRate,
                         grossCharge,
                         baseTransactionId,
-                        parentId
+                        parentId,
+                        transactionDetailsInfoDto
                 );
                 log.info("Charges processed successfully for hierarchy: {}", parentId);
                 break;
@@ -571,7 +1215,8 @@ public class FundReversalServiceImpl implements FundReversalService {
             SchemeRate schemeRate,
             BigDecimal grossCharge,
             String baseTransactionId,
-            String hierarchyId) {
+            String hierarchyId,
+            TransactionDetailsInfoDto transactionDetailsInfoDto) {
 
         log.info("Processing charges for hierarchy - hierarchyId: {}, walletType: {}, baseTransactionId: {}, grossCharge: {}",
                 hierarchyId, walletType, baseTransactionId, grossCharge);
@@ -586,7 +1231,8 @@ public class FundReversalServiceImpl implements FundReversalService {
                         product,
                         subProduct,
                         request.getParentHierarchyId(),
-                        walletType
+                        walletType,
+                        transactionDetailsInfoDto
                 );
 
         BigDecimal grossAmount =
@@ -640,6 +1286,7 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "SUCCESS",
                 dto
         );
+
         log.info("Charge debit transaction inserted successfully for parent: {}", request.getParentHierarchyId());
 
         /* GST DEBIT */
@@ -664,6 +1311,11 @@ public class FundReversalServiceImpl implements FundReversalService {
         );
         log.info("GST debit transaction inserted successfully for parent: {}", request.getParentHierarchyId());
 
+        String amountTable = transactionEngineServiceImpl.getAmountTable(parentHierarchyType, request.getParentHierarchyId());
+        transactionEngineServiceImpl.updateAmountTableSubtraction(parentHierarchyType, request.getParentHierarchyId(), amountTable, baseAmount.add(gstAmount));
+
+        log.info("CHARGE & GST debit successfully for parent: {}", request.getParentHierarchyId());
+
 
         /* ================= WL / ADMIN HIERARCHY (CREDIT) ================= */
 
@@ -677,7 +1329,8 @@ public class FundReversalServiceImpl implements FundReversalService {
                         product,
                         subProduct,
                         hierarchyId,
-                        walletType
+                        walletType,
+                        transactionDetailsInfoDto
                 );
 
         String hierarchyType2 =
@@ -736,7 +1389,14 @@ public class FundReversalServiceImpl implements FundReversalService {
                 "SUCCESS",
                 dto2
         );
+
         log.info("GST credit transaction inserted successfully for hierarchy: {}", hierarchyId);
+
+        String amountTable2 = transactionEngineServiceImpl.getAmountTable(hierarchyType2, hierarchyId);
+        transactionEngineServiceImpl.updateAmountTable(hierarchyType2, hierarchyId, amountTable2, baseAmount.add(gstAmount));
+
+        log.info("CHARGE & GST Credited successfully for parent: {}", hierarchyId);
+
         log.info("Completed processing all charges for hierarchy: {}", hierarchyId);
     }
 

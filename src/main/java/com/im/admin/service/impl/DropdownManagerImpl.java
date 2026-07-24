@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.dto.ChildUserDto;
+import com.im.admin.dto.WalletBalanceMaps;
 import com.im.admin.entities.*;
 import com.im.admin.repositories.*;
 import com.im.admin.service.DropdownManagerService;
@@ -56,6 +57,48 @@ public class DropdownManagerImpl implements DropdownManagerService {
     @Autowired
     private HierarchyWalletService hierarchyWalletService;
 
+    @Autowired
+    private EnterprisesPostpaidAmountRepository enterprisesPostpaidAmountRepository;
+
+    @Autowired
+    private EnterprisesPrepaidAmountRepository enterprisesPrepaidAmountRepository;
+
+    @Autowired
+    private SuperDistributorPostpaidAmountRepository superDistributorPostpaidAmountRepository;
+
+    @Autowired
+    private SuperDistributorPrepaidAmountRepository superDistributorPrepaidAmountRepository;
+
+    @Autowired
+    private RetailerPostpaidAmountRepository retailerPostpaidAmountRepository;
+
+    @Autowired
+    private RetailerPrepaidAmountRepository retailerPrepaidAmountRepository;
+
+    @Autowired
+    private DistributorPostpaidAmountRepository distributorPostpaidAmountRepository;
+
+    @Autowired
+    private DistributorPrepaidAmountRepository distributorPrepaidAmountRepository;
+
+    @Autowired
+    private PartnerPostpaidAmountRepository partnerPostpaidAmountRepository;
+
+    @Autowired
+    private PartnerPrepaidAmountRepository partnerPrepaidAmountRepository;
+
+    @Autowired
+    private WhiteLabelPrepaidAmountRepository whiteLabelPrepaidAmountRepository;
+
+    @Autowired
+    private WhiteLabelPostpaidAmountRepository whiteLabelPostpaidAmountRepository;
+
+    @Autowired
+    private AdminPostpaidAmountRepository adminPostpaidAmountRepository;
+
+    @Autowired
+    private AdminPrepaidAmountRepository adminPrepaidAmountRepository;
+
     @Override
     public Page<ChildUserDto> getChildUsers(
             String parentHierarchyId,
@@ -77,6 +120,8 @@ public class DropdownManagerImpl implements DropdownManagerService {
 
         List<ChildUserDto> allChildUsers = new ArrayList<>();
 
+        WalletBalanceMaps walletMaps = loadAllWalletBalances();
+
         // Use access_hierarchy_path table (same logic as reports) instead of recursive traversal
         List<String> descendantIds = accessHierarchyPathRepository
                 .findDescendantsByAncestor(parentHierarchyId);
@@ -84,7 +129,7 @@ public class DropdownManagerImpl implements DropdownManagerService {
         if (descendantIds != null) {
             for (String childId : descendantIds) {
                 String childType = commonMethods.extractHierarchyType(childId);
-                ChildUserDto dto = resolveChildDto(childId, childType);
+                ChildUserDto dto = resolveChildDto(childId, childType, walletMaps);
                 if (dto != null) {
                     allChildUsers.add(dto);
                 }
@@ -124,30 +169,52 @@ public class DropdownManagerImpl implements DropdownManagerService {
     /**
      * Resolves a ChildUserDto for any hierarchy type by looking up the correct entity repo.
      */
-    private ChildUserDto resolveChildDto(String hierarchyId, String hierarchyCode) {
+    private ChildUserDto resolveChildDto(
+            String hierarchyId,
+            String hierarchyCode,
+            WalletBalanceMaps walletMaps) {
+
         try {
+
             return switch (hierarchyCode.toUpperCase()) {
+
                 case "ET" -> enterprisesRepository.findByEnterpriseId(hierarchyId)
-                        .map(this::mapEnterprise).orElse(null);
+                        .map(e -> mapEnterprise(e, walletMaps))
+                        .orElse(null);
+
                 case "WL" -> whiteLabelRepository.findByWhiteLabelId(hierarchyId)
-                        .map(this::mapWhiteLabel).orElse(null);
+                        .map(w -> mapWhiteLabel(w, walletMaps))
+                        .orElse(null);
+
                 case "SD" -> superDistributorRepository.findBySuperDistributorId(hierarchyId)
-                        .map(this::mapSuperDistributor).orElse(null);
+                        .map(sd -> mapSuperDistributor(sd, walletMaps))
+                        .orElse(null);
+
                 case "PT" -> partnerRepository.findByPartnerId(hierarchyId)
-                        .map(this::mapPartner).orElse(null);
+                        .map(p -> mapPartner(p, walletMaps))
+                        .orElse(null);
+
                 case "DT" -> distributorRepository.findByDistributorId(hierarchyId)
-                        .map(this::mapDistributor).orElse(null);
+                        .map(d -> mapDistributor(d, walletMaps))
+                        .orElse(null);
+
                 case "RT" -> retailerRepository.findByRetailerId(hierarchyId)
-                        .map(this::mapRetailer).orElse(null);
+                        .map(r -> mapRetailer(r, walletMaps))
+                        .orElse(null);
+
                 default -> null;
             };
+
         } catch (Exception e) {
             return null;
         }
     }
 
 
-    private ChildUserDto mapPartner(Partner p) {
+    private ChildUserDto mapPartner(
+            Partner p,
+            WalletBalanceMaps walletMaps) {
+
         return new ChildUserDto(
                 "Partner",
                 p.getPartnerId(),
@@ -160,15 +227,19 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 p.getDob(),
                 p.getStatus(),
                 userDetailsRepository.findFirstByHierarchyId(p.getPartnerId())
-                        .map(UserDetails::getIsBlocked).orElse(false),
+                        .map(UserDetails::getIsBlocked)
+                        .orElse(false),
                 p.getRejectionReason(),
                 p.getCreatedOn(),
-                null,
-                null
+                walletMaps.getPrepaid().getOrDefault(p.getPartnerId(), BigDecimal.ZERO),
+                walletMaps.getPostpaid().getOrDefault(p.getPartnerId(), BigDecimal.ZERO)
         );
     }
 
-    private ChildUserDto mapEnterprise(Enterprises e) {
+    private ChildUserDto mapEnterprise(
+            Enterprises e,
+            WalletBalanceMaps walletMaps) {
+
         return new ChildUserDto(
                 "Enterprises",
                 e.getEnterpriseId(),
@@ -181,16 +252,20 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 e.getDob(),
                 e.getStatus(),
                 userDetailsRepository.findFirstByHierarchyId(e.getEnterpriseId())
-                        .map(UserDetails::getIsBlocked).orElse(false),
+                        .map(UserDetails::getIsBlocked)
+                        .orElse(false),
                 e.getRejectionReason(),
                 e.getCreatedOn(),
-                null,
-                null
+                walletMaps.getPrepaid().getOrDefault(e.getEnterpriseId(), BigDecimal.ZERO),
+                walletMaps.getPostpaid().getOrDefault(e.getEnterpriseId(), BigDecimal.ZERO)
         );
     }
 
 
-    private ChildUserDto mapWhiteLabel(WhiteLabels wl) {
+    private ChildUserDto mapWhiteLabel(
+            WhiteLabels wl,
+            WalletBalanceMaps walletMaps) {
+
         return new ChildUserDto(
                 "White Label",
                 wl.getWhiteLabelId(),
@@ -203,15 +278,19 @@ public class DropdownManagerImpl implements DropdownManagerService {
                 wl.getDob(),
                 wl.getStatus(),
                 userDetailsRepository.findFirstByHierarchyId(wl.getWhiteLabelId())
-                        .map(UserDetails::getIsBlocked).orElse(false),
+                        .map(UserDetails::getIsBlocked)
+                        .orElse(false),
                 wl.getRejectionReason(),
                 wl.getCreatedOn(),
-                null,
-                null
+                walletMaps.getPrepaid().getOrDefault(wl.getWhiteLabelId(), BigDecimal.ZERO),
+                walletMaps.getPostpaid().getOrDefault(wl.getWhiteLabelId(), BigDecimal.ZERO)
         );
     }
 
-    private ChildUserDto mapSuperDistributor(SuperDistributor s) {
+    private ChildUserDto mapSuperDistributor(
+            SuperDistributor s,
+            WalletBalanceMaps walletMaps) {
+
         return new ChildUserDto(
                 "Super Distributor",
                 s.getSuperDistributorId(),
@@ -227,13 +306,15 @@ public class DropdownManagerImpl implements DropdownManagerService {
                         .map(UserDetails::getIsBlocked).orElse(false),
                 s.getRejectionReason(),
                 s.getCreatedOn(),
-                null,
-                null
+                walletMaps.getPrepaid().getOrDefault(s.getSuperDistributorId(), BigDecimal.ZERO),
+                walletMaps.getPostpaid().getOrDefault(s.getSuperDistributorId(), BigDecimal.ZERO)
         );
     }
 
+    private ChildUserDto mapDistributor(
+            Distributor d,
+            WalletBalanceMaps walletMaps) {
 
-    private ChildUserDto mapDistributor(Distributor d) {
         return new ChildUserDto(
                 "Distributor",
                 d.getDistributorId(),
@@ -249,12 +330,15 @@ public class DropdownManagerImpl implements DropdownManagerService {
                         .map(UserDetails::getIsBlocked).orElse(false),
                 d.getRejectionReason(),
                 d.getCreatedOn(),
-                null,
-                null
+                walletMaps.getPrepaid().getOrDefault(d.getDistributorId(), BigDecimal.ZERO),
+                walletMaps.getPostpaid().getOrDefault(d.getDistributorId(), BigDecimal.ZERO)
         );
     }
 
-    private ChildUserDto mapRetailer(Retailer r) {
+    private ChildUserDto mapRetailer(
+            Retailer r,
+            WalletBalanceMaps walletMaps) {
+
         return new ChildUserDto(
                 "Retailer",
                 r.getRetailerId(),
@@ -270,8 +354,8 @@ public class DropdownManagerImpl implements DropdownManagerService {
                         .map(UserDetails::getIsBlocked).orElse(false),
                 r.getRejectionReason(),
                 r.getCreatedOn(),
-                null,
-                null
+                walletMaps.getPrepaid().getOrDefault(r.getRetailerId(), BigDecimal.ZERO),
+                walletMaps.getPostpaid().getOrDefault(r.getRetailerId(), BigDecimal.ZERO)
         );
     }
 
@@ -483,6 +567,55 @@ public class DropdownManagerImpl implements DropdownManagerService {
         walletInformation.put("postpaid", postpaid);
 
         return walletInformation;
+    }
+
+    private WalletBalanceMaps loadAllWalletBalances() {
+
+        WalletBalanceMaps maps = new WalletBalanceMaps();
+
+        // Retailer
+        retailerPrepaidAmountRepository.findAll().forEach(w ->
+                maps.getPrepaid().put(w.getRetailerId().getRetailerId(),w.getAvailableBalance()));
+
+        retailerPostpaidAmountRepository.findAll().forEach(w ->
+                maps.getPostpaid().put(w.getRetailerId().getRetailerId(),w.getAvailableBalance()));
+
+        // Distributor
+        distributorPrepaidAmountRepository.findAll().forEach(w ->
+                maps.getPrepaid().put(w.getDistributorId().getDistributorId(),w.getAvailableBalance()));
+
+        distributorPostpaidAmountRepository.findAll().forEach(w ->
+                maps.getPostpaid().put(w.getDistributorId().getDistributorId(),w.getAvailableBalance()));
+
+        // Partner
+        partnerPrepaidAmountRepository.findAll().forEach(w ->
+                maps.getPrepaid().put(w.getPartnerId().getPartnerId(),w.getAvailableBalance()));
+
+        partnerPostpaidAmountRepository.findAll().forEach(w ->
+                maps.getPostpaid().put(w.getPartnerId().getPartnerId(),w.getAvailableBalance()));
+
+        // Super Distributor
+        superDistributorPrepaidAmountRepository.findAll().forEach(w ->
+                maps.getPrepaid().put(w.getSuperDistributorId().getSuperDistributorId(),w.getAvailableBalance()));
+
+        superDistributorPostpaidAmountRepository.findAll().forEach(w ->
+                maps.getPostpaid().put(w.getSuperDistributorId().getSuperDistributorId(),w.getAvailableBalance()));
+
+        // White Label
+        whiteLabelPrepaidAmountRepository.findAll().forEach(w ->
+                maps.getPrepaid().put(w.getWhiteLabelId().getWhiteLabelId(),w.getAvailableBalance()));
+
+        whiteLabelPostpaidAmountRepository.findAll().forEach(w ->
+                maps.getPostpaid().put(w.getWhiteLabelId().getWhiteLabelId(),w.getAvailableBalance()));
+
+        // Enterprise
+        enterprisesPrepaidAmountRepository.findAll().forEach(w ->
+                maps.getPrepaid().put(w.getEnterprise().getEnterpriseId(),w.getAvailableBalance()));
+
+        enterprisesPostpaidAmountRepository.findAll().forEach(w ->
+                maps.getPostpaid().put(w.getEnterprise().getEnterpriseId(),w.getAvailableBalance()));
+
+        return maps;
     }
 
 }
