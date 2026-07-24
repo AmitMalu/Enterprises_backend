@@ -106,59 +106,242 @@ public class FundingServiceImpl implements FundingService {
 
     @Override
     @Transactional
-    public String fundsCreditDebit(FundCreditDebitDto dto, Double latitude, Double longitude, String ipAddress) {
-        log.info("Starting funds {} operation for userAccountId: {}, WalletType: {}, Amount: {}",
-                dto.getFundingType(), dto.getUserAccountId(), dto.getWalletType(), dto.getAmount());
+    public String fundsCreditDebit(
+            FundCreditDebitDto dto,
+            Double latitude,
+            Double longitude,
+            String ipAddress
+    ) {
 
-        // Generate base transaction ID
-        String baseTxnId = commonMethods.generateBaseTransactionId();
-        log.debug("Generated base transaction ID: {}", baseTxnId);
+        log.info(
+                "Starting funds {} operation | adminId={} | userAccountId={} | walletType={} | amount={}",
+                dto.getFundingType(),
+                dto.getAdminId(),
+                dto.getUserAccountId(),
+                dto.getWalletType(),
+                dto.getAmount()
+        );
 
-        // Extract and resolve types
-        String adminId = dto.getAdminId();
-        String userId = dto.getUserAccountId();
-        WalletType walletType = WalletType.fromString(dto.getWalletType());
-        TransactionType transactionType = TransactionType.fromString(dto.getFundingType());
-        log.debug("Resolved WalletType: {}, TransactionType: {}", walletType, transactionType);
+        if (dto.getAdminId() == null ||
+                dto.getAdminId().isBlank()) {
 
-        BigDecimal amount = BigDecimal.valueOf(dto.getAmount());
-        BigDecimal confirmAmount = BigDecimal.valueOf(dto.getConfirmAmount());
+            throw new IllegalArgumentException(
+                    "Admin hierarchy ID is required."
+            );
+        }
+
+        if (dto.getUserAccountId() == null ||
+                dto.getUserAccountId().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "User account ID is required."
+            );
+        }
+
+        if (dto.getAmount() <= 0 || dto.getConfirmAmount() <= 0) {
+            throw new IllegalArgumentException(
+                    "Amount and Confirm Amount must be greater than zero."
+            );
+        }
+
+        BigDecimal amount =
+                BigDecimal.valueOf(dto.getAmount());
+
+        BigDecimal confirmAmount =
+                BigDecimal.valueOf(dto.getConfirmAmount());
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "Amount must be greater than zero."
+            );
+        }
 
         if (amount.compareTo(confirmAmount) != 0) {
-            throw new IllegalArgumentException("Amount and Confirm Amount do not match");
+            throw new IllegalArgumentException(
+                    "Amount and Confirm Amount do not match."
+            );
         }
 
-        // Fetch wallets
-        AbstractWalletAmountTable userWallet = commonMethods.getWalletByType(walletType.name(), userId);
-        AbstractWalletAmountTable adminWallet = commonMethods.getWalletByType(walletType.name(), adminId);
+        WalletType walletType =
+                WalletType.fromString(dto.getWalletType());
 
-        // ===== VALIDATE SUFFICIENT BALANCE =====
-        if (transactionType.equals(TransactionType.DEBIT)) {
-            if (userWallet.getAvailableBalance().compareTo(amount) < 0) {
-                log.error("Insufficient balance in user wallet. Available: {}, Required: {}",
-                        userWallet.getAvailableBalance(), amount);
+        TransactionType transactionType =
+                TransactionType.fromString(dto.getFundingType());
+
+        String requestedAdminId =
+                dto.getAdminId().trim();
+
+        String requestedUserId =
+                dto.getUserAccountId().trim();
+
+        /*
+         * Resolve user accounts to the hierarchy that actually owns the wallet.
+         *
+         * AU   -> AD
+         * WLAU -> WL
+         * RU   -> RT
+         */
+        String resolvedAdminId =
+                commonMethods.resolveWalletOwnerHierarchyId(
+                        requestedAdminId
+                );
+
+        String resolvedUserId =
+                commonMethods.resolveWalletOwnerHierarchyId(
+                        requestedUserId
+                );
+
+        log.info(
+                "Wallet hierarchy IDs resolved | requestedAdminId={} | resolvedAdminId={} | " +
+                        "requestedUserId={} | resolvedUserId={}",
+                requestedAdminId,
+                resolvedAdminId,
+                requestedUserId,
+                resolvedUserId
+        );
+
+        /*
+         * Prevent debit and credit of the same wallet.
+         *
+         * Example:
+         * adminId = NFT-WLAU-002 -> NFT-WL-001
+         * userId  = NFT-WL-001
+         */
+        if (resolvedAdminId.equalsIgnoreCase(resolvedUserId)) {
+
+            log.warn(
+                    "Source and destination resolved to the same wallet | " +
+                            "requestedAdminId={} | requestedUserId={} | resolvedId={}",
+                    requestedAdminId,
+                    requestedUserId,
+                    resolvedAdminId
+            );
+
+            throw new IllegalArgumentException(
+                    "Source and destination wallets cannot be the same."
+            );
+        }
+
+        String baseTxnId =
+                commonMethods.generateBaseTransactionId();
+
+        if (baseTxnId == null || baseTxnId.isBlank()) {
+            throw new IllegalStateException(
+                    "Unable to generate base transaction ID."
+            );
+        }
+
+        log.debug(
+                "Generated base transaction ID: {}",
+                baseTxnId
+        );
+
+        /*
+         * Fetch using resolved wallet-owner IDs.
+         */
+        AbstractWalletAmountTable userWallet =
+                commonMethods.getWalletByType(
+                        walletType.name(),
+                        resolvedUserId
+                );
+
+        AbstractWalletAmountTable adminWallet =
+                commonMethods.getWalletByType(
+                        walletType.name(),
+                        resolvedAdminId
+                );
+
+        if (userWallet == null) {
+            throw new IllegalStateException(
+                    "User wallet not found for hierarchy: "
+                            + resolvedUserId
+            );
+        }
+
+        if (adminWallet == null) {
+            throw new IllegalStateException(
+                    "Admin wallet not found for hierarchy: "
+                            + resolvedAdminId
+            );
+        }
+
+        BigDecimal userAvailableBalance =
+                userWallet.getAvailableBalance() == null
+                        ? BigDecimal.ZERO
+                        : userWallet.getAvailableBalance();
+
+        BigDecimal adminAvailableBalance =
+                adminWallet.getAvailableBalance() == null
+                        ? BigDecimal.ZERO
+                        : adminWallet.getAvailableBalance();
+
+        // ============================================================
+        // VALIDATE SOURCE WALLET BALANCE
+        // ============================================================
+
+        if (transactionType == TransactionType.DEBIT) {
+
+            /*
+             * DEBIT:
+             * User is the source.
+             */
+            if (userAvailableBalance.compareTo(amount) < 0) {
+
+                log.warn(
+                        "Insufficient user wallet balance | requestedUserId={} | " +
+                                "resolvedUserId={} | available={} | required={}",
+                        requestedUserId,
+                        resolvedUserId,
+                        userAvailableBalance,
+                        amount
+                );
+
                 throw new IllegalArgumentException(
-                        String.format("Insufficient balance. Available: %s, Required: %s",
-                                userWallet.getAvailableBalance(), amount)
+                        String.format(
+                                "Insufficient balance. Available: %s, Required: %s",
+                                userAvailableBalance,
+                                amount
+                        )
                 );
             }
-        } else if (transactionType.equals(TransactionType.CREDIT)) {
-            // For CREDIT, check if admin has sufficient balance (if admin is the source)
-            if (adminWallet.getAvailableBalance().compareTo(amount) < 0) {
-                log.error("Insufficient balance in admin wallet. Available: {}, Required: {}",
-                        adminWallet.getAvailableBalance(), amount);
+
+        } else if (transactionType == TransactionType.CREDIT) {
+
+            /*
+             * CREDIT:
+             * Admin/WL is the source.
+             */
+            if (adminAvailableBalance.compareTo(amount) < 0) {
+
+                log.warn(
+                        "Insufficient admin wallet balance | requestedAdminId={} | " +
+                                "resolvedAdminId={} | available={} | required={}",
+                        requestedAdminId,
+                        resolvedAdminId,
+                        adminAvailableBalance,
+                        amount
+                );
+
                 throw new IllegalArgumentException(
-                        String.format("Insufficient admin balance. Available: %s, Required: %s",
-                                adminWallet.getAvailableBalance(), amount)
+                        String.format(
+                                "Insufficient admin balance. Available: %s, Required: %s",
+                                adminAvailableBalance,
+                                amount
+                        )
                 );
             }
         }
 
+        String txnIdPrefix =
+                transactionType == TransactionType.CREDIT
+                        ? "FCR"
+                        : "FDR";
 
-        // Generate transaction ID prefix
-        String txnIdPrefix = transactionType == TransactionType.CREDIT ? "FCR" : "FDR";
-        String userTxnId = txnIdPrefix + baseTxnId;
-        String adminTxnId = txnIdPrefix + baseTxnId;
+        String userTxnId =
+                txnIdPrefix + baseTxnId;
+
+        String adminTxnId =
+                txnIdPrefix + baseTxnId;
 
         RetailersExtraColumnsDto retailerExtraColumns =
                 RetailersExtraColumnsDto.builder()
@@ -169,14 +352,32 @@ public class FundingServiceImpl implements FundingService {
                         .longitude(longitude)
                         .build();
 
-        if (transactionType == TransactionType.CREDIT) {
-            // CREDIT => Debit from Admin, Credit to User
-            log.info("Performing CREDIT: Admin {} → User {}", adminId, userId);
+        // ============================================================
+        // CREDIT: ADMIN/WL DEBIT -> USER CREDIT
+        // ============================================================
 
-            // Debit from admin
+        if (transactionType == TransactionType.CREDIT) {
+
+            log.info(
+                    "Performing CREDIT | requestedAdmin={} | resolvedAdmin={} | " +
+                            "requestedUser={} | resolvedUser={} | amount={}",
+                    requestedAdminId,
+                    resolvedAdminId,
+                    requestedUserId,
+                    resolvedUserId,
+                    amount
+            );
+
+            /*
+             * Debit actual wallet owner.
+             *
+             * For WLAU:
+             * requestedAdminId = NFT-WLAU-002
+             * resolvedAdminId  = NFT-WL-001
+             */
             commonMethods.performWalletUpdate(
                     adminWallet,
-                    adminId,
+                    resolvedAdminId,
                     walletType,
                     amount,
                     TransactionType.DEBIT,
@@ -184,14 +385,16 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Credit (Admin Debit)",
                     dto.getNarrationType(),
-                    userId, // inserted into hierarchy_id for AD/WL
+                    resolvedUserId,
                     retailerExtraColumns
             );
 
-            // Credit to user
+            /*
+             * Credit actual user wallet owner.
+             */
             commonMethods.performWalletUpdate(
                     userWallet,
-                    userId,
+                    resolvedUserId,
                     walletType,
                     amount,
                     TransactionType.CREDIT,
@@ -199,18 +402,31 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Credit (User Credit)",
                     dto.getNarrationType(),
-                    adminId,
+                    resolvedAdminId,
                     retailerExtraColumns
             );
 
-        } else if (transactionType == TransactionType.DEBIT) {
-            // DEBIT => Debit from User, Credit to Admin
-            log.info("Performing DEBIT: User {} → Admin {}", userId, adminId);
+        }
 
-            // Debit from user
+        // ============================================================
+        // DEBIT: USER DEBIT -> ADMIN/WL CREDIT
+        // ============================================================
+
+        else if (transactionType == TransactionType.DEBIT) {
+
+            log.info(
+                    "Performing DEBIT | requestedUser={} | resolvedUser={} | " +
+                            "requestedAdmin={} | resolvedAdmin={} | amount={}",
+                    requestedUserId,
+                    resolvedUserId,
+                    requestedAdminId,
+                    resolvedAdminId,
+                    amount
+            );
+
             commonMethods.performWalletUpdate(
                     userWallet,
-                    userId,
+                    resolvedUserId,
                     walletType,
                     amount,
                     TransactionType.DEBIT,
@@ -218,14 +434,13 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Debit (User Debit)",
                     dto.getNarrationType(),
-                    adminId,
+                    resolvedAdminId,
                     retailerExtraColumns
             );
 
-            // Credit to admin
             commonMethods.performWalletUpdate(
                     adminWallet,
-                    adminId,
+                    resolvedAdminId,
                     walletType,
                     amount,
                     TransactionType.CREDIT,
@@ -233,14 +448,174 @@ public class FundingServiceImpl implements FundingService {
                     dto.getRemarks(),
                     "Fund Debit (Admin Credit)",
                     dto.getNarrationType(),
-                    userId, // inserted into hierarchy_id for AD/WL
+                    resolvedUserId,
                     retailerExtraColumns
+            );
+
+        } else {
+
+            throw new IllegalArgumentException(
+                    "Unsupported transaction type: "
+                            + transactionType
             );
         }
 
-        log.info("Transaction {} successful for user {} with baseTxnId {}", transactionType.name(), userId, baseTxnId);
-        return String.format("Transaction %s successful (BaseTxnId: %s)", transactionType.name(), baseTxnId);
+        log.info(
+                "Fund transaction completed successfully | transactionType={} | " +
+                        "requestedAdminId={} | resolvedAdminId={} | " +
+                        "requestedUserId={} | resolvedUserId={} | baseTxnId={}",
+                transactionType,
+                requestedAdminId,
+                resolvedAdminId,
+                requestedUserId,
+                resolvedUserId,
+                baseTxnId
+        );
+
+        return String.format(
+                "Transaction %s successful (BaseTxnId: %s)",
+                transactionType.name(),
+                baseTxnId
+        );
     }
+
+//    @Override
+//    @Transactional
+//    public String fundsCreditDebit(FundCreditDebitDto dto, Double latitude, Double longitude, String ipAddress) {
+//        log.info("Starting funds {} operation for userAccountId: {}, WalletType: {}, Amount: {}",
+//                dto.getFundingType(), dto.getUserAccountId(), dto.getWalletType(), dto.getAmount());
+//
+//        // Generate base transaction ID
+//        String baseTxnId = commonMethods.generateBaseTransactionId();
+//        log.debug("Generated base transaction ID: {}", baseTxnId);
+//
+//        // Extract and resolve types
+//        String adminId = dto.getAdminId();
+//        String userId = dto.getUserAccountId();
+//        WalletType walletType = WalletType.fromString(dto.getWalletType());
+//        TransactionType transactionType = TransactionType.fromString(dto.getFundingType());
+//        log.debug("Resolved WalletType: {}, TransactionType: {}", walletType, transactionType);
+//
+//        BigDecimal amount = BigDecimal.valueOf(dto.getAmount());
+//        BigDecimal confirmAmount = BigDecimal.valueOf(dto.getConfirmAmount());
+//
+//        if (amount.compareTo(confirmAmount) != 0) {
+//            throw new IllegalArgumentException("Amount and Confirm Amount do not match");
+//        }
+//
+//        // Fetch wallets
+//        AbstractWalletAmountTable userWallet = commonMethods.getWalletByType(walletType.name(), userId);
+//        AbstractWalletAmountTable adminWallet = commonMethods.getWalletByType(walletType.name(), adminId);
+//
+//        // ===== VALIDATE SUFFICIENT BALANCE =====
+//        if (transactionType.equals(TransactionType.DEBIT)) {
+//            if (userWallet.getAvailableBalance().compareTo(amount) < 0) {
+//                log.error("Insufficient balance in user wallet. Available: {}, Required: {}",
+//                        userWallet.getAvailableBalance(), amount);
+//                throw new IllegalArgumentException(
+//                        String.format("Insufficient balance. Available: %s, Required: %s",
+//                                userWallet.getAvailableBalance(), amount)
+//                );
+//            }
+//        } else if (transactionType.equals(TransactionType.CREDIT)) {
+//            // For CREDIT, check if admin has sufficient balance (if admin is the source)
+//            if (adminWallet.getAvailableBalance().compareTo(amount) < 0) {
+//                log.error("Insufficient balance in admin wallet. Available: {}, Required: {}",
+//                        adminWallet.getAvailableBalance(), amount);
+//                throw new IllegalArgumentException(
+//                        String.format("Insufficient admin balance. Available: %s, Required: %s",
+//                                adminWallet.getAvailableBalance(), amount)
+//                );
+//            }
+//        }
+//
+//
+//        // Generate transaction ID prefix
+//        String txnIdPrefix = transactionType == TransactionType.CREDIT ? "FCR" : "FDR";
+//        String userTxnId = txnIdPrefix + baseTxnId;
+//        String adminTxnId = txnIdPrefix + baseTxnId;
+//
+//        RetailersExtraColumnsDto retailerExtraColumns =
+//                RetailersExtraColumnsDto.builder()
+//                        .medium(dto.getMedium())
+//                        .clientIp(ipAddress)
+//                        .requestDomainName(dto.getRequestDomainName())
+//                        .latitude(latitude)
+//                        .longitude(longitude)
+//                        .build();
+//
+//        if (transactionType == TransactionType.CREDIT) {
+//            // CREDIT => Debit from Admin, Credit to User
+//            log.info("Performing CREDIT: Admin {} → User {}", adminId, userId);
+//
+//            // Debit from admin
+//            commonMethods.performWalletUpdate(
+//                    adminWallet,
+//                    adminId,
+//                    walletType,
+//                    amount,
+//                    TransactionType.DEBIT,
+//                    adminTxnId,
+//                    dto.getRemarks(),
+//                    "Fund Credit (Admin Debit)",
+//                    dto.getNarrationType(),
+//                    userId, // inserted into hierarchy_id for AD/WL
+//                    retailerExtraColumns
+//            );
+//
+//            // Credit to user
+//            commonMethods.performWalletUpdate(
+//                    userWallet,
+//                    userId,
+//                    walletType,
+//                    amount,
+//                    TransactionType.CREDIT,
+//                    userTxnId,
+//                    dto.getRemarks(),
+//                    "Fund Credit (User Credit)",
+//                    dto.getNarrationType(),
+//                    adminId,
+//                    retailerExtraColumns
+//            );
+//
+//        } else if (transactionType == TransactionType.DEBIT) {
+//            // DEBIT => Debit from User, Credit to Admin
+//            log.info("Performing DEBIT: User {} → Admin {}", userId, adminId);
+//
+//            // Debit from user
+//            commonMethods.performWalletUpdate(
+//                    userWallet,
+//                    userId,
+//                    walletType,
+//                    amount,
+//                    TransactionType.DEBIT,
+//                    userTxnId,
+//                    dto.getRemarks(),
+//                    "Fund Debit (User Debit)",
+//                    dto.getNarrationType(),
+//                    adminId,
+//                    retailerExtraColumns
+//            );
+//
+//            // Credit to admin
+//            commonMethods.performWalletUpdate(
+//                    adminWallet,
+//                    adminId,
+//                    walletType,
+//                    amount,
+//                    TransactionType.CREDIT,
+//                    adminTxnId,
+//                    dto.getRemarks(),
+//                    "Fund Debit (Admin Credit)",
+//                    dto.getNarrationType(),
+//                    userId, // inserted into hierarchy_id for AD/WL
+//                    retailerExtraColumns
+//            );
+//        }
+//
+//        log.info("Transaction {} successful for user {} with baseTxnId {}", transactionType.name(), userId, baseTxnId);
+//        return String.format("Transaction %s successful (BaseTxnId: %s)", transactionType.name(), baseTxnId);
+//    }
 
 
     @Override
