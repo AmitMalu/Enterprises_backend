@@ -153,6 +153,7 @@ public class Enterprises {
     @Column(name = "edited_on")
     private LocalDateTime editedOn;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(name = "approved_on")
     private LocalDateTime approvedOn;
 

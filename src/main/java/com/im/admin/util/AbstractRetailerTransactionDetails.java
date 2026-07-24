@@ -30,5 +30,6 @@ public interface AbstractRetailerTransactionDetails {
 
     String getBankRefId();
 
+    String getRemarks();
 }
 

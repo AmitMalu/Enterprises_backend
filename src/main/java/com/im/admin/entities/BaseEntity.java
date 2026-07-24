@@ -1,5 +1,6 @@
 package com.im.admin.entities;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.im.admin.controller.AuditEntityListener;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -29,6 +30,7 @@ public abstract class BaseEntity {
     @Column(name = "edited_by")
     private String editedBy;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(name = "approved_on")
     private LocalDateTime approvedOn;
 
