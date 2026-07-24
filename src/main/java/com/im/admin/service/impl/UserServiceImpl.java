@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -255,77 +256,307 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
-    public Page<ViewUserResponseDto> getAllUsers(int page, int size, String keyword) {
-        log.info("Fetching users - page: {}, size: {}, keyword: {}", page, size, keyword);
+    @Transactional(readOnly = true)
+    public Page<ViewUserResponseDto> getAllUsers(
+            int page,
+            int size,
+            String keyword
+    ) {
 
-        String loginHierarchyId = tokenUtil.extractHierarchyId();
-        String loginType = commonMethods.extractHierarchyType(loginHierarchyId);
+        log.info(
+                "Fetching users | page={} | size={} | keyword={}",
+                page,
+                size,
+                keyword
+        );
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
-        Page<UserDetails> usersPage;
+        if (page < 0) {
+            throw new IllegalArgumentException(
+                    "Page number cannot be negative"
+            );
+        }
 
-        if ("AD".equals(loginType)) {
+        if (size <= 0) {
+            throw new IllegalArgumentException(
+                    "Page size must be greater than zero"
+            );
+        }
 
-            usersPage = userDetailsRepository.findAll(pageable);
+        final String normalizedKeyword =
+                keyword == null || keyword.isBlank()
+                        ? null
+                        : keyword.trim();
+
+        final String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
+
+        if (loginHierarchyId == null
+                || loginHierarchyId.isBlank()) {
+
+            throw new IllegalStateException(
+                    "Login hierarchy ID is missing from token"
+            );
+        }
+
+        final String loginType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        if (loginType == null || loginType.isBlank()) {
+            throw new IllegalStateException(
+                    "Unable to determine hierarchy type for: "
+                            + loginHierarchyId
+            );
+        }
+
+        final String effectiveHierarchyId =
+                commonMethods.resolveEffectiveHierarchyId(
+                        loginHierarchyId,
+                        loginType
+                );
+
+        final Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        Sort.by(
+                                Sort.Direction.DESC,
+                                "createdDate"
+                        )
+                );
+
+        final Page<UserDetails> usersPage;
+
+        if ("AD".equalsIgnoreCase(loginType)) {
+
+            usersPage =
+                    userDetailsRepository
+                            .findAllUsersWithKeyword(
+                                    normalizedKeyword,
+                                    pageable
+                            );
 
         } else {
 
             usersPage =
-                    userDetailsRepository.findAccessibleUsers(
-                            loginHierarchyId,
-                            keyword,
-                            pageable);
+                    userDetailsRepository
+                            .findAccessibleUsers(
+                                    effectiveHierarchyId,
+                                    normalizedKeyword,
+                                    pageable
+                            );
         }
 
-        List<ViewUserResponseDto> dtoList = usersPage.stream()
-                .map(user -> {
-                    ViewUserResponseDto dto = new ViewUserResponseDto();
-                    dto.setMobileNumber(user.getMobileNumber());
-                    dto.setHierarchyId(user.getHierarchyId());
-                    dto.setHierarchyCode(user.getHierarchyCode());
-                    dto.setLoginUserName(user.getLoginUserName());
-                    dto.setUserLoginStatus(user.getUserLoginStatus());
-                    dto.setLastLoginDate(user.getLastLoginDate());
-                    dto.setLastLoginTime(user.getLastLoginTime());
-                    dto.setUserStatus(user.getUserStatus());
-                    dto.setEmailId(user.getEmailId());
-                    dto.setCreatedDate(user.getCreatedDate());
-                    dto.setCreatedTime(user.getCreatedTime());
-                    dto.setCreatedBy(user.getCreatedBy());
-                    dto.setEditedDate(user.getEditedDate());
-                    dto.setEditedTime(user.getEditedTime());
-                    dto.setEditedBy(user.getEditedBy());
-                    dto.setRoleId(user.getRole_id());
-                    dto.setIsBlocked(user.getIsBlocked());
+        log.info(
+                "User hierarchy access resolved | "
+                        + "loginHierarchyId={} | "
+                        + "loginType={} | "
+                        + "effectiveHierarchyId={} | "
+                        + "recordsFound={}",
+                loginHierarchyId,
+                loginType,
+                effectiveHierarchyId,
+                usersPage.getTotalElements()
+        );
 
-                    String type = commonMethods.extractHierarchyType(user.getHierarchyId());
-                    log.debug("Resolving address for user with hierarchyId: {}, type: {}", user.getHierarchyId(), type);
+        Page<ViewUserResponseDto> responsePage =
+                usersPage.map(user -> {
 
-                    switch (type) {
-                        case "RT" ->
-                                retailerRepository.findById(user.getHierarchyId()).ifPresent(rt -> setAddress(dto, rt.getAddress()));
-                        case "DT" ->
-                                distributorRepository.findById(user.getHierarchyId()).ifPresent(dt -> setAddress(dto, dt.getAddress()));
-                        case "PT" ->
-                                partnerRepository.findById(user.getHierarchyId()).ifPresent(pt -> setAddress(dto, pt.getAddress()));
-                        case "SD" ->
-                                superDistributorRepository.findById(user.getHierarchyId()).ifPresent(sd -> setAddress(dto, sd.getAddress()));
-                        case "WL" ->
-                                whiteLabelRepository.findById(user.getHierarchyId()).ifPresent(wl -> setAddress(dto, wl.getAddress()));
-                        case "ET" ->
-                                enterprisesRepository.findById(user.getHierarchyId()).ifPresent(et -> setAddress(dto, et.getAddress()));
-                        default -> log.warn("Unknown hierarchy type for ID: {}", user.getHierarchyId());
-                    }
+                    ViewUserResponseDto dto =
+                            new ViewUserResponseDto();
+
+                    dto.setMobileNumber(
+                            user.getMobileNumber()
+                    );
+
+                    dto.setHierarchyId(
+                            user.getHierarchyId()
+                    );
+
+                    dto.setHierarchyCode(
+                            user.getHierarchyCode()
+                    );
+
+                    dto.setLoginUserName(
+                            user.getLoginUserName()
+                    );
+
+                    dto.setUserLoginStatus(
+                            user.getUserLoginStatus()
+                    );
+
+                    dto.setLastLoginDate(
+                            user.getLastLoginDate()
+                    );
+
+                    dto.setLastLoginTime(
+                            user.getLastLoginTime()
+                    );
+
+                    dto.setUserStatus(
+                            user.getUserStatus()
+                    );
+
+                    dto.setEmailId(
+                            user.getEmailId()
+                    );
+
+                    dto.setCreatedDate(
+                            user.getCreatedDate()
+                    );
+
+                    dto.setCreatedTime(
+                            user.getCreatedTime()
+                    );
+
+                    dto.setCreatedBy(
+                            user.getCreatedBy()
+                    );
+
+                    dto.setEditedDate(
+                            user.getEditedDate()
+                    );
+
+                    dto.setEditedTime(
+                            user.getEditedTime()
+                    );
+
+                    dto.setEditedBy(
+                            user.getEditedBy()
+                    );
+
+                    dto.setRoleId(
+                            user.getRole_id()
+                    );
+
+                    dto.setIsBlocked(
+                            user.getIsBlocked()
+                    );
+
+                    setUserAddress(
+                            dto,
+                            user.getHierarchyId()
+                    );
 
                     return dto;
-                })
-                .filter(dto -> keyword == null || keyword.isEmpty()
-                        || (dto.getMobileNumber() != null && dto.getMobileNumber().contains(keyword))
-                        || (dto.getHierarchyId() != null && dto.getHierarchyId().toLowerCase().contains(keyword.toLowerCase())))
-                .toList();
+                });
 
-        log.info("Returning {} users after filtering", dtoList.size());
-        return new PageImpl<>(dtoList, pageable, usersPage.getTotalElements());
+        log.info(
+                "Returning users | "
+                        + "page={} | pageElements={} | totalElements={}",
+                page,
+                responsePage.getNumberOfElements(),
+                responsePage.getTotalElements()
+        );
+
+        return responsePage;
+    }
+
+    private void setUserAddress(
+            ViewUserResponseDto dto,
+            String hierarchyId
+    ) {
+
+        if (hierarchyId == null || hierarchyId.isBlank()) {
+            log.warn(
+                    "Cannot resolve address because hierarchy ID is empty"
+            );
+            return;
+        }
+
+        final String hierarchyType =
+                commonMethods.extractHierarchyType(
+                        hierarchyId
+                );
+
+        if (hierarchyType == null
+                || hierarchyType.isBlank()) {
+
+            log.warn(
+                    "Cannot determine hierarchy type for ID: {}",
+                    hierarchyId
+            );
+
+            return;
+        }
+
+        log.debug(
+                "Resolving address | hierarchyId={} | hierarchyType={}",
+                hierarchyId,
+                hierarchyType
+        );
+
+        switch (hierarchyType.toUpperCase()) {
+
+            case "RT" ->
+                    retailerRepository
+                            .findById(hierarchyId)
+                            .ifPresent(entity ->
+                                    setAddress(
+                                            dto,
+                                            entity.getAddress()
+                                    )
+                            );
+
+            case "DT" ->
+                    distributorRepository
+                            .findById(hierarchyId)
+                            .ifPresent(entity ->
+                                    setAddress(
+                                            dto,
+                                            entity.getAddress()
+                                    )
+                            );
+
+            case "PT" ->
+                    partnerRepository
+                            .findById(hierarchyId)
+                            .ifPresent(entity ->
+                                    setAddress(
+                                            dto,
+                                            entity.getAddress()
+                                    )
+                            );
+
+            case "SD" ->
+                    superDistributorRepository
+                            .findById(hierarchyId)
+                            .ifPresent(entity ->
+                                    setAddress(
+                                            dto,
+                                            entity.getAddress()
+                                    )
+                            );
+
+            case "WL" ->
+                    whiteLabelRepository
+                            .findById(hierarchyId)
+                            .ifPresent(entity ->
+                                    setAddress(
+                                            dto,
+                                            entity.getAddress()
+                                    )
+                            );
+
+            case "ET" ->
+                    enterprisesRepository
+                            .findById(hierarchyId)
+                            .ifPresent(entity ->
+                                    setAddress(
+                                            dto,
+                                            entity.getAddress()
+                                    )
+                            );
+
+            default ->
+                    log.debug(
+                            "Address lookup is not configured | "
+                                    + "hierarchyId={} | hierarchyType={}",
+                            hierarchyId,
+                            hierarchyType
+                    );
+        }
     }
 
     private void setAddress(ViewUserResponseDto dto, Address address) {

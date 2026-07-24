@@ -29,51 +29,26 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, UserDe
     @Query("SELECT u FROM UserDetails u WHERE u.userStatus = 'Active' AND u.hierarchyId LIKE %:keyword%")
     Page<UserDetails> searchActiveUsersByHierarchyId(@Param("keyword") String keyword, Pageable pageable);
 
-//    @Query("""
-//            SELECT u
-//            FROM UserDetails u
-//            WHERE
-//                u.userStatus = 'Active'
-//
-//            AND u.hierarchyCode = 'RT'
-//
-//            AND
-//            (
-//                :accessibleIds IS NULL
-//                OR u.hierarchyId IN :accessibleIds
-//            )
-//
-//            AND
-//            (
-//                :keyword IS NULL
-//                OR :keyword = ''
-//
-//                OR LOWER(u.mobileNumber)
-//                    LIKE LOWER(
-//                        CONCAT('%', :keyword, '%')
-//                    )
-//
-//                OR LOWER(u.emailId)
-//                    LIKE LOWER(
-//                        CONCAT('%', :keyword, '%')
-//                    )
-//
-//                OR LOWER(u.hierarchyId)
-//                    LIKE LOWER(
-//                        CONCAT('%', :keyword, '%')
-//                    )
-//            )
-//            """)
-//    Page<UserDetails> searchActiveRetailers(
-//
-//            @Param("keyword")
-//            String keyword,
-//
-//            @Param("accessibleIds")
-//            List<String> accessibleIds,
-//
-//            Pageable pageable
-//    );
+    @Query("""
+        SELECT u
+        FROM UserDetails u
+        WHERE (
+            :keyword IS NULL
+            OR TRIM(:keyword) = ''
+            OR LOWER(u.hierarchyId) LIKE
+                LOWER(CONCAT('%', :keyword, '%'))
+            OR u.mobileNumber LIKE
+                CONCAT('%', :keyword, '%')
+            OR LOWER(u.loginUserName) LIKE
+                LOWER(CONCAT('%', :keyword, '%'))
+            OR LOWER(u.emailId) LIKE
+                LOWER(CONCAT('%', :keyword, '%'))
+        )
+        """)
+    Page<UserDetails> findAllUsersWithKeyword(
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
 
     @Query("""
         SELECT u
