@@ -637,6 +637,54 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                     .build();
         }
 
+        // ======================= Fund Reversal ============================
+        if (productName != null &&
+                productName.trim().equalsIgnoreCase("Fund Reversal")) {
+
+            String paymentMode = txn.getOperatorName();
+
+            return BalanceTransferReceiptResponseDto.builder()
+                    .dateTime(
+                            txn.getDateOfTransaction() != null &&
+                                    txn.getTimeOfTransaction() != null
+                                    ? LocalDateTime.of(
+                                    txn.getDateOfTransaction(),
+                                    txn.getTimeOfTransaction()
+                            ).toString()
+                                    : null
+                    )
+                    .txnId(request.getTxnId())
+                    .amount(txn.getAmount())
+                    .remarks(txn.getRemarks())
+                    .status(txn.getTranStatus())
+                    .paymentMode(paymentMode)
+                    .build();
+        }
+
+        // ======================= Fund Transfer ============================
+        if (productName != null &&
+                productName.trim().equalsIgnoreCase("Fund Transfer")) {
+
+            String paymentMode = txn.getOperatorName();
+
+            return BalanceTransferReceiptResponseDto.builder()
+                    .dateTime(
+                            txn.getDateOfTransaction() != null &&
+                                    txn.getTimeOfTransaction() != null
+                                    ? LocalDateTime.of(
+                                    txn.getDateOfTransaction(),
+                                    txn.getTimeOfTransaction()
+                            ).toString()
+                                    : null
+                    )
+                    .txnId(request.getTxnId())
+                    .amount(txn.getAmount())
+                    .remarks(txn.getRemarks())
+                    .status(txn.getTranStatus())
+                    .paymentMode(paymentMode)
+                    .build();
+        }
+
         throw new RuntimeException("Unsupported Product");
     }
 
