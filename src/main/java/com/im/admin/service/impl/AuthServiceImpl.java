@@ -103,7 +103,7 @@ public class AuthServiceImpl implements AuthService {
             log.info("OTP generated and saved for MobileNumber={} | OTP={}", user.getMobileNumber(), otp);
 
             Map<String, String> otpData = new HashMap<>();
-            otpData.put("otp", otp);
+            //otpData.put("otp", otp);
 
             return new CommonResponse<>(200, "OTP sent successfully", otpData);
         }
@@ -159,40 +159,40 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public CommonResponse<?> changePasswordadmin(ChangePasswordRequestDto request) {
         String username = request.getUserName();
-        log.info("Change password requested for username={}", username);
+        log.info("Change password Admin requested for username={}", username);
 
         Optional<UserDetails> optionalUser = username.matches("\\d{10}")
                 ? userDetailsRepository.findByMobileNumber(username)
                 : userDetailsRepository.findByEmailId(username);
 
         if (optionalUser.isEmpty()) {
-            log.error("User not found for username={}", username);
+            log.error("[Change password Admin] User not found for username={}", username);
             throw new RuntimeException("User not found");
         }
 
         UserDetails user = optionalUser.get();
-        log.info("User found | MobileNumber={}, HierarchyId={}, Status={}",
+        log.info("[Change password Admin] User found | MobileNumber={}, HierarchyId={}, Status={}",
                 user.getMobileNumber(), user.getHierarchyId(), user.getUserStatus());
 
         // Check Active status
         if (!"Active".equalsIgnoreCase(user.getUserStatus())) {
-            log.error("User account is not active | MobileNumber={}", user.getMobileNumber());
+            log.error("[Change password Admin] User account is not active | MobileNumber={}", user.getMobileNumber());
             throw new RuntimeException("User account is not active");
         }
 
         // Password checks
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            log.error("New password and confirm password do not match for MobileNumber={}", user.getMobileNumber());
+            log.error("[Change password Admin] New password and confirm password do not match for MobileNumber={}", user.getMobileNumber());
             throw new RuntimeException("New password and confirm password do not match");
         }
 
         if (!passwordEncoder.matches(request.getOldPassword(), user.getLoginPassword())) {
-            log.error("Old password is incorrect for MobileNumber={}", user.getMobileNumber());
+            log.error("[Change password Admin] Old password is incorrect for MobileNumber={}", user.getMobileNumber());
             throw new RuntimeException("Old password is incorrect");
         }
 
         if (passwordEncoder.matches(request.getNewPassword(), user.getLoginPassword())) {
-            log.error("New password cannot be same as old password for MobileNumber={}", user.getMobileNumber());
+            log.error("[Change password Admin] New password cannot be same as old password for MobileNumber={}", user.getMobileNumber());
             throw new RuntimeException("New password cannot be same as old password");
         }
 
@@ -200,7 +200,7 @@ public class AuthServiceImpl implements AuthService {
         String encodedPassword = passwordEncoder.encode(request.getNewPassword());
         user.setLoginPassword(encodedPassword);
         userDetailsRepository.save(user);
-        log.info("Password changed successfully for MobileNumber={}", user.getMobileNumber());
+        log.info("[Change password Admin] Password changed successfully for MobileNumber={}", user.getMobileNumber());
 
         return new CommonResponse<>(200, "Password changed successfully", null);
     }
