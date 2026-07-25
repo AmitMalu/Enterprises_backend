@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -100,30 +101,70 @@ public final class PrefundRequestSpecification {
                 );
             }
 
+            /*
+             * Date range filter on createDateTime.
+             *
+             * Example:
+             * fromDate = 2026-07-25
+             * toDate   = 2026-07-25
+             *
+             * SQL-equivalent condition:
+             * create_date_time >= 2026-07-25 00:00:00
+             * create_date_time <  2026-07-26 00:00:00
+             */
             if (fromDate != null) {
+
+                LocalDateTime fromDateTime =
+                        fromDate.atStartOfDay();
+
                 predicates.add(
                         cb.greaterThanOrEqualTo(
-                                root.get("depositDate"),
-                                fromDate
+                                root.get("createDateTime"),
+                                fromDateTime
                         )
                 );
             }
 
             if (toDate != null) {
+
+                LocalDateTime toDateTimeExclusive =
+                        toDate.plusDays(1).atStartOfDay();
+
                 predicates.add(
-                        cb.lessThanOrEqualTo(
-                                root.get("depositDate"),
-                                toDate
+                        cb.lessThan(
+                                root.get("createDateTime"),
+                                toDateTimeExclusive
                         )
                 );
             }
 
+            /*
+             * Exact single-date filter.
+             *
+             * Do not use:
+             * root.get("createDateTime").as(LocalDate.class)
+             */
             if (createDateTime != null) {
+
+                LocalDateTime dayStart =
+                        createDateTime.atStartOfDay();
+
+                LocalDateTime nextDayStart =
+                        createDateTime
+                                .plusDays(1)
+                                .atStartOfDay();
+
                 predicates.add(
-                        cb.equal(
-                                root.get("createDateTime")
-                                        .as(LocalDate.class),
-                                createDateTime
+                        cb.greaterThanOrEqualTo(
+                                root.get("createDateTime"),
+                                dayStart
+                        )
+                );
+
+                predicates.add(
+                        cb.lessThan(
+                                root.get("createDateTime"),
+                                nextDayStart
                         )
                 );
             }
