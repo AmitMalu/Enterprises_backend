@@ -135,7 +135,6 @@ public class RechargeOrchestrator {
                         .longitude(longitude)
                         .build();
 
-
         commonMethods.updateWallet(
                 wallet,
                 request.getRetailerId(),
