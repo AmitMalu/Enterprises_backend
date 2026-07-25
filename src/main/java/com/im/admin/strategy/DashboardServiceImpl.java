@@ -4,21 +4,17 @@ package com.im.admin.strategy;
 import com.im.admin.dto.DashboardResponseDto;
 import com.im.admin.dto.WalletBalanceResponseDto;
 import com.im.admin.entities.*;
-        import com.im.admin.repositories.*;
-        import com.im.admin.request.DashboardTransactionRequest;
+import com.im.admin.properties.FileUrlUtil;
+import com.im.admin.repositories.*;
+import com.im.admin.request.DashboardTransactionRequest;
 import com.im.admin.response.*;
-        import com.im.admin.service.DashboardService;
+import com.im.admin.service.DashboardService;
 import com.im.admin.service.MonthlyTransactionVolumeProjection;
 import com.im.admin.service.ProductAmountProjection;
 import com.im.admin.util.CommonMethods;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.web.ErrorProperties;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -27,16 +23,19 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-        import java.util.stream.Collectors;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
 @Slf4j
 public class DashboardServiceImpl implements DashboardService {
+
     @Autowired
     private WhiteLabelPostpaidAmountRepository whiteLabelPostpaidAmountRepository;
+
     @Autowired
     private WhiteLabelPrepaidAmountRepository whiteLabelPrepaidAmountRepository;
+
     @Autowired
     private SuperDistributorPostpaidAmountRepository superDistributorPostpaidAmountRepository;
 
@@ -148,6 +147,9 @@ public class DashboardServiceImpl implements DashboardService {
     @Autowired
     private AdminUserRepository adminUserRepository;
 
+    @Autowired
+    private FileUrlUtil fileUrlUtil;
+
 
     @Override
     public DashboardResponseDto getAdminDashboard() {
@@ -231,7 +233,6 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public MyProfileResponseDto getUserProfile(String hierarchyId) {
-        MyProfileResponseDto response = null;
         String type = commonMethods.extractHierarchyType(hierarchyId);
         switch (type) {
             case "AD" -> {
@@ -287,7 +288,6 @@ public class DashboardServiceImpl implements DashboardService {
                         .map(this::mapToUserDetails)
                         .orElseThrow(() -> new RuntimeException("Retailer User profile not found"));
             }
-
 
             default -> throw new RuntimeException("Unsupported hierarchy type: " + type);
         }
@@ -358,11 +358,11 @@ public class DashboardServiceImpl implements DashboardService {
 
             response.setMyBanksList(myBanksDtoList);
 
-            docsDto.setAadhaarCardFrontImage(r.getAadhaarCardFrontImage());
-            docsDto.setAadhaarCardBackImage(r.getAadhaarCardBackImage());
-            docsDto.setPanCardImage(r.getPanCardImage());
-            docsDto.setShopImage(r.getShopImage());
-            docsDto.setBusinessProofImage(r.getBusinessProofImage());
+            docsDto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(r.getAadhaarCardFrontImage()));
+            docsDto.setAadhaarCardBackImage(fileUrlUtil.getFullUrl(r.getAadhaarCardBackImage()));
+            docsDto.setPanCardImage(fileUrlUtil.getFullUrl(r.getPanCardImage()));
+            docsDto.setShopImage(fileUrlUtil.getFullUrl(r.getShopImage()));
+            docsDto.setBusinessProofImage(fileUrlUtil.getFullUrl(r.getBusinessProofImage()));
 
         }
 
@@ -452,11 +452,11 @@ public class DashboardServiceImpl implements DashboardService {
 
             response.setMyBanksList(myBanksDtoList);
 
-            docsDto.setAadhaarCardFrontImage(dt.getAadhaarCardFrontImage());
-            docsDto.setAadhaarCardBackImage(dt.getAadhaarCardBackImage());
-            docsDto.setPanCardImage(dt.getPanCardImage());
-            docsDto.setShopImage(dt.getShopImage());
-            docsDto.setBusinessProofImage(dt.getBusinessProofImage());
+            docsDto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(dt.getAadhaarCardFrontImage()));
+            docsDto.setAadhaarCardBackImage(fileUrlUtil.getFullUrl(dt.getAadhaarCardBackImage()));
+            docsDto.setPanCardImage(fileUrlUtil.getFullUrl(dt.getPanCardImage()));
+            docsDto.setShopImage(fileUrlUtil.getFullUrl(dt.getShopImage()));
+            docsDto.setBusinessProofImage(fileUrlUtil.getFullUrl(dt.getBusinessProofImage()));
 
         }
 
@@ -501,11 +501,11 @@ public class DashboardServiceImpl implements DashboardService {
 
             response.setMyBanksList(myBanksDtoList);
 
-            docsDto.setAadhaarCardFrontImage(pt.getAadhaarCardFrontImage());
-            docsDto.setAadhaarCardBackImage(pt.getAadhaarCardBackImage());
-            docsDto.setPanCardImage(pt.getPanCardImage());
-            docsDto.setShopImage(pt.getShopImage());
-            docsDto.setBusinessProofImage(pt.getBusinessProofImage());
+            docsDto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(pt.getAadhaarCardFrontImage()));
+            docsDto.setAadhaarCardBackImage(fileUrlUtil.getFullUrl(pt.getAadhaarCardBackImage()));
+            docsDto.setPanCardImage(fileUrlUtil.getFullUrl(pt.getPanCardImage()));
+            docsDto.setShopImage(fileUrlUtil.getFullUrl(pt.getShopImage()));
+            docsDto.setBusinessProofImage(fileUrlUtil.getFullUrl(pt.getBusinessProofImage()));
 
         }
 
@@ -550,11 +550,11 @@ public class DashboardServiceImpl implements DashboardService {
 
             response.setMyBanksList(myBanksDtoList);
 
-            docsDto.setAadhaarCardFrontImage(sd.getAadhaarCardFrontImage());
-            docsDto.setAadhaarCardBackImage(sd.getAadhaarCardBackImage());
-            docsDto.setPanCardImage(sd.getPanCardImage());
-            docsDto.setShopImage(sd.getShopImage());
-            docsDto.setBusinessProofImage(sd.getBusinessProofImage());
+            docsDto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(sd.getAadhaarCardFrontImage()));
+            docsDto.setAadhaarCardBackImage(fileUrlUtil.getFullUrl(sd.getAadhaarCardBackImage()));
+            docsDto.setPanCardImage(fileUrlUtil.getFullUrl(sd.getPanCardImage()));
+            docsDto.setShopImage(fileUrlUtil.getFullUrl(sd.getShopImage()));
+            docsDto.setBusinessProofImage(fileUrlUtil.getFullUrl(sd.getBusinessProofImage()));
 
         }
 
@@ -599,16 +599,15 @@ public class DashboardServiceImpl implements DashboardService {
 
             response.setMyBanksList(myBanksDtoList);
 
-            docsDto.setAadhaarCardFrontImage(wl.getAadhaarCardFrontImage());
-            docsDto.setAadhaarCardBackImage(wl.getAadhaarCardBackImage());
-            docsDto.setPanCardImage(wl.getPanCardImage());
-            docsDto.setShopImage(wl.getShopImage());
-            docsDto.setBusinessProofImage(wl.getBusinessProofImage());
+            docsDto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(wl.getAadhaarCardFrontImage()));
+            docsDto.setAadhaarCardBackImage(fileUrlUtil.getFullUrl(wl.getAadhaarCardBackImage()));
+            docsDto.setPanCardImage(fileUrlUtil.getFullUrl(wl.getPanCardImage()));
+            docsDto.setShopImage(fileUrlUtil.getFullUrl(wl.getShopImage()));
+            docsDto.setBusinessProofImage(fileUrlUtil.getFullUrl(wl.getBusinessProofImage()));
 
         }
 
-        if(entity instanceof WhiteLabelUser wlau)
-        {
+        if (entity instanceof WhiteLabelUser wlau) {
             Optional<UserDetails> userDetailsOpt = userDetailsRepository.findFirstByHierarchyId(wlau.getId());
             UserDetails userDetails = userDetailsOpt.get();
 
@@ -664,11 +663,11 @@ public class DashboardServiceImpl implements DashboardService {
 
             response.setMyBanksList(myBanksDtoList);
 
-            docsDto.setAadhaarCardFrontImage(et.getAadhaarCardFrontImage());
-            docsDto.setAadhaarCardBackImage(et.getAadhaarCardBackImage());
-            docsDto.setPanCardImage(et.getPanCardImage());
-            docsDto.setShopImage(et.getShopImage());
-            docsDto.setBusinessProofImage(et.getBusinessProofImage());
+            docsDto.setAadhaarCardFrontImage(fileUrlUtil.getFullUrl(et.getAadhaarCardFrontImage()));
+            docsDto.setAadhaarCardBackImage(fileUrlUtil.getFullUrl(et.getAadhaarCardBackImage()));
+            docsDto.setPanCardImage(fileUrlUtil.getFullUrl(et.getPanCardImage()));
+            docsDto.setShopImage(fileUrlUtil.getFullUrl(et.getShopImage()));
+            docsDto.setBusinessProofImage(fileUrlUtil.getFullUrl(et.getBusinessProofImage()));
 
         }
 
@@ -755,7 +754,7 @@ public class DashboardServiceImpl implements DashboardService {
                                 "prefix", "₹"
                         ),
 
-                        Map.of("label", "PRODUCT VOLUME", "value", productVolume.toPlainString(),"prefix", "₹"),
+                        Map.of("label", "PRODUCT VOLUME", "value", productVolume.toPlainString(), "prefix", "₹"),
                         Map.of("label", "PENDING TRANSACTION", "value", pendingCount.toString()),
                         Map.of("label", "APPROVED USERS", "value", onboarding.get("APPROVED").toString()),
                         Map.of("label", "REJECTED USERS", "value", onboarding.get("REJECTED").toString()),
@@ -843,9 +842,9 @@ public class DashboardServiceImpl implements DashboardService {
 
                         Map.of("label", "PENDING TRANSACTION", "value", pendingTxnCount),
                         Map.of("label", "RETAILERS CREATED", "value", retailerCount),
-                        Map.of("label", "FUND TRANSFERRED", "value", fundTransferred,"prefix","₹"),
-                        Map.of("label", "FUND RECEIVED", "value", fundReceived,"prefix","₹"),
-                        Map.of("label", "COMMISSION EARNED", "value", commissionEarned,"prefix","₹")
+                        Map.of("label", "FUND TRANSFERRED", "value", fundTransferred, "prefix", "₹"),
+                        Map.of("label", "FUND RECEIVED", "value", fundReceived, "prefix", "₹"),
+                        Map.of("label", "COMMISSION EARNED", "value", commissionEarned, "prefix", "₹")
                 );
 
                 return Map.of(
@@ -919,12 +918,12 @@ public class DashboardServiceImpl implements DashboardService {
                         );
 
                 List<Map<String, Object>> cards = List.of(
-                        Map.of("label", "TRANSACTION VOLUME", "value", txnVolume, "prefix","₹"),
+                        Map.of("label", "TRANSACTION VOLUME", "value", txnVolume, "prefix", "₹"),
                         Map.of("label", "PENDING TRANSACTION", "value", pendingTxnCount),
                         Map.of("label", "RETAILERS CREATED", "value", retailerCount),
-                        Map.of("label", "FUND TRANSFERRED", "value", fundTransferred,"prefix","₹"),
-                        Map.of("label", "FUND RECEIVED", "value", fundReceived,"prefix","₹"),
-                        Map.of("label", "COMMISSION EARNED", "value", commissionEarned,"prefix","₹")
+                        Map.of("label", "FUND TRANSFERRED", "value", fundTransferred, "prefix", "₹"),
+                        Map.of("label", "FUND RECEIVED", "value", fundReceived, "prefix", "₹"),
+                        Map.of("label", "COMMISSION EARNED", "value", commissionEarned, "prefix", "₹")
                 );
 
                 return Map.of(
@@ -956,26 +955,6 @@ public class DashboardServiceImpl implements DashboardService {
                         "prepaid", superDistributorPrepaidAmount != null ? Objects.requireNonNull(superDistributorPostpaidAmount).getAvailableBalance() : BigDecimal.ZERO,
                         "postpaid", superDistributorPostpaidAmount != null ? superDistributorPostpaidAmount.getAvailableBalance() : BigDecimal.ZERO
                 );
-
-                // ===== CARDS 1.Transaction Volume
-//                BigDecimal txnVolume =                      //old
-//                        getSdTransactionVolume(
-//                                request.getHierarchyId(),
-//                                fromDate,
-//                                toDate
-//                        );
-//
-//                //2.Cards pending txn
-//                Long pendingTxnCount =                     //old
-//                        getSdPendingTransactionCount(
-//                                request.getHierarchyId(),
-//                                fromDate,
-//                                toDate
-//                        );
-
-//                //5 cards Retailers count
-//                Long retailerCount =
-//                        getSdRetailerCount(request.getHierarchyId());
 
                 BigDecimal txnVolume =
                         getTransactionVolume(request.getHierarchyId(), fromDate, toDate);
@@ -1010,21 +989,9 @@ public class DashboardServiceImpl implements DashboardService {
                                 toDate
                         );
 
-//                //garph data                           //old
-//                List<Map<String, Object>> graphData =
-//                        getSdLast4MonthsGraphData(request.getHierarchyId());
-
                 //garph data
                 List<Map<String, Object>> graphData =
                         getLast4MonthsGraphData(request.getHierarchyId());
-
-
-//                List<Map<String, Object>> tableData =      //old
-//                        getSdTop5Partners(
-//                                request.getHierarchyId(),
-//                                fromDate,
-//                                toDate
-//                        );
 
                 List<Map<String, Object>> tableData =
                         getTop5ByHierarchy(
@@ -1039,7 +1006,7 @@ public class DashboardServiceImpl implements DashboardService {
                         Map.of(
                                 "label", "TRANSACTION VOLUME",
                                 "value", txnVolume,
-                                "prefix","₹"
+                                "prefix", "₹"
                         ),
                         Map.of(
                                 "label", "PENDING TRANSACTION",
@@ -1052,17 +1019,17 @@ public class DashboardServiceImpl implements DashboardService {
                         Map.of(
                                 "label", "FUND TRANSFERRED",
                                 "value", fundTransferred,
-                                "prefix","₹"
+                                "prefix", "₹"
                         ),
                         Map.of(
                                 "label", "FUND RECEIVED",
                                 "value", fundReceived,
-                                "prefix","₹"
+                                "prefix", "₹"
                         ),
                         Map.of(
                                 "label", "COMMISSION EARNED",
                                 "value", commissionEarned.toString(),
-                                "prefix","₹"
+                                "prefix", "₹"
                         )
 
                 );
@@ -1140,12 +1107,12 @@ public class DashboardServiceImpl implements DashboardService {
 
 
                 List<Map<String, Object>> cards = List.of(
-                        Map.of("label", "TRANSACTION VOLUME", "value", txnVolume, "prefix","₹"),
+                        Map.of("label", "TRANSACTION VOLUME", "value", txnVolume, "prefix", "₹"),
                         Map.of("label", "PENDING TRANSACTION", "value", pendingTxnCount),
                         Map.of("label", "RETAILERS CREATED", "value", retailerCount),
-                        Map.of("label", "FUND TRANSFERRED", "value", fundTransferred, "prefix","₹"),
-                        Map.of("label", "FUND RECEIVED", "value", fundReceived,"prefix","₹"),
-                        Map.of("label", "COMMISSION EARNED", "value", commissionEarned,"prefix","₹"));
+                        Map.of("label", "FUND TRANSFERRED", "value", fundTransferred, "prefix", "₹"),
+                        Map.of("label", "FUND RECEIVED", "value", fundReceived, "prefix", "₹"),
+                        Map.of("label", "COMMISSION EARNED", "value", commissionEarned, "prefix", "₹"));
 
                 return Map.of(
                         "profile", profile,
@@ -1219,12 +1186,12 @@ public class DashboardServiceImpl implements DashboardService {
 
 
                 List<Map<String, Object>> cards = List.of(
-                        Map.of("label", "TRANSACTION VOLUME", "value", txnVolume, "prefix","₹"),
+                        Map.of("label", "TRANSACTION VOLUME", "value", txnVolume, "prefix", "₹"),
                         Map.of("label", "PENDING TRANSACTION", "value", pendingTxnCount),
                         Map.of("label", "RETAILERS CREATED", "value", retailerCount),
-                        Map.of("label", "FUND TRANSFERRED", "value", fundTransferred, "prefix","₹"),
-                        Map.of("label", "FUND RECEIVED", "value", fundReceived, "prefix","₹"),
-                        Map.of("label", "COMMISSION EARNED", "value", commissionEarned, "prefix","₹")
+                        Map.of("label", "FUND TRANSFERRED", "value", fundTransferred, "prefix", "₹"),
+                        Map.of("label", "FUND RECEIVED", "value", fundReceived, "prefix", "₹"),
+                        Map.of("label", "COMMISSION EARNED", "value", commissionEarned, "prefix", "₹")
                 );
 
                 return Map.of(
@@ -1422,12 +1389,12 @@ public class DashboardServiceImpl implements DashboardService {
                         Map.of(
                                 "label", "TRANSACTION VOLUME",
                                 "value", transactionVolume.toPlainString(),
-                                        "prefix","₹"
+                                "prefix", "₹"
                         ),
                         Map.of(
                                 "label", "COMMISSION EARNED",
                                 "value", commissionEarned.toPlainString(),
-                                "prefix","₹"
+                                "prefix", "₹"
                         ),
                         Map.of(
                                 "label", "PENDING TRANSACTION",
@@ -1948,7 +1915,7 @@ public class DashboardServiceImpl implements DashboardService {
                         partnerRepository.countByStatus("APPROVED") +
                         superDistributorRepository.countByStatus("APPROVED") +
                         whiteLabelRepository.countByStatus("APPROVED") +
-                        enterprisesRepository.countByStatus("APPROVED") ;
+                        enterprisesRepository.countByStatus("APPROVED");
 //                        adminRepository.countByStatus("APPROVED");
 
         long rejected =
@@ -1957,7 +1924,7 @@ public class DashboardServiceImpl implements DashboardService {
                         partnerRepository.countByStatus("REJECTED") +
                         superDistributorRepository.countByStatus("REJECTED") +
                         whiteLabelRepository.countByStatus("REJECTED") +
-                        enterprisesRepository.countByStatus("REJECTED") ;
+                        enterprisesRepository.countByStatus("REJECTED");
 //                        adminRepository.countByStatus("REJECTED");
 
         long pending =
@@ -1966,7 +1933,7 @@ public class DashboardServiceImpl implements DashboardService {
                         partnerRepository.countByStatus("PENDING") +
                         superDistributorRepository.countByStatus("PENDING") +
                         whiteLabelRepository.countByStatus("PENDING") +
-                        enterprisesRepository.countByStatus("PENDING") ;
+                        enterprisesRepository.countByStatus("PENDING");
 //                        adminRepository.countByStatus("PENDING");
 
         return Map.of(
