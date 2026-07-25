@@ -16,6 +16,34 @@ $ServerUser = "ciuser"
 $ServerHost = "10.1.3.5"
 $ServerPort = 22
 
+$SshKeyPath = Join-Path `
+    $env:USERPROFILE `
+    ".ssh\instantmudra_deploy"
+
+if (-not (Test-Path $SshKeyPath)) {
+    throw "SSH private key not found: $SshKeyPath"
+}
+
+$CommonConnectionOptions = @(
+    "-i", $SshKeyPath
+    "-o", "IdentitiesOnly=yes"
+    "-o", "BatchMode=yes"
+    "-o", "ConnectTimeout=15"
+    "-o", "ServerAliveInterval=30"
+    "-o", "ServerAliveCountMax=3"
+    "-o", "StrictHostKeyChecking=accept-new"
+)
+
+$SshOptions = @(
+    $CommonConnectionOptions
+    "-p", "$ServerPort"
+)
+
+$ScpOptions = @(
+    $CommonConnectionOptions
+    "-P", "$ServerPort"
+)
+
 $TomcatHome = "/opt/tomcat-10.1.34"
 $ApplicationName = "enterprises"
 
@@ -71,10 +99,9 @@ try {
 
     Write-Step "Checking backend server connection"
 
-    ssh `
-        -p $ServerPort `
-        "$ServerUser@$ServerHost" `
-        "echo 'Backend server connection successful'"
+    & ssh @SshOptions `
+    "$ServerUser@$ServerHost" `
+    "echo 'Backend server connection successful'"
 
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to connect to backend server. Connect the VPN and try again."
@@ -168,10 +195,9 @@ try {
 
     Write-Step "Uploading WAR to backend server"
 
-    scp `
-        -P $ServerPort `
-        $LocalWarPath `
-        "${ServerUser}@${ServerHost}:${RemoteTemporaryWar}"
+    & scp @ScpOptions `
+    $LocalWarPath `
+    "${ServerUser}@${ServerHost}:${RemoteTemporaryWar}"
 
     if ($LASTEXITCODE -ne 0) {
         throw "WAR upload failed."
@@ -206,18 +232,18 @@ fi
 ls -lh "`$TEMP_WAR"
 
 echo "Creating backup directory..."
-mkdir -p "`$BACKUP_DIR"
+sudo -n mkdir -p "`$BACKUP_DIR"
 
 if [ -f "`$DEPLOY_WAR" ]; then
     echo "Backing up current WAR..."
-    cp "`$DEPLOY_WAR" "`$BACKUP_FILE"
+    sudo -n cp "`$DEPLOY_WAR" "`$BACKUP_FILE"
     echo "Backup created: `$BACKUP_FILE"
 else
     echo "Existing WAR not found. Backup skipped."
 fi
 
 echo "Stopping Tomcat..."
-    "`$TOMCAT_HOME/bin/shutdown.sh" || true
+    sudo -n "`$TOMCAT_HOME/bin/shutdown.sh" || true
 
 for i in {1..30}; do
     TOMCAT_COUNT=`$(pgrep -f -c 'org.apache.catalina.startup.Bootstrap' || true)
@@ -240,15 +266,15 @@ if [ "`$TOMCAT_COUNT" -ne 0 ]; then
 fi
 
 echo "Removing previous application..."
-rm -f "`$DEPLOY_WAR"
-rm -rf "`$EXPLODED_DIR"
+sudo -n rm -f "`$DEPLOY_WAR"
+sudo -n rm -rf "`$EXPLODED_DIR"
 
 echo "Deploying new WAR..."
-mv "`$TEMP_WAR" "`$DEPLOY_WAR"
-chmod 664 "`$DEPLOY_WAR"
+sudo -n mv "`$TEMP_WAR" "`$DEPLOY_WAR"
+sudo -n chmod 664 "`$DEPLOY_WAR"
 
 echo "Starting Tomcat..."
-    "`$TOMCAT_HOME/bin/startup.sh"
+    sudo -n "`$TOMCAT_HOME/bin/startup.sh"
 
 sleep 10
 
@@ -293,10 +319,26 @@ echo "Backup: `$BACKUP_FILE"
 echo "Tomcat processes: `$TOMCAT_COUNT"
 "@
 
-    ssh `
-        -p $ServerPort `
-        "$ServerUser@$ServerHost" `
-        $RemoteCommands
+    # Convert Windows CRLF line endings to Linux LF line endings.
+    $NormalizedRemoteCommands = $RemoteCommands `
+    -replace "`r`n", "`n" `
+    -replace "`r", "`n"
+
+    # Encode the script so PowerShell/SSH cannot change its line endings.
+    $RemoteScriptBytes = [System.Text.Encoding]::UTF8.GetBytes(
+            $NormalizedRemoteCommands
+    )
+
+    $RemoteScriptBase64 = [System.Convert]::ToBase64String(
+            $RemoteScriptBytes
+    )
+
+    $RemoteExecutionCommand =
+    "printf '%s' '$RemoteScriptBase64' | base64 --decode | bash"
+
+    & ssh @SshOptions `
+    "$ServerUser@$ServerHost" `
+    $RemoteExecutionCommand
 
     if ($LASTEXITCODE -ne 0) {
         throw "Remote deployment failed."
@@ -308,10 +350,9 @@ echo "Tomcat processes: `$TOMCAT_COUNT"
 
     Write-Step "Showing latest Tomcat logs"
 
-    ssh `
-        -p $ServerPort `
-        "$ServerUser@$ServerHost" `
-        "tail -n 80 '$TomcatHome/logs/catalina.out'"
+    & ssh @SshOptions `
+    "$ServerUser@$ServerHost" `
+    "tail -n 80 '$TomcatHome/logs/catalina.out'"
 
     # ========================================================
     # CLEAN TEMPORARY WORKTREE
