@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,8 +70,6 @@ public class TicketServiceImpl implements TicketService {
 
     @Autowired
     private AccessHierarchyPathRepository accessHierarchyPathRepository;
-
-
 
 
     @Override
@@ -196,7 +195,31 @@ public class TicketServiceImpl implements TicketService {
             Pageable pageable
     ) {
 
-        Specification<Ticket> spec = getTicketSpecification(filters);
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
+
+        String loginHierarchyType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        String effectiveHierarchyId =
+                commonMethods.resolveEffectiveHierarchyId(
+                        loginHierarchyId,
+                        loginHierarchyType
+                );
+
+        boolean fullSystemAccess =
+                commonMethods.hasFullSystemAccess(
+                        loginHierarchyType
+                );
+
+        Specification<Ticket> spec =
+                getTicketSpecification(
+                        filters,
+                        effectiveHierarchyId,
+                        fullSystemAccess
+                );
 
         Page<Ticket> tickets =
                 ticketRepository.findAll(
@@ -298,35 +321,41 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @NotNull
-    private Specification<Ticket> getTicketSpecification(Map<String, Object> filters) {
-        List<String> accessibleIds =
-                getAccessibleHierarchyIds();
+    private Specification<Ticket> getTicketSpecification(
+            Map<String, Object> filters,
+            String effectiveHierarchyId,
+            boolean fullSystemAccess
+    ) {
 
         Specification<Ticket> spec =
-                new GenericSpecification<>(
-                        filters
-                );
+                new GenericSpecification<>(filters);
 
         /*
-         * Apply subtree filter
+         * AD has full system access.
          */
-        if (accessibleIds != null) {
-
-            spec = spec.and(
-
-                    (root,
-                     query,
-                     cb)
-
-                            -> root
-                            .get(
-                                    "raisedBy"
-                            )
-                            .in(
-                                    accessibleIds
-                            )
-            );
+        if (fullSystemAccess) {
+            return spec;
         }
+
+        List<String> ids =
+                accessHierarchyPathRepository.findAllDescendantIds(
+                        effectiveHierarchyId
+                );
+
+        if (ids == null) {
+            ids = new ArrayList<>();
+        }
+
+        ids.add(effectiveHierarchyId);
+
+        final List<String> accessibleIds = ids;
+
+        spec = spec.and(
+                (root, query, cb) ->
+                        root.get("raisedBy")
+                                .in(accessibleIds)
+        );
+
         return spec;
     }
 
