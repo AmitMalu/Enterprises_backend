@@ -102,6 +102,9 @@ public class DmtOrchestrator {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private SchemeRepository schemeRepository;
+
     RestTemplate restTemplate = new RestTemplate();
 
     //  STEP 1: Send OTP
@@ -313,37 +316,128 @@ public class DmtOrchestrator {
         log.info("[PROCESS DMT] Starting transaction | orderId={}", orderId);
 
         try {
-            //Validate SubProduct
+
+            //Validate Scheme Active or Not
+            Scheme scheme = schemeRepository.findBySchemeCode(req.getSchemeCode())
+                    .orElseThrow(() -> new RuntimeException("Scheme is not activated. Please contact admin"));
+
+            if (!Boolean.TRUE.equals(scheme.getIsActive())) {
+                log.warn("Scheme is inactive for schemeCode={}", req.getSchemeCode());
+                throw new RuntimeException("Scheme is inactive. Please contact admin");
+            }
+
+            // Validate SubProduct
             SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found for ID: " + req.getSubProductId()));
 
             WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
-            log.debug("[PROCESS DMT] Resolved walletType={}", walletType);
+            log.debug("[PROCESS PAYOUT ORCH] Resolved walletType={}", walletType);
 
-            // Check Retailer Balance
+            // 2. Check Retailer Balance
             BigDecimal availableBalance = commonMethods.getCurrentBalance(req.getRetailerId(), walletType.name());
 
             // Fetch matching SchemeRate
             log.info("[2] Searching SchemeRate for schemeCode={}, operatorName={}, amount={}",
-                    req.getSchemeCode(), req.getTxnType(), req.getAmount());
+                    req.getSchemeCode(), req.getPaymentMode(), req.getAmount());
 
             SchemeRate selectedScheme = schemeRateRepository
                     .findSchemeRateByCodeAndOperatorAndAmount(
                             req.getSchemeCode(),
-                            req.getTxnType(),
+                            req.getPaymentMode(),
                             req.getAmount().doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + req.getAmount()));
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "No matching scheme rate found for amount: " + req.getAmount()));
 
             log.info("[2.1] Found SchemeRate: ID={}, RateType={}, SlabType={}, Gross={}, RetailerRate={}",
-                    selectedScheme.getId(), selectedScheme.getRateType(), selectedScheme.getSlabType(),
-                    selectedScheme.getGross(), selectedScheme.getRetailer());
+                    selectedScheme.getId(),
+                    selectedScheme.getRateType(),
+                    selectedScheme.getSlabType(),
+                    selectedScheme.getGross(),
+                    selectedScheme.getRetailer());
 
-            BigDecimal finalDeductAmt = req.getAmount().add(BigDecimal.valueOf(selectedScheme.getGross()));
+            BigDecimal leanAmount =
+                    commonMethods.getLeanAmount(req.getRetailerId(), walletType.name());
 
+            BigDecimal txnAmount = req.getAmount();
+
+            BigDecimal grossAmount =
+                    BigDecimal.valueOf(selectedScheme.getGross());
+
+            BigDecimal finalDeductAmt =
+                    txnAmount.add(grossAmount);
+
+            // -------------------------------------
+            // 3. INSUFFICIENT WALLET BALANCE
+            // -------------------------------------
             if (availableBalance.compareTo(finalDeductAmt) < 0) {
-                log.warn("[PROCESS DMT] Insufficient balance for retailer {} (required={}, available={})",
-                        req.getRetailerId(), req.getAmount(), availableBalance);
-                return new CommonResponse<>(400, "Insufficient Balance", null);
+
+                log.warn(
+                        "[PROCESS PAYOUT ORCH] Insufficient wallet balance | retailer={} | required={} | available={}",
+                        req.getRetailerId(),
+                        finalDeductAmt,
+                        availableBalance
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        "Insufficient Balance In " + subProducts.getWalletType(),
+                        null
+                );
+            }
+
+
+            // -------------------------------------
+            // 1. ONLY LEAN AMOUNT VALIDATION
+            // -------------------------------------
+            BigDecimal balanceAfterTxn =
+                    availableBalance.subtract(txnAmount);
+
+            if (balanceAfterTxn.compareTo(leanAmount) < 0) {
+
+                log.warn(
+                        "[PROCESS PAYOUT ORCH] Lean amount failed | retailer={} | available={} | txn={} | lean={}",
+                        req.getRetailerId(),
+                        availableBalance,
+                        txnAmount,
+                        leanAmount
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        String.format(
+                                "Transaction not allowed. ₹%s must remain as lean balance.",
+                                leanAmount
+                        ),
+                        null
+                );
+            }
+
+
+            // -------------------------------------
+            // 2. LEAN + GROSS VALIDATION
+            // -------------------------------------
+            BigDecimal balanceAfterGross =
+                    availableBalance.subtract(finalDeductAmt);
+
+            if (balanceAfterGross.compareTo(leanAmount) < 0) {
+
+                log.warn(
+                        "[PROCESS PAYOUT ORCH] Lean + Gross validation failed | retailer={} | available={} | finalDeduct={} | lean={}",
+                        req.getRetailerId(),
+                        availableBalance,
+                        finalDeductAmt,
+                        leanAmount
+                );
+
+                return new CommonResponse<>(
+                        400,
+                        String.format(
+                                "Insufficient usable balance after charges. ₹%s must remain locked as lean amount.",
+                                leanAmount
+                        ),
+                        null
+                );
             }
 
             //** imp

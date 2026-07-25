@@ -62,9 +62,12 @@ public class RechargeOrchestrator {
     @Autowired
     private RechargeCallbackRepository rechargeCallbackRepository;
 
+    @Autowired
+    private SchemeRepository schemeRepository;
 
     @Autowired
     private RechargeVendorFactory vendorFactory;
+
 
     @Transactional
     public RechargeResponse recharge(RechargeRequest request, Double latitude, Double longitude, String ipAddress) {
@@ -77,6 +80,14 @@ public class RechargeOrchestrator {
         String orderId = "TXN" + commonMethods.generateBaseTransactionId();
         log.info("[PROCESS RECHARGE] Starting transaction | orderId={}", orderId);
 
+        //Validate Scheme Active or Not
+        Scheme scheme = schemeRepository.findBySchemeCode(request.getSchemeCode())
+                .orElseThrow(() -> new RuntimeException("Scheme is not activated. Please contact admin"));
+
+        if (!Boolean.TRUE.equals(scheme.getIsActive())) {
+            log.warn("Scheme is inactive for schemeCode={}", request.getSchemeCode());
+            throw new RuntimeException("Scheme is inactive. Please contact admin");
+        }
 
         // 1 Validate SubProduct
         SubProducts subProducts = subProductsRepository.findById(request.getSubProductId())
@@ -84,12 +95,102 @@ public class RechargeOrchestrator {
 
         WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
 
+        String transactionType =
+                request.getOperatorName() + "(" + request.getOperatorCode() + ")";
+
         // 2 Check Retailer Balance
         BigDecimal availableBalance =
                 commonMethods.getCurrentBalance(request.getRetailerId(), walletType.name());
 
-        if (availableBalance.compareTo(request.getAmount()) < 0) {
-            throw new RuntimeException("Insufficient Balance");
+        SchemeRate selectedScheme = schemeRateRepository
+                .findSchemeRateByCodeAndOperatorAndAmount(
+                        request.getSchemeCode(),
+                        transactionType,
+                        request.getAmount().doubleValue())
+                .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + request.getAmount()));
+
+        BigDecimal leanAmount =
+                commonMethods.getLeanAmount(request.getRetailerId(), walletType.name());
+
+        BigDecimal txnAmount = request.getAmount();
+
+        BigDecimal grossAmount =
+                BigDecimal.valueOf(selectedScheme.getGross());
+
+        BigDecimal finalDeductAmt =
+                txnAmount.add(grossAmount);
+
+        // -------------------------------------
+        // 3. INSUFFICIENT WALLET BALANCE
+        // -------------------------------------
+        if (availableBalance.compareTo(finalDeductAmt) < 0) {
+
+            log.warn(
+                    "[PROCESS PAYOUT ORCH] Insufficient wallet balance | retailer={} | required={} | available={}",
+                    request.getRetailerId(),
+                    finalDeductAmt,
+                    availableBalance
+            );
+
+            return RechargeResponse.builder()
+                    .transactionRef(orderId)
+                    .status("FAILED")
+                    .message("Insufficient Balance In " + subProducts.getWalletType())
+                    .build();
+        }
+
+
+        // -------------------------------------
+        // 1. ONLY LEAN AMOUNT VALIDATION
+        // -------------------------------------
+        BigDecimal balanceAfterTxn =
+                availableBalance.subtract(txnAmount);
+
+        if (balanceAfterTxn.compareTo(leanAmount) < 0) {
+
+            log.warn(
+                    "[PROCESS PAYOUT ORCH] Lean amount failed | retailer={} | available={} | txn={} | lean={}",
+                    request.getRetailerId(),
+                    availableBalance,
+                    txnAmount,
+                    leanAmount
+            );
+
+            return RechargeResponse.builder()
+                    .transactionRef(orderId)
+                    .status("FAILED")
+                    .message(String.format(
+                            "Transaction not allowed. ₹%s must remain as lean balance.",
+                            leanAmount
+                    ))
+                    .build();
+        }
+
+
+        // -------------------------------------
+        // 2. LEAN + GROSS VALIDATION
+        // -------------------------------------
+        BigDecimal balanceAfterGross =
+                availableBalance.subtract(finalDeductAmt);
+
+        if (balanceAfterGross.compareTo(leanAmount) < 0) {
+
+            log.warn(
+                    "[PROCESS PAYOUT ORCH] Lean + Gross validation failed | retailer={} | available={} | finalDeduct={} | lean={}",
+                    request.getRetailerId(),
+                    availableBalance,
+                    finalDeductAmt,
+                    leanAmount
+            );
+
+            return RechargeResponse.builder()
+                    .transactionRef(orderId)
+                    .status("FAILED")
+                    .message(String.format(
+                            "Insufficient usable balance after charges. ₹%s must remain locked as lean amount.",
+                            leanAmount
+                    ))
+                    .build();
         }
 
         // 3 Resolve Vendor Routing
@@ -113,18 +214,7 @@ public class RechargeOrchestrator {
         AbstractWalletAmountTable wallet =
                 commonMethods.getWalletByType(walletType.name(), request.getRetailerId());
 
-//        String txnRef = commonMethods.generateBaseTransactionId();
         String baseTxnId = orderId.startsWith("TXN") ? orderId.substring(3) : orderId;
-
-        String transactionType =
-                request.getOperatorName() + "(" + request.getOperatorCode() + ")";
-
-        SchemeRate selectedScheme = schemeRateRepository
-                .findSchemeRateByCodeAndOperatorAndAmount(
-                        request.getSchemeCode(),
-                        transactionType,
-                        request.getAmount().doubleValue())
-                .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + request.getAmount()));
 
         RetailersExtraColumnsDto retailerExtraColumns =
                 RetailersExtraColumnsDto.builder()
