@@ -21,4 +21,6 @@ public interface ImPgSubProductListRepository extends JpaRepository<ImPgSubProdu
     );
 
     boolean existsByExcelId(String excelId);
+
+    List<ImPgSubProductList> findByProductIgnoreCaseAndSettlementCategoryIgnoreCase(String product, String settlementCategory);
 }

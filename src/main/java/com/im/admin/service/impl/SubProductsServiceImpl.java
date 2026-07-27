@@ -6,13 +6,11 @@ import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.dto.SubProductsResponseDTO;
 import com.im.admin.dto.SubproductDto;
 import com.im.admin.entities.AccessHierarchyNode;
+import com.im.admin.entities.ImPgSubProductList;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.entities.enums.SubproductServiceType;
 import com.im.admin.entities.product.Products;
-import com.im.admin.repositories.AccessHierarchyNodeRepository;
-import com.im.admin.repositories.ProductsRepository;
-import com.im.admin.repositories.SchemeAllocationRepository;
-import com.im.admin.repositories.SubProductsRepository;
+import com.im.admin.repositories.*;
 import com.im.admin.request.SubproductListRequest;
 import com.im.admin.response.SubproductListResponse;
 import com.im.admin.service.SubProductsService;
@@ -58,6 +56,9 @@ public class SubProductsServiceImpl implements SubProductsService {
 
     @Autowired
     private SchemeAllocationRepository schemeAllocationRepository;
+
+    @Autowired
+    private ImPgSubProductListRepository imPgSubProductListRepository;
 
     private static final String PG_SUBPRODUCT_PATH =
             "/paymentgatwayAPI/subproduct-list";
@@ -632,13 +633,19 @@ public class SubProductsServiceImpl implements SubProductsService {
 
     @Override
     public SubproductListResponse getSubProductList(
-            SubproductListRequest request, String geoLocation
+            SubproductListRequest request,
+            String geoLocation
     ) {
 
         validateRequest(request);
 
         SubproductServiceType serviceType =
                 parseServiceType(request.getServiceType());
+
+        validateServiceTypeAndSettlementFlag(
+                serviceType,
+                request.getIsSettlement()
+        );
 
         String vendorPath =
                 resolveVendorPath(serviceType);
@@ -662,8 +669,9 @@ public class SubProductsServiceImpl implements SubProductsService {
                 );
 
         log.info(
-                "[SUBPRODUCT LIST] Calling vendor API | serviceType={} | url={} | geolocation={}",
+                "[SUBPRODUCT LIST] Calling vendor API | serviceType={} | settlementFlag={} | url={} | geolocation={}",
                 serviceType,
+                request.getIsSettlement(),
                 vendorUrl,
                 geoLocation
         );
@@ -679,22 +687,46 @@ public class SubProductsServiceImpl implements SubProductsService {
                     );
 
             log.info(
-                    "[SUBPRODUCT LIST] Vendor response received | serviceType={} | httpStatus={} | response={}",
+                    "[SUBPRODUCT LIST] Vendor response received | serviceType={} | settlementFlag={} | httpStatus={} | response={}",
                     serviceType,
+                    request.getIsSettlement(),
                     vendorResponse.getStatusCode(),
                     vendorResponse.getBody()
             );
 
-            return parseVendorResponse(
-                    vendorResponse.getBody(),
-                    serviceType
+            /*
+             * First parse the complete vendor response.
+             */
+            SubproductListResponse parsedVendorResponse =
+                    parseVendorResponse(
+                            vendorResponse.getBody(),
+                            serviceType
+                    );
+
+            /*
+             * If vendor response is unsuccessful, return it directly.
+             */
+            if (parsedVendorResponse == null
+                    || !"success".equalsIgnoreCase(parsedVendorResponse.getStatus())) {
+
+                return parsedVendorResponse;
+            }
+
+            /*
+             * Filter vendor response using pg_settlement_category table.
+             */
+            return filterSubproductsUsingSettlementCategory(
+                    parsedVendorResponse,
+                    serviceType,
+                    request.getIsSettlement()
             );
 
         } catch (HttpStatusCodeException ex) {
 
             log.error(
-                    "[SUBPRODUCT LIST] Vendor HTTP error | serviceType={} | status={} | response={}",
+                    "[SUBPRODUCT LIST] Vendor HTTP error | serviceType={} | settlementFlag={} | status={} | response={}",
                     serviceType,
+                    request.getIsSettlement(),
                     ex.getStatusCode(),
                     ex.getResponseBodyAsString(),
                     ex
@@ -708,8 +740,9 @@ public class SubProductsServiceImpl implements SubProductsService {
         } catch (RestClientException ex) {
 
             log.error(
-                    "[SUBPRODUCT LIST] Unable to communicate with vendor | serviceType={}",
+                    "[SUBPRODUCT LIST] Unable to communicate with vendor | serviceType={} | settlementFlag={}",
                     serviceType,
+                    request.getIsSettlement(),
                     ex
             );
 
@@ -720,13 +753,202 @@ public class SubProductsServiceImpl implements SubProductsService {
         } catch (Exception ex) {
 
             log.error(
-                    "[SUBPRODUCT LIST] Unexpected error | serviceType={}",
+                    "[SUBPRODUCT LIST] Unexpected error | serviceType={} | settlementFlag={}",
                     serviceType,
+                    request.getIsSettlement(),
                     ex
             );
 
             return failedResponse(
                     "Something went wrong while fetching subproduct list"
+            );
+        }
+    }
+
+    private String resolveDatabaseProduct(
+            SubproductServiceType serviceType
+    ) {
+
+        return switch (serviceType) {
+
+            case PG -> "PG";
+
+            /*
+             * Your database currently stores this as "Payout".
+             * Ignore-case repository matching will also accept PAYOUT.
+             */
+            case PAYOUT -> "Payout";
+        };
+    }
+
+    private String resolveSettlementCategory(
+            Integer settlementFlag
+    ) {
+
+        return switch (settlementFlag) {
+
+            case 0 -> "Instant";
+
+            case 1 -> "Tatkal";
+
+            case 2 -> "Payout";
+
+            default -> throw new IllegalArgumentException(
+                    "Invalid isSettlement flag. Allowed values are 0, 1, and 2"
+            );
+        };
+    }
+
+    private SubproductListResponse filterSubproductsUsingSettlementCategory(
+            SubproductListResponse vendorResponse,
+            SubproductServiceType serviceType,
+            Integer settlementFlag
+    ) {
+
+        String product =
+                resolveDatabaseProduct(serviceType);
+
+        String settlementCategory =
+                resolveSettlementCategory(settlementFlag);
+
+        log.info(
+                "[SUBPRODUCT LIST] Fetching configured subproducts | product={} | settlementCategory={}",
+                product,
+                settlementCategory
+        );
+
+        List<ImPgSubProductList> configuredSubproducts =
+                imPgSubProductListRepository
+                        .findByProductIgnoreCaseAndSettlementCategoryIgnoreCase(
+                                product,
+                                settlementCategory
+                        );
+
+        if (configuredSubproducts.isEmpty()) {
+
+            log.warn(
+                    "[SUBPRODUCT LIST] No configured subproducts found | product={} | settlementCategory={}",
+                    product,
+                    settlementCategory
+            );
+
+            return SubproductListResponse.builder()
+                    .status("success")
+                    .msg("No subproducts configured for the selected category")
+                    .data(new ArrayList<>())
+                    .build();
+        }
+
+        List<SubproductDto> vendorSubproducts =
+                vendorResponse.getData() == null
+                        ? Collections.emptyList()
+                        : vendorResponse.getData();
+
+        /*
+         * Store vendor subproduct codes in lowercase for
+         * case-insensitive matching.
+         */
+        Set<String> vendorSubproductCodes =
+                vendorSubproducts.stream()
+                        .map(SubproductDto::getSubproduct)
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(code -> !code.isEmpty())
+                        .map(code -> code.toLowerCase(Locale.ROOT))
+                        .collect(Collectors.toSet());
+
+        /*
+         * Return only database entries that are also enabled
+         * in the vendor response.
+         *
+         * Database title    -> response title
+         * Database pg_code  -> response subproduct
+         */
+        List<SubproductDto> filteredData =
+                configuredSubproducts.stream()
+                        .filter(category ->
+                                category.getPgCode() != null
+                                        && vendorSubproductCodes.contains(
+                                        category.getPgCode()
+                                                .trim()
+                                                .toLowerCase(Locale.ROOT)
+                                )
+                        )
+                        .map(category ->
+                                SubproductDto.builder()
+                                        .title(category.getTitle())
+                                        .subproduct(category.getPgCode())
+                                        .build()
+                        )
+                        .distinct()
+                        .toList();
+
+        log.info(
+                "[SUBPRODUCT LIST] Filtering completed | product={} | settlementCategory={} | vendorCount={} | configuredCount={} | returnedCount={}",
+                product,
+                settlementCategory,
+                vendorSubproducts.size(),
+                configuredSubproducts.size(),
+                filteredData.size()
+        );
+
+        return SubproductListResponse.builder()
+                .status(vendorResponse.getStatus())
+                .msg(vendorResponse.getMsg())
+                .data(filteredData)
+                .build();
+    }
+
+    private void validateRequest(SubproductListRequest request) {
+
+        if (request == null) {
+            throw new IllegalArgumentException(
+                    "Request cannot be null"
+            );
+        }
+
+        if (request.getServiceType() == null
+                || request.getServiceType().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "serviceType is required"
+            );
+        }
+
+        if (request.getIsSettlement() == null) {
+            throw new IllegalArgumentException(
+                    "isSettlement flag is required"
+            );
+        }
+
+        if (request.getIsSettlement() < 0
+                || request.getIsSettlement() > 2) {
+
+            throw new IllegalArgumentException(
+                    "isSettlement must be 0, 1, or 2"
+            );
+        }
+    }
+
+    private void validateServiceTypeAndSettlementFlag(
+            SubproductServiceType serviceType,
+            Integer settlementFlag
+    ) {
+
+        if (serviceType == SubproductServiceType.PG
+                && settlementFlag != 0
+                && settlementFlag != 1) {
+
+            throw new IllegalArgumentException(
+                    "For PG service, isSettlement must be 0 for Instant or 1 for Tatkal"
+            );
+        }
+
+        if (serviceType == SubproductServiceType.PAYOUT
+                && settlementFlag != 2) {
+
+            throw new IllegalArgumentException(
+                    "For PAYOUT service, isSettlement must be 2"
             );
         }
     }
@@ -954,26 +1176,6 @@ public class SubProductsServiceImpl implements SubProductsService {
 
             throw new IllegalArgumentException(
                     "Invalid service type. Allowed values are PG and PAYOUT"
-            );
-        }
-    }
-
-    private void validateRequest(
-            SubproductListRequest request
-    ) {
-
-        if (request == null) {
-
-            throw new IllegalArgumentException(
-                    "Request body is required"
-            );
-        }
-
-        if (request.getServiceType() == null
-                || request.getServiceType().isBlank()) {
-
-            throw new IllegalArgumentException(
-                    "Service type is required. Allowed values are PG and PAYOUT"
             );
         }
     }
