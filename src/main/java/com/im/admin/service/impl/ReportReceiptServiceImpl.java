@@ -685,6 +685,30 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                     .build();
         }
 
+        // ======================= Fund Request ============================
+        if (productName != null &&
+                productName.trim().equalsIgnoreCase("Fund Request")) {
+
+            String paymentMode = txn.getOperatorName();
+
+            return BalanceTransferReceiptResponseDto.builder()
+                    .dateTime(
+                            txn.getDateOfTransaction() != null &&
+                                    txn.getTimeOfTransaction() != null
+                                    ? LocalDateTime.of(
+                                    txn.getDateOfTransaction(),
+                                    txn.getTimeOfTransaction()
+                            ).toString()
+                                    : null
+                    )
+                    .txnId(request.getTxnId())
+                    .amount(txn.getAmount())
+                    .remarks(txn.getRemarks())
+                    .status(txn.getTranStatus())
+                    .paymentMode(paymentMode)
+                    .build();
+        }
+
         throw new RuntimeException("Unsupported Product");
     }
 
