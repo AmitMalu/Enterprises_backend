@@ -1,24 +1,20 @@
 $ErrorActionPreference = "Stop"
 
 # ============================================================
-# CONFIGURATION
+# LOAD PROJECT CONFIGURATION
 # ============================================================
 
-$ProjectDirectory = "D:\InstantMudra_Enterprises_Portal\admin"
-$TemporaryWorktree = "D:\InstantMudra_Deploy_Temp"
+$ConfigFile = Join-Path $PSScriptRoot "deploy-config.ps1"
 
-$GitRemote = "origin"
-$GitBranch = "master"
+if (-not (Test-Path $ConfigFile)) {
+    throw "deploy-config.ps1 not found: $ConfigFile"
+}
 
-$GeneratedWarName = "enterprises.war"
+. $ConfigFile
 
-$ServerUser = "ciuser"
-$ServerHost = "10.1.3.5"
-$ServerPort = 22
-
-$SshKeyPath = Join-Path `
-    $env:USERPROFILE `
-    ".ssh\instantmudra_deploy"
+# ============================================================
+# VALIDATE CONFIGURATION
+# ============================================================
 
 if (-not (Test-Path $SshKeyPath)) {
     throw "SSH private key not found: $SshKeyPath"
@@ -43,14 +39,6 @@ $ScpOptions = @(
     $CommonConnectionOptions
     "-P", "$ServerPort"
 )
-
-$TomcatHome = "/opt/tomcat-10.1.34"
-$ApplicationName = "enterprises"
-
-$RemoteTemporaryWar = "/tmp/$ApplicationName.war"
-$RemoteDeploymentWar = "$TomcatHome/webapps/$ApplicationName.war"
-$RemoteExpandedDirectory = "$TomcatHome/webapps/$ApplicationName"
-$RemoteBackupDirectory = "$TomcatHome/backups"
 
 # ============================================================
 # HELPER FUNCTIONS
