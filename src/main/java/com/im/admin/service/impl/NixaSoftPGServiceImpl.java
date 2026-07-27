@@ -226,11 +226,11 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             Vendors vendor) throws Exception {
 
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("beneficiaryName", req.getBeneficiaryName());
-        requestBody.put("mobileNumber", req.getMobileNo());
-        requestBody.put("emailId", retailer.getEmailId());
+        requestBody.put("customer_name", req.getBeneficiaryName());
+        requestBody.put("customer_phone", req.getMobileNo());
+        requestBody.put("customer_email", retailer.getEmailId());
         requestBody.put("amount", req.getAmount());
-        requestBody.put("redirectUrl", "https://portal.nfttech.in/enterprise/products/pgScreen");
+        requestBody.put("redirect_url", "https://portal.nfttech.in/enterprise/products/pgScreen");
         requestBody.put("requestId", orderId);
 
         HttpHeaders headers = new HttpHeaders();
@@ -243,7 +243,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
         // Get raw response as String first
         ResponseEntity<String> rawResponse = restTemplate.exchange(
-                credentials.getBaseUrlProd() + "/payin/nixa-silver-1",
+                credentials.getBaseUrlProd() + "/payin/premium-pg-3",
                 HttpMethod.POST,
                 entity,
                 String.class
