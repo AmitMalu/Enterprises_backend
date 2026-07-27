@@ -20,8 +20,6 @@ public interface TenantBrandingRepository  extends JpaRepository<TenantBranding,
 
     Optional<TenantBranding> findByTenantCode(String tenantCode);
 
-    @Query("SELECT tb.logoPath FROM TenantBranding tb " +
-            "WHERE tb.whiteLabelId = :whiteLabelId")
-    String findByWhiteLabelId(@Param("whiteLabelId") String whiteLabelId);
+    Optional<TenantBranding> findByWhiteLabelId(String whiteLabelId);
 
 }
