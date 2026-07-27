@@ -367,7 +367,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         return PayoutResponseDto.builder()
                 .orderId(orderId)
                 .vendorName(getVendorName())
-                .status("SUCCESS")
+                .status("PENDING")
                 .message(vendorMessage != null ? vendorMessage : "Transaction completed successfully")
                 .amount(req.getAmount())
                 .beneficiaryName(req.getBeneficiaryName())
