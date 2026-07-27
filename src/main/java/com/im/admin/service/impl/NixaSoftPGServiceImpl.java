@@ -80,7 +80,8 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
     @Autowired
     private ObjectMapper objectMapper;
 
-    RestTemplate restTemplate = new RestTemplate();
+    @Autowired
+    private RestTemplate restTemplate;
 
     @Override
     public String createOrder(NixaSoftCreateOrderRequest req, RequestHeaderMetaDto requestHeaderMetaDto) {
