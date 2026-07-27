@@ -231,7 +231,7 @@ else
 fi
 
 echo "Stopping Tomcat..."
-    sudo -n "`$TOMCAT_HOME/bin/shutdown.sh" || true
+    "`$TOMCAT_HOME/bin/shutdown.sh" || true
 
 for i in {1..30}; do
     TOMCAT_COUNT=`$(pgrep -f -c 'org.apache.catalina.startup.Bootstrap' || true)
@@ -262,7 +262,7 @@ sudo -n mv "`$TEMP_WAR" "`$DEPLOY_WAR"
 sudo -n chmod 664 "`$DEPLOY_WAR"
 
 echo "Starting Tomcat..."
-    sudo -n "`$TOMCAT_HOME/bin/startup.sh"
+    "`$TOMCAT_HOME/bin/startup.sh"
 
 sleep 10
 
