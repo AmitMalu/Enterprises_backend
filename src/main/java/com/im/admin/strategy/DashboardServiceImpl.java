@@ -348,7 +348,21 @@ public class DashboardServiceImpl implements DashboardService {
                 MyBanksDto banksDto = new MyBanksDto();
                 banksDto.setSrNo(i + 1);
                 banksDto.setId(bank.getId());
-                banksDto.setBankName(bank.getBankName());
+                String bankMasterIdValue = bank.getBankName();
+                if (bankMasterIdValue != null && !bankMasterIdValue.trim().isEmpty()) {
+                    try {
+                        Long bankMasterId = Long.valueOf(bankMasterIdValue.trim());
+                        NetworkBankMaster networkBankMaster = networkBankMasterRepository.findById(bankMasterId).orElse(null);
+                        if (networkBankMaster != null) {
+                            banksDto.setBankName(networkBankMaster.getBankName());
+                        } else {
+                            banksDto.setBankName(bank.getBankName());
+                        }
+                    } catch (NumberFormatException e) {
+                        banksDto.setBankName(bank.getBankName());
+                    }
+                }
+
                 banksDto.setAccountName(bank.getBankHolderName() != null ? bank.getBankHolderName() : r.getName());
                 banksDto.setAccountNo(bank.getBankAccountNumber());
                 banksDto.setIFCSCode(bank.getIfscCode());
@@ -491,7 +505,21 @@ public class DashboardServiceImpl implements DashboardService {
                 MyBanksDto banksDto = new MyBanksDto();
                 banksDto.setSrNo(i + 1);
                 banksDto.setId(bank.getId());
-                banksDto.setBankName(bank.getBankName());
+                String bankMasterIdValue = bank.getBankName();
+                if (bankMasterIdValue != null && !bankMasterIdValue.trim().isEmpty()) {
+                    try {
+                        Long bankMasterId = Long.valueOf(bankMasterIdValue.trim());
+                        NetworkBankMaster networkBankMaster = networkBankMasterRepository.findById(bankMasterId).orElse(null);
+                        if (networkBankMaster != null) {
+                            banksDto.setBankName(networkBankMaster.getBankName());
+                        } else {
+                            banksDto.setBankName(bank.getBankName());
+                        }
+                    } catch (NumberFormatException e) {
+                        banksDto.setBankName(bank.getBankName());
+                    }
+                }
+
                 banksDto.setAccountName(bank.getBankHolderName());
                 banksDto.setAccountNo(bank.getBankAccountNumber());
                 banksDto.setIFCSCode(bank.getIfscCode());
@@ -540,7 +568,21 @@ public class DashboardServiceImpl implements DashboardService {
                 MyBanksDto banksDto = new MyBanksDto();
                 banksDto.setSrNo(i + 1);
                 banksDto.setId(bank.getId());
-                banksDto.setBankName(bank.getBankName());
+                String bankMasterIdValue = bank.getBankName();
+                if (bankMasterIdValue != null && !bankMasterIdValue.trim().isEmpty()) {
+                    try {
+                        Long bankMasterId = Long.valueOf(bankMasterIdValue.trim());
+                        NetworkBankMaster networkBankMaster = networkBankMasterRepository.findById(bankMasterId).orElse(null);
+                        if (networkBankMaster != null) {
+                            banksDto.setBankName(networkBankMaster.getBankName());
+                        } else {
+                            banksDto.setBankName(bank.getBankName());
+                        }
+                    } catch (NumberFormatException e) {
+                        banksDto.setBankName(bank.getBankName());
+                    }
+                }
+
                 banksDto.setAccountName(bank.getBankHolderName());
                 banksDto.setAccountNo(bank.getBankAccountNumber());
                 banksDto.setIFCSCode(bank.getIfscCode());
@@ -589,7 +631,21 @@ public class DashboardServiceImpl implements DashboardService {
                 MyBanksDto banksDto = new MyBanksDto();
                 banksDto.setSrNo(i + 1);
                 banksDto.setId(bank.getId());
-                banksDto.setBankName(bank.getBankName());
+                String bankMasterIdValue = bank.getBankName();
+                if (bankMasterIdValue != null && !bankMasterIdValue.trim().isEmpty()) {
+                    try {
+                        Long bankMasterId = Long.valueOf(bankMasterIdValue.trim());
+                        NetworkBankMaster networkBankMaster = networkBankMasterRepository.findById(bankMasterId).orElse(null);
+                        if (networkBankMaster != null) {
+                            banksDto.setBankName(networkBankMaster.getBankName());
+                        } else {
+                            banksDto.setBankName(bank.getBankName());
+                        }
+                    } catch (NumberFormatException e) {
+                        banksDto.setBankName(bank.getBankName());
+                    }
+                }
+
                 banksDto.setAccountName(bank.getBankHolderName());
                 banksDto.setAccountNo(bank.getBankAccountNumber());
                 banksDto.setIFCSCode(bank.getIfscCode());
@@ -653,7 +709,21 @@ public class DashboardServiceImpl implements DashboardService {
                 MyBanksDto banksDto = new MyBanksDto();
                 banksDto.setSrNo(i + 1);
                 banksDto.setId(bank.getId());
-                banksDto.setBankName(bank.getBankName());
+                String bankMasterIdValue = bank.getBankName();
+                if (bankMasterIdValue != null && !bankMasterIdValue.trim().isEmpty()) {
+                    try {
+                        Long bankMasterId = Long.valueOf(bankMasterIdValue.trim());
+                        NetworkBankMaster networkBankMaster = networkBankMasterRepository.findById(bankMasterId).orElse(null);
+                        if (networkBankMaster != null) {
+                            banksDto.setBankName(networkBankMaster.getBankName());
+                        } else {
+                            banksDto.setBankName(bank.getBankName());
+                        }
+                    } catch (NumberFormatException e) {
+                        banksDto.setBankName(bank.getBankName());
+                    }
+                }
+
                 banksDto.setAccountName(bank.getBankHolderName());
                 banksDto.setAccountNo(bank.getBankAccountNumber());
                 banksDto.setIFCSCode(bank.getIfscCode());
