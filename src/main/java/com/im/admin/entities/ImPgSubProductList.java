@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(
-        name = "pg_settlement_category",
+        name = "im_subProduct",
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_pg_settlement_excel_id",
