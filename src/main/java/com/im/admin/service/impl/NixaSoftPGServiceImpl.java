@@ -225,65 +225,163 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             RequestHeaderMetaDto requestHeaderMetaDto,
             Vendors vendor) throws Exception {
 
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("customer_name", req.getBeneficiaryName());
-        requestBody.put("customer_phone", req.getMobileNo());
-        requestBody.put("customer_email", retailer.getEmailId());
-        requestBody.put("amount", req.getAmount());
-        requestBody.put("redirect_url", "https://portal.nfttech.in/enterprise/products/pgScreen");
-        requestBody.put("requestId", orderId);
+        log.info("=== START: processDirectCreateOrder ===");
+        log.info("Processing direct create order for orderId={}, amount={}, beneficiary={}, mobile={}",
+                orderId, req.getAmount(), req.getBeneficiaryName(), req.getMobileNo());
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("apiToken", credentials.getToken());
+        long startTime = System.currentTimeMillis();
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+        try {
+            // ===== BUILD REQUEST BODY =====
+            log.debug("Building request body for NixaSoft API");
 
-        log.info("[NIXASOFT] Calling NixaSoft Payin API | orderId={}", orderId);
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("customer_name", req.getBeneficiaryName());
+            requestBody.put("customer_phone", req.getMobileNo());
+            requestBody.put("customer_email", retailer.getEmailId());
+            requestBody.put("amount", req.getAmount());
+            requestBody.put("redirect_url", "https://portal.nfttech.in/enterprise/products/pgScreen");
+            requestBody.put("requestId", orderId);
 
-        // Get raw response as String first
-        ResponseEntity<String> rawResponse = restTemplate.exchange(
-                credentials.getBaseUrlProd() + "/payin/premium-pg-3",
-                HttpMethod.POST,
-                entity,
-                String.class
-        );
+            log.debug("Request body built: customer_name={}, customer_phone={}, customer_email={}, amount={}, requestId={}",
+                    req.getBeneficiaryName(), req.getMobileNo(), retailer.getEmailId(), req.getAmount(), orderId);
 
-        String responseBody = rawResponse.getBody();
-        log.info("[NIXASOFT] Raw response: {}", responseBody);
+            // ===== BUILD HTTP HEADERS =====
+            log.debug("Building HTTP headers for NixaSoft API");
 
-        // Parse as Map to check status
-        Map<String, Object> responseMap = objectMapper.readValue(responseBody, Map.class);
-        String statusCode = (String) responseMap.get("statuscode");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("apiToken", credentials.getToken());
 
-        // Handle Error Response
-        if ("ERR".equals(statusCode)) {
-            String errorMessage = (String) responseMap.getOrDefault("message", "Transaction Failed");
-            log.error("[NIXASOFT] Vendor returned error | orderId={} | message={}", orderId, errorMessage);
+            log.info("API Token: {}... (masked)", maskToken(credentials.getToken()));
 
-            // Save failed transaction
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            // ===== CALL NIXASOFT API =====
+            String apiUrl = credentials.getBaseUrlProd() + "/payin/premium-pg-3";
+            log.info("[NIXASOFT] Calling NixaSoft Payin API | orderId={} | url={}", orderId, apiUrl);
+
+            long apiStartTime = System.currentTimeMillis();
+
+            // Get raw response as String first
+            ResponseEntity<String> rawResponse = restTemplate.exchange(
+                    apiUrl,
+                    HttpMethod.POST,
+                    entity,
+                    String.class
+            );
+
+            long apiDuration = System.currentTimeMillis() - apiStartTime;
+            log.info("[NIXASOFT] API call completed | orderId={} | statusCode={} | duration={} ms",
+                    orderId, rawResponse.getStatusCode(), apiDuration);
+
+            String responseBody = rawResponse.getBody();
+            log.info("[NIXASOFT] Raw response: {}", responseBody);
+
+            // ===== PARSE RESPONSE =====
+            log.debug("Parsing response from NixaSoft API | orderId={}", orderId);
+
+            Map<String, Object> responseMap = objectMapper.readValue(responseBody, Map.class);
+            String statusCode = (String) responseMap.get("statuscode");
+            String statusMessage = (String) responseMap.getOrDefault("message", "No message");
+
+            log.info("[NIXASOFT] Response status | orderId={} | statusCode={} | statusMessage={}",
+                    orderId, statusCode, statusMessage);
+
+            // ===== HANDLE ERROR RESPONSE =====
+            if ("ERR".equals(statusCode)) {
+                log.warn("[NIXASOFT] Received error response | orderId={} | statusCode={}", orderId, statusCode);
+
+                String errorMessage = (String) responseMap.getOrDefault("message", "Transaction Failed");
+                String errorCode = (String) responseMap.getOrDefault("error_code", "UNKNOWN");
+
+                log.error("[NIXASOFT] Vendor returned error | orderId={} | errorCode={} | errorMessage={}",
+                        orderId, errorCode, errorMessage);
+
+                // Log full error details for debugging
+                log.debug("[NIXASOFT] Full error response | orderId={} | response={}", orderId, responseBody);
+
+                // Save failed transaction
+                log.info("[NIXASOFT] Saving failed transaction | orderId={} | status=FAILED", orderId);
+
+                savePgTransaction(orderId, req, "FAILED", null, requestHeaderMetaDto);
+
+                long totalDuration = System.currentTimeMillis() - startTime;
+                log.info("[NIXASOFT] Error handling completed | orderId={} | totalDuration={} ms", orderId, totalDuration);
+                log.info("=== END: processDirectCreateOrder (ERROR) ===");
+
+                return "ERROR: " + errorMessage + " (Code: " + errorCode + ")";
+            }
+
+            // ===== HANDLE SUCCESS RESPONSE =====
+            if ("TXN".equals(statusCode)) {
+                log.info("[NIXASOFT] Received success response | orderId={} | statusCode={}", orderId, statusCode);
+
+                NixaSoftCreateOrderResponse successResponse =
+                        objectMapper.readValue(responseBody, NixaSoftCreateOrderResponse.class);
+
+                log.info("[NIXASOFT] Success response details | orderId={} | vendorOrderId={} | paymentUrl={}",
+                        orderId, successResponse.getOrderId(), successResponse.getPaymentUrl());
+
+                if (successResponse.getPaymentUrl() == null || successResponse.getPaymentUrl().isEmpty()) {
+                    log.warn("[NIXASOFT] Payment URL is null or empty | orderId={} | vendorOrderId={}",
+                            orderId, successResponse.getOrderId());
+                }
+
+                // Save Transaction as PENDING
+                log.info("[NIXASOFT] Saving pending transaction | orderId={} | vendorOrderId={} | status=PENDING",
+                        orderId, successResponse.getOrderId());
+
+                savePgTransaction(orderId, req, "PENDING", successResponse.getOrderId(), requestHeaderMetaDto);
+
+                long totalDuration = System.currentTimeMillis() - startTime;
+                log.info("[NIXASOFT] Success processing completed | orderId={} | totalDuration={} ms | paymentUrl={}",
+                        orderId, totalDuration, successResponse.getPaymentUrl());
+                log.info("=== END: processDirectCreateOrder (SUCCESS) ===");
+
+                return successResponse.getPaymentUrl();
+            }
+
+            // ===== HANDLE UNKNOWN STATUS =====
+            log.error("[NIXASOFT] Unknown status code received | orderId={} | statusCode={} | fullResponse={}",
+                    orderId, statusCode, responseBody);
+
+            // Save transaction as FAILED for unknown status
+            log.info("[NIXASOFT] Saving transaction as FAILED due to unknown status | orderId={}", orderId);
             savePgTransaction(orderId, req, "FAILED", null, requestHeaderMetaDto);
 
-            return "ERROR: " + errorMessage;
+            long totalDuration = System.currentTimeMillis() - startTime;
+            log.info("[NIXASOFT] Unknown status handling completed | orderId={} | totalDuration={} ms", orderId, totalDuration);
+            log.info("=== END: processDirectCreateOrder (UNKNOWN STATUS) ===");
+
+            return "ERROR: Unknown response status - " + statusCode;
+
+        } catch (Exception e) {
+            log.error("[NIXASOFT] Exception occurred while processing create order | orderId={} | error={}",
+                    orderId, e.getMessage(), e);
+
+            // Save transaction as FAILED
+            try {
+                log.info("[NIXASOFT] Saving failed transaction due to exception | orderId={}", orderId);
+                savePgTransaction(orderId, req, "FAILED", null, requestHeaderMetaDto);
+            } catch (Exception saveEx) {
+                log.error("[NIXASOFT] Failed to save transaction after exception | orderId={}", orderId, saveEx);
+            }
+
+            long totalDuration = System.currentTimeMillis() - startTime;
+            log.info("[NIXASOFT] Exception handling completed | orderId={} | totalDuration={} ms", orderId, totalDuration);
+            log.info("=== END: processDirectCreateOrder (EXCEPTION) ===");
+
+            throw new RuntimeException("Failed to process NixaSoft order: " + e.getMessage(), e);
         }
+    }
 
-        // Handle Success Response
-        if ("TXN".equals(statusCode)) {
-            NixaSoftCreateOrderResponse successResponse =
-                    objectMapper.readValue(responseBody, NixaSoftCreateOrderResponse.class);
-
-            log.info("[NIXASOFT] Success response | orderId={} | vendorOrderId={} | paymentUrl={}",
-                    orderId, successResponse.getOrderId(), successResponse.getPaymentUrl());
-
-            // Save Transaction
-            savePgTransaction(orderId, req, "PENDING", successResponse.getOrderId(),  requestHeaderMetaDto);
-
-            return successResponse.getPaymentUrl();
+    // ===== HELPER METHOD TO MASK TOKEN =====
+    private String maskToken(String token) {
+        if (token == null || token.length() <= 8) {
+            return "****";
         }
-
-        // Unknown status
-        log.error("[NIXASOFT] Unknown status code | orderId={} | status={}", orderId, statusCode);
-        return "ERROR: Unknown response status - " + statusCode;
+        return token.substring(0, 4) + "..." + token.substring(token.length() - 4);
     }
 
 /* =====================================================
