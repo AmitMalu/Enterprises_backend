@@ -142,6 +142,8 @@ public class AuthController {
     @Autowired
     private EnterprisesRepository enterprisesRepository;
 
+    @Autowired
+    private TenantBrandingRepository tenantBrandingRepository;
 
     @Autowired
     private ProductTransactionLimitRepository productTransactionLimitRepository;
@@ -1230,7 +1232,11 @@ public class AuthController {
                     }
                     responseMap.put("role", "WLAD");
                     responseMap.put("logoUrl", whiteLabel.getBusinessProofImage());
-                } else {
+                    if (Boolean.TRUE.equals(whiteLabel.getIsAdmin())) {
+                        String logoPath = tenantBrandingRepository.findByWhiteLabelId(user.getHierarchyId());
+                        responseMap.put("logoPath", logoPath);
+                    }
+                    } else {
                     responseMap.put("role", "WL");
                     responseMap.put("products", buildProductsForUser(user.getHierarchyId()));
                 }
