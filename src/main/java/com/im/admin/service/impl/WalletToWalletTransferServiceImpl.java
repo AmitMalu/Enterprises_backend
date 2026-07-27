@@ -70,6 +70,9 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
     @Autowired
     private WalletTransactionService walletTransactionService;
 
+    @Autowired
+    private SubProductsServiceImpl subProductsServiceImpl;
+
     @Transactional
     @Override
     public void transferAmountWalletToWallet(
@@ -320,39 +323,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                         "Non-retailer hierarchy detected, resolving scheme from hierarchy"
                 );
 
-//                String schemeName =
-//                        getSchemeNameByHierarchy(hierarchyId);
-//
-//                log.info(
-//                        "Scheme name resolved from hierarchy: {}",
-//                        schemeName
-//                );
-
-//                Optional<Scheme> schemeOptional =
-//                        schemeRepository.findBySchemeName(schemeName);
-//
-//                if (schemeOptional.isEmpty()) {
-//
-//                    log.error(
-//                            "Scheme not found for name: {}",
-//                            schemeName
-//                    );
-//
-//                    throw new RuntimeException(
-//                            "Scheme not found for name: " + schemeName
-//                    );
-//                }
-
-                //Scheme scheme = schemeOptional.get();
-
                 schemeCode = request.getSchemeCode();
-
-                // Only new behavior:
-                // extract SubProduct ID from existing scheme hash.
-//                resolvedSubProductId =
-//                        extractSubProductIdFromSchemeHash(
-//                                scheme.getSchemeCombinationHashCode()
-//                        );
 
                 resolvedSubProductId = request.getSubProductId();
 
@@ -364,6 +335,22 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                         resolvedSubProductId
                 );
             }
+
+            // =========================================================
+            // VALIDATE SUBPRODUCT VISIBILITY
+            // =========================================================
+            if (subProductsServiceImpl.isSubProductVisible(resolvedSubProductId))
+            {
+                throw new IllegalArgumentException(
+                        "Selected sub product is currently not visible."
+                );
+            }
+
+            log.info(
+                    "Subproduct is visible and available for wallet transfer. subProductId={}",
+                    resolvedSubProductId
+            );
+
 
             // =========================================================
             // FETCH SCHEME

@@ -1267,5 +1267,16 @@ public class SubProductsServiceImpl implements SubProductsService {
         return normalizedValue;
     }
 
+    public boolean isSubProductVisible(String subProductId) {
+
+        return subProductsRepository
+                .findVisibilityBySubProductId(subProductId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Sub Product not found: " + subProductId
+                        )
+                );
+    }
+
 }
 

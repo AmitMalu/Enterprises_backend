@@ -99,6 +99,9 @@ public class FundReversalServiceImpl implements FundReversalService {
     @Autowired
     private SchemeRepository schemeRepository;
 
+    @Autowired
+    private SubProductsServiceImpl subProductsServiceImpl;
+
     @Override
     public CommonResponse<FundReversalResponseDto> resendOtpById(Long id) {
         Optional<FundReversal> optReversal = fundReversalRepository.findById(id);
@@ -269,6 +272,18 @@ public class FundReversalServiceImpl implements FundReversalService {
                         null
                 );
             }
+
+            // =========================================================
+            // VALIDATE SUB PRODUCT VISIBILITY
+            // =========================================================
+            if (subProductsServiceImpl.isSubProductVisible(request.getSubProductId()))
+            {
+                throw new IllegalArgumentException(
+                        "Selected sub product is currently not visible."
+                );
+            }
+
+            log.info("SubProduct is visible and available for wallet transfer. subProductId={}", request.getSubProductId());
 
             String parentHierarchyId = request.getParentHierarchyId().trim();
 

@@ -16,6 +16,7 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.response.PayoutMerchantCallbackResponse;
 import com.im.admin.response.PayoutStatusResponse;
 import com.im.admin.service.*;
+import com.im.admin.service.impl.SubProductsServiceImpl;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.PayoutVendorFactory;
@@ -81,6 +82,8 @@ public class PayoutOrchestrator {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private SubProductsServiceImpl subProductsServiceImpl;
 
     @Transactional
     public CommonResponse<PayoutResponseDto> processPayout(SendPayoutRequest req, RequestHeaderMetaDto requestHeaderMetaDtoMeta) {
@@ -88,6 +91,19 @@ public class PayoutOrchestrator {
         log.info("[PROCESS PAYOUT ORCH] Initiating payout process for orderId={}", orderId);
 
         try {
+
+            // =========================================================
+            // VALIDATE SUB PRODUCT VISIBILITY
+            // =========================================================
+            if (subProductsServiceImpl.isSubProductVisible(req.getSubProductId()))
+            {
+                throw new IllegalArgumentException(
+                        "Selected sub product is currently not visible."
+                );
+            }
+
+            log.info("SubProduct is visible and available for wallet transfer. subProductId={}", req.getSubProductId());
+
 
             //Validate Scheme Active or Not
             Scheme scheme = schemeRepository.findBySchemeCode(req.getSchemeCode())
