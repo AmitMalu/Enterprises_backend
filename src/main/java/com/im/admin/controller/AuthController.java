@@ -42,6 +42,9 @@ import java.util.*;
 @Slf4j
 public class AuthController {
 
+    @Value("${file.access.config-assets-path}")
+    private String assetBasePath;
+
     private boolean isValidMpin(String mpin) {
         return mpin != null && mpin.matches("\\d{6}");
     }
@@ -1223,23 +1226,38 @@ public class AuthController {
                 break;
 
             case "WL":
+
                 WhiteLabels whiteLabel = whiteLabelRepository.findByMobileNumber(user.getMobileNumber());
+
                 if (whiteLabel != null && Boolean.TRUE.equals(whiteLabel.getIsAdmin())) {
+
                     responseMap.put("role_id", user.getRole_id());
+
                     ImSubRole wlSubRole = imSubRoleRepository.findByMobileNumber(user.getMobileNumber());
+
                     if (wlSubRole != null) {
                         responseMap.put("sub_role_id", wlSubRole.getSubRoleId());
                     }
+
                     responseMap.put("role", "WLAD");
                     responseMap.put("logoUrl", whiteLabel.getBusinessProofImage());
-                    if (Boolean.TRUE.equals(whiteLabel.getIsAdmin())) {
-                        String logoPath = tenantBrandingRepository.findByWhiteLabelId(user.getHierarchyId());
-                        responseMap.put("logoPath", logoPath);
+
+                    TenantBranding tenantBranding = tenantBrandingRepository.findByWhiteLabelId(user.getHierarchyId()).orElse(null);
+
+                    if (tenantBranding != null) {
+                        responseMap.put("logoPath", buildAssetUrl(
+                                tenantBranding.getDomainName(),
+                                tenantBranding.getTenantCode(),
+                                tenantBranding.getLogoPath()
+                        ));
                     }
-                    } else {
+
+                } else {
+
                     responseMap.put("role", "WL");
                     responseMap.put("products", buildProductsForUser(user.getHierarchyId()));
                 }
+
                 break;
 
             case "WLAU":
@@ -2767,6 +2785,25 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new CommonResponse<>(500, "Internal server error", null));
         }
+    }
+
+
+
+    private String buildAssetUrl(String domain,
+                                 String tenantCode,
+                                 String fileName) {
+
+        if (fileName == null || fileName.isBlank()) {
+            return null;
+        }
+
+        return "https://"
+                + domain
+                + assetBasePath
+                + "/"
+                + tenantCode
+                + "/"
+                + fileName;
     }
 
 }
