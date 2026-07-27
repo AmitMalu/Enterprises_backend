@@ -978,50 +978,6 @@ public class SubProductsServiceImpl implements SubProductsService {
         }
     }
 
-    private String normalizeGeolocation(
-            String geolocation
-    ) {
-
-        String normalized =
-                geolocation
-                        .trim()
-                        .replaceAll("\\s+", "");
-
-        if (!normalized.matches(
-                "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$"
-        )) {
-
-            throw new IllegalArgumentException(
-                    "Invalid geolocation format. Expected latitude,longitude"
-            );
-        }
-
-        String[] coordinates =
-                normalized.split(",");
-
-        double latitude =
-                Double.parseDouble(coordinates[0]);
-
-        double longitude =
-                Double.parseDouble(coordinates[1]);
-
-        if (latitude < -90 || latitude > 90) {
-
-            throw new IllegalArgumentException(
-                    "Latitude must be between -90 and 90"
-            );
-        }
-
-        if (longitude < -180 || longitude > 180) {
-
-            throw new IllegalArgumentException(
-                    "Longitude must be between -180 and 180"
-            );
-        }
-
-        return normalized;
-    }
-
     private String normalizeAuthorizationToken(
             String token
     ) {
