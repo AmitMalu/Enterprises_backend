@@ -362,7 +362,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                                                     Double longitude) {
         log.info("[IM PAYOUT] Transaction SUCCESS | OrderID={} | VendorTxnID={}", orderId, vendorTxnId);
 
-        savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef, "SUCCESS");
+        savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef, "PENDING");
 
         return PayoutResponseDto.builder()
                 .orderId(orderId)
