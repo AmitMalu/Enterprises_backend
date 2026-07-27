@@ -4,7 +4,7 @@
 
 # Local project
 
-$ProjectDirectory = "D:\Intellij project\admin"
+$ProjectDirectory = "D:\InstantMudra_Enterprises_Portal\admin"
 $TemporaryWorktree = "D:\InstantMudra_Deploy_Temp"
 
 # Git
