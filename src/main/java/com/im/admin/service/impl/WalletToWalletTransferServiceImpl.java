@@ -339,23 +339,17 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             // =========================================================
             // VALIDATE SUBPRODUCT VISIBILITY
             // =========================================================
-            if (subProductsServiceImpl.isSubProductVisible(resolvedSubProductId))
+            if (!subProductsServiceImpl.isSubProductVisible(resolvedSubProductId))
             {
-                throw new IllegalArgumentException(
-                        "Selected sub product is currently not visible."
-                );
+                throw new IllegalArgumentException("Selected sub product is currently not visible.");
             }
 
-            log.info(
-                    "Subproduct is visible and available for wallet transfer. subProductId={}",
-                    resolvedSubProductId
-            );
+            log.info("Subproduct is visible and available for wallet transfer. subProductId={}", resolvedSubProductId);
 
 
             // =========================================================
             // FETCH SCHEME
             // =========================================================
-
             Optional<Scheme> schemeOptional =
                         schemeRepository.findBySchemeCode(request.getSchemeCode());
 

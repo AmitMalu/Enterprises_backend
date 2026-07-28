@@ -205,7 +205,7 @@ public class BBPSServiceImpl implements BBPSService {
             // =========================================================
             // VALIDATE SUB PRODUCT VISIBILITY
             // =========================================================
-            if (subProductsServiceImpl.isSubProductVisible(request.getSubProductId()))
+            if (!subProductsServiceImpl.isSubProductVisible(request.getSubProductId()))
             {
                 throw new IllegalArgumentException(
                         "Selected sub product is currently not visible."

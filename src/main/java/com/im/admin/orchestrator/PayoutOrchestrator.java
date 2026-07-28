@@ -95,7 +95,7 @@ public class PayoutOrchestrator {
             // =========================================================
             // VALIDATE SUB PRODUCT VISIBILITY
             // =========================================================
-            if (subProductsServiceImpl.isSubProductVisible(req.getSubProductId()))
+            if (!subProductsServiceImpl.isSubProductVisible(req.getSubProductId()))
             {
                 throw new IllegalArgumentException(
                         "Selected sub product is currently not visible."
