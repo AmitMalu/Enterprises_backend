@@ -1,5 +1,6 @@
 package com.im.admin.controller;
 
+import com.im.admin.entities.TenantBranding;
 import com.im.admin.request.TenantBrandingRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.TenantConfigResponse;
@@ -7,6 +8,10 @@ import com.im.admin.service.TenantBrandingService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -68,6 +73,28 @@ public class TenantBrandingController {
 
         return ResponseEntity.ok(
                 tenantBrandingService.uploadLogo(wlId, image)
+        );
+    }
+
+    @GetMapping
+    public ResponseEntity<CommonResponse<Page<TenantBranding>>> findAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<TenantBranding> tenants = tenantBrandingService.findAll(pageable);
+        return ResponseEntity.ok(
+                CommonResponse.success(tenants, "Tenant branding fetched successfully")
+        );
+    }
+
+    @GetMapping("/{whiteLabelId}")
+    public ResponseEntity<CommonResponse<TenantBranding>> getById(
+            @PathVariable String whiteLabelId
+    ) {
+        TenantBranding tenant = tenantBrandingService.findById(whiteLabelId);
+        return ResponseEntity.ok(
+                CommonResponse.success(tenant, "Tenant branding fetched successfully")
         );
     }
 }
