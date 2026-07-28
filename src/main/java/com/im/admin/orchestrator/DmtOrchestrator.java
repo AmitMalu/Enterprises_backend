@@ -13,6 +13,7 @@ import com.im.admin.request.*;
 import com.im.admin.response.*;
 import com.im.admin.service.DmtVendorService;
 import com.im.admin.service.impl.PaysprintDmtServiceImpl;
+import com.im.admin.service.impl.SubProductsServiceImpl;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.DmtVendorFactory;
@@ -104,6 +105,9 @@ public class DmtOrchestrator {
 
     @Autowired
     private SchemeRepository schemeRepository;
+
+    @Autowired
+    private SubProductsServiceImpl subProductsServiceImpl;
 
     RestTemplate restTemplate = new RestTemplate();
 
@@ -329,6 +333,18 @@ public class DmtOrchestrator {
             // Validate SubProduct
             SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found for ID: " + req.getSubProductId()));
+
+            // =========================================================
+            // VALIDATE SUB PRODUCT VISIBILITY
+            // =========================================================
+            if (!subProductsServiceImpl.isSubProductVisible(subProducts.getId()))
+            {
+                throw new IllegalArgumentException(
+                        "Selected sub product is currently not visible."
+                );
+            }
+
+            log.info("SubProduct is visible and available for wallet transfer. subProductId={}", subProducts.getId());
 
             WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
             log.debug("[PROCESS PAYOUT ORCH] Resolved walletType={}", walletType);

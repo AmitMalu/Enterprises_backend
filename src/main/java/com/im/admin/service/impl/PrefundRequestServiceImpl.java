@@ -451,7 +451,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         // =========================================================
         // VALIDATE SUBPRODUCT VISIBILITY
         // =========================================================
-        if (subProductsServiceImpl.isSubProductVisible(subProduct.getId()))
+        if (!subProductsServiceImpl.isSubProductVisible(subProduct.getId()))
         {
             throw new IllegalArgumentException(
                     "Selected sub product is currently not visible."

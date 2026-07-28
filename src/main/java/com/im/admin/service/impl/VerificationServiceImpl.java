@@ -73,6 +73,9 @@ public class VerificationServiceImpl implements VerificationService {
     @Autowired
     private WalletTransactionService walletTransactionService;
 
+    @Autowired
+    private SubProductsServiceImpl subProductsServiceImpl;
+
     @Override
     @Transactional
     public ResponseEntity<?> validateAadhaar(String aadhaarNumber) {
@@ -537,6 +540,13 @@ public class VerificationServiceImpl implements VerificationService {
             SubProducts subProduct = subProductsRepository
                     .findBySubProductCode(request.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found for Bank Verification"));
+
+            if (!subProductsServiceImpl.isSubProductVisible(subProduct.getId()))
+            {
+                throw new IllegalArgumentException("Selected sub product is currently not visible.");
+            }
+
+            log.info("Sub Product is visible and available for wallet transfer. subProductId={}", subProduct.getId());
 
             // Get Product from SubProduct
             Products product = subProduct.getProduct();

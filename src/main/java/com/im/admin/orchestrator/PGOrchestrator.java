@@ -51,8 +51,7 @@ public class PGOrchestrator {
             // =========================================================
             // VALIDATE SUB PRODUCT VISIBILITY
             // =========================================================
-            if (subProductsServiceImpl.isSubProductVisible(command.getSubProductId()))
-            {
+            if (!subProductsServiceImpl.isSubProductVisible(command.getSubProductId())) {
                 throw new IllegalArgumentException(
                         "Selected sub product is currently not visible."
                 );
