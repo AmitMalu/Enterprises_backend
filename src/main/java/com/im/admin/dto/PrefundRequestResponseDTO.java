@@ -30,6 +30,7 @@ public class PrefundRequestResponseDTO {
     private String bankAccountName;
     private String bankAccountNumber;
     private String bankTranId;
+    private String adminTxnId;
 
     private String narration;
     private String paymentMode;
