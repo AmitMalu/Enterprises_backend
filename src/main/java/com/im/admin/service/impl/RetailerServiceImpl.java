@@ -83,6 +83,9 @@ public class RetailerServiceImpl implements RetailerService {
     @Autowired
     private HierarchyAccessService hierarchyAccessService;
 
+    @Autowired
+    private NetworkBankMasterRepository networkBankMasterRepository;
+
     @Transactional
     @Override
     public Retailer createRetailer(Retailer retailer,
@@ -424,7 +427,24 @@ public class RetailerServiceImpl implements RetailerService {
         if (retailer.getBankDetails() != null) {
             BanksDetails bank = retailer.getBankDetails();
             BankDetailsDTO bankDto = new BankDetailsDTO();
-            bankDto.setBankName(bank.getBankName());
+
+            String bankMasterIdValue = bank.getBankName();
+            if (bankMasterIdValue != null && !bankMasterIdValue.trim().isEmpty()) {
+                try {
+                    Long bankMasterId = Long.valueOf(bankMasterIdValue.trim());
+                    NetworkBankMaster networkBankMaster = networkBankMasterRepository.findById(bankMasterId).orElse(null);
+                    if (networkBankMaster != null) {
+                        bankDto.setBankName(networkBankMaster.getBankName());
+                    } else {
+                        bankDto.setBankName(bank.getBankName());
+                    }
+                } catch (NumberFormatException e) {
+                    bankDto.setBankName(bank.getBankName());
+                }
+            } else {
+                bankDto.setBankName(bank.getBankName());
+            }
+
             bankDto.setBankAccountNumber(bank.getBankAccountNumber());
             bankDto.setIfscCode(bank.getIfscCode());
             bankDto.setBankHolderName(bank.getBankHolderName());
