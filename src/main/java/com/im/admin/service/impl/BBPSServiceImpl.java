@@ -79,6 +79,9 @@ public class BBPSServiceImpl implements BBPSService {
     @Autowired
     private TransactionHelperService transactionHelperService;
 
+    @Autowired
+    private SubProductsServiceImpl subProductsServiceImpl;
+
     @Override
     public CommonResponse<List<ProviderListResponseDTO.ProviderDTO>> getProviderList(ProviderListRequestDTO requestDTO) {
 
@@ -198,6 +201,20 @@ public class BBPSServiceImpl implements BBPSService {
         log.info("Starting bill recharge process for retailerId: {}, subProductId: {}, amount: {}",
                 request.getRetailerId(), request.getSubProductId(), request.getAmount());
         try {
+
+            // =========================================================
+            // VALIDATE SUB PRODUCT VISIBILITY
+            // =========================================================
+            if (!subProductsServiceImpl.isSubProductVisible(request.getSubProductId()))
+            {
+                throw new IllegalArgumentException(
+                        "Selected sub product is currently not visible."
+                );
+            }
+
+            log.info("SubProduct is visible and available for wallet transfer. subProductId={}", request.getSubProductId());
+
+
             Optional<SubProducts> subProducts = subProductsRepository.findById(request.getSubProductId());
             if (subProducts.isEmpty()) {
                 log.error("SubProduct not found for ID: {}", request.getSubProductId());

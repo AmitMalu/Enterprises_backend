@@ -20,4 +20,11 @@ public class SubproductListRequest {
      * PAYOUT
      */
     private String serviceType;
+
+    /*
+    * for Instants = flag 0  ----> PG
+    * for Tatkal = flag 1   ----> PG
+    * for Payout = flag 2   ----->  Payout
+     */
+    private Integer isSettlement;
 }

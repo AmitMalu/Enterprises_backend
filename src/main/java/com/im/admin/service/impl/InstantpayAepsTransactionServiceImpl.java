@@ -81,6 +81,9 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
     @Autowired
     private AepsMerchantStatusRepository aepsMerchantStatusRepository;
 
+    @Autowired
+    private SubProductsServiceImpl subProductsServiceImpl;
+
 
     @Override
     public CommonResponse<InstantpayCashWithdrawalResponseDto> cashWithdrawal(InstantPayCashWithdrawalRequestDto req,Double latitude,Double longitude) {
@@ -97,6 +100,16 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
 
             SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+
+            // =========================================================
+            // VALIDATE SUB PRODUCT VISIBILITY
+            // =========================================================
+            if (!subProductsServiceImpl.isSubProductVisible(subProducts.getId()))
+            {
+                throw new IllegalArgumentException("Selected sub product is currently not visible.");
+            }
+
+            log.info("SubProduct is visible and available for wallet transfer. subProductId={}", subProducts.getId());
 
 
             Retailer retailer = retailerRepository
@@ -390,6 +403,16 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
 
             SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+
+            // =========================================================
+            // VALIDATE SUB PRODUCT VISIBILITY
+            // =========================================================
+            if (!subProductsServiceImpl.isSubProductVisible(subProducts.getId()))
+            {
+                throw new IllegalArgumentException("Selected sub product is currently not visible.");
+            }
+
+            log.info("SubProduct is visible and available for wallet transfer. subProductId={}", subProducts.getId());
 
             log.info("SubProduct Found | Id={}, Code={}, Title={}",
                     subProducts.getId(),
@@ -850,6 +873,16 @@ public class InstantpayAepsTransactionServiceImpl implements InstantpayAepsTrans
 
             SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
                     .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+
+            // =========================================================
+            // VALIDATE SUB PRODUCT VISIBILITY
+            // =========================================================
+            if (!subProductsServiceImpl.isSubProductVisible(subProducts.getId()))
+            {
+                throw new IllegalArgumentException("Selected sub product is currently not visible.");
+            }
+
+            log.info("SubProduct is visible and available for wallet transfer. subProductId={}", subProducts.getId());
 
             String baseTransactionId = commonMethods.generateBaseTransactionId();
             String orderId = baseTransactionId;

@@ -15,6 +15,7 @@ import com.im.admin.response.*;
 import com.im.admin.service.DmtVendorService;
 import com.im.admin.service.RechargeCallbackHandler;
 import com.im.admin.service.RechargeVendorService;
+import com.im.admin.service.impl.SubProductsServiceImpl;
 import com.im.admin.util.CommonMethods;
 import com.im.admin.util.DmtVendorFactory;
 import com.im.admin.util.RechargeVendorFactory;
@@ -49,7 +50,6 @@ public class RechargeOrchestrator {
     @Autowired
     private SchemeRateRepository schemeRateRepository;
 
-
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
 
@@ -67,6 +67,9 @@ public class RechargeOrchestrator {
 
     @Autowired
     private RechargeVendorFactory vendorFactory;
+
+    @Autowired
+    private SubProductsServiceImpl subProductsServiceImpl;
 
 
     @Transactional
@@ -92,6 +95,13 @@ public class RechargeOrchestrator {
         // 1 Validate SubProduct
         SubProducts subProducts = subProductsRepository.findById(request.getSubProductId())
                 .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+
+        if (!subProductsServiceImpl.isSubProductVisible(subProducts.getId()))
+        {
+            throw new IllegalArgumentException("Selected sub product is currently not visible.");
+        }
+
+        log.info("Sub Product is visible and available for wallet transfer. subProductId={}", subProducts.getId());
 
         WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
 

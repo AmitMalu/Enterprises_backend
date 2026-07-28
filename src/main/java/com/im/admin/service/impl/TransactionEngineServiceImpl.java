@@ -3224,6 +3224,8 @@ private void distributeToHierarchyChain(
                         BigDecimal balAfter = currentBalance.add(txnAmount);
                         log.debug("Balance before: {}, after: {}", balBefore, balAfter);
 
+                        log.info("Sub Product Code {}, Sub Product Name {}  ------> ", txn.getSubProductCode(), txn.getSubProductName());
+
                         // Update TXN
                         log.debug("Updating transaction status to SUCCESS for: {}", fullTxnId);
                         updateTransactionStatusAndBalance(
@@ -3538,7 +3540,7 @@ private void distributeToHierarchyChain(
 
         // Fetch SubProduct
         SubProducts subProduct = subProductsRepository
-                .findBySubProductTitle(txn.getSubProductName())
+                .findBySubProductCode(txn.getSubProductName())
                 .orElseThrow(() ->
                         new RuntimeException("SubProduct not found: " + txn.getSubProductName()));
 

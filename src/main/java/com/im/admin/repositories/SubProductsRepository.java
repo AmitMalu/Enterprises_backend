@@ -88,6 +88,15 @@ public interface SubProductsRepository extends JpaRepository<SubProducts, String
             Collection<String> subProductCodes
     );
 
+    @Query("""
+            SELECT s.isVisible
+            FROM SubProducts s
+            WHERE s.id = :subProductId
+            """)
+    Optional<Boolean> findVisibilityBySubProductId(
+            @Param("subProductId") String subProductId
+    );
+
 }
 
 

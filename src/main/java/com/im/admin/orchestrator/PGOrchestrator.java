@@ -9,7 +9,6 @@ import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.paymentgateway.PaymentGatewayInitiator;
 import com.im.admin.paymentgateway.PaymentGatewayInitiatorFactory;
 import com.im.admin.repositories.PgTransactionMappingRepository;
-import com.im.admin.repositories.SchemeRateRepository;
 import com.im.admin.repositories.SchemeRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
 import com.im.admin.request.SchemeRateRequest;
@@ -18,6 +17,7 @@ import com.im.admin.response.PgStatusResponse;
 import com.im.admin.response.PgUnifiedOrderResponse;
 import com.im.admin.response.SchemeRateResponse;
 import com.im.admin.service.impl.SchemeRateServiceImpl;
+import com.im.admin.service.impl.SubProductsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +35,7 @@ public class PGOrchestrator {
     private final PaymentGatewayInitiatorFactory factory;
     private final SchemeRepository schemeRepository;
     private final SchemeRateServiceImpl schemeRateServiceImpl;
+    private final SubProductsServiceImpl subProductsServiceImpl;
 
     // CREATE ORDER
     public PgUnifiedOrderResponse initiate(PGCreateOrderCommand command, RequestHeaderMetaDto requestHeaderMetaDtoMeta) throws JsonProcessingException {
@@ -46,6 +47,17 @@ public class PGOrchestrator {
                 requestHeaderMetaDtoMeta.getIpAddress());
 
         try {
+
+            // =========================================================
+            // VALIDATE SUB PRODUCT VISIBILITY
+            // =========================================================
+            if (!subProductsServiceImpl.isSubProductVisible(command.getSubProductId())) {
+                throw new IllegalArgumentException(
+                        "Selected sub product is currently not visible."
+                );
+            }
+
+            log.info("SubProduct is visible and available for wallet transfer. subProductId={}", command.getSubProductId());
 
             Scheme scheme = schemeRepository.findBySchemeCode(command.getSchemeCode())
                     .orElseThrow(() -> new RuntimeException("Scheme not found. Please contact admin"));

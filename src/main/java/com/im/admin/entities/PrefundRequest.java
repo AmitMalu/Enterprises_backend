@@ -66,6 +66,9 @@ public class PrefundRequest {
     @Size(min = 5, max = 50, message = "Bank transaction ID must be between 5 and 50 characters")
     private String bankTranId;
 
+    @Column(name = "admin_tran_id")
+    private String adminTranId;
+
     @Column(name = "deposit_date")
     private LocalDate depositDate;
 

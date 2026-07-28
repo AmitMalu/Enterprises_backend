@@ -16,5 +16,8 @@ public class SubproductDto {
 
     private String title;
 
+    /*
+     * Database pg_code will be returned in this field.
+     */
     private String subproduct;
 }

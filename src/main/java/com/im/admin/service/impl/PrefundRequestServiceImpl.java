@@ -6,7 +6,6 @@ import com.im.admin.entities.*;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
-import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.*;
 import com.im.admin.response.CommonResponse;
@@ -33,9 +32,7 @@ import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Validated
@@ -89,6 +86,9 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
     @Autowired
     private AccessHierarchyNodeRepository accessHierarchyNodeRepository;
+
+    @Autowired
+    private SubProductsServiceImpl subProductsServiceImpl;
 
     @Override
     public CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile, RequestHeaderMetaDto requestHeaderMetaDtoMeta) throws IOException {
@@ -379,6 +379,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                         .bankAccountName(p.getBankAccountName())
                         .bankAccountNumber(p.getBankAccountNumber())
                         .bankTranId(p.getBankTranId())
+                        .adminTxnId(p.getAdminTranId())
                         .narration(p.getNarration())
                         .paymentMode(p.getPaymentMode())
                         .ipAddress(p.getIpAddress())
@@ -431,12 +432,6 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
             return new CommonResponse<>(400, "Fund Request already processed", null);
         }
 
-        Status newStatus = actionDto.getStatus();
-        fundRequest.setStatus(newStatus);
-        fundRequest.setRemarks(actionDto.getRemarks());
-        fundRequest.setApproveOrRejectDate(date);
-        fundRequest.setApproveOrRejectTime(time);
-
         // ================= UNIFIED RESOLUTION =================
 
         SubProducts subProduct = fundRequest.getSubProducts();
@@ -447,6 +442,18 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
 
         log.info("Resolved from DB | productId={}, subProductId={}, schemeCode={}",
                 product.getId(), subProduct.getId(), schemeCode);
+
+        // =========================================================
+        // VALIDATE SUBPRODUCT VISIBILITY
+        // =========================================================
+        if (!subProductsServiceImpl.isSubProductVisible(subProduct.getId()))
+        {
+            throw new IllegalArgumentException(
+                    "Selected sub product is currently not visible."
+            );
+        }
+
+        log.info("Subproduct is visible and available for wallet transfer. subProductId={}", subProduct.getId());
 
         // ================= SCHEME RATE =================
 
@@ -468,8 +475,17 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                         .vendorName("Internal Product")
                         .build();
 
+        Status newStatus = actionDto.getStatus();
+        fundRequest.setStatus(newStatus);
+        fundRequest.setRemarks(actionDto.getRemarks());
+        fundRequest.setApproveOrRejectDate(date);
+        fundRequest.setApproveOrRejectTime(time);
+        fundRequest.setAdminTranId("FLD" + baseTransactionId);
+
         // ================= WALLET FLOW =================
         if (newStatus == Status.APPROVED) {
+
+            fundRequest.setAdminTranId("TXN" + baseTransactionId);
 
             String requesterId = fundRequest.getRequestedBy();
             String approverId = actionDto.getApproveOrRejectHierarchyId();
@@ -502,6 +518,8 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                     "Credit", baseTransactionId, "SUCCESS", "CREDIT",
                     "Fund Transfer from " + approverId, subProduct.getSubProductTitle(), scheme.getSchemeName(), fundRequest.getBankTransferTo());
         }
+
+
 
         repository.save(fundRequest);
 
