@@ -3451,12 +3451,12 @@ private void distributeToHierarchyChain(
                                         baseTxnId,
                                         walletType
                                 );
-                        log.debug("Found {} related transactions for failed debit: {}",
+                        log.info("Found {} related transactions for failed debit: {}",
                                 relatedTxns.size(), baseTxnId);
 
                         // Handle All Related Transactions
                         for (AbstractRetailerTransactionDetails relatedTxn : relatedTxns) {
-                            log.debug("Handling failed transaction: {}", relatedTxn.getTransactionId());
+                            log.info("Handling failed transaction: {}", relatedTxn.getTransactionId());
                             handleFailedTransaction(
                                     hierarchyType,
                                     walletType,
@@ -3685,21 +3685,26 @@ private void distributeToHierarchyChain(
 
     private List<AbstractRetailerTransactionDetails> getRelatedTransactions(String baseTxnId, String walletType) {
 
-        if ("PREPAID".equalsIgnoreCase(walletType)) {     
+        long startTime = System.currentTimeMillis();
 
-            return retailerPrepaidTransactionDetailsRepository
-                    .findByBaseTransactionId(baseTxnId)
-                    .stream()
+        try {
+            List<? extends AbstractRetailerTransactionDetails> transactions =
+                    "PREPAID".equalsIgnoreCase(walletType)
+                            ? retailerPrepaidTransactionDetailsRepository.findByBaseTransactionId(baseTxnId)
+                            : retailerPostpaidTransactionDetailsRepository.findByBaseTransactionId(baseTxnId);
+
+            List<AbstractRetailerTransactionDetails> result = transactions.stream()
                     .map(t -> (AbstractRetailerTransactionDetails) t)
                     .toList();
 
-        } else {
+            log.info("Fetched {} {} transactions | baseTxnId={} | {}ms",
+                    result.size(), walletType, baseTxnId, System.currentTimeMillis() - startTime);
 
-            return retailerPostpaidTransactionDetailsRepository
-                    .findByBaseTransactionId(baseTxnId)
-                    .stream()
-                    .map(t -> (AbstractRetailerTransactionDetails) t)
-                    .toList();
+            return result;
+
+        } catch (Exception e) {
+            log.error("Failed to fetch {} transactions | baseTxnId={}", walletType, baseTxnId, e);
+            throw e;
         }
     }
 
