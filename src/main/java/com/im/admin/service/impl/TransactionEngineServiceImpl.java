@@ -3343,7 +3343,7 @@ private void distributeToHierarchyChain(
 
                         List<AbstractRetailerTransactionDetails> relatedTxns =
                                 getRelatedTransactions(
-                                        baseTxnId,
+                                        fullTxnId,
                                         walletType
                                 );
                         log.debug("Found {} related transactions for baseTxnId: {}",
@@ -3448,7 +3448,7 @@ private void distributeToHierarchyChain(
                         log.info("Processing DEBIT FAILED for: {}", fullTxnId);
                         List<AbstractRetailerTransactionDetails> relatedTxns =
                                 getRelatedTransactions(
-                                        baseTxnId,
+                                        fullTxnId,
                                         walletType
                                 );
                         log.info("Found {} related transactions for failed debit: {}",
