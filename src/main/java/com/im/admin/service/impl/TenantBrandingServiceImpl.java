@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -468,6 +471,34 @@ public class TenantBrandingServiceImpl implements TenantBrandingService {
 
         file.transferTo(filePath.toFile());
 
+        // Set permissions
+        try {
+            Files.setPosixFilePermissions(
+                    tenantFolder,
+                    PosixFilePermissions.fromString("rwxr-xr-x") // 755
+            );
+
+            Files.setPosixFilePermissions(
+                    filePath,
+                    PosixFilePermissions.fromString("rw-r--r--") // 644
+            );
+        } catch (UnsupportedOperationException e) {
+        }
+
         return fileName;
+    }
+
+    @Override
+    public Page<TenantBranding> findAll(Pageable pageable) {
+        return repository.findAll(pageable);
+    }
+
+    @Override
+    public TenantBranding findById(String whiteLabelId) {
+        return repository.findByWhiteLabelId(whiteLabelId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Tenant branding not found for whiteLabelId : "
+                                        + whiteLabelId));
     }
 }

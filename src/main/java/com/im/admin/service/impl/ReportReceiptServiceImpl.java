@@ -30,6 +30,9 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
     private SubProductsRepository subProductsRepository;
 
     @Autowired
+    private PrefundRequestRepository prefundRequestRepository;
+
+    @Autowired
     private DmtTransactionRepository dmtTransactionRepository;
 
     @Autowired
@@ -691,6 +694,10 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
 
             String paymentMode = txn.getOperatorName();
 
+            PrefundRequest fundRequest = prefundRequestRepository
+                    .findByAdminTranId(request.getTxnId())
+                    .orElse(null);
+
             return BalanceTransferReceiptResponseDto.builder()
                     .dateTime(
                             txn.getDateOfTransaction() != null &&
@@ -706,6 +713,32 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                     .remarks(txn.getRemarks())
                     .status(txn.getTranStatus())
                     .paymentMode(paymentMode)
+
+                    .requestDate(
+                            fundRequest != null && fundRequest.getCreateDateTime() != null
+                                    ? fundRequest.getCreateDateTime().toString()
+                                    : null
+                    )
+                    .depositDate(
+                            fundRequest != null && fundRequest.getDepositDate() != null
+                                    ? fundRequest.getDepositDate().toString()
+                                    : null
+                    )
+                    .approveOrRejectDate(
+                            fundRequest != null && fundRequest.getApproveOrRejectDate() != null
+                                    ? fundRequest.getApproveOrRejectDate().toString()
+                                    : null
+                    )
+                    .bankAccountName(
+                            fundRequest != null
+                                    ? fundRequest.getBankAccountName()
+                                    : null
+                    )
+                    .bankAccountNumber(
+                            fundRequest != null
+                                    ? fundRequest.getBankAccountNumber()
+                                    : null
+                    )
                     .build();
         }
 

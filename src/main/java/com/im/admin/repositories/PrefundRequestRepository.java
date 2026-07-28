@@ -23,4 +23,6 @@ public interface PrefundRequestRepository extends JpaRepository<PrefundRequest, 
             @Param("amount") double amount,
             @Param("thresholdTime") LocalDateTime thresholdTime);
 
+    Optional<PrefundRequest> findByAdminTranId(String adminTranId);
+
 }
