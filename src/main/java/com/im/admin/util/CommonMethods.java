@@ -941,155 +941,293 @@ public class CommonMethods {
         return null;
     }
 
-    public AbstractWalletAmountTable getWalletByType(String walletType, String hierarchyId) {
+//    public AbstractWalletAmountTable getWalletByType(String walletType, String hierarchyId) {
+//
+//        log.debug("Resolving wallet | hierarchyId={} | walletType={}",hierarchyId, walletType);
+//
+//        if (hierarchyId == null || hierarchyId.isBlank()) {
+//            throw new IllegalArgumentException("Hierarchy ID is required for wallet resolution.");
+//        }
+//
+//        if (walletType == null || walletType.isBlank()) {
+//            throw new IllegalArgumentException("Wallet type is required for wallet resolution.");
+//        }
+//
+//        String normalizedHierarchyId = hierarchyId.trim();
+//
+//        String normalizedWalletType = walletType.trim().toUpperCase();
+//
+//        String hierarchyType = extractHierarchyType(normalizedHierarchyId);
+//
+//        if (hierarchyType == null || hierarchyType.isBlank()) {
+//            throw new IllegalArgumentException("Unable to identify hierarchy type for: " + normalizedHierarchyId);
+//        }
+//
+//        hierarchyType = hierarchyType.trim().toUpperCase();
+//
+//        String resolvedHierarchyId = normalizedHierarchyId;
+//
+//        String resolvedHierarchyType = hierarchyType;
+//
+//        /*
+//         * AU and WLAU are user accounts.
+//         * They do not have separate wallets.
+//         *
+//         * AU   -> parent AD wallet
+//         * WLAU -> parent WL wallet
+//         */
+//        switch (hierarchyType) {
+//
+//            case "AU" -> {
+//
+//                log.debug(
+//                        "AdminUser detected. Resolving parent Admin wallet | adminUserId={}",
+//                        normalizedHierarchyId
+//                );
+//
+//                AdminUser adminUser =
+//                        adminUserRepository
+//                                .findById(normalizedHierarchyId)
+//                                .orElseThrow(() ->
+//                                        new IllegalArgumentException(
+//                                                "AdminUser not found with ID: "
+//                                                        + normalizedHierarchyId
+//                                        )
+//                                );
+//
+//                String parentAdminId = adminUser.getParentAccount();
+//
+//                if (parentAdminId == null || parentAdminId.isBlank()) {
+//
+//                    throw new IllegalStateException(
+//                            "Parent Admin is not mapped for AdminUser: "
+//                                    + normalizedHierarchyId
+//                    );
+//                }
+//
+//                resolvedHierarchyId = parentAdminId.trim();
+//
+//                resolvedHierarchyType = "AD";
+//
+//                log.debug(
+//                        "AdminUser resolved to parent Admin wallet | adminUserId={} | adminId={}",
+//                        normalizedHierarchyId, resolvedHierarchyId
+//                );
+//            }
+//
+//            case "WLAU" -> {
+//
+//                log.debug("WhiteLabelUser detected. Resolving parent WhiteLabel wallet | whiteLabelUserId={}", normalizedHierarchyId);
+//
+//                WhiteLabelUser whiteLabelUser =
+//                        whiteLabelUserRepository
+//                                .findById(normalizedHierarchyId)
+//                                .orElseThrow(() ->
+//                                        new IllegalArgumentException(
+//                                                "WhiteLabelUser not found with ID: "
+//                                                        + normalizedHierarchyId
+//                                        )
+//                                );
+//
+//                String parentWhiteLabelId = whiteLabelUser.getParentAccount();
+//
+//                if (parentWhiteLabelId == null || parentWhiteLabelId.isBlank()) {
+//
+//                    throw new IllegalStateException(
+//                            "Parent WhiteLabel is not mapped for WhiteLabelUser: "
+//                                    + normalizedHierarchyId
+//                    );
+//                }
+//
+//                resolvedHierarchyId = parentWhiteLabelId.trim();
+//
+//                resolvedHierarchyType = "WL";
+//
+//                log.debug(
+//                        "WhiteLabelUser resolved to parent WhiteLabel wallet | " +
+//                                "whiteLabelUserId={} | whiteLabelId={}",
+//                        normalizedHierarchyId, resolvedHierarchyId
+//                );
+//            }
+//
+//            default -> log.debug(
+//                    "Direct wallet hierarchy detected | hierarchyId={} | hierarchyType={}",
+//                    normalizedHierarchyId,
+//                    hierarchyType
+//            );
+//        }
+//
+//        log.debug(
+//                "Final wallet resolution | originalHierarchyId={} | " +
+//                        "originalHierarchyType={} | resolvedHierarchyId={} | " +
+//                        "resolvedHierarchyType={} | walletType={}",
+//                normalizedHierarchyId, hierarchyType, resolvedHierarchyId, resolvedHierarchyType, normalizedWalletType
+//        );
+//
+//        AbstractWalletAmountTable wallet =
+//                switch (resolvedHierarchyType) {
+//
+//                    case "RT" -> getRetailerWallet(normalizedWalletType, resolvedHierarchyId);
+//
+//                    case "DT" -> getDistributorWallet(normalizedWalletType, resolvedHierarchyId);
+//
+//                    case "PT" -> getPartnerWallet(normalizedWalletType, resolvedHierarchyId);
+//
+//                    case "SD" -> getSuperDistributorWallet(normalizedWalletType,resolvedHierarchyId);
+//
+//                    case "WL" -> getWhiteLabelWallet(normalizedWalletType, resolvedHierarchyId);
+//
+//                    case "ET" -> getEnterprisesWallet(normalizedWalletType, resolvedHierarchyId);
+//
+//                    case "AD", "IM" -> getAdminWallet(normalizedWalletType, resolvedHierarchyId);
+//
+//                    default -> {
+//
+//                        log.warn(
+//                                "Unsupported hierarchy type for wallet resolution | " +
+//                                        "hierarchyId={} | hierarchyType={}",
+//                                resolvedHierarchyId, resolvedHierarchyType
+//                        );
+//
+//                        throw new IllegalArgumentException("Unsupported hierarchy type for wallet resolution: " + resolvedHierarchyType);
+//                    }
+//                };
+//
+//        if (wallet == null) {
+//
+//            log.error(
+//                    "Wallet resolution returned null | hierarchyId={} | hierarchyType={} | walletType={}",
+//                    resolvedHierarchyId, resolvedHierarchyType, normalizedWalletType
+//            );
+//
+//            throw new IllegalStateException(
+//                    "Wallet is not configured for hierarchy ID: "
+//                            + resolvedHierarchyId
+//                            + ", hierarchy type: "
+//                            + resolvedHierarchyType
+//                            + ", wallet type: "
+//                            + normalizedWalletType
+//            );
+//        }
+//
+//        log.info(
+//                "Wallet resolved successfully | requestedHierarchyId={} | " +
+//                        "resolvedHierarchyId={} | resolvedHierarchyType={} | walletType={}",
+//                normalizedHierarchyId, resolvedHierarchyId, resolvedHierarchyType, normalizedWalletType
+//        );
+//
+//        return wallet;
+//    }
 
-        log.debug("Resolving wallet | hierarchyId={} | walletType={}",hierarchyId, walletType);
+    public AbstractWalletAmountTable getWalletByType(
+            String walletType,
+            String hierarchyId
+    ) {
+
+        log.debug(
+                "Resolving wallet | hierarchyId={} | walletType={}",
+                hierarchyId,
+                walletType
+        );
 
         if (hierarchyId == null || hierarchyId.isBlank()) {
-            throw new IllegalArgumentException("Hierarchy ID is required for wallet resolution.");
-        }
-
-        if (walletType == null || walletType.isBlank()) {
-            throw new IllegalArgumentException("Wallet type is required for wallet resolution.");
-        }
-
-        String normalizedHierarchyId = hierarchyId.trim();
-
-        String normalizedWalletType = walletType.trim().toUpperCase();
-
-        String hierarchyType = extractHierarchyType(normalizedHierarchyId);
-
-        if (hierarchyType == null || hierarchyType.isBlank()) {
-            throw new IllegalArgumentException("Unable to identify hierarchy type for: " + normalizedHierarchyId);
-        }
-
-        hierarchyType = hierarchyType.trim().toUpperCase();
-
-        String resolvedHierarchyId = normalizedHierarchyId;
-
-        String resolvedHierarchyType = hierarchyType;
-
-        /*
-         * AU and WLAU are user accounts.
-         * They do not have separate wallets.
-         *
-         * AU   -> parent AD wallet
-         * WLAU -> parent WL wallet
-         */
-        switch (hierarchyType) {
-
-            case "AU" -> {
-
-                log.debug(
-                        "AdminUser detected. Resolving parent Admin wallet | adminUserId={}",
-                        normalizedHierarchyId
-                );
-
-                AdminUser adminUser =
-                        adminUserRepository
-                                .findById(normalizedHierarchyId)
-                                .orElseThrow(() ->
-                                        new IllegalArgumentException(
-                                                "AdminUser not found with ID: "
-                                                        + normalizedHierarchyId
-                                        )
-                                );
-
-                String parentAdminId = adminUser.getParentAccount();
-
-                if (parentAdminId == null || parentAdminId.isBlank()) {
-
-                    throw new IllegalStateException(
-                            "Parent Admin is not mapped for AdminUser: "
-                                    + normalizedHierarchyId
-                    );
-                }
-
-                resolvedHierarchyId = parentAdminId.trim();
-
-                resolvedHierarchyType = "AD";
-
-                log.debug(
-                        "AdminUser resolved to parent Admin wallet | adminUserId={} | adminId={}",
-                        normalizedHierarchyId, resolvedHierarchyId
-                );
-            }
-
-            case "WLAU" -> {
-
-                log.debug("WhiteLabelUser detected. Resolving parent WhiteLabel wallet | whiteLabelUserId={}", normalizedHierarchyId);
-
-                WhiteLabelUser whiteLabelUser =
-                        whiteLabelUserRepository
-                                .findById(normalizedHierarchyId)
-                                .orElseThrow(() ->
-                                        new IllegalArgumentException(
-                                                "WhiteLabelUser not found with ID: "
-                                                        + normalizedHierarchyId
-                                        )
-                                );
-
-                String parentWhiteLabelId = whiteLabelUser.getParentAccount();
-
-                if (parentWhiteLabelId == null || parentWhiteLabelId.isBlank()) {
-
-                    throw new IllegalStateException(
-                            "Parent WhiteLabel is not mapped for WhiteLabelUser: "
-                                    + normalizedHierarchyId
-                    );
-                }
-
-                resolvedHierarchyId = parentWhiteLabelId.trim();
-
-                resolvedHierarchyType = "WL";
-
-                log.debug(
-                        "WhiteLabelUser resolved to parent WhiteLabel wallet | " +
-                                "whiteLabelUserId={} | whiteLabelId={}",
-                        normalizedHierarchyId, resolvedHierarchyId
-                );
-            }
-
-            default -> log.debug(
-                    "Direct wallet hierarchy detected | hierarchyId={} | hierarchyType={}",
-                    normalizedHierarchyId,
-                    hierarchyType
+            throw new IllegalArgumentException(
+                    "Hierarchy ID is required for wallet resolution."
             );
         }
 
+        if (walletType == null || walletType.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Wallet type is required for wallet resolution."
+            );
+        }
+
+        String normalizedWalletType =
+                walletType.trim().toUpperCase();
+
+        /*
+         * Important:
+         *
+         * AU   is resolved to its parent AD.
+         * WLAU is resolved to its parent WL.
+         *
+         * Other hierarchy types remain unchanged.
+         */
+        ResolvedHierarchy resolvedHierarchy =
+                resolveActualWalletHierarchy(hierarchyId);
+
+        String resolvedHierarchyId =
+                resolvedHierarchy.hierarchyId();
+
+        String resolvedHierarchyType =
+                resolvedHierarchy.hierarchyType();
+
         log.debug(
-                "Final wallet resolution | originalHierarchyId={} | " +
-                        "originalHierarchyType={} | resolvedHierarchyId={} | " +
-                        "resolvedHierarchyType={} | walletType={}",
-                normalizedHierarchyId, hierarchyType, resolvedHierarchyId, resolvedHierarchyType, normalizedWalletType
+                "Final wallet resolution | requestedHierarchyId={} | resolvedHierarchyId={} | resolvedHierarchyType={} | walletType={}",
+                hierarchyId,
+                resolvedHierarchyId,
+                resolvedHierarchyType,
+                normalizedWalletType
         );
 
         AbstractWalletAmountTable wallet =
                 switch (resolvedHierarchyType) {
 
-                    case "RT" -> getRetailerWallet(normalizedWalletType, resolvedHierarchyId);
+                    case "RT" ->
+                            getRetailerWallet(
+                                    normalizedWalletType,
+                                    resolvedHierarchyId
+                            );
 
-                    case "DT" -> getDistributorWallet(normalizedWalletType, resolvedHierarchyId);
+                    case "DT" ->
+                            getDistributorWallet(
+                                    normalizedWalletType,
+                                    resolvedHierarchyId
+                            );
 
-                    case "PT" -> getPartnerWallet(normalizedWalletType, resolvedHierarchyId);
+                    case "PT" ->
+                            getPartnerWallet(
+                                    normalizedWalletType,
+                                    resolvedHierarchyId
+                            );
 
-                    case "SD" -> getSuperDistributorWallet(normalizedWalletType,resolvedHierarchyId);
+                    case "SD" ->
+                            getSuperDistributorWallet(
+                                    normalizedWalletType,
+                                    resolvedHierarchyId
+                            );
 
-                    case "WL" -> getWhiteLabelWallet(normalizedWalletType, resolvedHierarchyId);
+                    case "WL" ->
+                            getWhiteLabelWallet(
+                                    normalizedWalletType,
+                                    resolvedHierarchyId
+                            );
 
-                    case "ET" -> getEnterprisesWallet(normalizedWalletType, resolvedHierarchyId);
+                    case "ET" ->
+                            getEnterprisesWallet(
+                                    normalizedWalletType,
+                                    resolvedHierarchyId
+                            );
 
-                    case "AD", "IM" -> getAdminWallet(normalizedWalletType, resolvedHierarchyId);
+                    case "AD", "IM" ->
+                            getAdminWallet(
+                                    normalizedWalletType,
+                                    resolvedHierarchyId
+                            );
 
                     default -> {
 
-                        log.warn(
-                                "Unsupported hierarchy type for wallet resolution | " +
-                                        "hierarchyId={} | hierarchyType={}",
-                                resolvedHierarchyId, resolvedHierarchyType
+                        log.error(
+                                "Unsupported hierarchy type for wallet resolution | hierarchyId={} | hierarchyType={} | walletType={}",
+                                resolvedHierarchyId,
+                                resolvedHierarchyType,
+                                normalizedWalletType
                         );
 
-                        throw new IllegalArgumentException("Unsupported hierarchy type for wallet resolution: " + resolvedHierarchyType);
+                        throw new IllegalArgumentException(
+                                "Unsupported hierarchy type for wallet resolution: "
+                                        + resolvedHierarchyType
+                        );
                     }
                 };
 
@@ -1097,7 +1235,9 @@ public class CommonMethods {
 
             log.error(
                     "Wallet resolution returned null | hierarchyId={} | hierarchyType={} | walletType={}",
-                    resolvedHierarchyId, resolvedHierarchyType, normalizedWalletType
+                    resolvedHierarchyId,
+                    resolvedHierarchyType,
+                    normalizedWalletType
             );
 
             throw new IllegalStateException(
@@ -1111,9 +1251,11 @@ public class CommonMethods {
         }
 
         log.info(
-                "Wallet resolved successfully | requestedHierarchyId={} | " +
-                        "resolvedHierarchyId={} | resolvedHierarchyType={} | walletType={}",
-                normalizedHierarchyId, resolvedHierarchyId, resolvedHierarchyType, normalizedWalletType
+                "Wallet resolved successfully | requestedHierarchyId={} | resolvedHierarchyId={} | resolvedHierarchyType={} | walletType={}",
+                hierarchyId,
+                resolvedHierarchyId,
+                resolvedHierarchyType,
+                normalizedWalletType
         );
 
         return wallet;
@@ -2215,4 +2357,141 @@ public class CommonMethods {
         };
     }
 
+    public ResolvedHierarchy resolveActualWalletHierarchy(
+            String hierarchyId
+    ) {
+
+        if (hierarchyId == null || hierarchyId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Hierarchy ID is required for hierarchy resolution."
+            );
+        }
+
+        String normalizedHierarchyId =
+                hierarchyId.trim();
+
+        String hierarchyType =
+                extractHierarchyType(normalizedHierarchyId);
+
+        if (hierarchyType == null || hierarchyType.isBlank()) {
+
+            log.error(
+                    "Unable to extract hierarchy type | hierarchyId={}",
+                    normalizedHierarchyId
+            );
+
+            throw new IllegalArgumentException(
+                    "Unable to identify hierarchy type for: "
+                            + normalizedHierarchyId
+            );
+        }
+
+        String normalizedHierarchyType =
+                hierarchyType.trim().toUpperCase();
+
+        log.debug(
+                "Resolving actual wallet hierarchy | hierarchyId={} | hierarchyType={}",
+                normalizedHierarchyId,
+                normalizedHierarchyType
+        );
+
+        switch (normalizedHierarchyType) {
+
+            case "AU" -> {
+
+                AdminUser adminUser =
+                        adminUserRepository
+                                .findById(normalizedHierarchyId)
+                                .orElseThrow(() ->
+                                        new IllegalArgumentException(
+                                                "AdminUser not found with ID: "
+                                                        + normalizedHierarchyId
+                                        )
+                                );
+
+                String parentAdminId =
+                        adminUser.getParentAccount();
+
+                if (parentAdminId == null
+                        || parentAdminId.isBlank()) {
+
+                    log.error(
+                            "Parent Admin is not mapped | adminUserId={}",
+                            normalizedHierarchyId
+                    );
+
+                    throw new IllegalStateException(
+                            "Parent Admin is not mapped for AdminUser: "
+                                    + normalizedHierarchyId
+                    );
+                }
+
+                String resolvedAdminId =
+                        parentAdminId.trim();
+
+                log.info(
+                        "AdminUser resolved to parent Admin | adminUserId={} | adminId={}",
+                        normalizedHierarchyId,
+                        resolvedAdminId
+                );
+
+                return new ResolvedHierarchy(
+                        resolvedAdminId,
+                        "AD"
+                );
+            }
+
+            case "WLAU" -> {
+
+                WhiteLabelUser whiteLabelUser =
+                        whiteLabelUserRepository
+                                .findById(normalizedHierarchyId)
+                                .orElseThrow(() ->
+                                        new IllegalArgumentException(
+                                                "WhiteLabelUser not found with ID: "
+                                                        + normalizedHierarchyId
+                                        )
+                                );
+
+                String parentWhiteLabelId =
+                        whiteLabelUser.getParentAccount();
+
+                if (parentWhiteLabelId == null
+                        || parentWhiteLabelId.isBlank()) {
+
+                    log.error(
+                            "Parent WhiteLabel is not mapped | whiteLabelUserId={}",
+                            normalizedHierarchyId
+                    );
+
+                    throw new IllegalStateException(
+                            "Parent WhiteLabel is not mapped for WhiteLabelUser: "
+                                    + normalizedHierarchyId
+                    );
+                }
+
+                String resolvedWhiteLabelId =
+                        parentWhiteLabelId.trim();
+
+                log.info(
+                        "WhiteLabelUser resolved to parent WhiteLabel | whiteLabelUserId={} | whiteLabelId={}",
+                        normalizedHierarchyId,
+                        resolvedWhiteLabelId
+                );
+
+                return new ResolvedHierarchy(
+                        resolvedWhiteLabelId,
+                        "WL"
+                );
+            }
+
+            default -> {
+
+                return new ResolvedHierarchy(
+                        normalizedHierarchyId,
+                        normalizedHierarchyType
+                );
+            }
+        }
+    }
 }
