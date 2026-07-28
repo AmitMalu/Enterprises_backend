@@ -3788,7 +3788,7 @@ private void distributeToHierarchyChain(
             tran_status = ?,
             updated_date = ?,
             updated_time = ?,
-            original_transaction_id = ?,
+            transaction_id = ?,
             bal_before_tran = ?,
             bal_after_tran = ?,
             final_balance = ?
