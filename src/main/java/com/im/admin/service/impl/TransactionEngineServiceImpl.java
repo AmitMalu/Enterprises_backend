@@ -3786,8 +3786,8 @@ private void distributeToHierarchyChain(
         UPDATE %s
         SET
             tran_status = ?,
-            updated_date = ?,
-            updated_time = ?,
+            updated_date_of_transaction = ?,
+            updated_time_of_transaction = ?,
             transaction_id = ?,
             bal_before_tran = ?,
             bal_after_tran = ?,
