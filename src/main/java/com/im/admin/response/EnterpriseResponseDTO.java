@@ -2,6 +2,7 @@ package com.im.admin.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.im.admin.dto.BankDetailsDTO;
 import com.im.admin.entities.Address;
 import lombok.Data;
 
@@ -79,6 +80,8 @@ public class EnterpriseResponseDTO {
     private String panCardImage;
     private String shopImage;
     private String businessProofImage;
+
+    private BankDetailsDTO bankDetails;
 
 
 }

@@ -687,59 +687,48 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                     .paymentMode(paymentMode)
                     .build();
         }
-
         // ======================= Fund Request ============================
-        if (productName != null &&
-                productName.trim().equalsIgnoreCase("Fund Request")) {
-
-            String paymentMode = txn.getOperatorName();
-
+        if (request.getId() != null) {
             PrefundRequest fundRequest = prefundRequestRepository
-                    .findByAdminTranId(request.getTxnId())
-                    .orElse(null);
+                    .findById(request.getId())
+                    .orElseThrow(() -> new RuntimeException("Fund Request not found"));
 
-            return BalanceTransferReceiptResponseDto.builder()
-                    .dateTime(
-                            txn.getDateOfTransaction() != null &&
-                                    txn.getTimeOfTransaction() != null
-                                    ? LocalDateTime.of(
-                                    txn.getDateOfTransaction(),
-                                    txn.getTimeOfTransaction()
-                            ).toString()
-                                    : null
-                    )
-                    .txnId(request.getTxnId())
-                    .amount(txn.getAmount())
-                    .remarks(txn.getRemarks())
-                    .status(txn.getTranStatus())
-                    .paymentMode(paymentMode)
+            productName = fundRequest.getSubProducts()
+                    .getProduct()
+                    .getName();
 
-                    .requestDate(
-                            fundRequest != null && fundRequest.getCreateDateTime() != null
-                                    ? fundRequest.getCreateDateTime().toString()
-                                    : null
-                    )
-                    .depositDate(
-                            fundRequest != null && fundRequest.getDepositDate() != null
-                                    ? fundRequest.getDepositDate().toString()
-                                    : null
-                    )
-                    .approveOrRejectDate(
-                            fundRequest != null && fundRequest.getApproveOrRejectDate() != null
-                                    ? fundRequest.getApproveOrRejectDate().toString()
-                                    : null
-                    )
-                    .bankAccountName(
-                            fundRequest != null
-                                    ? fundRequest.getBankAccountName()
-                                    : null
-                    )
-                    .bankAccountNumber(
-                            fundRequest != null
-                                    ? fundRequest.getBankAccountNumber()
-                                    : null
-                    )
-                    .build();
+            if ("Fund Request".equalsIgnoreCase(productName)) {
+
+                return BalanceTransferReceiptResponseDto.builder()
+                        .dateTime(
+                                fundRequest.getCreateDateTime() != null
+                                        ? fundRequest.getCreateDateTime().toString()
+                                        : null
+                        )
+                        .txnId(fundRequest.getAdminTranId())
+                        .amount(BigDecimal.valueOf(fundRequest.getDepositAmount()))
+                        .remarks(fundRequest.getRemarks())
+                        .status(fundRequest.getStatus().name())
+                        .paymentMode(fundRequest.getPaymentMode())
+                        .requestDate(
+                                fundRequest.getCreateDateTime() != null
+                                        ? fundRequest.getCreateDateTime().toString()
+                                        : null
+                        )
+                        .depositDate(
+                                fundRequest.getDepositDate() != null
+                                        ? fundRequest.getDepositDate().toString()
+                                        : null
+                        )
+                        .approveOrRejectDate(
+                                fundRequest.getApproveOrRejectDate() != null
+                                        ? fundRequest.getApproveOrRejectDate().toString()
+                                        : null
+                        )
+                        .bankAccountName(fundRequest.getBankAccountName())
+                        .bankAccountNumber(fundRequest.getBankAccountNumber())
+                        .build();
+            }
         }
 
         throw new RuntimeException("Unsupported Product");

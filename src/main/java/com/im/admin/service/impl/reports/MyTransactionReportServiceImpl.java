@@ -92,8 +92,12 @@ public class MyTransactionReportServiceImpl implements MyTransactionReportServic
 
         log.info("Resolved loggedInHierarchyId={}", loggedInHierarchyId);
 
+        String hierarchyType = commonMethods.extractHierarchyType(loggedInHierarchyId);
+
         // For WLAU: use parent WL's hierarchy ID so they see same data as WL
-        if ("WLAU".equalsIgnoreCase(commonMethods.extractHierarchyType(loggedInHierarchyId))) {
+//        if ("WLAU".equalsIgnoreCase(commonMethods.extractHierarchyType(loggedInHierarchyId))) {
+        if ("WLAU".equalsIgnoreCase(hierarchyType)
+                || "AU".equalsIgnoreCase(hierarchyType)) {
 
             log.info("Hierarchy type is WLAU. Fetching parent WL hierarchy for {}", loggedInHierarchyId);
 

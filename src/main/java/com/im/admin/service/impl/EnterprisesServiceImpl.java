@@ -3,6 +3,7 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
+import com.im.admin.dto.BankDetailsDTO;
 import com.im.admin.dto.FieldErrorDetailsDTO;
 import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
@@ -11,6 +12,7 @@ import com.im.admin.repositories.BankDetailsRepository;
 import com.im.admin.repositories.EnterprisesPostpaidAmountRepository;
 import com.im.admin.repositories.EnterprisesPrepaidAmountRepository;
 import com.im.admin.repositories.EnterprisesRepository;
+import com.im.admin.repositories.NetworkBankMasterRepository;
 import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.response.EnterpriseResponseDTO;
 import com.im.admin.service.EnterprisesService;
@@ -79,6 +81,9 @@ public class EnterprisesServiceImpl implements EnterprisesService {
 
     @Autowired
     private HierarchyAccessService hierarchyAccessService;
+
+    @Autowired
+    private NetworkBankMasterRepository networkBankMasterRepository;
 
     @Transactional
     @Override
@@ -432,6 +437,35 @@ public class EnterprisesServiceImpl implements EnterprisesService {
         dto.setPanCardImage( fileUrlUtil.getFullUrl(enterprise.getPanCardImage()));
         dto.setShopImage( fileUrlUtil.getFullUrl(enterprise.getShopImage()));
         dto.setBusinessProofImage( fileUrlUtil.getFullUrl(enterprise.getBusinessProofImage()));
+
+        if (enterprise.getBankDetails() != null) {
+            BanksDetails bank = enterprise.getBankDetails();
+            BankDetailsDTO bankDto = new BankDetailsDTO();
+
+            String bankMasterIdValue = bank.getBankName();
+            if (bankMasterIdValue != null && !bankMasterIdValue.trim().isEmpty()) {
+                try {
+                    Long bankMasterId = Long.valueOf(bankMasterIdValue.trim());
+                    NetworkBankMaster networkBankMaster = networkBankMasterRepository.findById(bankMasterId).orElse(null);
+                    if (networkBankMaster != null) {
+                        bankDto.setBankName(networkBankMaster.getBankName());
+                    } else {
+                        bankDto.setBankName(bank.getBankName());
+                    }
+                } catch (NumberFormatException e) {
+                    bankDto.setBankName(bank.getBankName());
+                }
+            } else {
+                bankDto.setBankName(bank.getBankName());
+            }
+
+            bankDto.setBankAccountNumber(bank.getBankAccountNumber());
+            bankDto.setIfscCode(bank.getIfscCode());
+            bankDto.setBankHolderName(bank.getBankHolderName());
+            bankDto.setIsVerified(bank.getIsVerified());
+            dto.setBankDetails(bankDto);
+        }
+
         return dto;
     }
 

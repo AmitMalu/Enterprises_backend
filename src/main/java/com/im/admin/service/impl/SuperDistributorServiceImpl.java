@@ -9,6 +9,7 @@ import com.im.admin.entities.*;
 import com.im.admin.exception.CustomValidationException;
 import com.im.admin.properties.FileUrlUtil;
 import com.im.admin.repositories.BankDetailsRepository;
+import com.im.admin.repositories.NetworkBankMasterRepository;
 import com.im.admin.repositories.SuperDistributorPostpaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorPrepaidAmountRepository;
 import com.im.admin.repositories.SuperDistributorRepository;
@@ -82,6 +83,9 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
 
     @Autowired
     private HierarchyAccessService hierarchyAccessService;
+
+    @Autowired
+    private NetworkBankMasterRepository networkBankMasterRepository;
 
     @Transactional
     @Override
@@ -298,7 +302,24 @@ public class SuperDistributorServiceImpl implements SuperDistributorService {
         if (sd.getBankDetails() != null) {
             BanksDetails bank = sd.getBankDetails();
             BankDetailsDTO bankDto = new BankDetailsDTO();
-            bankDto.setBankName(bank.getBankName());
+
+            String bankMasterIdValue = bank.getBankName();
+            if (bankMasterIdValue != null && !bankMasterIdValue.trim().isEmpty()) {
+                try {
+                    Long bankMasterId = Long.valueOf(bankMasterIdValue.trim());
+                    NetworkBankMaster networkBankMaster = networkBankMasterRepository.findById(bankMasterId).orElse(null);
+                    if (networkBankMaster != null) {
+                        bankDto.setBankName(networkBankMaster.getBankName());
+                    } else {
+                        bankDto.setBankName(bank.getBankName());
+                    }
+                } catch (NumberFormatException e) {
+                    bankDto.setBankName(bank.getBankName());
+                }
+            } else {
+                bankDto.setBankName(bank.getBankName());
+            }
+
             bankDto.setBankAccountNumber(bank.getBankAccountNumber());
             bankDto.setIfscCode(bank.getIfscCode());
             bankDto.setBankHolderName(bank.getBankHolderName());
