@@ -3343,7 +3343,7 @@ private void distributeToHierarchyChain(
 
                         List<AbstractRetailerTransactionDetails> relatedTxns =
                                 getRelatedTransactions(
-                                        baseTxnId,
+                                        fullTxnId,
                                         walletType
                                 );
                         log.debug("Found {} related transactions for baseTxnId: {}",
@@ -3448,15 +3448,15 @@ private void distributeToHierarchyChain(
                         log.info("Processing DEBIT FAILED for: {}", fullTxnId);
                         List<AbstractRetailerTransactionDetails> relatedTxns =
                                 getRelatedTransactions(
-                                        baseTxnId,
+                                        fullTxnId,
                                         walletType
                                 );
-                        log.debug("Found {} related transactions for failed debit: {}",
+                        log.info("Found {} related transactions for failed debit: {}",
                                 relatedTxns.size(), baseTxnId);
 
                         // Handle All Related Transactions
                         for (AbstractRetailerTransactionDetails relatedTxn : relatedTxns) {
-                            log.debug("Handling failed transaction: {}", relatedTxn.getTransactionId());
+                            log.info("Handling failed transaction: {}", relatedTxn.getTransactionId());
                             handleFailedTransaction(
                                     hierarchyType,
                                     walletType,
@@ -3685,21 +3685,26 @@ private void distributeToHierarchyChain(
 
     private List<AbstractRetailerTransactionDetails> getRelatedTransactions(String baseTxnId, String walletType) {
 
-        if ("PREPAID".equalsIgnoreCase(walletType)) {     
+        long startTime = System.currentTimeMillis();
 
-            return retailerPrepaidTransactionDetailsRepository
-                    .findByBaseTransactionId(baseTxnId)
-                    .stream()
+        try {
+            List<? extends AbstractRetailerTransactionDetails> transactions =
+                    "PREPAID".equalsIgnoreCase(walletType)
+                            ? retailerPrepaidTransactionDetailsRepository.findByBaseTransactionId(baseTxnId)
+                            : retailerPostpaidTransactionDetailsRepository.findByBaseTransactionId(baseTxnId);
+
+            List<AbstractRetailerTransactionDetails> result = transactions.stream()
                     .map(t -> (AbstractRetailerTransactionDetails) t)
                     .toList();
 
-        } else {
+            log.info("Fetched {} {} transactions | baseTxnId={} | {}ms",
+                    result.size(), walletType, baseTxnId, System.currentTimeMillis() - startTime);
 
-            return retailerPostpaidTransactionDetailsRepository
-                    .findByBaseTransactionId(baseTxnId)
-                    .stream()
-                    .map(t -> (AbstractRetailerTransactionDetails) t)
-                    .toList();
+            return result;
+
+        } catch (Exception e) {
+            log.error("Failed to fetch {} transactions | baseTxnId={}", walletType, baseTxnId, e);
+            throw e;
         }
     }
 
@@ -3781,9 +3786,9 @@ private void distributeToHierarchyChain(
         UPDATE %s
         SET
             tran_status = ?,
-            updated_date = ?,
-            updated_time = ?,
-            original_transaction_id = ?,
+            updated_date_of_transaction = ?,
+            updated_time_of_transaction = ?,
+            transaction_id = ?,
             bal_before_tran = ?,
             bal_after_tran = ?,
             final_balance = ?
