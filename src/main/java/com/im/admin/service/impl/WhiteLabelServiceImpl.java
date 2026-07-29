@@ -160,6 +160,7 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
             whiteLabels.setPanCardImage(imageUtil.saveImage(panCardImage, "whiteLabel"));
             whiteLabels.setShopImage(imageUtil.saveImage(shopImage, "whiteLabel"));
             whiteLabels.setBusinessNumber( imageUtil.saveImage(businessProofImage, "whiteLabel"));
+            whiteLabels.setBusinessProofImage(imageUtil.saveImage(businessProofImage, "whiteLabel"));
 
             // Save Bank Details separately (Before whiteLabels save)
             if (whiteLabels.getBankDetails() != null) {
