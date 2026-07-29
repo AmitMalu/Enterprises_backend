@@ -47,6 +47,9 @@ public class PayoutPendingTransactions {
     private String beneficiaryName;
 
     @Column(nullable = false)
+    private String bankName;
+
+    @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "latitude")

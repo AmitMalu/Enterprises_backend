@@ -3311,8 +3311,7 @@ private void distributeToHierarchyChain(
                         handleFailedTransaction(
                                 hierarchyType,
                                 walletType,
-                                fullTxnId,
-                                "FAILED"
+                                fullTxnId
                         );
                         log.info("Failed transaction handled for: {}", fullTxnId);
                     }
@@ -3460,8 +3459,7 @@ private void distributeToHierarchyChain(
                             handleFailedTransaction(
                                     hierarchyType,
                                     walletType,
-                                    relatedTxn.getTransactionId(),
-                                    "FAILED"
+                                    relatedTxn.getTransactionId()
                             );
                         }
 
@@ -3729,12 +3727,11 @@ private void distributeToHierarchyChain(
     private void handleFailedTransaction(
             String hierarchyType,
             String walletType,
-            String transactionId,
-            String status
+            String transactionId
     ) {
 
         log.info("Handling failed transaction: {}, walletType: {}, status: {}",
-                transactionId, walletType, status);
+                transactionId, walletType, "FAILURE");
 
         // =========================================
         // FETCH TXN
@@ -3797,7 +3794,7 @@ private void distributeToHierarchyChain(
 
         int updated = jdbcTemplate.update(
                 sql,
-                status,
+                "FAILURE",
                 LocalDate.now(),
                 LocalTime.now(),
                 "REV" + transactionId,

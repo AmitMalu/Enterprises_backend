@@ -38,9 +38,22 @@ public class FundTransferServiceImpl implements FundTransferService {
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    private SubProductsServiceImpl subProductsServiceImpl;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FundTransferResponseDto transferFunds(FundTransferRequestDto requestDto) {
+
+        // VALIDATE SUB PRODUCT VISIBILITY
+        if (!subProductsServiceImpl.isSubProductVisible(requestDto.getSubProductId()))
+        {
+            throw new IllegalArgumentException(
+                    "Selected sub product is currently not visible."
+            );
+        }
+
+        log.info("SubProduct is visible and available for wallet transfer. subProductId={}", requestDto.getSubProductId());
 
         validateRequest(requestDto);
 
