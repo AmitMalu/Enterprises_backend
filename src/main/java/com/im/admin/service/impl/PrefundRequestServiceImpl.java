@@ -420,155 +420,533 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         );
     }
 
+//    @Transactional
+//    @Override
+//    public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto) {
+//
+//        String baseTransactionId = commonMethods.generateBaseTransactionId();
+//        LocalDate date = LocalDate.now();
+//        LocalTime time = LocalTime.now();
+//
+//        PrefundRequest fundRequest = repository.findById(actionDto.getFundRequestId())
+//                .orElseThrow(() -> new RuntimeException("Fund Request not found"));
+//
+//        if (fundRequest.getStatus() != Status.PENDING) {
+//            return new CommonResponse<>(400, "Fund Request already processed", null);
+//        }
+//
+//        // ================= UNIFIED RESOLUTION =================
+//
+//        SubProducts subProduct = fundRequest.getSubProducts();
+//        Scheme scheme = fundRequest.getScheme();
+//        Products product = subProduct.getProduct();
+//
+//        String schemeCode = scheme.getSchemeCode();
+//
+//        log.info("Resolved from DB | productId={}, subProductId={}, schemeCode={}",
+//                product.getId(), subProduct.getId(), schemeCode);
+//
+//        // =========================================================
+//        // VALIDATE SUBPRODUCT VISIBILITY
+//        // =========================================================
+//        if (!subProductsServiceImpl.isSubProductVisible(subProduct.getId()))
+//        {
+//            throw new IllegalArgumentException(
+//                    "Selected sub product is currently not visible."
+//            );
+//        }
+//
+//        log.info("Subproduct is visible and available for wallet transfer. subProductId={}", subProduct.getId());
+//
+//        // ================= SCHEME RATE =================
+//
+//        SchemeRate schemeRate = schemeRateRepository
+//                .findSchemeRateByCodeAndOperatorAndAmount(
+//                        schemeCode,
+//                        fundRequest.getBankTransferTo(),
+//                        fundRequest.getDepositAmount()
+//                )
+//                .orElseThrow(() -> new RuntimeException("SchemeRate not found"));
+//
+//        BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
+//
+//        TransactionDetailsInfoDto transactionDetailsInfo =
+//                TransactionDetailsInfoDto.builder()
+//                        .subProductCode(subProduct.getSubProductCode())
+//                        .schemeName("Prefund")
+//                        .operatorName(schemeRate.getOperatorName())
+//                        .vendorName("Internal Product")
+//                        .build();
+//
+//        Status newStatus = actionDto.getStatus();
+//        fundRequest.setStatus(newStatus);
+//        fundRequest.setRemarks(actionDto.getRemarks());
+//        fundRequest.setApproveOrRejectDate(date);
+//        fundRequest.setApproveOrRejectTime(time);
+//        fundRequest.setAdminTranId("FLD" + baseTransactionId);
+//
+//        // ================= WALLET FLOW =================
+//        if (newStatus == Status.APPROVED) {
+//
+//            fundRequest.setAdminTranId("TXN" + baseTransactionId);
+//
+//            String requesterId = fundRequest.getRequestedBy();
+//            String approverId = actionDto.getApproveOrRejectHierarchyId();
+//            WalletType walletType = WalletType.PREPAID;
+//            BigDecimal amount = BigDecimal.valueOf(fundRequest.getDepositAmount());
+//
+//            AbstractWalletAmountTable approverWallet =
+//                    commonMethods.getWalletByType(walletType.name(), approverId);
+//
+//            if (approverWallet.getAvailableBalance().compareTo(amount) < 0) {
+//                throw new RuntimeException("Insufficient balance in approver's wallet");
+//
+//            }
+//
+//            updateWallet(approverWallet, approverId, walletType, amount,
+//                    "Debit", baseTransactionId, "SUCCESS", "DEBIT",
+//                    "Fund Transfer to " + requesterId, subProduct.getSubProductTitle(), scheme.getSchemeName(), fundRequest.getBankTransferTo());
+//
+//            String requesterType = commonMethods.extractHierarchyType(requesterId);
+//            String parentHierarchyId = requesterId;
+//
+//            if ("RU".equalsIgnoreCase(requesterType)) {
+//                parentHierarchyId = getParentRetailerId(requesterId);
+//            }
+//
+//            AbstractWalletAmountTable requesterWallet =
+//                    commonMethods.getWalletByType(walletType.name(), parentHierarchyId);
+//
+//            updateWallet(requesterWallet, parentHierarchyId, walletType, amount,
+//                    "Credit", baseTransactionId, "SUCCESS", "CREDIT",
+//                    "Fund Transfer from " + approverId, subProduct.getSubProductTitle(), scheme.getSchemeName(), fundRequest.getBankTransferTo());
+//        }
+//
+//
+//
+//        repository.save(fundRequest);
+//
+//        try {
+//
+//            if (Boolean.TRUE.equals(product.getHasCharges())) {
+//                walletTransactionService.processHierarchyCharges(
+//                        fundRequest.getRequestedBy(),
+//                        product,
+//                        subProduct,
+//                        schemeRate,
+//                        grossAmount,
+//                        baseTransactionId,
+//                        transactionDetailsInfo
+//                );
+//            }
+//
+//            if (Boolean.TRUE.equals(product.getIsCommissions())) {
+//
+//                WalletType walletType = "POSTPAID".equalsIgnoreCase(subProduct.getWalletType())
+//                        ? WalletType.POSTPAID
+//                        : WalletType.PREPAID;
+//
+//                TransactionSchemeDetailsRequestDto dto =
+//                        walletTransactionService.buildTransactionDto(
+//                                grossAmount,
+//                                baseTransactionId,
+//                                schemeRate,
+//                                product,
+//                                subProduct,
+//                                fundRequest.getRequestedBy(),
+//                                walletType,
+//                                transactionDetailsInfo
+//                        );
+//
+//                transactionEngineServiceImpl.processCommission(
+//                        dto, baseTransactionId, "SUCCESS", dto);
+//            }
+//
+//        } catch (Exception e) {
+//            log.error("Error in charges/commission", e);
+//            throw e;
+//        }
+//
+//        return new CommonResponse<>(200,
+//                "Fund request action processed successfully", null);
+//    }
+
     @Transactional
     @Override
-    public CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto) {
+    public CommonResponse<String> takeActionOnFundRequest(
+            FundRequestActionDto actionDto
+    ) {
 
-        String baseTransactionId = commonMethods.generateBaseTransactionId();
+        String baseTransactionId =
+                commonMethods.generateBaseTransactionId();
+
         LocalDate date = LocalDate.now();
         LocalTime time = LocalTime.now();
 
-        PrefundRequest fundRequest = repository.findById(actionDto.getFundRequestId())
-                .orElseThrow(() -> new RuntimeException("Fund Request not found"));
+        PrefundRequest fundRequest =
+                repository.findById(actionDto.getFundRequestId())
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Fund Request not found"
+                                )
+                        );
 
         if (fundRequest.getStatus() != Status.PENDING) {
-            return new CommonResponse<>(400, "Fund Request already processed", null);
+
+            return new CommonResponse<>(
+                    400,
+                    "Fund Request already processed",
+                    null
+            );
         }
 
-        // ================= UNIFIED RESOLUTION =================
+        // =========================================================
+        // RESOLVE PRODUCT, SUBPRODUCT AND SCHEME
+        // =========================================================
+        SubProducts subProduct =
+                fundRequest.getSubProducts();
 
-        SubProducts subProduct = fundRequest.getSubProducts();
-        Scheme scheme = fundRequest.getScheme();
-        Products product = subProduct.getProduct();
+        Scheme scheme =
+                fundRequest.getScheme();
 
-        String schemeCode = scheme.getSchemeCode();
+        Products product =
+                subProduct.getProduct();
 
-        log.info("Resolved from DB | productId={}, subProductId={}, schemeCode={}",
-                product.getId(), subProduct.getId(), schemeCode);
+        String schemeCode =
+                scheme.getSchemeCode();
+
+        log.info(
+                "Resolved fund request details | fundRequestId={} | productId={} | subProductId={} | schemeCode={}",
+                fundRequest.getId(),
+                product.getId(),
+                subProduct.getId(),
+                schemeCode
+        );
 
         // =========================================================
         // VALIDATE SUBPRODUCT VISIBILITY
         // =========================================================
-        if (!subProductsServiceImpl.isSubProductVisible(subProduct.getId()))
-        {
+        if (!subProductsServiceImpl.isSubProductVisible(
+                subProduct.getId()
+        )) {
+
             throw new IllegalArgumentException(
                     "Selected sub product is currently not visible."
             );
         }
 
-        log.info("Subproduct is visible and available for wallet transfer. subProductId={}", subProduct.getId());
+        log.info(
+                "Subproduct is visible and available for fund transfer | subProductId={}",
+                subProduct.getId()
+        );
 
-        // ================= SCHEME RATE =================
+        // =========================================================
+        // FETCH SCHEME RATE
+        // =========================================================
+        SchemeRate schemeRate =
+                schemeRateRepository
+                        .findSchemeRateByCodeAndOperatorAndAmount(
+                                schemeCode,
+                                fundRequest.getBankTransferTo(),
+                                fundRequest.getDepositAmount()
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "SchemeRate not found"
+                                )
+                        );
 
-        SchemeRate schemeRate = schemeRateRepository
-                .findSchemeRateByCodeAndOperatorAndAmount(
-                        schemeCode,
-                        fundRequest.getBankTransferTo(),
-                        fundRequest.getDepositAmount()
-                )
-                .orElseThrow(() -> new RuntimeException("SchemeRate not found"));
-
-        BigDecimal grossAmount = BigDecimal.valueOf(schemeRate.getGross());
+        BigDecimal grossAmount =
+                BigDecimal.valueOf(
+                        schemeRate.getGross()
+                );
 
         TransactionDetailsInfoDto transactionDetailsInfo =
                 TransactionDetailsInfoDto.builder()
-                        .subProductCode(subProduct.getSubProductCode())
+                        .subProductCode(
+                                subProduct.getSubProductCode()
+                        )
                         .schemeName("Prefund")
-                        .operatorName(schemeRate.getOperatorName())
+                        .operatorName(
+                                schemeRate.getOperatorName()
+                        )
                         .vendorName("Internal Product")
                         .build();
 
-        Status newStatus = actionDto.getStatus();
+        // =========================================================
+        // UPDATE FUND REQUEST STATUS
+        // =========================================================
+        Status newStatus =
+                actionDto.getStatus();
+
         fundRequest.setStatus(newStatus);
-        fundRequest.setRemarks(actionDto.getRemarks());
+        fundRequest.setRemarks(
+                actionDto.getRemarks()
+        );
+
         fundRequest.setApproveOrRejectDate(date);
         fundRequest.setApproveOrRejectTime(time);
-        fundRequest.setAdminTranId("FLD" + baseTransactionId);
 
-        // ================= WALLET FLOW =================
+        fundRequest.setAdminTranId(
+                "FLD" + baseTransactionId
+        );
+
+        // =========================================================
+        // APPROVAL WALLET FLOW
+        // =========================================================
         if (newStatus == Status.APPROVED) {
 
-            fundRequest.setAdminTranId("TXN" + baseTransactionId);
+            fundRequest.setAdminTranId(
+                    "TXN" + baseTransactionId
+            );
 
-            String requesterId = fundRequest.getRequestedBy();
-            String approverId = actionDto.getApproveOrRejectHierarchyId();
-            WalletType walletType = WalletType.PREPAID;
-            BigDecimal amount = BigDecimal.valueOf(fundRequest.getDepositAmount());
+            String requesterId =
+                    fundRequest.getRequestedBy();
 
+            String approverId =
+                    actionDto.getApproveOrRejectHierarchyId();
+
+            WalletType walletType =
+                    WalletType.PREPAID;
+
+            BigDecimal amount =
+                    BigDecimal.valueOf(
+                            fundRequest.getDepositAmount()
+                    );
+
+            // =====================================================
+            // RESOLVE APPROVER ACTUAL WALLET OWNER
+            //
+            // AU   -> Parent AD
+            // WLAU -> Parent WL
+            // Other types remain unchanged
+            // =====================================================
+            ResolvedHierarchy resolvedApprover =
+                    commonMethods.resolveActualWalletHierarchy(
+                            approverId
+                    );
+
+            String resolvedApproverId =
+                    resolvedApprover.hierarchyId();
+
+            String resolvedApproverType =
+                    resolvedApprover.hierarchyType();
+
+            log.info(
+                    "Approver hierarchy resolved | requestedApproverId={} | resolvedApproverId={} | resolvedApproverType={}",
+                    approverId,
+                    resolvedApproverId,
+                    resolvedApproverType
+            );
+
+            /*
+             * Use resolvedApproverId here.
+             *
+             * For AD-AU-002 this will use its parent:
+             * NFT-AD-001
+             */
             AbstractWalletAmountTable approverWallet =
-                    commonMethods.getWalletByType(walletType.name(), approverId);
+                    commonMethods.getWalletByType(
+                            walletType.name(),
+                            resolvedApproverId
+                    );
 
-            if (approverWallet.getAvailableBalance().compareTo(amount) < 0) {
-                throw new RuntimeException("Insufficient balance in approver's wallet");
+            BigDecimal approverAvailableBalance =
+                    approverWallet.getAvailableBalance() == null
+                            ? BigDecimal.ZERO
+                            : approverWallet.getAvailableBalance();
 
-            }
+            if (approverAvailableBalance.compareTo(amount) < 0) {
 
-            updateWallet(approverWallet, approverId, walletType, amount,
-                    "Debit", baseTransactionId, "SUCCESS", "DEBIT",
-                    "Fund Transfer to " + requesterId, subProduct.getSubProductTitle(), scheme.getSchemeName(), fundRequest.getBankTransferTo());
-
-            String requesterType = commonMethods.extractHierarchyType(requesterId);
-            String parentHierarchyId = requesterId;
-
-            if ("RU".equalsIgnoreCase(requesterType)) {
-                parentHierarchyId = getParentRetailerId(requesterId);
-            }
-
-            AbstractWalletAmountTable requesterWallet =
-                    commonMethods.getWalletByType(walletType.name(), parentHierarchyId);
-
-            updateWallet(requesterWallet, parentHierarchyId, walletType, amount,
-                    "Credit", baseTransactionId, "SUCCESS", "CREDIT",
-                    "Fund Transfer from " + approverId, subProduct.getSubProductTitle(), scheme.getSchemeName(), fundRequest.getBankTransferTo());
-        }
-
-
-
-        repository.save(fundRequest);
-
-        try {
-
-            if (Boolean.TRUE.equals(product.getHasCharges())) {
-                walletTransactionService.processHierarchyCharges(
-                        fundRequest.getRequestedBy(),
-                        product,
-                        subProduct,
-                        schemeRate,
-                        grossAmount,
-                        baseTransactionId,
-                        transactionDetailsInfo
+                throw new RuntimeException(
+                        "Insufficient balance in approver's wallet"
                 );
             }
 
-            if (Boolean.TRUE.equals(product.getIsCommissions())) {
+            /*
+             * Important:
+             * Pass resolvedApproverId, not original approverId.
+             *
+             * This makes updateWallet/insertTransaction use:
+             * hierarchy type = AD
+             * transaction table = admin_prepaid_transaction_details
+             */
+            updateWallet(
+                    approverWallet,
+                    resolvedApproverId,
+                    walletType,
+                    amount,
+                    "Debit",
+                    baseTransactionId,
+                    "SUCCESS",
+                    "DEBIT",
+                    "Fund Transfer to " + requesterId,
+                    subProduct.getSubProductTitle(),
+                    scheme.getSchemeName(),
+                    fundRequest.getBankTransferTo()
+            );
 
-                WalletType walletType = "POSTPAID".equalsIgnoreCase(subProduct.getWalletType())
-                        ? WalletType.POSTPAID
-                        : WalletType.PREPAID;
+            // =====================================================
+            // RESOLVE REQUESTER WALLET OWNER
+            // =====================================================
+            String requesterType =
+                    commonMethods.extractHierarchyType(
+                            requesterId
+                    );
 
-                TransactionSchemeDetailsRequestDto dto =
-                        walletTransactionService.buildTransactionDto(
-                                grossAmount,
-                                baseTransactionId,
-                                schemeRate,
-                                product,
-                                subProduct,
-                                fundRequest.getRequestedBy(),
-                                walletType,
-                                transactionDetailsInfo
+            String requesterWalletHierarchyId =
+                    requesterId;
+
+            /*
+             * Retailer User does not have an individual wallet.
+             * Resolve RU to the parent retailer first.
+             */
+            if ("RU".equalsIgnoreCase(requesterType)) {
+
+                requesterWalletHierarchyId =
+                        getParentRetailerId(
+                                requesterId
                         );
 
-                transactionEngineServiceImpl.processCommission(
-                        dto, baseTransactionId, "SUCCESS", dto);
+                log.info(
+                        "Retailer user resolved to parent retailer | retailerUserId={} | retailerId={}",
+                        requesterId,
+                        requesterWalletHierarchyId
+                );
             }
 
-        } catch (Exception e) {
-            log.error("Error in charges/commission", e);
-            throw e;
+            /*
+             * Resolve other user-account hierarchy types too:
+             *
+             * AU   -> AD
+             * WLAU -> WL
+             */
+            ResolvedHierarchy resolvedRequester =
+                    commonMethods.resolveActualWalletHierarchy(
+                            requesterWalletHierarchyId
+                    );
+
+            String resolvedRequesterId =
+                    resolvedRequester.hierarchyId();
+
+            String resolvedRequesterType =
+                    resolvedRequester.hierarchyType();
+
+            log.info(
+                    "Requester hierarchy resolved | requestedBy={} | walletHierarchyId={} | resolvedRequesterId={} | resolvedRequesterType={}",
+                    requesterId,
+                    requesterWalletHierarchyId,
+                    resolvedRequesterId,
+                    resolvedRequesterType
+            );
+
+            AbstractWalletAmountTable requesterWallet =
+                    commonMethods.getWalletByType(
+                            walletType.name(),
+                            resolvedRequesterId
+                    );
+
+            /*
+             * Pass resolvedRequesterId so updateWallet inserts into
+             * the correct hierarchy transaction table.
+             */
+            updateWallet(
+                    requesterWallet,
+                    resolvedRequesterId,
+                    walletType,
+                    amount,
+                    "Credit",
+                    baseTransactionId,
+                    "SUCCESS",
+                    "CREDIT",
+                    "Fund Transfer from " + approverId,
+                    subProduct.getSubProductTitle(),
+                    scheme.getSchemeName(),
+                    fundRequest.getBankTransferTo()
+            );
+
+            // =====================================================
+            // CHARGES AND COMMISSION
+            //
+            // Run only for approved requests.
+            // Do not run these when the request is rejected.
+            // =====================================================
+            try {
+
+                if (Boolean.TRUE.equals(
+                        product.getHasCharges()
+                )) {
+
+                    walletTransactionService.processHierarchyCharges(
+                            fundRequest.getRequestedBy(),
+                            product,
+                            subProduct,
+                            schemeRate,
+                            grossAmount,
+                            baseTransactionId,
+                            transactionDetailsInfo
+                    );
+                }
+
+                if (Boolean.TRUE.equals(
+                        product.getIsCommissions()
+                )) {
+
+                    WalletType commissionWalletType =
+                            "POSTPAID".equalsIgnoreCase(
+                                    subProduct.getWalletType()
+                            )
+                                    ? WalletType.POSTPAID
+                                    : WalletType.PREPAID;
+
+                    TransactionSchemeDetailsRequestDto dto =
+                            walletTransactionService
+                                    .buildTransactionDto(
+                                            grossAmount,
+                                            baseTransactionId,
+                                            schemeRate,
+                                            product,
+                                            subProduct,
+                                            fundRequest.getRequestedBy(),
+                                            commissionWalletType,
+                                            transactionDetailsInfo
+                                    );
+
+                    transactionEngineServiceImpl.processCommission(
+                            dto,
+                            baseTransactionId,
+                            "SUCCESS",
+                            dto
+                    );
+                }
+
+            } catch (Exception e) {
+
+                log.error(
+                        "Error while processing charges or commission | fundRequestId={} | transactionId={}",
+                        fundRequest.getId(),
+                        baseTransactionId,
+                        e
+                );
+
+                throw e;
+            }
         }
 
-        return new CommonResponse<>(200,
-                "Fund request action processed successfully", null);
+        repository.save(fundRequest);
+
+        log.info(
+                "Fund request action processed successfully | fundRequestId={} | status={} | transactionId={}",
+                fundRequest.getId(),
+                newStatus,
+                fundRequest.getAdminTranId()
+        );
+
+        return new CommonResponse<>(
+                200,
+                "Fund request action processed successfully",
+                null
+        );
     }
 
     public String getParentRetailerId(String retailerUserHierarchyId) {
