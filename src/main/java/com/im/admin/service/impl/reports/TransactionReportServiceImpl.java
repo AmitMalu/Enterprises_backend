@@ -61,7 +61,10 @@ public class TransactionReportServiceImpl implements TransactionReportService {
         List<MyTransactionReportResponse> txnOnly = raw.getData()
                 .getContent()
                 .stream()
-                .filter(r -> r.getTranxId() != null && r.getTranxId().startsWith("TXN"))
+//                .filter(r -> r.getTranxId() != null && r.getTranxId().startsWith("TXN"))
+                .filter(r -> r.getTranxId() != null &&
+                        (r.getTranxId().startsWith("TXN") ||
+                                r.getTranxId().startsWith("REVTXN")))
                 .toList();
 
         log.info("TransactionReportService: total={} txnOnly={}",
