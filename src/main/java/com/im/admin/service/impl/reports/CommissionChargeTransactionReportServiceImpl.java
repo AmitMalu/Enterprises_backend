@@ -92,8 +92,13 @@ public class CommissionChargeTransactionReportServiceImpl implements CommissionC
                         ? request.getHierarchyId()
                         : tokenUtil.extractHierarchyId();
 
+        String hierarchyType = commonMethods.extractHierarchyType(loggedInHierarchyId);
+
         // For WLAU: use parent WL's hierarchy ID so they see same data as WL
-        if ("WLAU".equalsIgnoreCase(commonMethods.extractHierarchyType(loggedInHierarchyId))) {
+//        if ("WLAU".equalsIgnoreCase(commonMethods.extractHierarchyType(loggedInHierarchyId))) {
+        if ("WLAU".equalsIgnoreCase(hierarchyType)
+                || "AU".equalsIgnoreCase(hierarchyType)) {
+
             String parentWlId = userDetailsRepository
                     .findFirstByHierarchyId(loggedInHierarchyId)
                     .map(ud -> ud.getParentAccount())

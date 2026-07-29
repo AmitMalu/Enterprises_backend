@@ -6,4 +6,6 @@ import lombok.Data;
 public class ReportReceiptRequestDto {
     private String txnId;
     private String walletType;   // PREPAID / POSTPAID
+    private Long id;
+
 }
