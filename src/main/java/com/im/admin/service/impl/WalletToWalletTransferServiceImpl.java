@@ -1069,7 +1069,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             transactionEngineServiceImpl.processCharges(
                     dto,
                     fromWalletTable,
-                    BigDecimal.valueOf(schemeRate.getIm()),
+                    grossRate,
+                    //BigDecimal.valueOf(schemeRate.getIm()),
                     product.getSgst().toString(),
                     baseTransactionId,
                     "SUCCESS"
