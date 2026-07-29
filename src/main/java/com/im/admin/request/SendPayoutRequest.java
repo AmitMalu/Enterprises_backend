@@ -16,7 +16,7 @@ public class SendPayoutRequest {
     private String ifscCode;
     private BigDecimal amount;
     private String orderId;
-    private String beneficiaryName;
+    private String beneficiaryName;    //card holder name.
     private String paymentMode;
     private String subProductId;
     private String callbackUrl;
@@ -27,7 +27,7 @@ public class SendPayoutRequest {
 
     private String emailId;
 
-    private String bankName;
+    private String bankName;      //To transfer bank name.
     private String schemeName;
     private String partnerId;
 
