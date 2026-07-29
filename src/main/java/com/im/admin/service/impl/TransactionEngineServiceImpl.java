@@ -1983,7 +1983,7 @@ private void distributeToHierarchyChain(
         Scheme scheme = schemeRepository.findBySchemeCode(request.getSchemeRate().getSchemeCode())
                 .orElseThrow(() -> new RuntimeException("Scheme Not Found"));
 
-        String subProductName = subProduct.getSubProductTitle();
+        String subProductName = subProduct.getSubProductCode();
         String operatorName = request.getOperatorName();
 
         String hierarchyType = extractHierarchyType(hierarchyId);

@@ -781,7 +781,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                     "SUCCESS",
                     "DEBIT",
                     "Fund Transfer to " + requesterId,
-                    subProduct.getSubProductTitle(),
+                    subProduct.getSubProductCode(),
                     scheme.getSchemeName(),
                     fundRequest.getBankTransferTo()
             );
@@ -860,7 +860,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                     "SUCCESS",
                     "CREDIT",
                     "Fund Transfer from " + approverId,
-                    subProduct.getSubProductTitle(),
+                    subProduct.getSubProductCode(),
                     scheme.getSchemeName(),
                     fundRequest.getBankTransferTo()
             );
