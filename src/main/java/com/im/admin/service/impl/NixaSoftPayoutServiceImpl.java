@@ -9,7 +9,6 @@ import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
-import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.repositories.*;
 import com.im.admin.request.NixaSoftPayoutRequest;
 import com.im.admin.request.NixaSoftPayoutStatusRequest;
@@ -31,10 +30,9 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * @author SHUBHAM KHOPADE
@@ -101,10 +99,10 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         try {
 
             // VALIDATE BENEFICIARY
-            BeneficiaryBankAccount beneficiaryBankAccount =
-                    beneficiaryBankAccountRepository.findByIfscCode(req.getIfscCode());
+            Optional<BeneficiaryBankAccount> beneficiaryBankAccount =
+                    beneficiaryBankAccountRepository.findTopByRetailerIdAndAccountNumberOrderByIdDesc(req.getRetailerId(), req.getAccountNumber());
 
-            if (beneficiaryBankAccount == null) {
+            if (beneficiaryBankAccount.isEmpty()) {
                 return failed(orderId, "Beneficiary bank details not found");
             }
 
@@ -293,7 +291,7 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             SendPayoutRequest req,
             VendorCredentials creds,
             String orderId,
-            BeneficiaryBankAccount beneficiaryBankAccount,
+            Optional<BeneficiaryBankAccount> beneficiaryBankAccount,
             RequestHeaderMetaDto requestHeaderMetaDto
     ) {
 
@@ -324,7 +322,7 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         pending.setBeneficiaryName(req.getBeneficiaryName());
         pending.setLatitude(requestHeaderMetaDto.getLatitude());
         pending.setLongitude(requestHeaderMetaDto.getLongitude());
-        pending.setBankName(req.getBankName());
+        pending.setBankName(beneficiaryBankAccount.get().getBankName());
 
         pending = payoutPendingTransactionRepository.saveAndFlush(pending);
 
@@ -347,7 +345,7 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             requestBody.setAccountNumber(req.getAccountNumber());
             requestBody.setIfscCode(req.getIfscCode());
             requestBody.setBeneficiaryName(req.getBeneficiaryName());
-            requestBody.setBankName(beneficiaryBankAccount.getBankName());
+            requestBody.setBankName(beneficiaryBankAccount.get().getBankName());
             requestBody.setTransferMode(req.getPaymentMode());
             requestBody.setEmailId(retailer.getEmailId());
             requestBody.setLatitude(
