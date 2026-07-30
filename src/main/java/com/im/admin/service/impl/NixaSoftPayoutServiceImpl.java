@@ -324,6 +324,7 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         pending.setBeneficiaryName(req.getBeneficiaryName());
         pending.setLatitude(requestHeaderMetaDto.getLatitude());
         pending.setLongitude(requestHeaderMetaDto.getLongitude());
+        pending.setBankName(req.getBankName());
 
         pending = payoutPendingTransactionRepository.saveAndFlush(pending);
 
