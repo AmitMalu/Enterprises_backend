@@ -484,6 +484,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         // ===== 1. Extract Fields =====
         String status = payload.get("status");
         String vendorTxnId = payload.get("tx_ref");
+        String bankRefId = payload.get("utrNo");
 
         log.info("[1] Parsed Callback: orderId={}, requestId={}, status={}", vendorTxnId, vendorTxnId, status);
 

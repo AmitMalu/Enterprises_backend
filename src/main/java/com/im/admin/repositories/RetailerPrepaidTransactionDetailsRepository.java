@@ -187,6 +187,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
                 AND (:vendorName IS NULL OR LOWER(r.vendorName) LIKE LOWER(CONCAT('%', :vendorName, '%')))
                 AND (:tranStatusList IS NULL OR r.tranStatus IN :tranStatusList)
+                AND (:hierarchyIds IS NULL OR r.retailerId IN :hierarchyIds)
                 AND (:userId IS NULL OR LOWER(r.retailerId) LIKE LOWER(CONCAT('%', :userId, '%')))
                 AND (:mobileNo IS NULL OR LOWER(r.mobileNo) LIKE LOWER(CONCAT('%', :mobileNo, '%')))
                 AND (:schemeName IS NULL OR LOWER(r.schemeName) LIKE LOWER(CONCAT('%', :schemeName, '%')))
@@ -210,7 +211,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
                 AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
             """)
     Page<RetailerPrepaidTransactionDetails> findFilteredTransactionsUpdated(@Param("id") Integer id, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("subProductNames") List<String> subProductNames,  // List<String>
-                                                                            @Param("vendorName") String vendorName, @Param("tranStatusList") List<String> tranStatusList, @Param("userId") String userId, @Param("mobileNo") String mobileNo, @Param("schemeName") String schemeName, @Param("amount") Double amount, @Param("txId") String txId, @Param("remarks") String remarks, @Param("medium") String medium, @Param("txType") String txType, @Param("txStatus") String txStatus, @Param("actionOnBalanceAmount") String actionOnBalanceAmount, @Param("dateOfTransaction") LocalDate dateOfTransaction, @Param("timeOfTransaction") LocalTime timeOfTransaction, @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction, @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction, Pageable pageable);
+                                                                            @Param("vendorName") String vendorName, @Param("hierarchyIds") List<String> hierarchyIds, @Param("tranStatusList") List<String> tranStatusList, @Param("userId") String userId, @Param("mobileNo") String mobileNo, @Param("schemeName") String schemeName, @Param("amount") Double amount, @Param("txId") String txId, @Param("remarks") String remarks, @Param("medium") String medium, @Param("txType") String txType, @Param("txStatus") String txStatus, @Param("actionOnBalanceAmount") String actionOnBalanceAmount, @Param("dateOfTransaction") LocalDate dateOfTransaction, @Param("timeOfTransaction") LocalTime timeOfTransaction, @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction, @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction, Pageable pageable);
 
     @Query("""
                 SELECT COALESCE(SUM(t.amount), 0)
