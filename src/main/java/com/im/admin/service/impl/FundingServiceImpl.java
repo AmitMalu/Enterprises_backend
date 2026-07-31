@@ -753,10 +753,56 @@ public class FundingServiceImpl implements FundingService {
             SettlementPendingRequestDto request, int page, int size) {
 
         // ===== NETWORK HIERARCHY LOGIC =====
-        String hierarchyId = tokenUtil.extractHierarchyId();
+        // ===== PROJECT HIERARCHY LOGIC =====
 
-        List<String> networkIds = getRetailersUnderHierarchy(hierarchyId);
-        log.info("Settlement Network IDs: {}", networkIds);
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
+
+        String loginHierarchyType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        String effectiveHierarchyId =
+                commonMethods.resolveEffectiveHierarchyId(
+                        loginHierarchyId,
+                        loginHierarchyType
+                );
+
+        boolean fullSystemAccess =
+                commonMethods.hasFullSystemAccess(
+                        loginHierarchyType
+                );
+
+        List<String> networkIds = null;
+
+        if (!fullSystemAccess) {
+
+            networkIds =
+                    accessHierarchyPathRepository
+                            .findAllDescendantIds(
+                                    effectiveHierarchyId
+                            );
+
+            if (networkIds == null) {
+                networkIds = new ArrayList<>();
+            } else {
+                networkIds = new ArrayList<>(networkIds);
+            }
+
+            if (!networkIds.contains(effectiveHierarchyId)) {
+                networkIds.add(effectiveHierarchyId);
+            }
+        }
+
+        log.info(
+                "Settlement hierarchy access | loginId={} | loginType={} | effectiveId={} | fullAccess={} | networkIds={}",
+                loginHierarchyId,
+                loginHierarchyType,
+                effectiveHierarchyId,
+                fullSystemAccess,
+                networkIds
+        );
 
         log.info("Fetching Settlement Transactions for walletType: {}", request.getWalletType());
 
