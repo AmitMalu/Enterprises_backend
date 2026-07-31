@@ -10,6 +10,7 @@ import com.im.admin.request.SchemeHierarchySelectionRequest;
 import com.im.admin.response.SchemeHierarchySelectionResponseDTO;
 import com.im.admin.service.HierarchySelectionService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,9 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
 
     @Autowired
     private CommonMethods commonMethods;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Override
     @Transactional
@@ -108,6 +112,8 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
     public Map<String, Object> updateHierarchySelection(String id, SchemeHierarchySelectionRequest requestDTO) {
         log.info("Updating hierarchy selection with ID: {}", id);
 
+        String loginId = tokenUtil.extractHierarchyId();
+
         SchemeHierarchySelection existingSelection = hierarchySelectionRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Hierarchy selection not found!"));
 
         Set<HierarchyMaster> hierarchiesSet = hierarchyMasterRepository.findByNameIn(requestDTO.getSchemeHierarchyCombination());
@@ -129,7 +135,7 @@ public class HierarchySelectionServiceImpl implements HierarchySelectionService 
         existingSelection.setSchemeHierarchyCombination(nameCombination);
         existingSelection.setCombinationHashCode(codeCombination);
         existingSelection.setSchemeSelectionHierarchyName(requestDTO.getSchemeHierarchySelectionName());
-        existingSelection.setEditedBy(requestDTO.getEditedBy());
+        existingSelection.setEditedBy(loginId);
         existingSelection.setEditedOn(LocalDateTime.now());
 
         // SAFELY clear and update existing mappings

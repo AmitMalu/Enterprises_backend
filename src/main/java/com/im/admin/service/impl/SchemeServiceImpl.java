@@ -176,6 +176,8 @@ public class SchemeServiceImpl implements SchemeService {
     public Map<String, Object> updateScheme(String schemeId, SchemeDTO schemeDTO) {
         log.info("Updating scheme ID {}: {}", schemeId, schemeDTO);
 
+        String loginId = tokenUtil.extractHierarchyId();
+
         Scheme scheme = schemeRepository.findById(Long.valueOf(schemeId))
                 .orElseThrow(() -> new ResourceNotFoundException("Scheme not found with ID: " + schemeId));
 
@@ -209,7 +211,7 @@ public class SchemeServiceImpl implements SchemeService {
         scheme.setSchemeName(schemeDTO.getSchemeName());
 //        scheme.setSchemeCode(schemeDTO.getSchemeCode());
         scheme.setSchemeCombinationHashCode(newCombinationHashCode);
-        scheme.setEditedBy("Admin");
+        scheme.setEditedBy(loginId);
         scheme.setEditedOn(LocalDateTime.now());
         scheme.setIsActive(schemeDTO.getIsActive());
 
