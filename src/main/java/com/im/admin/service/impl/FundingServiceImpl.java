@@ -1134,6 +1134,44 @@ public class FundingServiceImpl implements FundingService {
 
         List<String> filteredSubProducts = null;
 
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
+
+        String loginHierarchyType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        String effectiveHierarchyId =
+                commonMethods.resolveEffectiveHierarchyId(
+                        loginHierarchyId,
+                        loginHierarchyType
+                );
+
+        boolean fullSystemAccess =
+                commonMethods.hasFullSystemAccess(
+                        loginHierarchyType
+                );
+
+        List<String> accessibleHierarchyIds = null;
+
+        if (!fullSystemAccess) {
+
+            accessibleHierarchyIds =
+                    accessHierarchyPathRepository
+                            .findAllDescendantIds(
+                                    effectiveHierarchyId
+                            );
+
+            if (accessibleHierarchyIds == null) {
+                accessibleHierarchyIds = new ArrayList<>();
+            }
+
+            if (!accessibleHierarchyIds.contains(effectiveHierarchyId)) {
+                accessibleHierarchyIds.add(effectiveHierarchyId);
+            }
+        }
+
         if (request.getProductId() != null) {
             log.debug("Processing productId: {}", request.getProductId());
 
@@ -1199,12 +1237,12 @@ public class FundingServiceImpl implements FundingService {
 
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
             log.info("Processing PREPAID wallet type");
-            result = fetchPrepaidUpdated(request, filteredSubProducts, vendorName, pageable);
+            result = fetchPrepaidUpdated(request, filteredSubProducts, vendorName, accessibleHierarchyIds, pageable);
             log.info("PREPAID query completed - Total elements: {}, Total pages: {}",
                     result.getTotalElements(), result.getTotalPages());
         } else {
             log.info("Processing POSTPAID wallet type");
-            result = fetchPostpaidUpdated(request, filteredSubProducts, vendorName, pageable);
+            result = fetchPostpaidUpdated(request, filteredSubProducts, vendorName, accessibleHierarchyIds, pageable);
             log.info("POSTPAID query completed - Total elements: {}, Total pages: {}",
                     result.getTotalElements(), result.getTotalPages());
         }
@@ -1219,6 +1257,7 @@ public class FundingServiceImpl implements FundingService {
             SettlementPendingRequestDto request,
             List<String> subProductNames,
             String vendorName,
+            List<String> hierarchyIds,
             Pageable pageable) {
 
         log.info("Fetching PREPAID transactions with filters - SubProducts: {}, Vendor: {}",
@@ -1233,6 +1272,7 @@ public class FundingServiceImpl implements FundingService {
                         request.getToDate(),
                         subProductNames,
                         vendorName,
+                        hierarchyIds,
                         null, // statusList REMOVED
                         request.getUserId(),
                         request.getMobileNo(),
@@ -1292,6 +1332,7 @@ public class FundingServiceImpl implements FundingService {
             SettlementPendingRequestDto request,
             List<String> subProductNames,
             String vendorName,
+            List<String> hierarchyIds,
             Pageable pageable) {
 
         log.info("Fetching POSTPAID transactions with filters - SubProducts: {}, Vendor: {}",
@@ -1310,6 +1351,7 @@ public class FundingServiceImpl implements FundingService {
                         request.getToDate(),
                         subProductNames,
                         vendorName,
+                        hierarchyIds,
                         request.getUserId(),
                         request.getMobileNo(),
                         request.getSchemeName(),
