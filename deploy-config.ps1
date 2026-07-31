@@ -29,22 +29,16 @@ $SshKeyPath = Join-Path `
     ".ssh\instantmudra_deploy"
 
 # Tomcat
-
 $TomcatHome = "/opt/tomcat-10.1.34"
 
 # Application
-
 $ApplicationName = "enterprises"
 
 # Remote Paths
-
 $RemoteTemporaryWar = "/tmp/$ApplicationName.war"
 
-$RemoteDeploymentWar =
-"$TomcatHome/webapps/$ApplicationName.war"
+$RemoteDeploymentWar = "$TomcatHome/webapps/$ApplicationName.war"
 
-$RemoteExpandedDirectory =
-"$TomcatHome/webapps/$ApplicationName"
+$RemoteExpandedDirectory = "$TomcatHome/webapps/$ApplicationName"
 
-$RemoteBackupDirectory =
-"$TomcatHome/backups"
+$RemoteBackupDirectory = "$TomcatHome/backups"
