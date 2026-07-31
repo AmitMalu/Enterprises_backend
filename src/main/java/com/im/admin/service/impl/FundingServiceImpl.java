@@ -1134,6 +1134,8 @@ public class FundingServiceImpl implements FundingService {
 
         List<String> filteredSubProducts = null;
 
+        long startTime = System.currentTimeMillis();
+
         String loginHierarchyId =
                 tokenUtil.extractHierarchyId();
 
@@ -1153,6 +1155,9 @@ public class FundingServiceImpl implements FundingService {
                         loginHierarchyType
                 );
 
+        log.info("Access: fullSystemAccess={}, hierarchyId={}, hierarchyType={}",
+                fullSystemAccess, effectiveHierarchyId, loginHierarchyType);
+
         List<String> accessibleHierarchyIds = null;
 
         if (!fullSystemAccess) {
@@ -1170,7 +1175,11 @@ public class FundingServiceImpl implements FundingService {
             if (!accessibleHierarchyIds.contains(effectiveHierarchyId)) {
                 accessibleHierarchyIds.add(effectiveHierarchyId);
             }
+
+            log.info("Accessible hierarchies: {} IDs found", accessibleHierarchyIds.size());
         }
+
+        log.info("Setup completed in {} ms", System.currentTimeMillis() - startTime);
 
         if (request.getProductId() != null) {
             log.debug("Processing productId: {}", request.getProductId());
