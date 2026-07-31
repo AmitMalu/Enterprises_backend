@@ -364,6 +364,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 .ifPresentOrElse(txn -> {
                     txn.setActionOnBalanceAmount("Deduct Funds - PREPAID");
                     txn.setTranStatus(status);
+                    //txn.setBankRefId();
                     retailerPrepaidTransactionDetailsRepository.save(txn);
                     log.debug("[TXN_STATUS] Updated PREPAID transaction: {}", transactionId);
                 }, () -> {
@@ -376,6 +377,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 .ifPresentOrElse(txn -> {
                     txn.setActionOnBalanceAmount("Deduct Funds - POSTPAID");
                     txn.setTranStatus(status);
+                    //txn.setBankRefId();
                     retailerPostpaidTransactionDetailsRepository.save(txn);
                     log.debug("[TXN_STATUS] Updated POSTPAID transaction: {}", transactionId);
                 }, () -> {
