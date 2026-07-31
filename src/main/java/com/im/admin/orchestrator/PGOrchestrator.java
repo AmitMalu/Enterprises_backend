@@ -46,8 +46,6 @@ public class PGOrchestrator {
                 command.getInitiatedBy(),
                 requestHeaderMetaDtoMeta.getIpAddress());
 
-        try {
-
             // =========================================================
             // VALIDATE SUB PRODUCT VISIBILITY
             // =========================================================
@@ -60,11 +58,11 @@ public class PGOrchestrator {
             log.info("SubProduct is visible and available for wallet transfer. subProductId={}", command.getSubProductId());
 
             Scheme scheme = schemeRepository.findBySchemeCode(command.getSchemeCode())
-                    .orElseThrow(() -> new RuntimeException("Scheme not found. Please contact admin"));
+                    .orElseThrow(() -> new IllegalArgumentException("Scheme not found. Please contact admin"));
 
             if (!Boolean.TRUE.equals(scheme.getIsActive())) {
                 log.warn("Scheme is inactive for schemeCode={}", command.getSchemeCode());
-                throw new RuntimeException("Scheme is inactive. Please contact admin");
+                throw new IllegalArgumentException("Scheme is inactive. Please contact admin");
             }
 
             CommonResponse<SchemeRateResponse> schemeRateResponse =
@@ -80,7 +78,7 @@ public class PGOrchestrator {
                         command.getSchemeCode(),
                         command.getAmount());
 
-                throw new RuntimeException(
+                throw new IllegalArgumentException(
                         schemeRateResponse.getMessage());
             }
 
@@ -122,12 +120,12 @@ public class PGOrchestrator {
 
             return response;
 
-        } catch (Exception e) {
-            log.error("Error during PG initiate for subProductId={}",
-                    command.getSubProductId(),
-                    e);
-            throw e;
-        }
+//        } catch (Exception e) {
+//            log.error("Error during PG initiate for subProductId={}",
+//                    command.getSubProductId(),
+//                    e);
+//            throw e;
+//        }
     }
 
     @Transactional
