@@ -265,6 +265,7 @@ public interface RetailerPrepaidTransactionDetailsRepository extends JpaReposito
             AND (
                 r.transactionId LIKE 'TXN%'
                 OR r.transactionId LIKE 'FLD%'
+                OR r.transactionId LIKE 'REVTXN%'
             )
             AND (
                 :txId IS NULL

@@ -9,7 +9,6 @@ import com.im.admin.dto.TransactionSchemeDetailsRequestDto;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
-import com.im.admin.paymentgateway.PGCreateOrderCommand;
 import com.im.admin.repositories.*;
 import com.im.admin.request.NixaSoftPayoutRequest;
 import com.im.admin.request.NixaSoftPayoutStatusRequest;
@@ -28,12 +27,12 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * @author SHUBHAM KHOPADE
@@ -100,10 +99,10 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         try {
 
             // VALIDATE BENEFICIARY
-            BeneficiaryBankAccount beneficiaryBankAccount =
-                    beneficiaryBankAccountRepository.findByIfscCode(req.getIfscCode());
+            Optional<BeneficiaryBankAccount> beneficiaryBankAccount =
+                    beneficiaryBankAccountRepository.findTopByRetailerIdAndAccountNumberOrderByIdDesc(req.getRetailerId(), req.getAccountNumber());
 
-            if (beneficiaryBankAccount == null) {
+            if (beneficiaryBankAccount.isEmpty()) {
                 return failed(orderId, "Beneficiary bank details not found");
             }
 
@@ -292,65 +291,23 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
             SendPayoutRequest req,
             VendorCredentials creds,
             String orderId,
-            BeneficiaryBankAccount beneficiaryBankAccount,
-            RequestHeaderMetaDto requestHeaderMetaDto) throws Exception {
+            Optional<BeneficiaryBankAccount> beneficiaryBankAccount,
+            RequestHeaderMetaDto requestHeaderMetaDto
+    ) {
 
         Retailer retailer = retailerRepository.findByRetailerId(req.getRetailerId())
                 .orElseThrow(() ->
                         new RuntimeException(
                                 "Retailer not found: " + req.getRetailerId()
-                        ));
-
-        // REQUEST BODY
-
-        NixaSoftPayoutRequest requestBody = new NixaSoftPayoutRequest();
-
-        requestBody.setAmount(req.getAmount().toPlainString());
-        requestBody.setMobileNumber(retailer.getMobileNumber());
-        requestBody.setRequestId(orderId);
-        requestBody.setAccountNumber(req.getAccountNumber());
-        requestBody.setIfscCode(req.getIfscCode());
-        requestBody.setBeneficiaryName(req.getBeneficiaryName());
-        requestBody.setBankName(beneficiaryBankAccount.getBankName());
-        requestBody.setTransferMode(req.getPaymentMode());
-        requestBody.setEmailId(retailer.getEmailId());
-        requestBody.setLatitude(requestHeaderMetaDto.getLatitude().toString());
-        requestBody.setLongitude(requestHeaderMetaDto.getLongitude().toString());
-
-        // HEADERS
-        HttpHeaders headers = new HttpHeaders();
-
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("apiToken", creds.getToken());
-
-        HttpEntity<NixaSoftPayoutRequest> entity =
-                new HttpEntity<>(requestBody, headers);
-
-        log.info("Calling NixaSoft payout API | request={}",
-                objectMapper.writeValueAsString(requestBody));
-
-        ResponseEntity<NixaSoftPayoutResponse> response =
-                restTemplate.exchange(
-                        creds.getBaseUrlProd() + "/payout",
-                        HttpMethod.POST,
-                        entity,
-                        NixaSoftPayoutResponse.class
+                        )
                 );
 
-        NixaSoftPayoutResponse body = response.getBody();
-
-        if (body == null) {
-            return buildFailedResponse(orderId, "Empty response from vendor");
-        }
-
-        log.info("NixaSoft payout response | status={} | message={}",
-                body.getStatuscode(),
-                body.getMessage());
-
-        String status = mapVendorStatus(body.getStatuscode());
-
-        // SAVE PENDING TRANSACTION
-
+        /*
+         * Save transaction BEFORE calling vendor.
+         *
+         * This ensures that even when vendor API times out,
+         * the transaction is available in the pending table.
+         */
         PayoutPendingTransactions pending = new PayoutPendingTransactions();
 
         pending.setTransactionId(orderId);
@@ -365,19 +322,193 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
         pending.setBeneficiaryName(req.getBeneficiaryName());
         pending.setLatitude(requestHeaderMetaDto.getLatitude());
         pending.setLongitude(requestHeaderMetaDto.getLongitude());
+        pending.setBankName(beneficiaryBankAccount.get().getBankName());
 
-        payoutPendingTransactionRepository.save(pending);
+        pending = payoutPendingTransactionRepository.saveAndFlush(pending);
 
-        log.info("Payout saved successfully | orderId={} | status={}",
+        log.info(
+                "Pending payout transaction saved before vendor call | orderId={} | retailerId={} | amount={}",
                 orderId,
-                status);
+                req.getRetailerId(),
+                req.getAmount()
+        );
 
-        return PayoutResponseDto.builder()
-                .orderId(orderId)
-                .status(status)
-                .amount(req.getAmount())
-                .message(body.getMessage())
-                .build();
+        try {
+
+            // REQUEST BODY
+
+            NixaSoftPayoutRequest requestBody = new NixaSoftPayoutRequest();
+
+            requestBody.setAmount(req.getAmount().toPlainString());
+            requestBody.setMobileNumber(retailer.getMobileNumber());
+            requestBody.setRequestId(orderId);
+            requestBody.setAccountNumber(req.getAccountNumber());
+            requestBody.setIfscCode(req.getIfscCode());
+            requestBody.setBeneficiaryName(req.getBeneficiaryName());
+            requestBody.setBankName(beneficiaryBankAccount.get().getBankName());
+            requestBody.setTransferMode(req.getPaymentMode());
+            requestBody.setEmailId(retailer.getEmailId());
+            requestBody.setLatitude(
+                    requestHeaderMetaDto.getLatitude().toString()
+            );
+            requestBody.setLongitude(
+                    requestHeaderMetaDto.getLongitude().toString()
+            );
+
+            // HEADERS
+
+            HttpHeaders headers = new HttpHeaders();
+
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("apiToken", creds.getToken());
+
+            HttpEntity<NixaSoftPayoutRequest> entity =
+                    new HttpEntity<>(requestBody, headers);
+
+            log.info(
+                    "Calling NixaSoft payout API | orderId={} | request={}",
+                    orderId,
+                    objectMapper.writeValueAsString(requestBody)
+            );
+
+            ResponseEntity<NixaSoftPayoutResponse> response =
+                    restTemplate.exchange(
+                            creds.getBaseUrlProd() + "/payout",
+                            HttpMethod.POST,
+                            entity,
+                            NixaSoftPayoutResponse.class
+                    );
+
+            NixaSoftPayoutResponse body = response.getBody();
+
+            if (body == null) {
+
+                log.error(
+                        "Empty response received from NixaSoft | orderId={}",
+                        orderId
+                );
+
+                // Keep transaction as PENDING because vendor result is unknown
+                return PayoutResponseDto.builder()
+                        .orderId(orderId)
+                        .status("PENDING")
+                        .amount(req.getAmount())
+                        .message(
+                                "Empty response from vendor. Transaction is under processing."
+                        )
+                        .build();
+            }
+
+            log.info(
+                    "NixaSoft payout response | orderId={} | statusCode={} | message={}",
+                    orderId,
+                    body.getStatuscode(),
+                    body.getMessage()
+            );
+
+            String status = mapVendorStatus(body.getStatuscode());
+
+            /*
+             * Update pending-table status based on vendor response.
+             * Keep it PENDING when vendor status mapping returns PENDING.
+             */
+            pending.setStatus(status);
+
+            payoutPendingTransactionRepository.saveAndFlush(pending);
+
+            log.info(
+                    "Payout transaction updated successfully | orderId={} | status={}",
+                    orderId,
+                    status
+            );
+
+            return PayoutResponseDto.builder()
+                    .orderId(orderId)
+                    .status(status)
+                    .amount(req.getAmount())
+                    .message(body.getMessage())
+                    .build();
+
+        } catch (ResourceAccessException ex) {
+
+            /*
+             * Timeout or connection error.
+             *
+             * Do not mark it FAILED because the request might have reached
+             * the vendor and only the response could have timed out.
+             * Keep it PENDING for status enquiry/reconciliation.
+             */
+            log.error(
+                    "NixaSoft connection timeout/error | orderId={} | error={}",
+                    orderId,
+                    ex.getMessage(),
+                    ex
+            );
+
+            pending.setStatus("PENDING");
+            payoutPendingTransactionRepository.saveAndFlush(pending);
+
+            return PayoutResponseDto.builder()
+                    .orderId(orderId)
+                    .status("PENDING")
+                    .amount(req.getAmount())
+                    .message(
+                            "Vendor connection timed out. Transaction is under processing."
+                    )
+                    .build();
+
+        } catch (HttpStatusCodeException ex) {
+
+            log.error(
+                    "NixaSoft HTTP error | orderId={} | httpStatus={} | response={}",
+                    orderId,
+                    ex.getStatusCode(),
+                    ex.getResponseBodyAsString(),
+                    ex
+            );
+
+            /*
+             * You may use FAILED here because the vendor returned
+             * an actual HTTP error response.
+             */
+            pending.setStatus("FAILED");
+            payoutPendingTransactionRepository.saveAndFlush(pending);
+
+            return PayoutResponseDto.builder()
+                    .orderId(orderId)
+                    .status("FAILED")
+                    .amount(req.getAmount())
+                    .message(
+                            "Vendor returned HTTP error: "
+                                    + ex.getStatusCode().value()
+                    )
+                    .build();
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Unexpected NixaSoft payout error | orderId={} | error={}",
+                    orderId,
+                    ex.getMessage(),
+                    ex
+            );
+
+            /*
+             * Keep unknown errors pending unless you are certain
+             * that the vendor did not process the transaction.
+             */
+            pending.setStatus("PENDING");
+            payoutPendingTransactionRepository.saveAndFlush(pending);
+
+            return PayoutResponseDto.builder()
+                    .orderId(orderId)
+                    .status("PENDING")
+                    .amount(req.getAmount())
+                    .message(
+                            "Unable to confirm vendor response. Transaction is under processing."
+                    )
+                    .build();
+        }
     }
 
     private String mapVendorStatus(String vendorStatus) {

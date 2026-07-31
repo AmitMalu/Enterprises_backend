@@ -291,6 +291,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         pending.setCreatedAt(LocalDateTime.now());
         pending.setIfscCode(req.getIfscCode());
         pending.setAccountNumber(req.getAccountNumber());
+        pending.setBankName(req.getBankName());
         pending.setBeneficiaryName(req.getBeneficiaryName());
         pending.setLatitude(latitude);
         pending.setLongitude(longitude);
@@ -350,6 +351,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                         .amount(req.getAmount())
                         .beneficiaryName(req.getBeneficiaryName())
                         .accountNumber(req.getAccountNumber())
+                        .bankName(req.getBankName())
                         .ifscCode(req.getIfscCode())
                         .build();
         }
@@ -372,6 +374,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                 .amount(req.getAmount())
                 .beneficiaryName(req.getBeneficiaryName())
                 .accountNumber(req.getAccountNumber())
+                .bankName(req.getBankName())
                 .ifscCode(req.getIfscCode())
                 .build();
     }
@@ -393,6 +396,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                 .amount(req.getAmount())
                 .beneficiaryName(req.getBeneficiaryName())
                 .accountNumber(req.getAccountNumber())
+                .bankName(req.getBankName())
                 .ifscCode(req.getIfscCode())
                 .build();
     }
@@ -423,6 +427,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                 .amount(req.getAmount())
                 .beneficiaryName(req.getBeneficiaryName())
                 .accountNumber(req.getAccountNumber())
+                .bankName(req.getBankName())
                 .ifscCode(req.getIfscCode())
                 .build();
     }
@@ -473,15 +478,6 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
     @Override
     public String handleCallback(Map<String, String> payload, HttpServletRequest request)
             throws JsonProcessingException {
-
-//        {
-//            txid=b68f8baa1f9087319c3457c982da9377,
-//                    status=completed,
-//                    product=PAYOUT,
-//                    operator=imps,
-//                    tx_ref=0500033136510399,
-//                    failure_reason= ""
-//        }
 
         log.info("IM Callback Received: {}", payload);
 

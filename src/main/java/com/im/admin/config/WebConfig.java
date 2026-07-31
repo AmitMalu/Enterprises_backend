@@ -25,7 +25,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "https://portal.lakshaype.com",     // Lakshaype Public URL
                         "https://portal.nexatrust.in",      //Bagade Public URL
                         "https://portal.lbvyapar.com",      //LogiBudha Public URL
-                        "http://192.168.1.127:4173"         //Amaan public IP
+                        "http://192.168.1.127:4173",         //Amaan public IP
+                        "https://portal.mintpe.in"           //Mint pay
 
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
