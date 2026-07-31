@@ -24,7 +24,6 @@ public interface RetailerService {
 
     RetailerResponseDTO getRetailerById(String retailerId) throws JsonProcessingException;
 
-
 }
 
 
