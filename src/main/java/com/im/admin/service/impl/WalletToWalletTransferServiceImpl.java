@@ -692,7 +692,10 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     "SUCCESS",
                     "DEBIT",
                     requestHeaderMetaDtoMeta,
-                    transactionDetailsInfo
+                    transactionDetailsInfo,
+                    "Fund Transfer to " + fromWallet.name().toUpperCase() + "Wallet",
+                    "Fund Transfer to " + fromWallet.name().toUpperCase() + " Wallet for Account" + "#" + hierarchyId
+
 
             );
 
@@ -801,7 +804,9 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "SUCCESS",
                             "CREDIT",
                             requestHeaderMetaDtoMeta,
-                            transactionDetailsInfo
+                            transactionDetailsInfo,
+                            "Mirror Transaction Fund Transfer to " + fromWallet.name().toUpperCase() + "Wallet",
+                            "Fund Transfer Mirror Transaction to " + fromWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
                     );
 
                     log.debug(
@@ -835,7 +840,9 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "SUCCESS",
                             "DEBIT",
                             requestHeaderMetaDtoMeta,
-                            transactionDetailsInfo
+                            transactionDetailsInfo,
+                            "Mirror Transaction Fund Transfer to " + toWallet.name().toUpperCase() + "Wallet",
+                            "Fund Transfer Mirror Transaction to " + toWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
                     );
 
                     log.debug(
@@ -909,7 +916,10 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "SUCCESS",
                             "CREDIT",
                             requestHeaderMetaDtoMeta,
-                            transactionDetailsInfo
+                            transactionDetailsInfo,
+                            "Mirror Transaction Fund Transfer to " + fromWallet.name().toUpperCase() + "Wallet",
+                            "Fund Transfer Mirror Transaction to " + fromWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
+
                     );
 
                     log.debug(
@@ -944,7 +954,9 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "SUCCESS",
                             "DEBIT",
                             requestHeaderMetaDtoMeta,
-                            transactionDetailsInfo
+                            transactionDetailsInfo,
+                            "Mirror Transaction Fund Transfer to " + toWallet.name().toUpperCase() + "Wallet",
+                            "Fund Transfer Mirror Transaction to " + toWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
                     );
 
                     log.debug(
@@ -1020,7 +1032,9 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     "SUCCESS",
                     "CREDIT",
                     requestHeaderMetaDtoMeta,
-                    transactionDetailsInfo
+                    transactionDetailsInfo,
+                    "Mirror Transaction Fund Transfer to " + toWallet.name().toUpperCase() + "Wallet",
+                    "Fund Transfer Mirror Transaction to " + toWallet.name().toUpperCase() + " Wallet for Account" + "#" + hierarchyId
             );
 
             log.info(
@@ -1186,7 +1200,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
     private <T extends AbstractWalletAmountTable> void updateWallet(T wallet, String hierarchyId, WalletType walletType, BigDecimal amount,
                                                                     String tranxType, String baseTransactionId, String tranStatus, String service,
-                                                                    RequestHeaderMetaDto requestHeaderMetaDtoMeta, TransactionDetailsInfoDto transactionDetailsInfo) {
+                                                                    RequestHeaderMetaDto requestHeaderMetaDtoMeta, TransactionDetailsInfoDto transactionDetailsInfo,
+                                                                    String remark, String narration) {
 
         log.debug("Updating wallet: {} | Type: {} | Amount: {} | TranxType: {}", hierarchyId, walletType, amount, tranxType);
 
@@ -1210,13 +1225,15 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
         log.debug("Wallet updated. Before: {} | After: {}", balanceBefore, wallet.getAvailableBalance());
 
         insertTransaction(walletType.name(), hierarchyId, tranStatus, amount, balanceBefore,
-                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId, service, requestHeaderMetaDtoMeta, transactionDetailsInfo);
+                wallet.getAvailableBalance(), actionOnBalance, "TXN" + baseTransactionId,
+                service, requestHeaderMetaDtoMeta, transactionDetailsInfo, remark, narration);
     }
 
 
     private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount,
                                    BigDecimal beforeBalance, BigDecimal afterBalance, String actionOnBalanceAmount,
-                                   String tranxId, String service, RequestHeaderMetaDto requestHeaderMetaDtoMeta, TransactionDetailsInfoDto transactionDetailsInfo) {
+                                   String tranxId, String service, RequestHeaderMetaDto requestHeaderMetaDtoMeta, TransactionDetailsInfoDto transactionDetailsInfo,
+                                   String remark, String narration) {
 
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);

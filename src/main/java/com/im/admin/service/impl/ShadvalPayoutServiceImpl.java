@@ -25,6 +25,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -33,7 +34,7 @@ import java.util.Objects;
 @LoggableVendor
 public class ShadvalPayoutServiceImpl implements PayoutVendorService {
 
-    private static final String VENDOR_NAME = "Shadval Payout";
+    private static final List<String> VENDOR_NAME = List.of("Shadval Payout", "Shadval MTB");
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -49,7 +50,7 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
     ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public String getVendorName() {
+    public List<String> getVendorName() {
         return VENDOR_NAME;
     }
 
@@ -114,7 +115,7 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
 
             // defensive checks
             if (vendorResp == null) {
-                return failureDto(orderId, "FAILED", "Empty response from Shadval", req.getAmount());
+                return failureDto(orderId, "FAILED", "Empty response from Shadval", req.getAmount() ,creds.getVendor().getVendorName());
             }
 
             // vendorResp expected: { status, code, message, data: {...} }
@@ -127,7 +128,7 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
                 // vendor returned top-level status + message but no data
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorName(VENDOR_NAME)
+                        .vendorName(creds.getVendor().getVendorName())
                         .status(mappedStatus)
                         .message(message)
                         .amount(req.getAmount())
@@ -194,7 +195,7 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
 
             return PayoutResponseDto.builder()
                     .orderId(referenceId)
-                    .vendorName(VENDOR_NAME)
+                    .vendorName(creds.getVendor().getVendorName())
                     .status(mappedStatus)
                     .message(message)
                     .amount(amount)
@@ -205,18 +206,18 @@ public class ShadvalPayoutServiceImpl implements PayoutVendorService {
 
         } catch (RestClientException rce) {
             log.error("[SHADVAL] Rest error for orderId {}: {}", orderId, rce.getMessage(), rce);
-            return failureDto(orderId, "FAILED", "Vendor communication error: " + rce.getMessage(), req.getAmount());
+            return failureDto(orderId, "FAILED", "Vendor communication error: " + rce.getMessage(), req.getAmount(), creds.getVendor().getVendorName());
         } catch (Exception e) {
             log.error("[SHADVAL] Unexpected error for orderId {}: {}", orderId, e.getMessage(), e);
-            return failureDto(orderId, "FAILED", "Internal error: " + e.getMessage(), req.getAmount());
+            return failureDto(orderId, "FAILED", "Internal error: " + e.getMessage(), req.getAmount(), creds.getVendor().getVendorName());
         }
     }
 
     // helper to create failure DTO
-    private PayoutResponseDto failureDto(String orderId, String status, String message, BigDecimal amount) {
+    private PayoutResponseDto failureDto(String orderId, String status, String message, BigDecimal amount, String vendorName) {
         return PayoutResponseDto.builder()
                 .orderId(orderId)
-                .vendorName(VENDOR_NAME)
+                .vendorName(vendorName)
                 .status(status)
                 .message(message)
                 .amount(amount)

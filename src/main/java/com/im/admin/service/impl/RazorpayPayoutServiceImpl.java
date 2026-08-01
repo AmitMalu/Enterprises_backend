@@ -22,6 +22,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,8 +42,8 @@ public class RazorpayPayoutServiceImpl  implements PayoutVendorService {
     private BeneficiaryBankAccountRepository beneficiaryBankAccountRepository;
 
     @Override
-    public String getVendorName() {
-        return "Razorpay Payout";
+    public List<String> getVendorName() {
+        return List.of("Razorpay Payout", "Razorpay MTB");
     }
 
     @Override
@@ -93,7 +94,7 @@ public class RazorpayPayoutServiceImpl  implements PayoutVendorService {
                 log.error("[RAZORPAY] Exception during payout: {}", e.getMessage(), e);
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorName(getVendorName())
+                        .vendorName(creds.getVendor().getVendorName())
                         .status("FAILED")
                         .message("Razorpay error: " + e.getMessage())
                         .amount(req.getAmount())
@@ -256,7 +257,7 @@ public class RazorpayPayoutServiceImpl  implements PayoutVendorService {
 
             return PayoutResponseDto.builder()
                     .orderId(orderId)
-                    .vendorName(getVendorName())
+                    .vendorName(creds.getVendor().getVendorName())
                     .status("FAILED")
                     .message("Razorpay error: " + e.getResponseBodyAsString())
                     .amount(req.getAmount())
@@ -268,7 +269,7 @@ public class RazorpayPayoutServiceImpl  implements PayoutVendorService {
 
             return PayoutResponseDto.builder()
                     .orderId(orderId)
-                    .vendorName(getVendorName())
+                    .vendorName(creds.getVendor().getVendorName())
                     .status("FAILED")
                     .message("Razorpay error: " + e.getMessage())
                     .amount(req.getAmount())

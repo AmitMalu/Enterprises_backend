@@ -41,6 +41,7 @@ import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service("Runpaisa PAYOUT")
@@ -82,11 +83,9 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
     private CommonMethods commonMethods;
 
     @Override
-    public String getVendorName() {
-        return "Runpaisa PAYOUT";
+    public List<String> getVendorName() {
+        return List.of("Runpaisa PAYOUT", "Runpaisa MTB");
     }
-
-
 
     @Override
     @Transactional
@@ -122,7 +121,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             log.error("[RUNPAISA] Vendor API Error | orderId={} | response={}",
                     orderId, vendorResponse);
 
-            return failed(orderId, vendorResponse);
+            return failed(orderId, vendorResponse, creds.getVendor().getVendorName());
 
         } catch (Exception e) {
             Throwable root = getRootCause(e);
@@ -130,7 +129,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             log.error("[RUNPAISA] Internal payout error | orderId={} | error={}",
                     orderId, root.getMessage(), e);
 
-            return failed(orderId, root.getMessage());
+            return failed(orderId, root.getMessage(), creds.getVendor().getVendorName());
 
         } finally {
             String vendorId = creds.getVendor().getId();
@@ -150,10 +149,10 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
        COMMON FAILED RESPONSE
        ===================================================== */
 
-    private PayoutResponseDto failed(String orderId, String message) {
+    private PayoutResponseDto failed(String orderId, String message, String vendorName) {
         return PayoutResponseDto.builder()
                 .orderId(orderId)
-                .vendorName(getVendorName())
+                .vendorName(vendorName)
                 .status("FAILED")
                 .message(message != null ? message : "Something went wrong")
                 .build();
@@ -222,7 +221,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
         log.info("[RUNPAISA][AES] AES payout response => {}", responseBody);
 
         if (responseBody == null || responseBody.getData() == null) {
-            return failed("TXN" + baseTxnId, "Empty response from AES vendor");
+            return failed("TXN" + baseTxnId, "Empty response from AES vendor", creds.getVendor().getVendorName());
         }
 
         log.info("[RUNPAISA][AES] AES payout completed | orderId={} | status={}",
@@ -234,7 +233,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
 
         return PayoutResponseDto.builder()
                 .orderId("TXN" + baseTxnId)
-                .vendorName(getVendorName())
+                .vendorName(creds.getVendor().getVendorName())
                 .status(responseBody.getData().getStatus())
                 .amount(req.getAmount())
                 .message(responseBody.getMessage())
@@ -269,7 +268,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
         );
 
         // Handle vendor response
-        return handleVendorResponse(response.getBody(), req, orderId, requestHeaderMetaDto.getLatitude(), requestHeaderMetaDto.getLongitude());
+        return handleVendorResponse(response.getBody(), req, orderId, requestHeaderMetaDto.getLatitude(), requestHeaderMetaDto.getLongitude(), creds.getVendor().getVendorName());
     }
 
     /* =====================================================
@@ -593,13 +592,14 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
             SendPayoutRequest req,
             String orderId,
             Double latitude,
-            Double longitude) {
+            Double longitude,
+            String vendorName) {
 
         log.info("[RUNPAISA] Raw response: {}", vendorResp);
 
         if (vendorResp == null || vendorResp.isEmpty()) {
             log.warn("[RUNPAISA] Empty or invalid response from vendor");
-            return failed(orderId, "Empty or invalid response from vendor");
+            return failed(orderId, "Empty or invalid response from vendor", vendorName);
         }
 
         String vendorCodeResp = (String) vendorResp.get("code");
@@ -610,7 +610,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
                 && "SUCCESS".equalsIgnoreCase(vendorStatus);
 
         if (!accepted) {
-            return failed(orderId, vendorMessage);
+            return failed(orderId, vendorMessage, vendorName);
         }
 
         // Save pending transaction
@@ -620,7 +620,7 @@ public class RunPaisaPayoutServiceImplVO implements PayoutVendorService, PayoutC
 
         return PayoutResponseDto.builder()
                 .orderId(orderId)
-                .vendorName(getVendorName())
+                .vendorName(vendorName)
                 .status("PENDING")
                 .message(vendorMessage)
                 .amount(req.getAmount())

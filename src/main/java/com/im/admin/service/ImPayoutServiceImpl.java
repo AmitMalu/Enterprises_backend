@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.time.format.DateTimeFormatter;
 
@@ -71,8 +72,8 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
 
 
     @Override
-    public String getVendorName() {
-        return "IM Payout";
+    public List<String> getVendorName() {
+        return List.of("IM Payout", "IM MTB");
     }
 
     @Override
@@ -105,7 +106,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
             log.error("[IM PAYOUT] Vendor API Error | orderId={} | response={}",
                     orderId, vendorResponse);
 
-            return failed(orderId, vendorResponse);
+            return failed(orderId, vendorResponse, creds.getVendor().getVendorName());
 
         } catch (Exception e) {
             Throwable root = getRootCause(e);
@@ -113,7 +114,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
             log.error("[IM PAYOUT] Internal payout error | orderId={} | error={}",
                     orderId, root.getMessage(), e);
 
-            return failed(orderId, root.getMessage());
+            return failed(orderId, root.getMessage(), creds.getVendor().getVendorName());
 
         } finally {
             String vendorId = creds.getVendor().getId();
@@ -178,7 +179,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         log.info("[IM PAYOUT][AES] AES payout response => {}", responseBody);
 
         if (responseBody == null || responseBody.getData() == null) {
-            return failed("TXN" + baseTxnId, "Empty response from AES vendor");
+            return failed("TXN" + baseTxnId, "Empty response from AES vendor", creds.getVendor().getVendorName());
         }
 
         log.info("[IM PAYOUT][AES] AES payout completed | orderId={} | status={}",
@@ -190,7 +191,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
 
         return PayoutResponseDto.builder()
                 .orderId("TXN" + baseTxnId)
-                .vendorName(getVendorName())
+                .vendorName(creds.getVendor().getVendorName())
                 .status(responseBody.getData().getStatus())
                 .amount(req.getAmount())
                 .message(responseBody.getMessage())
@@ -226,7 +227,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         );
 
         // Handle vendor response
-        return handleVendorResponse(response.getBody(), req, orderId, requestHeaderMetaDto.getLatitude(), requestHeaderMetaDto.getLongitude());
+        return handleVendorResponse(response.getBody(), req, orderId, requestHeaderMetaDto.getLatitude(), requestHeaderMetaDto.getLongitude(), creds.getVendor().getVendorName());
     }
 
     /* =====================================================
@@ -246,10 +247,10 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
        COMMON FAILED RESPONSE
        ===================================================== */
 
-    private PayoutResponseDto failed(String orderId, String message) {
+    private PayoutResponseDto failed(String orderId, String message, String vendorName) {
         return PayoutResponseDto.builder()
                 .orderId(orderId)
-                .vendorName(getVendorName())
+                .vendorName(vendorName)
                 .status("FAILED")
                 .message(message != null ? message : "Something went wrong")
                 .build();
@@ -309,13 +310,14 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
             SendPayoutRequest req,
             String orderId,
             Double latitude,
-            Double longitude) {
+            Double longitude,
+            String vendorName) {
 
         log.info("[IM PAYOUT] Raw response: {}", vendorResp);
 
         if (vendorResp == null || vendorResp.isEmpty()) {
             log.warn("[IM PAYOUT] Empty or invalid response from vendor");
-            return failed(orderId, "Empty or invalid response from vendor");
+            return failed(orderId, "Empty or invalid response from vendor", vendorName);
         }
 
         String vendorStatus = String.valueOf(vendorResp.get("status"));
@@ -328,16 +330,16 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         switch (vendorStatus.toLowerCase()) {
             case "success":
                 return handleSuccessResponse(req, orderId, vendorTxnId, vendorTxRef,
-                        vendorMessage, latitude, longitude);
+                        vendorMessage, latitude, longitude, vendorName);
 
             case "waiting":
                 return handleWaitingResponse(req, orderId, vendorTxnId, vendorTxRef,
-                        vendorMessage, latitude, longitude);
+                        vendorMessage, latitude, longitude, vendorName);
 
             case "error":
             case "failed":
                 return handleErrorResponse(req, orderId, vendorTxnId, vendorTxRef,
-                        vendorStatus, vendorMessage, vendorData, latitude, longitude);
+                        vendorStatus, vendorMessage, vendorData, latitude, longitude, vendorName);
 
             default:
                 // Unknown status - treat as PENDING
@@ -345,7 +347,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                 savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef, "PENDING");
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorName(getVendorName())
+                        .vendorName(vendorName)
                         .status("PENDING")
                         .message("Transaction is being processed")
                         .amount(req.getAmount())
@@ -361,14 +363,14 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
     private PayoutResponseDto handleSuccessResponse(SendPayoutRequest req, String orderId,
                                                     String vendorTxnId, String vendorTxRef,
                                                     String vendorMessage, Double latitude,
-                                                    Double longitude) {
+                                                    Double longitude, String vendorName) {
         log.info("[IM PAYOUT] Transaction SUCCESS | OrderID={} | VendorTxnID={}", orderId, vendorTxnId);
 
         savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef, "PENDING");
 
         return PayoutResponseDto.builder()
                 .orderId(orderId)
-                .vendorName(getVendorName())
+                .vendorName(vendorName)
                 .status("SUCCESS")
                 .message(vendorMessage != null ? vendorMessage : "Transaction completed successfully")
                 .amount(req.getAmount())
@@ -383,14 +385,14 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
     private PayoutResponseDto handleWaitingResponse(SendPayoutRequest req, String orderId,
                                                     String vendorTxnId, String vendorTxRef,
                                                     String vendorMessage, Double latitude,
-                                                    Double longitude) {
+                                                    Double longitude, String vendorName) {
         log.info("[IM PAYOUT] Transaction PENDING | OrderID={} | VendorTxnID={}", orderId, vendorTxnId);
 
         savePendingTransaction(req, orderId, latitude, longitude, vendorTxRef, "PENDING");
 
         return PayoutResponseDto.builder()
                 .orderId(orderId)
-                .vendorName(getVendorName())
+                .vendorName(vendorName)
                 .status("PENDING")
                 .message(vendorMessage != null ? vendorMessage : "Transaction is being processed")
                 .amount(req.getAmount())
@@ -406,7 +408,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
                                                   String vendorTxnId, String vendorTxRef,
                                                   String vendorStatus, String vendorMessage,
                                                   String vendorData, Double latitude,
-                                                  Double longitude) {
+                                                  Double longitude, String vendorName) {
         // Build error message
         String errorMessage = vendorMessage != null ? vendorMessage : "Transaction failed";
 
@@ -421,7 +423,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
 
         return PayoutResponseDto.builder()
                 .orderId(orderId)
-                .vendorName(getVendorName())
+                .vendorName(vendorName)
                 .status("FAILED")
                 .message(errorMessage)
                 .amount(req.getAmount())
