@@ -3,21 +3,41 @@ package com.im.admin.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.SMSGatewayAPI;
+import com.im.admin.commons.ShivSmsService;
 import com.im.admin.dto.*;
 import com.im.admin.request.RemitterUpdateRequest;
+import com.im.admin.entities.Admin;
+import com.im.admin.entities.Distributor;
 import com.im.admin.entities.DmtRemitter;
+import com.im.admin.entities.Enterprises;
+import com.im.admin.entities.Partner;
+import com.im.admin.entities.Retailer;
+import com.im.admin.entities.SmsCredentialsMaster;
+import com.im.admin.entities.SuperDistributor;
 import com.im.admin.entities.VendorCredentials;
 import com.im.admin.entities.VendorRouting;
+import com.im.admin.entities.WhiteLabels;
+import com.im.admin.entities.WhiteLabelUser;
 
+import com.im.admin.repositories.AdminRepository;
+import com.im.admin.repositories.DistributorRepository;
+import com.im.admin.repositories.EnterprisesRepository;
+import com.im.admin.repositories.PartnerRepository;
 import com.im.admin.repositories.RemitterRepository;
+import com.im.admin.repositories.RetailerRepository;
+import com.im.admin.repositories.SmsCredentialsRepository;
+import com.im.admin.repositories.SuperDistributorRepository;
 import com.im.admin.repositories.VendorCredentialsRepository;
 import com.im.admin.repositories.VendorRoutingRepository;
+import com.im.admin.repositories.WhiteLabelRepository;
+import com.im.admin.repositories.WhiteLabelUserRepository;
 import com.im.admin.request.DmtOtpRequest;
 import com.im.admin.request.VendorRemitterEkycRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.response.DmtRemitterResponseDto;
 import com.im.admin.service.RemitterService;
 import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +79,39 @@ public class RemitterServiceImpl implements RemitterService {
 
     @Autowired
     private SMSGatewayAPI smsGatewayAPI;
+
+    @Autowired
+    private ShivSmsService shivSmsService;
+
+    @Autowired
+    private SmsCredentialsRepository smsCredentialsRepository;
+
+    @Autowired
+    private TokenUtil tokenUtil;
+
+    @Autowired
+    private RetailerRepository retailerRepository;
+
+    @Autowired
+    private DistributorRepository distributorRepository;
+
+    @Autowired
+    private PartnerRepository partnerRepository;
+
+    @Autowired
+    private SuperDistributorRepository superDistributorRepository;
+
+    @Autowired
+    private WhiteLabelRepository whiteLabelsRepository;
+
+    @Autowired
+    private WhiteLabelUserRepository whiteLabelUserRepository;
+
+    @Autowired
+    private EnterprisesRepository enterprisesRepository;
+
+    @Autowired
+    private AdminRepository adminRepository;
 
     @Autowired private ObjectMapper objectMapper;
 
@@ -533,8 +586,35 @@ public class RemitterServiceImpl implements RemitterService {
         return dto;
     }
 
+//    @Override
+//    public CommonResponse<String> sendOtp(DmtOtpRequest dmtOtpRequest) {
+//
+//        Optional<DmtRemitter> optional = remitterRepository.findByMobile(dmtOtpRequest.getMobile());
+//
+//        if (optional.isEmpty()) {
+//            return CommonResponse.handleErrors("Remitter not found");
+//        }
+//
+//        DmtRemitter remitter = optional.get();
+//
+//        String otp = String.valueOf((int)(Math.random() * 900000) + 100000);
+//
+//        // Save OTP
+//        remitter.setOtp(otp);
+//        remitter.setOtpGeneratedAt(LocalDateTime.now());
+////        remitter.setOtpVerified(false);
+//
+//        remitterRepository.save(remitter);
+//
+//        // Send SMS
+//        smsGatewayAPI.sendOTPSms(dmtOtpRequest.getMobile(), otp);
+//
+//        return CommonResponse.success(null, "OTP sent successfully");
+//
+//    }
+
     @Override
-    public CommonResponse<String> sendOtp(DmtOtpRequest dmtOtpRequest) {
+    public CommonResponse<String> sendOtpWithShiv(DmtOtpRequest dmtOtpRequest) {
 
         Optional<DmtRemitter> optional = remitterRepository.findByMobile(dmtOtpRequest.getMobile());
 
@@ -553,15 +633,81 @@ public class RemitterServiceImpl implements RemitterService {
 
         remitterRepository.save(remitter);
 
-        // Send SMS
-        smsGatewayAPI.sendOTPSms(dmtOtpRequest.getMobile(), otp);
+        // Send SMS (ShivSmsService - same flow as AuthController)
+        try {
+            String hierarchyId = tokenUtil.extractHierarchyId();
+            String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
+
+            String fromId = resolveFromEmail(hierarchyType, hierarchyId);
+
+            String companyName = getCompanyName(fromId);
+
+            SmsCredentialsMaster smsConfig =
+                    getSmsCredentials(
+                            hierarchyType,
+                            hierarchyId,
+                            "LOGIN_ALERT"
+                    );
+
+            shivSmsService.sendOtpSms(
+                    smsConfig,
+                    remitter.getMobile(),
+                    remitter.getName(),
+                    otp,
+                    companyName
+            );
+
+            //Save SMS logs
+            commonFunctions.saveSmsLogs(
+                    LocalDateTime.now(),
+                    "Send OTP to: " + remitter.getMobile() + ", OTP: " + otp,
+                    LocalDateTime.now(),
+                    otp,
+                    null // You can replace null with real IP if available
+            );
+
+            log.info("OTP sent via SMS to: {}", remitter.getMobile());
+        } catch (Exception e) {
+            log.error("Failed to send OTP via SMS to {}", remitter.getMobile(), e);
+        }
 
         return CommonResponse.success(null, "OTP sent successfully");
 
     }
 
+//    @Override
+//    public CommonResponse<String> resendOtp(String mobile) {
+//
+//        Optional<DmtRemitter> optional = remitterRepository.findByMobile(mobile);
+//
+//        if (optional.isEmpty()) {
+//            return CommonResponse.handleErrors("Remitter not found");
+//        }
+//
+//        DmtRemitter remitter = optional.get();
+//
+//        // (Optional) Block resend if already verified
+////        if (Boolean.TRUE.equals(remitter.getOtpVerified())) {
+////            return CommonResponse.handleErrors("OTP already verified");
+////        }
+//
+//        // Generate new OTP
+//        String newOtp = String.valueOf((int) (Math.random() * 900000) + 100000);
+//
+//        // Invalidate old OTP
+//        remitter.setOtp(newOtp);
+//        remitter.setOtpGeneratedAt(LocalDateTime.now());
+//
+//        remitterRepository.save(remitter);
+//
+//        // Send SMS (LIVE API)
+//        smsGatewayAPI.sendOTPSms(mobile, newOtp);
+//
+//        return CommonResponse.success(null, "OTP resent successfully");
+//    }
+
     @Override
-    public CommonResponse<String> resendOtp(String mobile) {
+    public CommonResponse<String> resendOtpWithShiv(String mobile) {
 
         Optional<DmtRemitter> optional = remitterRepository.findByMobile(mobile);
 
@@ -585,8 +731,43 @@ public class RemitterServiceImpl implements RemitterService {
 
         remitterRepository.save(remitter);
 
-        // Send SMS (LIVE API)
-        smsGatewayAPI.sendOTPSms(mobile, newOtp);
+        // Send SMS (ShivSmsService - same flow as AuthController)
+        try {
+            String hierarchyId = tokenUtil.extractHierarchyId();
+            String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
+
+            String fromId = resolveFromEmail(hierarchyType, hierarchyId);
+
+            String companyName = getCompanyName(fromId);
+
+            SmsCredentialsMaster smsConfig =
+                    getSmsCredentials(
+                            hierarchyType,
+                            hierarchyId,
+                            "LOGIN_ALERT"
+                    );
+
+            shivSmsService.sendOtpSms(
+                    smsConfig,
+                    remitter.getMobile(),
+                    remitter.getName(),
+                    newOtp,
+                    companyName
+            );
+
+            //Save SMS logs
+            commonFunctions.saveSmsLogs(
+                    LocalDateTime.now(),
+                    "Send OTP to: " + remitter.getMobile() + ", OTP: " + newOtp,
+                    LocalDateTime.now(),
+                    newOtp,
+                    null // You can replace null with real IP if available
+            );
+
+            log.info("OTP resent via SMS to: {}", remitter.getMobile());
+        } catch (Exception e) {
+            log.error("Failed to resend OTP via SMS to {}", remitter.getMobile(), e);
+        }
 
         return CommonResponse.success(null, "OTP resent successfully");
     }
@@ -627,6 +808,127 @@ public class RemitterServiceImpl implements RemitterService {
     private static long getTimestamp() {
         long timestamp = Instant.now().getEpochSecond();
         return timestamp;
+    }
+
+    private String getCompanyName(String fromId) {
+
+        // Check in WhiteLabel first
+        Optional<WhiteLabels> wlOpt = whiteLabelsRepository.findById(fromId);
+        if (wlOpt.isPresent()) {
+            return wlOpt.get().getOutletAddress().getCompanyName();
+        }
+
+        // Else check in Admin
+        Optional<Admin> adOpt = adminRepository.findById(fromId);
+        if (adOpt.isPresent()) {
+            return adOpt.get().getName(); //  company name
+        }
+
+        // fallback
+        return "NFT NETWORK TECHNOLOGIES PRIVATE LIMITED..";
+    }
+
+    private SmsCredentialsMaster getSmsCredentials(String hierarchyType, String hierarchyId, String smsType) {
+        String fromId = resolveFromEmail(hierarchyType, hierarchyId);
+
+        return smsCredentialsRepository.findByWhitelabelIdAndType(fromId, smsType)
+                .orElseGet(() -> smsCredentialsRepository.findByWhitelabelIdAndType("NFT-AD-001", smsType)
+                        .orElseThrow(() -> new RuntimeException("SMS credentials not found for type: " + smsType)));
+    }
+
+    private String resolveFromEmail(String hierarchyType, String hierarchyId) {
+
+        switch (hierarchyType) {
+
+            case "RT" -> {
+                Retailer rt = retailerRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Retailer not found"));
+
+                String parentId = rt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "DT" -> {
+                Distributor dt = distributorRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Distributor not found"));
+
+                String parentId = dt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "PT" -> {
+                Partner pt = partnerRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Partner not found"));
+
+                String parentId = pt.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "SD" -> {
+                SuperDistributor sd = superDistributorRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("SuperDistributor not found"));
+
+                String parentId = sd.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "WL" -> {
+                WhiteLabels wl = whiteLabelsRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("WhiteLabel not found"));
+
+                if (Boolean.TRUE.equals(wl.getIsAdmin())) {
+                    return wl.getWhiteLabelId();
+                }
+
+                String parentId = wl.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "WLAU" -> {
+                Optional<WhiteLabelUser> wlauOpt =
+                        whiteLabelUserRepository.findById(hierarchyId);
+
+                if (wlauOpt.isEmpty()) {
+                    return wlauOpt.get().getId();
+                }
+
+                WhiteLabelUser wlau = wlauOpt.get();
+                String parentId = wlau.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+
+            }
+
+            case "ET" -> {
+                Enterprises et = enterprisesRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Enterprise not found"));
+
+                String parentId = et.getParentAccount();
+                String parentType = commonMethods.extractHierarchyType(parentId);
+
+                return resolveFromEmail(parentType, parentId);
+            }
+
+            case "AD", "IM" -> {
+                Admin ad = adminRepository.findById(hierarchyId)
+                        .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+                return ad.getId();
+            }
+
+            default -> throw new RuntimeException("Invalid hierarchy type: " + hierarchyType);
+        }
     }
 
 

@@ -64,14 +64,26 @@ public class DmtRemitterController {
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
+    // OLD IMPLEMENTATION (SMS via SmsGatewayAPI) - kept for reference
+    //    @PostMapping("/send-otp")
+    //    public CommonResponse<String> sendOtp(@RequestBody DmtOtpRequest dmtOtpRequest) {
+    //        return remitterService.sendOtp(dmtOtpRequest);
+    //    }
+
     @PostMapping("/send-otp")
     public CommonResponse<String> sendOtp(@RequestBody DmtOtpRequest dmtOtpRequest) {
-        return remitterService.sendOtp(dmtOtpRequest);
+        return remitterService.sendOtpWithShiv(dmtOtpRequest);
     }
+
+    // OLD IMPLEMENTATION (SMS via SmsGatewayAPI) - kept for reference
+    //    @PostMapping("/resend-otp")
+    //    public CommonResponse<String> resendOtp(@RequestBody DmtOtpRequest request) {
+    //        return remitterService.resendOtp(request.getMobile());
+    //    }
 
     @PostMapping("/resend-otp")
     public CommonResponse<String> resendOtp(@RequestBody DmtOtpRequest request) {
-        return remitterService.resendOtp(request.getMobile());
+        return remitterService.resendOtpWithShiv(request.getMobile());
     }
 
     @PostMapping("/validate-otp")

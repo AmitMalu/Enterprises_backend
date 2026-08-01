@@ -19,7 +19,11 @@ public interface RemitterService {
 
     CommonResponse<DmtRemitterResponseDto> updateRemitter(RemitterUpdateRequest request);
 
-    CommonResponse<String> sendOtp(DmtOtpRequest dmtOtpRequest);
+//    CommonResponse<String> sendOtp(DmtOtpRequest dmtOtpRequest);
 
-    CommonResponse<String> resendOtp(String mobile);
+    CommonResponse<String> sendOtpWithShiv(DmtOtpRequest dmtOtpRequest);
+
+//    CommonResponse<String> resendOtp(String mobile);
+
+    CommonResponse<String> resendOtpWithShiv(String mobile);
 }
