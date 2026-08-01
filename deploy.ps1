@@ -242,7 +242,7 @@ for i in {1..30}; do
     fi
 
     echo "Waiting for Tomcat to stop. Running processes: `$TOMCAT_COUNT"
-    sleep 1
+    sleep 5
 done
 
 TOMCAT_COUNT=`$(pgrep -f -c 'org.apache.catalina.startup.Bootstrap' || true)
@@ -252,6 +252,9 @@ if [ "`$TOMCAT_COUNT" -ne 0 ]; then
     echo "Deployment stopped to avoid starting another Tomcat process."
     exit 1
 fi
+
+echo "Deleting old catalina.out..."
+sudo -n rm -f "`$TOMCAT_HOME/logs/catalina.out"
 
 echo "Removing previous application..."
 sudo -n rm -f "`$DEPLOY_WAR"

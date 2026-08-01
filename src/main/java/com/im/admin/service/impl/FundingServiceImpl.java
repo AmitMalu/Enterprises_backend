@@ -753,10 +753,56 @@ public class FundingServiceImpl implements FundingService {
             SettlementPendingRequestDto request, int page, int size) {
 
         // ===== NETWORK HIERARCHY LOGIC =====
-        String hierarchyId = tokenUtil.extractHierarchyId();
+        // ===== PROJECT HIERARCHY LOGIC =====
 
-        List<String> networkIds = getRetailersUnderHierarchy(hierarchyId);
-        log.info("Settlement Network IDs: {}", networkIds);
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
+
+        String loginHierarchyType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        String effectiveHierarchyId =
+                commonMethods.resolveEffectiveHierarchyId(
+                        loginHierarchyId,
+                        loginHierarchyType
+                );
+
+        boolean fullSystemAccess =
+                commonMethods.hasFullSystemAccess(
+                        loginHierarchyType
+                );
+
+        List<String> networkIds = null;
+
+        if (!fullSystemAccess) {
+
+            networkIds =
+                    accessHierarchyPathRepository
+                            .findAllDescendantIds(
+                                    effectiveHierarchyId
+                            );
+
+            if (networkIds == null) {
+                networkIds = new ArrayList<>();
+            } else {
+                networkIds = new ArrayList<>(networkIds);
+            }
+
+            if (!networkIds.contains(effectiveHierarchyId)) {
+                networkIds.add(effectiveHierarchyId);
+            }
+        }
+
+        log.info(
+                "Settlement hierarchy access | loginId={} | loginType={} | effectiveId={} | fullAccess={} | networkIds={}",
+                loginHierarchyId,
+                loginHierarchyType,
+                effectiveHierarchyId,
+                fullSystemAccess,
+                networkIds
+        );
 
         log.info("Fetching Settlement Transactions for walletType: {}", request.getWalletType());
 
@@ -1134,6 +1180,53 @@ public class FundingServiceImpl implements FundingService {
 
         List<String> filteredSubProducts = null;
 
+        long startTime = System.currentTimeMillis();
+
+        String loginHierarchyId =
+                tokenUtil.extractHierarchyId();
+
+        String loginHierarchyType =
+                commonMethods.extractHierarchyType(
+                        loginHierarchyId
+                );
+
+        String effectiveHierarchyId =
+                commonMethods.resolveEffectiveHierarchyId(
+                        loginHierarchyId,
+                        loginHierarchyType
+                );
+
+        boolean fullSystemAccess =
+                commonMethods.hasFullSystemAccess(
+                        loginHierarchyType
+                );
+
+        log.info("Access: fullSystemAccess={}, hierarchyId={}, hierarchyType={}",
+                fullSystemAccess, effectiveHierarchyId, loginHierarchyType);
+
+        List<String> accessibleHierarchyIds = null;
+
+        if (!fullSystemAccess) {
+
+            accessibleHierarchyIds =
+                    accessHierarchyPathRepository
+                            .findAllDescendantIds(
+                                    effectiveHierarchyId
+                            );
+
+            if (accessibleHierarchyIds == null) {
+                accessibleHierarchyIds = new ArrayList<>();
+            }
+
+            if (!accessibleHierarchyIds.contains(effectiveHierarchyId)) {
+                accessibleHierarchyIds.add(effectiveHierarchyId);
+            }
+
+            log.info("Accessible hierarchies: {} IDs found", accessibleHierarchyIds.size());
+        }
+
+        log.info("Setup completed in {} ms", System.currentTimeMillis() - startTime);
+
         if (request.getProductId() != null) {
             log.debug("Processing productId: {}", request.getProductId());
 
@@ -1199,12 +1292,12 @@ public class FundingServiceImpl implements FundingService {
 
         if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
             log.info("Processing PREPAID wallet type");
-            result = fetchPrepaidUpdated(request, filteredSubProducts, vendorName, pageable);
+            result = fetchPrepaidUpdated(request, filteredSubProducts, vendorName, accessibleHierarchyIds, pageable);
             log.info("PREPAID query completed - Total elements: {}, Total pages: {}",
                     result.getTotalElements(), result.getTotalPages());
         } else {
             log.info("Processing POSTPAID wallet type");
-            result = fetchPostpaidUpdated(request, filteredSubProducts, vendorName, pageable);
+            result = fetchPostpaidUpdated(request, filteredSubProducts, vendorName, accessibleHierarchyIds, pageable);
             log.info("POSTPAID query completed - Total elements: {}, Total pages: {}",
                     result.getTotalElements(), result.getTotalPages());
         }
@@ -1219,6 +1312,7 @@ public class FundingServiceImpl implements FundingService {
             SettlementPendingRequestDto request,
             List<String> subProductNames,
             String vendorName,
+            List<String> hierarchyIds,
             Pageable pageable) {
 
         log.info("Fetching PREPAID transactions with filters - SubProducts: {}, Vendor: {}",
@@ -1233,6 +1327,7 @@ public class FundingServiceImpl implements FundingService {
                         request.getToDate(),
                         subProductNames,
                         vendorName,
+                        hierarchyIds,
                         null, // statusList REMOVED
                         request.getUserId(),
                         request.getMobileNo(),
@@ -1292,6 +1387,7 @@ public class FundingServiceImpl implements FundingService {
             SettlementPendingRequestDto request,
             List<String> subProductNames,
             String vendorName,
+            List<String> hierarchyIds,
             Pageable pageable) {
 
         log.info("Fetching POSTPAID transactions with filters - SubProducts: {}, Vendor: {}",
@@ -1310,6 +1406,7 @@ public class FundingServiceImpl implements FundingService {
                         request.getToDate(),
                         subProductNames,
                         vendorName,
+                        hierarchyIds,
                         request.getUserId(),
                         request.getMobileNo(),
                         request.getSchemeName(),

@@ -364,6 +364,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 .ifPresentOrElse(txn -> {
                     txn.setActionOnBalanceAmount("Deduct Funds - PREPAID");
                     txn.setTranStatus(status);
+                    //txn.setBankRefId();
                     retailerPrepaidTransactionDetailsRepository.save(txn);
                     log.debug("[TXN_STATUS] Updated PREPAID transaction: {}", transactionId);
                 }, () -> {
@@ -376,6 +377,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 .ifPresentOrElse(txn -> {
                     txn.setActionOnBalanceAmount("Deduct Funds - POSTPAID");
                     txn.setTranStatus(status);
+                    //txn.setBankRefId();
                     retailerPostpaidTransactionDetailsRepository.save(txn);
                     log.debug("[TXN_STATUS] Updated POSTPAID transaction: {}", transactionId);
                 }, () -> {
@@ -2745,18 +2747,16 @@ private void distributeToHierarchyChain(
 
 
     private BigDecimal calculateCommissionAmount(double commissionValue, BigDecimal transactionAmount, String commissionType) {
-        BigDecimal commissionAmount;
-        BigDecimal commissionRate = BigDecimal.valueOf(commissionValue);
 
-        if ("PERCENTAGE".equalsIgnoreCase(commissionType)) {
-            commissionAmount = transactionAmount.multiply(commissionRate);
-        } else {
-            // Flat commission amount
-            commissionAmount = commissionRate;
-        }
+        log.info("Calculating commission | type={}, value={}, amount={}", commissionType, commissionValue, transactionAmount);
+        BigDecimal commissionRate = BigDecimal.valueOf(commissionValue);
+        BigDecimal commissionAmount = "PERCENTAGE".equalsIgnoreCase(commissionType)
+                ? transactionAmount.multiply(commissionRate)
+                : commissionRate;
 
         // Ensure commission does not exceed transaction amount
         if (commissionAmount.compareTo(transactionAmount) > 0) {
+            log.debug("Commission exceed transaction amount | original={}, capped={}", commissionAmount, transactionAmount);
             commissionAmount = transactionAmount;
         }
 

@@ -176,7 +176,8 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
               AND (:toDate IS NULL OR r.dateOfTransaction <= :toDate)
               AND (:subProductNames IS NULL OR r.subProductName IN :subProductNames)
               AND (:vendorName IS NULL OR r.vendorName = :vendorName)
-              AND (:userId IS NULL OR r.retailerId LIKE %:userId%)
+              AND (:hierarchyIds IS NULL OR r.retailerId IN :hierarchyIds)
+              AND ( :userId IS NULL OR LOWER(r.retailerId) LIKE LOWER(CONCAT('%', :userId, '%')))
               AND (:mobileNo IS NULL OR r.mobileNo LIKE %:mobileNo%)
               AND (:schemeName IS NULL OR r.schemeName LIKE %:schemeName%)
               AND (:amount IS NULL OR r.amount = :amount)
@@ -197,7 +198,11 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
               AND (:updatedDateOfTransaction IS NULL OR r.updatedDateOfTransaction = :updatedDateOfTransaction)
               AND (:updatedTimeOfTransaction IS NULL OR r.updatedTimeOfTransaction = :updatedTimeOfTransaction)
             """)
-    Page<RetailerPostpaidTransactionDetails> findFilteredTransactionsUpdated(@Param("id") Integer id, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("subProductNames") List<String> subProductNames, @Param("vendorName") String vendorName, @Param("userId") String userId, @Param("mobileNo") String mobileNo, @Param("schemeName") String schemeName, @Param("amount") Double amount, @Param("txId") String txId, @Param("remarks") String remarks, @Param("medium") String medium, @Param("txType") String txType, @Param("actionOnBalanceAmount") String actionOnBalanceAmount, @Param("dateOfTransaction") LocalDate dateOfTransaction, @Param("timeOfTransaction") LocalTime timeOfTransaction, @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction, @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction, Pageable pageable);
+    Page<RetailerPostpaidTransactionDetails> findFilteredTransactionsUpdated(@Param("id") Integer id, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("subProductNames") List<String> subProductNames,
+                                                                             @Param("vendorName") String vendorName, @Param("hierarchyIds") List<String> hierarchyIds, @Param("userId") String userId, @Param("mobileNo") String mobileNo, @Param("schemeName") String schemeName,
+                                                                             @Param("amount") Double amount, @Param("txId") String txId, @Param("remarks") String remarks, @Param("medium") String medium, @Param("txType") String txType,
+                                                                             @Param("actionOnBalanceAmount") String actionOnBalanceAmount, @Param("dateOfTransaction") LocalDate dateOfTransaction, @Param("timeOfTransaction") LocalTime timeOfTransaction,
+                                                                             @Param("updatedDateOfTransaction") LocalDate updatedDateOfTransaction, @Param("updatedTimeOfTransaction") LocalTime updatedTimeOfTransaction, Pageable pageable);
 
 
     @Query("""

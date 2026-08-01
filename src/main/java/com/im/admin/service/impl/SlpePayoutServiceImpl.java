@@ -23,6 +23,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -52,8 +53,8 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
     private ProductsRepository productsRepository;
 
     @Override
-    public String getVendorName() {
-        return "SLPE Payout";
+    public List<String> getVendorName() {
+        return List.of("SLPE Payout", "SLPE MTB");
     }
 
     @Override
@@ -155,7 +156,7 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 // ===== 5. Build Response DTO =====
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorName(getVendorName())
+                        .vendorName(creds.getVendor().getVendorName())
                         .status(mappedStatus)
                         .message("Payout initiated successfully")
                         .amount(req.getAmount())
@@ -169,7 +170,7 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
                 return PayoutResponseDto.builder()
                         .orderId(orderId)
-                        .vendorName(getVendorName())
+                        .vendorName(creds.getVendor().getVendorName())
                         .status("FAILED")
                         .message("Payout failed")
                         .amount(req.getAmount())
@@ -181,7 +182,7 @@ public class SlpePayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
             return PayoutResponseDto.builder()
                     .orderId(orderId)
-                    .vendorName(getVendorName())
+                    .vendorName(creds.getVendor().getVendorName())
                     .status("FAILED")
                     .message("Exception: " + e.getMessage())
                     .amount(req.getAmount())

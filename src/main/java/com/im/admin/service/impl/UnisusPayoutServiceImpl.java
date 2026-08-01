@@ -79,8 +79,8 @@ public class UnisusPayoutServiceImpl implements PayoutVendorService, PayoutBenef
 
 
     @Override
-    public String getVendorName() {
-        return "UnisusPay Payout";
+    public List<String> getVendorName() {
+        return List.of("UnisusPay Payout", "UnisusPay MTB");
     }
 
     @Override
