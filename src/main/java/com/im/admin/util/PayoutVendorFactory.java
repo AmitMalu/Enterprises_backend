@@ -15,34 +15,14 @@ public class PayoutVendorFactory {
 
     @Autowired
     public PayoutVendorFactory(List<PayoutVendorService> vendors) {
-        vendors.forEach(v -> vendorMap.put(v.getVendorName().toLowerCase(), v));
-    }
+        for (PayoutVendorService service : vendors) {
 
-//    public PayoutVendorService getVendor(String vendorName) {
-//        if (vendorName == null || vendorName.trim().isEmpty()) {
-//            return null;
-//        }
-//
-//        String normalizedCode = vendorName.trim().toLowerCase();
-//
-//        // Exact match (case-insensitive)
-//        if (vendorMap.containsKey(normalizedCode)) {
-//            return vendorMap.get(normalizedCode);
-//        }
-//
-//        // Partial match
-//        for (Map.Entry<String, PayoutVendorService> entry : vendorMap.entrySet()) {
-////            if (entry.getKey().contains(normalizedCode)) {
-////                return entry.getValue();
-////            }
-//            if (normalizedCode.contains(entry.getKey())) {
-//                return entry.getValue();
-//            }
-//
-//        }
-//
-//        return null;
-//    }
+            for (String name : service.getVendorName()) {
+
+                vendorMap.put(name.toLowerCase(), service);
+            }
+        }
+    }
 
     public PayoutVendorService getVendor(String vendorName) {
 

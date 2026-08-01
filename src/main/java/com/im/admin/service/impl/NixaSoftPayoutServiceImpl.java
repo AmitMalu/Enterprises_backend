@@ -31,6 +31,7 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -79,8 +80,8 @@ public class NixaSoftPayoutServiceImpl implements PayoutVendorService, PayoutCal
     private CommonFunctions commonFunctions;
 
     @Override
-    public String getVendorName() {
-        return "NixaSoft Payout";
+    public List<String> getVendorName() {
+        return List.of("NixaSoft Payout", "NixaSoft MTB");
     }
 
     @Override

@@ -91,8 +91,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
     private VimoPayCryptoUtil vimoPayCryptoUtil;
 
     @Override
-    public String getVendorName() {
-        return "VidualPay Payout";
+    public List<String> getVendorName() {
+        return List.of("VidualPay Payout", "VidualPay MTB");
     }
 
 
@@ -121,7 +121,7 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
             log.error("[VIMOPAY] Vendor API Error | orderId={} | response={}",
                     orderId, vendorResponse);
 
-            return failed(orderId, vendorResponse);
+            return failed(orderId, vendorResponse, creds.getVendor().getVendorName());
 
         } catch (Exception e) {
             Throwable root = getRootCause(e);
@@ -129,7 +129,7 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
             log.error("[VIMOPAY] Internal payout error | orderId={} | error={}",
                     orderId, root.getMessage(), e);
 
-            return failed(orderId, root.getMessage());
+            return failed(orderId, root.getMessage(), creds.getVendor().getVendorName());
 
         } finally {
             String vendorId = creds.getVendor().getId();
@@ -149,10 +149,10 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
        COMMON FAILED RESPONSE
        ===================================================== */
 
-    private PayoutResponseDto failed(String orderId, String message) {
+    private PayoutResponseDto failed(String orderId, String message, String vendorName) {
         return PayoutResponseDto.builder()
                 .orderId(orderId)
-                .vendorName(getVendorName())
+                .vendorName(vendorName)
                 .status("FAILED")
                 .message(message != null ? message : "Something went wrong")
                 .build();
@@ -272,7 +272,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
         if (rawResponse == null) {
             return failed(
                     orderId,
-                    "Empty response from vendor"
+                    "Empty response from vendor",
+                    creds.getVendor().getVendorName()
             );
         }
 
@@ -299,14 +300,11 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
         if (!success || !"000".equals(responseCode)) {
 
-            return failed(
-                    orderId,
+            return failed(orderId,
                     String.valueOf(
-                            rawResponse.getOrDefault(
-                                    "message",
-                                    "Vendor request failed"
-                            )
-                    )
+                            rawResponse.getOrDefault("message", "Vendor request failed")
+                    ),
+                    creds.getVendor().getVendorName()
             );
         }
 
@@ -354,7 +352,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 req,
                 orderId,
                 requestHeaderMetaDto.getLatitude(),
-                requestHeaderMetaDto.getLongitude()
+                requestHeaderMetaDto.getLongitude(),
+                creds.getVendor().getVendorName()
         );
     }
 
@@ -568,7 +567,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
             SendPayoutRequest req,
             String orderId,
             Double latitude,
-            Double longitude
+            Double longitude,
+            String vendorName
     ) {
 
         log.info("===== HANDLE VIMOPAY RESPONSE =====");
@@ -580,7 +580,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
             return failed(
                     orderId,
-                    "Empty response from vendor"
+                    "Empty response from vendor",
+                    vendorName
             );
         }
 
@@ -640,7 +641,8 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
 
             return failed(
                     orderId,
-                    responseMessage
+                    responseMessage,
+                    vendorName
             );
         }
 
@@ -665,7 +667,7 @@ public class VimoPayoutServiceImpl implements PayoutVendorService, PayoutCallbac
                 .orderId(orderId)
 
                 .vendorName(
-                        getVendorName()
+                        vendorName
                 )
 
                 .status(
