@@ -1247,21 +1247,30 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                         && !"SD".equalsIgnoreCase(hierarchyType) && !"PT".equalsIgnoreCase(hierarchyType)
                         && !"DT".equalsIgnoreCase(hierarchyType) && !"WL".equalsIgnoreCase(hierarchyType);
 
-        String sql = "INSERT INTO " + transactionTableName +
-                " (" + columnName + ", service, amount, date_of_transaction, time_of_transaction, " +
-                "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, " +
-                "scheme_name, sub_product_name, operator_name, " +
-                (includeExtraColumns
-                        ? "client_ip, medium, request_domain_name, vendor_name, "
-                        : "") +
-                "latitude, longitude) " +
-                "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
-                ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, " +
-                ":schemeName, :subProductName, :operatorName, " +
-                (includeExtraColumns
-                        ? ":clientIp, :medium, :requestDomainName, :vendorName, "
-                        : "") +
-                ":latitude, :longitude)";
+        String sql =
+                "INSERT INTO " + transactionTableName +
+                        " (" +
+                        columnName +
+                        ", service, amount, date_of_transaction, time_of_transaction, " +
+                        "bal_before_tran, bal_after_tran, action_on_balance_amount, " +
+                        "final_balance, transaction_id, tran_status, " +
+                        "scheme_name, sub_product_name, operator_name, " +
+                        "remark, narration, " +
+                        (includeExtraColumns
+                                ? "client_ip, medium, request_domain_name, vendor_name, "
+                                : "") +
+                        "latitude, longitude" +
+                        ") VALUES (" +
+                        ":hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
+                        ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, " +
+                        ":finalBalance, :tranxId, :tranStatus, " +
+                        ":schemeName, :subProductName, :operatorName, " +
+                        ":remark, :narration, " +
+                        (includeExtraColumns
+                                ? ":clientIp, :medium, :requestDomainName, :vendorName, "
+                                : "") +
+                        ":latitude, :longitude" +
+                        ")";
         try {
             Query query = entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
@@ -1278,6 +1287,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     .setParameter("schemeName", transactionDetailsInfo != null ? transactionDetailsInfo.getSchemeName() : null)
                     .setParameter("subProductName", transactionDetailsInfo != null ? transactionDetailsInfo.getSubProductCode() : null)
                     .setParameter("operatorName", transactionDetailsInfo != null ? transactionDetailsInfo.getOperatorName() : null)
+                    .setParameter("remark", remark)
+                    .setParameter("narration", narration)
                     .setParameter("latitude", requestHeaderMetaDtoMeta.getLatitude())
                     .setParameter("longitude", requestHeaderMetaDtoMeta.getLongitude());
 
