@@ -186,8 +186,7 @@ public class ImPGServiceImpl implements ImPGService {
 
             HttpHeaders headers = buildPgHeaders(credentials);
 
-            Map<String, Object> body =
-                    buildPgRequestBody(req, credentials, subProduct, requestHeaderMetaDtoMeta);
+            Map<String, Object> body = buildPgRequestBody(req, credentials, requestHeaderMetaDtoMeta);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
@@ -265,7 +264,6 @@ public class ImPGServiceImpl implements ImPGService {
     private Map<String, Object> buildPgRequestBody(
             ImPgCreateOrderRequest req,
             VendorCredentials creds,
-            SubProducts subProduct,
             RequestHeaderMetaDto requestHeaderMetaDto) {
 
         Map<String, Object> body = new LinkedHashMap<>();
@@ -282,7 +280,8 @@ public class ImPGServiceImpl implements ImPGService {
 
         body.put("holder_mobile_no", req.getHolderMobileNumber());
         body.put("card_holder_name", req.getCardHolderName());
-        body.put("subproduct", subProduct.getSubProductTitle());
+        body.put("subproduct", req.getImSubProductName());
+
         body.put("amount", String.valueOf(req.getAmount()));
         body.put("paymentMode", req.getPaymentMode());
 

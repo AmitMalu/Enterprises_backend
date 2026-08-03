@@ -23,6 +23,7 @@ public class SubProductsResponseDTO {
     private Boolean isActive;
     private Boolean isVisible;
     private Boolean isBlocked;
+    private Boolean isIMSubProduct;
     private Boolean isWhiteLabelAdmin;
     private String whiteLabelAdminId;
     private String userField1;

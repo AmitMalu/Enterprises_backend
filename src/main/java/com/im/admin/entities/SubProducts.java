@@ -68,6 +68,10 @@ public class SubProducts {
     @NotNull(message = "Is Blocked is required")
     private Boolean isBlocked;
 
+    @Column(name = "is_im_sub_product")
+    @NotNull(message = "Is Blocked is required")
+    private Boolean isIMSubProduct;
+
     @Column(name = "is_white_label_admin")
     private Boolean isWhiteLabelAdmin;
 
