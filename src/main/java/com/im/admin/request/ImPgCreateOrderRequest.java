@@ -15,6 +15,7 @@ public class ImPgCreateOrderRequest {
     private String userId;
     private String clientIp;
     private String subProductName;
+    private String imSubProductName;
     private String amount;
     private String medium;
     private String holderMobileNumber;

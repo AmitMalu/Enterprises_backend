@@ -49,6 +49,7 @@ public class ImInitiator implements PaymentGatewayInitiator {
         imPgCreateOrderRequest.setPaymentMode("credit_card");
         imPgCreateOrderRequest.setInitiatedBy(command.getInitiatedBy());
         imPgCreateOrderRequest.setSubProductId(command.getSubProductId());
+        imPgCreateOrderRequest.setImSubProductName(command.getImSubProductName());
 
         log.debug("Customer details mapped | name={}, email={}, phone={}",
                 command.getCardHolderName(),

@@ -120,12 +120,6 @@ public class PGOrchestrator {
 
             return response;
 
-//        } catch (Exception e) {
-//            log.error("Error during PG initiate for subProductId={}",
-//                    command.getSubProductId(),
-//                    e);
-//            throw e;
-//        }
     }
 
     @Transactional

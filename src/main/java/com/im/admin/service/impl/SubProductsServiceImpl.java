@@ -107,8 +107,6 @@ public class SubProductsServiceImpl implements SubProductsService {
             }
         }
 
-//        subProduct.setId(commonMethods.generateNextIdForTables("sub_products", "id"));
-
         if (!Boolean.TRUE.equals(subProduct.getIsSettlement())) {
             subProduct.setIsSettlement(false);
             subProduct.setSettlementTime("-");
@@ -117,6 +115,10 @@ public class SubProductsServiceImpl implements SubProductsService {
         if (!Boolean.TRUE.equals(subProduct.getIsWhiteLabelAdmin())) {
             subProduct.setIsWhiteLabelAdmin(false);
             subProduct.setWhiteLabelAdminId("-");
+        }
+
+        if (subProduct.getIsIMSubProduct() == null) {
+            subProduct.setIsIMSubProduct(false);
         }
 
         return subProductsRepository.save(subProduct);
@@ -264,6 +266,14 @@ public class SubProductsServiceImpl implements SubProductsService {
         Boolean newBlocked = subProduct.getIsBlocked();
         existingSubProduct.setIsBlocked(newBlocked);
         log.debug("Blocked flag updated. oldBlocked={}, newBlocked={}", oldBlocked, newBlocked);
+
+        Boolean oldIMSubProduct = existingSubProduct.getIsIMSubProduct();
+        Boolean newIMSubProduct = subProduct.getIsIMSubProduct();
+
+        existingSubProduct.setIsIMSubProduct(newIMSubProduct != null ? newIMSubProduct : false);
+
+        log.debug("IM Sub Product updated. oldIMSubProduct={}, newIMSubProduct={}",
+                                                oldIMSubProduct, newIMSubProduct);
 
         String oldEditedBy = existingSubProduct.getEditedBy();
         String newEditedBy = subProduct.getEditedBy();
@@ -605,6 +615,7 @@ public class SubProductsServiceImpl implements SubProductsService {
         dto.setIsBlocked(entity.getIsBlocked());
         dto.setIsWhiteLabelAdmin(entity.getIsWhiteLabelAdmin());
         dto.setWhiteLabelAdminId(entity.getWhiteLabelAdminId());
+        dto.setIsIMSubProduct(entity.getIsIMSubProduct());
         dto.setUserField1(entity.getUserField1());
         dto.setUserField2(entity.getUserField2());
         dto.setUserField3(entity.getUserField3());
@@ -632,7 +643,7 @@ public class SubProductsServiceImpl implements SubProductsService {
     }
 
     @Override
-    public SubproductListResponse getSubProductList(
+    public List<SubproductDto> getSubProductList(
             SubproductListRequest request,
             String geoLocation
     ) {
@@ -709,17 +720,24 @@ public class SubProductsServiceImpl implements SubProductsService {
             if (parsedVendorResponse == null
                     || !"success".equalsIgnoreCase(parsedVendorResponse.getStatus())) {
 
-                return parsedVendorResponse;
+                throw new RuntimeException(
+                        parsedVendorResponse != null
+                                ? parsedVendorResponse.getMsg()
+                                : "Vendor returned an error"
+                );
             }
 
             /*
              * Filter vendor response using pg_settlement_category table.
              */
-            return filterSubproductsUsingSettlementCategory(
-                    parsedVendorResponse,
-                    serviceType,
-                    request.getIsSettlement()
-            );
+            SubproductListResponse response =
+                    filterSubproductsUsingSettlementCategory(
+                            parsedVendorResponse,
+                            serviceType,
+                            request.getIsSettlement()
+                    );
+
+            return response.getData();
 
         } catch (HttpStatusCodeException ex) {
 
@@ -732,10 +750,13 @@ public class SubProductsServiceImpl implements SubProductsService {
                     ex
             );
 
-            return parseErrorResponse(
-                    ex.getResponseBodyAsString(),
-                    "Vendor returned an error"
-            );
+            SubproductListResponse error =
+                    parseErrorResponse(
+                            ex.getResponseBodyAsString(),
+                            "Vendor returned an error"
+                    );
+
+            throw new RuntimeException(error.getMsg());
 
         } catch (RestClientException ex) {
 
@@ -746,7 +767,7 @@ public class SubProductsServiceImpl implements SubProductsService {
                     ex
             );
 
-            return failedResponse(
+            throw new RuntimeException(
                     "Unable to communicate with vendor"
             );
 
@@ -759,8 +780,8 @@ public class SubProductsServiceImpl implements SubProductsService {
                     ex
             );
 
-            return failedResponse(
-                    "Something went wrong while fetching subproduct list"
+            throw new RuntimeException(
+                    ex.getMessage()
             );
         }
     }

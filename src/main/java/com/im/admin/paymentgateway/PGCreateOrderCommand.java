@@ -36,5 +36,7 @@ public class PGCreateOrderCommand {
     private String medium;                  //web or mobile
     private String requestDomainName;
 
+    private String imSubProductName;
+
     private TransactionSchemeDetailsRequestDto schemeDetails;
 }
