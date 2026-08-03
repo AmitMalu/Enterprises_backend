@@ -65,6 +65,9 @@ public class RetailerPostpaidTransactionDetails implements AbstractRetailerTrans
     @Column(name = "mobile_no")
     private String mobileNo;
 
+    @Column(name = "outlet_name")
+    private String outletName;
+
     @Column(name = "scheme_name")
     private String schemeName;
 

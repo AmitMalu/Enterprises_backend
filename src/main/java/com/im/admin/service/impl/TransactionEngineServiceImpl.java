@@ -2442,6 +2442,8 @@ private void distributeToHierarchyChain(
                 transaction.setMedium(dto.getMedium());
                 transaction.setRequestDomainName(dto.getRequestDomainName());
                 transaction.setTransactionType(dto.getTransactionType());
+                transaction.setMobileNo(dto.getMobileNumber());
+                transaction.setOutletName(dto.getOutletName());
 
                 retailerPrepaidTransactionDetailsRepository.save(transaction);
                 log.info("[RT] Prepaid transaction saved successfully | TranxId: {}", tranxId);
@@ -2477,6 +2479,8 @@ private void distributeToHierarchyChain(
                 transaction.setMedium(dto.getMedium());
                 transaction.setRequestDomainName(dto.getRequestDomainName());
                 transaction.setTransactionType(dto.getTransactionType());
+                transaction.setMobileNo(dto.getMobileNumber());
+                transaction.setOutletName(dto.getOutletName());
 
                 retailerPostpaidTransactionDetailsRepository.save(transaction);
                 log.info("[RT] Postpaid transaction saved successfully | TranxId: {}", tranxId);

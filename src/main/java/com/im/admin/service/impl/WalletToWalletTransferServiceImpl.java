@@ -262,6 +262,34 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
             log.info("Early balance validation passed. Requested amount: {}, Available balance: {}",amount,availableBalance);
 
+
+            // -------------------------------------
+            // 1. ONLY LEAN AMOUNT VALIDATION
+            // -------------------------------------
+            BigDecimal balanceAfterTxn =
+                    availableBalance.subtract(amount);
+
+            BigDecimal leanAmount =
+                    commonMethods.getLeanAmount( request.getHierarchyId(), fromWallet.name());
+
+            if (balanceAfterTxn.compareTo(leanAmount) < 0) {
+
+                log.warn(
+                        "[PROCESS PAYOUT ORCH] Lean amount failed | retailer={} | available={} | txn={} | lean={}",
+                        request.getHierarchyId(),
+                        availableBalance,
+                        amount,
+                        leanAmount
+                );
+
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Transaction not allowed. ₹%s must remain as lean balance.",
+                                leanAmount
+                        )
+                );
+            }
+
             // =========================================================
             // RESOLVE SCHEME CODE AND SUB-PRODUCT ID
             // =========================================================

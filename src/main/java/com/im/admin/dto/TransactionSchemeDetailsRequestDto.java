@@ -43,6 +43,7 @@ public class TransactionSchemeDetailsRequestDto {
     private String requestDomainName;
 
     private String mobileNumber;
+    private String outletName;
 
 
 }
