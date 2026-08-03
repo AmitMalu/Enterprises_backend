@@ -35,5 +35,7 @@ public class SendPayoutRequest {
     private String clientIp;
     private String requestDomainName;
 
+    private String imSubProductName;
+
 
 }

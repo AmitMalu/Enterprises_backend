@@ -16,10 +16,7 @@ import com.im.admin.response.DistributorResponseDTO;
 import com.im.admin.response.RetailerResponseDTO;
 import com.im.admin.service.DistributorService;
 import com.im.admin.service.HierarchyAccessService;
-import com.im.admin.util.IdGenerator;
-import com.im.admin.util.ImageHandlerUtil;
-import com.im.admin.util.ImageUtil;
-import com.im.admin.util.TokenUtil;
+import com.im.admin.util.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -88,6 +85,9 @@ public class DistributorServiceImpl implements DistributorService {
     @Autowired
     private NetworkBankMasterRepository networkBankMasterRepository;
 
+    @Autowired
+    private CommonMethods commonMethods;
+
     @Transactional
     @Override
     public Distributor createDistributor(Distributor distributor,
@@ -140,7 +140,12 @@ public class DistributorServiceImpl implements DistributorService {
             }
 
             // Validate parent account
-            String parentAccount = distributor.getParentAccount();
+            String parentHierarchyType = commonMethods.extractHierarchyType(distributor.getParentAccount());
+            String parentAccount = commonMethods.resolveEffectiveHierarchyId(
+                    distributor.getParentAccount(),
+                    parentHierarchyType // or the field that contains AU / WLAU / AD / WL / SD etc.
+            );
+
             if (parentAccount == null || !parentAccount.contains("-")) {
                 log.error("Invalid parentAccount format: {}", parentAccount);
                 throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");

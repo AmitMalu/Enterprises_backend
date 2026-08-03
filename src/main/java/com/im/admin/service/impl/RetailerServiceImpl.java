@@ -14,10 +14,7 @@ import com.im.admin.request.HierarchyRegistrationRequest;
 import com.im.admin.response.RetailerResponseDTO;
 import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.RetailerService;
-import com.im.admin.util.IdGenerator;
-import com.im.admin.util.ImageHandlerUtil;
-import com.im.admin.util.ImageUtil;
-import com.im.admin.util.TokenUtil;
+import com.im.admin.util.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -86,6 +83,9 @@ public class RetailerServiceImpl implements RetailerService {
     @Autowired
     private NetworkBankMasterRepository networkBankMasterRepository;
 
+    @Autowired
+    private CommonMethods commonMethods;
+
     @Transactional
     @Override
     public Retailer createRetailer(Retailer retailer,
@@ -131,7 +131,14 @@ public class RetailerServiceImpl implements RetailerService {
             throw new CustomValidationException(errors);
         }
 
-        String parentAccount = retailer.getParentAccount();
+        String parentHierarchyType = commonMethods.extractHierarchyType(retailer.getParentAccount());
+        String parentAccount = commonMethods.resolveEffectiveHierarchyId(
+                retailer.getParentAccount(),
+                parentHierarchyType // or the field that contains AU / WLAU / AD / WL / SD etc.
+        );
+
+        // Set the resolved parent back into the entity
+        retailer.setParentAccount(parentAccount);
 
         if (parentAccount == null || !parentAccount.contains("-")) {
             throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");

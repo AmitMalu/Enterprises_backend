@@ -107,8 +107,6 @@ public class SubProductsServiceImpl implements SubProductsService {
             }
         }
 
-//        subProduct.setId(commonMethods.generateNextIdForTables("sub_products", "id"));
-
         if (!Boolean.TRUE.equals(subProduct.getIsSettlement())) {
             subProduct.setIsSettlement(false);
             subProduct.setSettlementTime("-");
@@ -117,6 +115,10 @@ public class SubProductsServiceImpl implements SubProductsService {
         if (!Boolean.TRUE.equals(subProduct.getIsWhiteLabelAdmin())) {
             subProduct.setIsWhiteLabelAdmin(false);
             subProduct.setWhiteLabelAdminId("-");
+        }
+
+        if (subProduct.getIsIMSubProduct() == null) {
+            subProduct.setIsIMSubProduct(false);
         }
 
         return subProductsRepository.save(subProduct);
@@ -264,6 +266,14 @@ public class SubProductsServiceImpl implements SubProductsService {
         Boolean newBlocked = subProduct.getIsBlocked();
         existingSubProduct.setIsBlocked(newBlocked);
         log.debug("Blocked flag updated. oldBlocked={}, newBlocked={}", oldBlocked, newBlocked);
+
+        Boolean oldIMSubProduct = existingSubProduct.getIsIMSubProduct();
+        Boolean newIMSubProduct = subProduct.getIsIMSubProduct();
+
+        existingSubProduct.setIsIMSubProduct(newIMSubProduct != null ? newIMSubProduct : false);
+
+        log.debug("IM Sub Product updated. oldIMSubProduct={}, newIMSubProduct={}",
+                                                oldIMSubProduct, newIMSubProduct);
 
         String oldEditedBy = existingSubProduct.getEditedBy();
         String newEditedBy = subProduct.getEditedBy();
@@ -605,6 +615,7 @@ public class SubProductsServiceImpl implements SubProductsService {
         dto.setIsBlocked(entity.getIsBlocked());
         dto.setIsWhiteLabelAdmin(entity.getIsWhiteLabelAdmin());
         dto.setWhiteLabelAdminId(entity.getWhiteLabelAdminId());
+        dto.setIsIMSubProduct(entity.getIsIMSubProduct());
         dto.setUserField1(entity.getUserField1());
         dto.setUserField2(entity.getUserField2());
         dto.setUserField3(entity.getUserField3());
