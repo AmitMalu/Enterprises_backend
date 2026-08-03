@@ -643,7 +643,7 @@ public class SubProductsServiceImpl implements SubProductsService {
     }
 
     @Override
-    public SubproductListResponse getSubProductList(
+    public List<SubproductDto> getSubProductList(
             SubproductListRequest request,
             String geoLocation
     ) {
@@ -720,17 +720,24 @@ public class SubProductsServiceImpl implements SubProductsService {
             if (parsedVendorResponse == null
                     || !"success".equalsIgnoreCase(parsedVendorResponse.getStatus())) {
 
-                return parsedVendorResponse;
+                throw new RuntimeException(
+                        parsedVendorResponse != null
+                                ? parsedVendorResponse.getMsg()
+                                : "Vendor returned an error"
+                );
             }
 
             /*
              * Filter vendor response using pg_settlement_category table.
              */
-            return filterSubproductsUsingSettlementCategory(
-                    parsedVendorResponse,
-                    serviceType,
-                    request.getIsSettlement()
-            );
+            SubproductListResponse response =
+                    filterSubproductsUsingSettlementCategory(
+                            parsedVendorResponse,
+                            serviceType,
+                            request.getIsSettlement()
+                    );
+
+            return response.getData();
 
         } catch (HttpStatusCodeException ex) {
 
@@ -743,10 +750,13 @@ public class SubProductsServiceImpl implements SubProductsService {
                     ex
             );
 
-            return parseErrorResponse(
-                    ex.getResponseBodyAsString(),
-                    "Vendor returned an error"
-            );
+            SubproductListResponse error =
+                    parseErrorResponse(
+                            ex.getResponseBodyAsString(),
+                            "Vendor returned an error"
+                    );
+
+            throw new RuntimeException(error.getMsg());
 
         } catch (RestClientException ex) {
 
@@ -757,7 +767,7 @@ public class SubProductsServiceImpl implements SubProductsService {
                     ex
             );
 
-            return failedResponse(
+            throw new RuntimeException(
                     "Unable to communicate with vendor"
             );
 
@@ -770,8 +780,8 @@ public class SubProductsServiceImpl implements SubProductsService {
                     ex
             );
 
-            return failedResponse(
-                    "Something went wrong while fetching subproduct list"
+            throw new RuntimeException(
+                    ex.getMessage()
             );
         }
     }

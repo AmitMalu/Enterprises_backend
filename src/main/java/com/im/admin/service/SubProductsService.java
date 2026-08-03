@@ -2,6 +2,7 @@ package com.im.admin.service;
 
 import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.dto.SubProductsResponseDTO;
+import com.im.admin.dto.SubproductDto;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.request.SubproductListRequest;
 import com.im.admin.response.SubproductListResponse;
@@ -32,8 +33,9 @@ public interface SubProductsService {
 
     List<SubProductDropdownResponseDto> getSubProductDropdown();
 
-    SubproductListResponse getSubProductList(
-            SubproductListRequest request, String geoLocation
+    List<SubproductDto> getSubProductList(
+            SubproductListRequest request,
+            String geoLocation
     );
 
 }

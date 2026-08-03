@@ -3,6 +3,7 @@ package com.im.admin.controller;
 import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.dto.SubProductDropdownResponseDto;
 import com.im.admin.dto.SubProductsResponseDTO;
+import com.im.admin.dto.SubproductDto;
 import com.im.admin.entities.SubProducts;
 import com.im.admin.request.SubproductListRequest;
 import com.im.admin.response.CommonResponse;
@@ -141,28 +142,29 @@ public class SubProductsController {
     }
 
     @PostMapping("/im/list")
-    public ResponseEntity<SubproductListResponse> getImSubProductList(
+    public ResponseEntity<CommonResponse<List<SubproductDto>>> getImSubProductList(
             @RequestBody SubproductListRequest request,
             HttpServletRequest httpServletRequest
     ) {
 
-        RequestHeaderMetaDto requestHeaderMetaDtoMeta = RequestHeaderMetaDto.from(httpServletRequest);
+        RequestHeaderMetaDto header =
+                RequestHeaderMetaDto.from(httpServletRequest);
 
-        log.info(
-                "[SUB PRODUCT LIST] Request received | serviceType={} | geolocation={}",
-                request != null ? request.getServiceType() : null,
-                request != null ? requestHeaderMetaDtoMeta.getLatitude() +" "+ requestHeaderMetaDtoMeta.getLongitude() : null
+        String geoLocation =
+                header.getLatitude() + "," + header.getLongitude();
+
+        List<SubproductDto> data =
+                subProductsService.getSubProductList(
+                        request,
+                        geoLocation
+                );
+
+        return ResponseEntity.ok(
+                CommonResponse.success(
+                        data,
+                        "Subproduct list fetched successfully"
+                )
         );
-
-        String geoLocation = requestHeaderMetaDtoMeta.getLatitude() + "," + requestHeaderMetaDtoMeta.getLongitude();
-
-        SubproductListResponse response = subProductsService.getSubProductList(request, geoLocation);
-
-        if ("success".equalsIgnoreCase(response.getStatus())) {
-            return ResponseEntity.ok(response);
-        }
-
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(response);
     }
 }
 
