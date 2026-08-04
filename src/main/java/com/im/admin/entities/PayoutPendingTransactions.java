@@ -49,6 +49,9 @@ public class PayoutPendingTransactions {
     @Column(nullable = false)
     private String bankName;
 
+    @Column(name = "utr")
+    private String utr;
+
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
