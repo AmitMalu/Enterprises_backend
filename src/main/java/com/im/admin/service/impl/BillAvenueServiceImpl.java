@@ -505,16 +505,26 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
             WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
 
+            BigDecimal amount = request.getAmountInfo().getAmount();
+
+            SchemeRate selectedScheme = schemeRateRepository
+                    .findSchemeRateByCodeAndOperatorAndAmount(
+                            request.getSchemeCode(),
+                            request.getTxnType(),
+                            amount.doubleValue())
+                    .orElseThrow(() -> new RuntimeException("No slab found for the given amount: " + amount));
+
             // 2️ Balance Check
             BigDecimal availableBalance =
                     commonMethods.getCurrentBalance(request.getRetailerId(), walletType.name());
 
-            BigDecimal amount = request.getAmountInfo().getAmount();
-
-            if (availableBalance.compareTo(amount) < 0) {
-//                return new CommonResponse<>(400, "Insufficient Balance", null);
-                return new CommonResponse<>(400, "Insufficient balance in " + walletType.name() + " wallet.", null);
-            }
+            commonMethods.validateDebitTransaction(
+                    request.getRetailerId(),
+                    walletType,
+                    availableBalance,
+                    amount,
+                    BigDecimal.valueOf(selectedScheme.getGross())
+            );
 
             // 3 Vendor Routing
             VendorRouting routing =
@@ -535,13 +545,6 @@ public class BillAvenueServiceImpl implements BillAvenueService {
                     commonMethods.getWalletByType(walletType.name(), retailerId);
 
             Products product = subProducts.getProduct();
-
-            SchemeRate selectedScheme = schemeRateRepository
-                    .findSchemeRateByCodeAndOperatorAndAmount(
-                            request.getSchemeCode(),
-                            request.getTxnType(),
-                            amount.doubleValue())
-                    .orElseThrow(() -> new RuntimeException("No slab found for the given amount: " + amount));
 
             BbpsTranactionRequestDto bbpsDto =
                     new BbpsTranactionRequestDto(

@@ -228,6 +228,12 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     availableBalance
             );
 
+            if (availableBalance.compareTo(amount) < 0) {
+                throw new IllegalArgumentException(
+                        "Insufficient balance in " + fromWallet + " wallet."
+                );
+            }
+
             // =========================================================
             // NEW CHANGE 1:
             // EARLY BALANCE CHECK BEFORE FETCHING SCHEME/SLAB
@@ -241,59 +247,10 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     availableBalance
             );
 
-            if (availableBalance.compareTo(amount) < 0) {
-
-                log.warn(
-                        "Insufficient balance before slab lookup. " +
-                                "HierarchyId: {}, WalletType: {}, " +
-                                "RequestedAmount: {}, AvailableBalance: {}",
-                        hierarchyId,
-                        fromWallet,
-                        amount,
-                        availableBalance
-                );
-
-                throw new IllegalArgumentException(
-                        "Insufficient balance in " + fromWallet +
-                                " wallet. Requested amount: " + amount +
-                                ", Available balance: " + availableBalance
-                );
-            }
-
-            log.info("Early balance validation passed. Requested amount: {}, Available balance: {}",amount,availableBalance);
-
-
-            // -------------------------------------
-            // 1. ONLY LEAN AMOUNT VALIDATION
-            // -------------------------------------
-            BigDecimal balanceAfterTxn =
-                    availableBalance.subtract(amount);
-
-            BigDecimal leanAmount =
-                    commonMethods.getLeanAmount( request.getHierarchyId(), fromWallet.name());
-
-            if (balanceAfterTxn.compareTo(leanAmount) < 0) {
-
-                log.warn(
-                        "[PROCESS PAYOUT ORCH] Lean amount failed | retailer={} | available={} | txn={} | lean={}",
-                        request.getHierarchyId(),
-                        availableBalance,
-                        amount,
-                        leanAmount
-                );
-
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Transaction not allowed. ₹%s must remain as lean balance.",
-                                leanAmount
-                        )
-                );
-            }
-
             // =========================================================
             // RESOLVE SCHEME CODE AND SUB-PRODUCT ID
             // =========================================================
-            log.info("Extracting hierarchy type for hierarchyId: {}",hierarchyId);
+            log.info("Extracting hierarchy type for hierarchyId: {}", hierarchyId);
 
             String hierarchyType = walletTransactionService.extractHierarchyType(hierarchyId);
 
@@ -367,8 +324,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             // =========================================================
             // VALIDATE SUBPRODUCT VISIBILITY
             // =========================================================
-            if (!subProductsServiceImpl.isSubProductVisible(resolvedSubProductId))
-            {
+            if (!subProductsServiceImpl.isSubProductVisible(resolvedSubProductId)) {
                 throw new IllegalArgumentException("Selected sub product is currently not visible.");
             }
 
@@ -379,7 +335,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
             // FETCH SCHEME
             // =========================================================
             Optional<Scheme> schemeOptional =
-                        schemeRepository.findBySchemeCode(request.getSchemeCode());
+                    schemeRepository.findBySchemeCode(request.getSchemeCode());
 
             Scheme scheme = schemeOptional.get();
 
@@ -655,6 +611,14 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     availableBalance
             );
 
+            commonMethods.validateDebitTransaction(
+                    request.getHierarchyId(),
+                    fromWallet,
+                    availableBalance,
+                    request.getTransferAmount(),
+                    BigDecimal.valueOf(schemeRate.getGross())
+            );
+
             // =========================================================
             // GENERATE BASE TRANSACTION ID
             // =========================================================
@@ -705,10 +669,10 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
             TransactionDetailsInfoDto transactionDetailsInfo =
                     TransactionDetailsInfoDto.builder()
-                                    .subProductCode(subProduct.getSubProductCode())
-                                    .operatorName(operator.getOperatorName())
-                                    .schemeName(scheme.getSchemeName())
-                                    .build();
+                            .subProductCode(subProduct.getSubProductCode())
+                            .operatorName(operator.getOperatorName())
+                            .schemeName(scheme.getSchemeName())
+                            .build();
 
             updateWallet(
                     fromWalletTable,
