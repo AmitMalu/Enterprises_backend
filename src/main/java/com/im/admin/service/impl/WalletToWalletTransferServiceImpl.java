@@ -685,10 +685,8 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     "DEBIT",
                     requestHeaderMetaDtoMeta,
                     transactionDetailsInfo,
-                    "Fund Transfer to " + fromWallet.name().toUpperCase() + "Wallet",
+                    "Fund Transfer to " + fromWallet.name().toUpperCase() + " Wallet ",
                     "Fund Transfer to " + fromWallet.name().toUpperCase() + " Wallet for Account" + "#" + hierarchyId
-
-
             );
 
             log.info(
@@ -797,7 +795,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "CREDIT",
                             requestHeaderMetaDtoMeta,
                             transactionDetailsInfo,
-                            "Mirror Transaction Fund Transfer to " + fromWallet.name().toUpperCase() + "Wallet",
+                            "Transaction Fund Transfer to " + fromWallet.name().toUpperCase() + " Wallet ",
                             "Fund Transfer Mirror Transaction to " + fromWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
                     );
 
@@ -833,7 +831,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "DEBIT",
                             requestHeaderMetaDtoMeta,
                             transactionDetailsInfo,
-                            "Mirror Transaction Fund Transfer to " + toWallet.name().toUpperCase() + "Wallet",
+                            "Transaction Fund Transfer to " + toWallet.name().toUpperCase() + " Wallet ",
                             "Fund Transfer Mirror Transaction to " + toWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
                     );
 
@@ -909,7 +907,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "CREDIT",
                             requestHeaderMetaDtoMeta,
                             transactionDetailsInfo,
-                            "Mirror Transaction Fund Transfer to " + fromWallet.name().toUpperCase() + "Wallet",
+                            "Transaction Fund Transfer to " + fromWallet.name().toUpperCase() + "Wallet",
                             "Fund Transfer Mirror Transaction to " + fromWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
 
                     );
@@ -947,7 +945,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "DEBIT",
                             requestHeaderMetaDtoMeta,
                             transactionDetailsInfo,
-                            "Mirror Transaction Fund Transfer to " + toWallet.name().toUpperCase() + "Wallet",
+                            "Transaction Fund Transfer to " + toWallet.name().toUpperCase() + "Wallet",
                             "Fund Transfer Mirror Transaction to " + toWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
                     );
 
@@ -1025,7 +1023,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     "CREDIT",
                     requestHeaderMetaDtoMeta,
                     transactionDetailsInfo,
-                    "Mirror Transaction Fund Transfer to " + toWallet.name().toUpperCase() + "Wallet",
+                    "Transaction Fund Transfer to " + toWallet.name().toUpperCase() + "Wallet",
                     "Fund Transfer Mirror Transaction to " + toWallet.name().toUpperCase() + " Wallet for Account" + "#" + hierarchyId
             );
 
@@ -1076,7 +1074,6 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     dto,
                     fromWalletTable,
                     grossRate,
-                    //BigDecimal.valueOf(schemeRate.getIm()),
                     product.getSgst().toString(),
                     baseTransactionId,
                     "SUCCESS"

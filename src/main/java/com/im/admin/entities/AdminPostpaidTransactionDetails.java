@@ -75,7 +75,7 @@ public class AdminPostpaidTransactionDetails implements CommonSearchTransactionD
     @Column(name = "sub_operator_name")
     private String subOperatorName;
 
-    @Column(name = "REMARKS")
+    @Column(name = "remarks")
     private String remarks;
 
     @Column(name = "transaction_id")
