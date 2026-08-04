@@ -285,11 +285,11 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
 
             default:
                 if (isSettlement) {
-                    updateTransactionStatus("TXN" + baseTransactionId, "SETTLEMENT_PENDING", dto.getWalletType());
+                    updateTransactionStatus("TXN" + baseTransactionId, "SETTLEMENT_PENDING", dto.getWalletType(), dto);
                     return "Transaction marked as pending for settlement";
                 }
                 // On success
-                updateTransactionStatus("TXN" + baseTransactionId, "SUCCESS", dto.getWalletType());
+                updateTransactionStatus("TXN" + baseTransactionId, "SUCCESS", dto.getWalletType(), dto);
                 mirrorTransactionToAdminOrWhitelabel(dto.getHierarchyId(), "debit", tranxAmount,
                         dto.getWalletType(), "TXN" + baseTransactionId, "Credit", "SUCCESS", dto);
                 processChargesAndCommission(dto, wallet, grossAmount, taxValue, baseTransactionId, "SUCCESS");
@@ -338,7 +338,7 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         BigDecimal before = wallet.getAvailableBalance();
         wallet.setAvailableBalance(before.add(amount));
         wallet.setTotalCash(wallet.getTotalCash().add(amount));
-        updateTransactionStatus("TXN" + baseTxnId, "FAILURE", dto.getWalletType());
+        updateTransactionStatus("TXN" + baseTxnId, "FAILURE", dto.getWalletType(), dto);
         insertTransaction(wallet, "REVERSAL", amount, before, wallet.getAvailableBalance(),
                 "Vendor Failed - Debit Reversed", buildTransactionId("REV", baseTxnId), "DEBIT", dto);
     }
@@ -349,22 +349,22 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
     /**
      * Updates transaction status in respective wallet table based on wallet type.
      */
-    private void updateTransactionStatus(String transactionId, String status, String walletType) {
+    private void updateTransactionStatus(String transactionId, String status, String walletType, TransactionSchemeDetailsRequestDto dto) {
         log.info("[TXN_STATUS] Updating transaction | TxnID={} | Status={} | WalletType={}", transactionId, status, walletType);
 
         switch (walletType.toUpperCase()) {
-            case WALLET_PREPAID -> updatePrepaidTransaction(transactionId, status);
-            case WALLET_POSTPAID -> updatePostpaidTransaction(transactionId, status);
+            case WALLET_PREPAID -> updatePrepaidTransaction(transactionId, status, dto);
+            case WALLET_POSTPAID -> updatePostpaidTransaction(transactionId, status, dto);
             default -> throw new IllegalArgumentException("Invalid wallet type: " + walletType);
         }
     }
 
-    private void updatePrepaidTransaction(String transactionId, String status) {
+    private void updatePrepaidTransaction(String transactionId, String status, TransactionSchemeDetailsRequestDto dto) {
         retailerPrepaidTransactionDetailsRepository.findByTransactionId(transactionId)
                 .ifPresentOrElse(txn -> {
                     txn.setActionOnBalanceAmount("Deduct Funds - PREPAID");
                     txn.setTranStatus(status);
-                    //txn.setBankRefId();
+                    txn.setBankRefId(dto.getUtrNo());
                     retailerPrepaidTransactionDetailsRepository.save(txn);
                     log.debug("[TXN_STATUS] Updated PREPAID transaction: {}", transactionId);
                 }, () -> {
@@ -372,12 +372,12 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 });
     }
 
-    private void updatePostpaidTransaction(String transactionId, String status) {
+    private void updatePostpaidTransaction(String transactionId, String status, TransactionSchemeDetailsRequestDto dto) {
         retailerPostpaidTransactionDetailsRepository.findByTransactionId(transactionId)
                 .ifPresentOrElse(txn -> {
                     txn.setActionOnBalanceAmount("Deduct Funds - POSTPAID");
                     txn.setTranStatus(status);
-                    //txn.setBankRefId();
+                    txn.setBankRefId(dto.getUtrNo());
                     retailerPostpaidTransactionDetailsRepository.save(txn);
                     log.debug("[TXN_STATUS] Updated POSTPAID transaction: {}", transactionId);
                 }, () -> {

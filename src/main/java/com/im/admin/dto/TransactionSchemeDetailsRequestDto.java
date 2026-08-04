@@ -45,5 +45,7 @@ public class TransactionSchemeDetailsRequestDto {
     private String mobileNumber;
     private String outletName;
 
+    private String utrNo;
+
 
 }
