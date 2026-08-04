@@ -11,6 +11,7 @@ import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
 import com.im.admin.request.SendPayoutRequest;
+import com.im.admin.response.CommonResponse;
 import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import jakarta.persistence.*;
 import lombok.extern.slf4j.Slf4j;
@@ -2494,4 +2495,57 @@ public class CommonMethods {
             }
         }
     }
+
+    public <T> CommonResponse<T> validateDebitTransaction(
+            String retailerId,
+            WalletType walletType,
+            BigDecimal availableBalance,
+            BigDecimal txnAmount,
+            BigDecimal grossAmount
+    ) {
+
+        BigDecimal leanAmount = getLeanAmount(retailerId, walletType.name());
+
+        BigDecimal finalDeductAmount =
+                txnAmount.add(grossAmount);
+
+        // 1. Insufficient wallet balance
+        if (availableBalance.compareTo(finalDeductAmount) < 0) {
+
+            throw new IllegalArgumentException(
+                    "Insufficient Balance In " + walletType
+            );
+        }
+
+        // 2. Lean amount validation
+        BigDecimal balanceAfterTxn =
+                availableBalance.subtract(txnAmount);
+
+        if (balanceAfterTxn.compareTo(leanAmount) < 0) {
+
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Transaction not allowed. ₹%s must remain as lean balance.",
+                            leanAmount
+                    )
+            );
+        }
+
+        // 3. Lean + Gross validation
+        BigDecimal balanceAfterGross =
+                availableBalance.subtract(finalDeductAmount);
+
+        if (balanceAfterGross.compareTo(leanAmount) < 0) {
+
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Insufficient usable balance after charges. ₹%s must remain locked as lean amount.",
+                            leanAmount
+                    )
+            );
+        }
+
+        return null; // Validation passed
+    }
+
 }

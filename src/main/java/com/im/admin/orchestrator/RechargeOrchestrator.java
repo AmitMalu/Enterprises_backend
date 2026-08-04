@@ -119,89 +119,13 @@ public class RechargeOrchestrator {
                         request.getAmount().doubleValue())
                 .orElseThrow(() -> new RuntimeException("No matching scheme rate found for amount: " + request.getAmount()));
 
-        BigDecimal leanAmount =
-                commonMethods.getLeanAmount(request.getRetailerId(), walletType.name());
-
-        BigDecimal txnAmount = request.getAmount();
-
-        BigDecimal grossAmount =
-                BigDecimal.valueOf(selectedScheme.getGross());
-
-        BigDecimal finalDeductAmt =
-                txnAmount.add(grossAmount);
-
-        // -------------------------------------
-        // 3. INSUFFICIENT WALLET BALANCE
-        // -------------------------------------
-        if (availableBalance.compareTo(finalDeductAmt) < 0) {
-
-            log.warn(
-                    "[PROCESS PAYOUT ORCH] Insufficient wallet balance | retailer={} | required={} | available={}",
-                    request.getRetailerId(),
-                    finalDeductAmt,
-                    availableBalance
-            );
-
-            return RechargeResponse.builder()
-                    .transactionRef(orderId)
-                    .status("FAILED")
-                    .message("Insufficient Balance In " + subProducts.getWalletType())
-                    .build();
-        }
-
-
-        // -------------------------------------
-        // 1. ONLY LEAN AMOUNT VALIDATION
-        // -------------------------------------
-        BigDecimal balanceAfterTxn =
-                availableBalance.subtract(txnAmount);
-
-        if (balanceAfterTxn.compareTo(leanAmount) < 0) {
-
-            log.warn(
-                    "[PROCESS PAYOUT ORCH] Lean amount failed | retailer={} | available={} | txn={} | lean={}",
-                    request.getRetailerId(),
-                    availableBalance,
-                    txnAmount,
-                    leanAmount
-            );
-
-            return RechargeResponse.builder()
-                    .transactionRef(orderId)
-                    .status("FAILED")
-                    .message(String.format(
-                            "Transaction not allowed. ₹%s must remain as lean balance.",
-                            leanAmount
-                    ))
-                    .build();
-        }
-
-
-        // -------------------------------------
-        // 2. LEAN + GROSS VALIDATION
-        // -------------------------------------
-        BigDecimal balanceAfterGross =
-                availableBalance.subtract(finalDeductAmt);
-
-        if (balanceAfterGross.compareTo(leanAmount) < 0) {
-
-            log.warn(
-                    "[PROCESS PAYOUT ORCH] Lean + Gross validation failed | retailer={} | available={} | finalDeduct={} | lean={}",
-                    request.getRetailerId(),
-                    availableBalance,
-                    finalDeductAmt,
-                    leanAmount
-            );
-
-            return RechargeResponse.builder()
-                    .transactionRef(orderId)
-                    .status("FAILED")
-                    .message(String.format(
-                            "Insufficient usable balance after charges. ₹%s must remain locked as lean amount.",
-                            leanAmount
-                    ))
-                    .build();
-        }
+        commonMethods.validateDebitTransaction(
+                request.getRetailerId(),
+                walletType,
+                availableBalance,
+                request.getAmount(),
+                BigDecimal.valueOf(selectedScheme.getGross())
+        );
 
         // 3 Resolve Vendor Routing
         VendorRouting routing =

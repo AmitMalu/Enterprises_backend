@@ -920,6 +920,14 @@ public class FundReversalServiceImpl implements FundReversalService {
                     );
                 }
 
+                commonMethods.validateDebitTransaction(
+                        childHierarchyId,
+                        walletType,
+                        commonMethods.getCurrentBalance(childHierarchyId, walletType.name()),
+                        reverseAmount,
+                        grossCharge
+                );
+
                 processHierarchyCharges(
                         request,
                         fundReversal,
