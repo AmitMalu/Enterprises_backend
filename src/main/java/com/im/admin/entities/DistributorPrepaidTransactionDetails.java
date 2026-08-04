@@ -75,7 +75,7 @@ public class DistributorPrepaidTransactionDetails implements CommonSearchTransac
     @Column(name = "sub_operator_name")
     private String subOperatorName;
 
-    @Column(name = "REMARKS")
+    @Column(name = "remarks")
     private String remarks;
 
     @Column(name = "transaction_id")
