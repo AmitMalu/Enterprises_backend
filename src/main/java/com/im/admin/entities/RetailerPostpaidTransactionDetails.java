@@ -58,7 +58,6 @@ public class RetailerPostpaidTransactionDetails implements AbstractRetailerTrans
     @Column(name = "updated_date_of_transaction")
     private LocalDate updatedDateOfTransaction;
 
-
     @Column(name = "updated_time_of_transaction", columnDefinition = "TIME(3)")
     private LocalTime updatedTimeOfTransaction;
 
@@ -80,7 +79,7 @@ public class RetailerPostpaidTransactionDetails implements AbstractRetailerTrans
     @Column(name = "sub_operator_name")
     private String subOperatorName;
 
-    @Column(name = "REMARKS")
+    @Column(name = "remarks")
     private String remarks;
 
     @Column(name = "transaction_id")

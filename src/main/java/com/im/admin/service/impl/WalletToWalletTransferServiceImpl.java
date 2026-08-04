@@ -1225,7 +1225,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
     private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount,
                                    BigDecimal beforeBalance, BigDecimal afterBalance, String actionOnBalanceAmount,
                                    String tranxId, String service, RequestHeaderMetaDto requestHeaderMetaDtoMeta, TransactionDetailsInfoDto transactionDetailsInfo,
-                                   String remark, String narration) {
+                                   String remarks, String narration) {
 
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
@@ -1247,7 +1247,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                         "bal_before_tran, bal_after_tran, action_on_balance_amount, " +
                         "final_balance, transaction_id, tran_status, " +
                         "scheme_name, sub_product_name, operator_name, " +
-                        "remark, narration, " +
+                        "remarks, narration, " +
                         (includeExtraColumns
                                 ? "client_ip, medium, request_domain_name, vendor_name, "
                                 : "") +
@@ -1257,7 +1257,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                         ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, " +
                         ":finalBalance, :tranxId, :tranStatus, " +
                         ":schemeName, :subProductName, :operatorName, " +
-                        ":remark, :narration, " +
+                        ":remarks, :narration, " +
                         (includeExtraColumns
                                 ? ":clientIp, :medium, :requestDomainName, :vendorName, "
                                 : "") +
@@ -1279,7 +1279,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     .setParameter("schemeName", transactionDetailsInfo != null ? transactionDetailsInfo.getSchemeName() : null)
                     .setParameter("subProductName", transactionDetailsInfo != null ? transactionDetailsInfo.getSubProductCode() : null)
                     .setParameter("operatorName", transactionDetailsInfo != null ? transactionDetailsInfo.getOperatorName() : null)
-                    .setParameter("remark", remark)
+                    .setParameter("remarks", remarks)
                     .setParameter("narration", narration)
                     .setParameter("latitude", requestHeaderMetaDtoMeta.getLatitude())
                     .setParameter("longitude", requestHeaderMetaDtoMeta.getLongitude());
