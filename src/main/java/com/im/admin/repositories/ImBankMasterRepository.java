@@ -23,4 +23,6 @@ public interface ImBankMasterRepository extends JpaRepository<ImBankMaster, Long
     List<BankResponseDto> getActiveBankDetails();
 
     Optional<ImBankMaster> findByAccountNumber(String accountNumber);
+
+    List<ImBankMaster> findByWhitelabelIdAndIsActiveTrue(String whitelabelId);
 }

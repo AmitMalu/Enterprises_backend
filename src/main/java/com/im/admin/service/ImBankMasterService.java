@@ -37,4 +37,5 @@ public interface ImBankMasterService {
 
     List<BankResponseDto> getBankDetails();
 
+    List<BankResponseDto> getWhiteLabelBankDetails();
 }

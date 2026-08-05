@@ -19,7 +19,7 @@ public class ImBankMasterRequestDTO {
     private Boolean isActive;
     private Boolean isBlocked;
     private Boolean isWhiteLabelAdmin;
-    private String whiteLabelAdminId;
+    //private String whiteLabelAdminId;
 
     private String createdBy;
     private String editedBy;

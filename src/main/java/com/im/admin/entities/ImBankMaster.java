@@ -46,8 +46,8 @@ public class ImBankMaster {
     @Column(name = "is_white_label_admin")
     private Boolean isWhiteLabelAdmin;
 
-    @Column(name = "white_label_admin_id")
-    private String whiteLabelAdminId;
+    @Column(name = "white_label_id")
+    private String whitelabelId;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy HH:mm:ss")
     @CreationTimestamp
@@ -64,8 +64,5 @@ public class ImBankMaster {
 
     @Column(name = "edited_by")
     private String editedBy;
-
-    @Column(name = "white_label_id")
-    private String whitelabelId;
 
 }
