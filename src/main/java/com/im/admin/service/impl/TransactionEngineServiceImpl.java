@@ -887,31 +887,19 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
             String tranStatus,
             TransactionSchemeDetailsRequestDto request) {
 
-        Retailer retailer =
-                retailerRepository.findByRetailerId(dto.getHierarchyId())
-                        .orElseThrow(() ->
-                                new IllegalStateException(
-                                        "Retailer not found: "
-                                                + dto.getHierarchyId()
-                                )
-                        );
-
         String parentHierarchyId =
-                commonMethods.trimToNull(retailer.getParentAccount());
+                commonMethods.findParentHierarchy(dto.getHierarchyId())
+                        .map(commonMethods::trimToNull)
+                        .orElse(null);
 
         if (parentHierarchyId == null) {
-
-            log.info(
-                    "[COMMISSION] Retailer has no parent hierarchy | RetailerId={}",
-                    retailer.getRetailerId()
-            );
-
+            log.info("No parent hierarchy found for {}", dto.getHierarchyId());
             return;
         }
 
         log.info(
-                "[COMMISSION] Starting parent commission traversal | RetailerId={} | ParentId={}",
-                retailer.getRetailerId(),
+                "[TXN ENGINE COMMISSION] Starting parent commission traversal | HierarchyId={} | ParentId={}",
+                dto.getHierarchyId(),
                 parentHierarchyId
         );
 
