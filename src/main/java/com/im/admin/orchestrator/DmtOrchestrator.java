@@ -358,7 +358,7 @@ public class DmtOrchestrator {
             SchemeRate selectedScheme = schemeRateRepository
                     .findSchemeRateByCodeAndOperatorAndAmount(
                             req.getSchemeCode(),
-                            req.getPaymentMode(),
+                            req.getTxnType(),
                             req.getAmount().doubleValue())
                     .orElseThrow(() ->
                             new RuntimeException(
