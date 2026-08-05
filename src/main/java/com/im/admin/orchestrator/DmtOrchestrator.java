@@ -337,8 +337,7 @@ public class DmtOrchestrator {
             // =========================================================
             // VALIDATE SUB PRODUCT VISIBILITY
             // =========================================================
-            if (!subProductsServiceImpl.isSubProductVisible(subProducts.getId()))
-            {
+            if (!subProductsServiceImpl.isSubProductVisible(subProducts.getId())) {
                 throw new IllegalArgumentException(
                         "Selected sub product is currently not visible."
                 );
@@ -372,89 +371,13 @@ public class DmtOrchestrator {
                     selectedScheme.getGross(),
                     selectedScheme.getRetailer());
 
-            BigDecimal leanAmount =
-                    commonMethods.getLeanAmount(req.getRetailerId(), walletType.name());
-
-            BigDecimal txnAmount = req.getAmount();
-
-            BigDecimal grossAmount =
-                    BigDecimal.valueOf(selectedScheme.getGross());
-
-            BigDecimal finalDeductAmt =
-                    txnAmount.add(grossAmount);
-
-            // -------------------------------------
-            // 3. INSUFFICIENT WALLET BALANCE
-            // -------------------------------------
-            if (availableBalance.compareTo(finalDeductAmt) < 0) {
-
-                log.warn(
-                        "[PROCESS PAYOUT ORCH] Insufficient wallet balance | retailer={} | required={} | available={}",
-                        req.getRetailerId(),
-                        finalDeductAmt,
-                        availableBalance
-                );
-
-                return new CommonResponse<>(
-                        400,
-                        "Insufficient Balance In " + subProducts.getWalletType(),
-                        null
-                );
-            }
-
-
-            // -------------------------------------
-            // 1. ONLY LEAN AMOUNT VALIDATION
-            // -------------------------------------
-            BigDecimal balanceAfterTxn =
-                    availableBalance.subtract(txnAmount);
-
-            if (balanceAfterTxn.compareTo(leanAmount) < 0) {
-
-                log.warn(
-                        "[PROCESS PAYOUT ORCH] Lean amount failed | retailer={} | available={} | txn={} | lean={}",
-                        req.getRetailerId(),
-                        availableBalance,
-                        txnAmount,
-                        leanAmount
-                );
-
-                return new CommonResponse<>(
-                        400,
-                        String.format(
-                                "Transaction not allowed. ₹%s must remain as lean balance.",
-                                leanAmount
-                        ),
-                        null
-                );
-            }
-
-
-            // -------------------------------------
-            // 2. LEAN + GROSS VALIDATION
-            // -------------------------------------
-            BigDecimal balanceAfterGross =
-                    availableBalance.subtract(finalDeductAmt);
-
-            if (balanceAfterGross.compareTo(leanAmount) < 0) {
-
-                log.warn(
-                        "[PROCESS PAYOUT ORCH] Lean + Gross validation failed | retailer={} | available={} | finalDeduct={} | lean={}",
-                        req.getRetailerId(),
-                        availableBalance,
-                        finalDeductAmt,
-                        leanAmount
-                );
-
-                return new CommonResponse<>(
-                        400,
-                        String.format(
-                                "Insufficient usable balance after charges. ₹%s must remain locked as lean amount.",
-                                leanAmount
-                        ),
-                        null
-                );
-            }
+            commonMethods.validateDebitTransaction(
+                    req.getRetailerId(),
+                    walletType,
+                    availableBalance,
+                    req.getAmount(),
+                    BigDecimal.valueOf(selectedScheme.getGross())
+            );
 
             //** imp
             DmtRemitter dmtRemitter = remitterRepository
@@ -473,7 +396,7 @@ public class DmtOrchestrator {
             Vendors vendor = beneficiary.getVendor(); //  MAIN FIX
 
             vendorId = vendor.getId();
-            req.setVendorName(vendor.getVendorName());  // used becoz to addusedlimit down on Succcess
+            req.setVendorName(vendor.getVendorName());  // used becoz to addusedlimit down on Succcesss
 
             VendorCredentials credentials = vendorCredentialsRepository
                     .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
@@ -861,7 +784,8 @@ public class DmtOrchestrator {
                                 url,
                                 HttpMethod.POST,
                                 requestEntity,
-                                new ParameterizedTypeReference<CommonResponse<RemitterQueryResponse>>() {}
+                                new ParameterizedTypeReference<CommonResponse<RemitterQueryResponse>>() {
+                                }
                         );
 
                 responseJson = String.valueOf(response.getBody());
@@ -1244,7 +1168,8 @@ public class DmtOrchestrator {
                                 url,
                                 HttpMethod.POST,
                                 requestEntity,
-                                new ParameterizedTypeReference<CommonResponse<RemitterRegisterResponse>>() {}
+                                new ParameterizedTypeReference<CommonResponse<RemitterRegisterResponse>>() {
+                                }
                         );
 
                 responseJson = String.valueOf(response.getBody());

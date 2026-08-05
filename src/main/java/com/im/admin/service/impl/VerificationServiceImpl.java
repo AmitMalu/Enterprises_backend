@@ -648,6 +648,16 @@ public class VerificationServiceImpl implements VerificationService {
             AbstractWalletAmountTable walletAmountTable = commonMethods.getWalletByType(subProduct.getWalletType(), hierarchyId);
             BigDecimal availableBalance = walletAmountTable.getAvailableBalance();
 
+            WalletType walletType = WalletType.valueOf(subProduct.getWalletType());
+
+            commonMethods.validateDebitTransaction(
+                    hierarchyId,
+                    walletType,
+                    availableBalance,
+                    BigDecimal.ZERO,   // No transaction amount
+                    grossAmount
+            );
+
             if (availableBalance.compareTo(grossAmount) < 0) {
                 log.warn("Insufficient balance. Required: {}, Available: {}",
                         grossAmount, availableBalance);
@@ -720,7 +730,7 @@ public class VerificationServiceImpl implements VerificationService {
 
                 if(Boolean.TRUE.equals(product.getIsCommissions())) {
 
-                    WalletType walletType = "POSTPAID".equalsIgnoreCase(subProduct.getWalletType())
+                    walletType = "POSTPAID".equalsIgnoreCase(subProduct.getWalletType())
                             ? WalletType.POSTPAID
                             : WalletType.PREPAID;
 

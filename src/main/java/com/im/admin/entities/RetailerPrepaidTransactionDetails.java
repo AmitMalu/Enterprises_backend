@@ -65,6 +65,9 @@ public class RetailerPrepaidTransactionDetails implements AbstractRetailerTransa
     @Column(name = "mobile_no")
     private String mobileNo;
 
+    @Column(name = "outlet_name")
+    private String outletName;
+
     @Column(name = "scheme_name")
     private String schemeName;
 
@@ -77,7 +80,7 @@ public class RetailerPrepaidTransactionDetails implements AbstractRetailerTransa
     @Column(name = "sub_operator_name")
     private String subOperatorName;
 
-    @Column(name = "REMARKS")
+    @Column(name = "remarks")
     private String remarks;
 
     @Column(name = "transaction_id")

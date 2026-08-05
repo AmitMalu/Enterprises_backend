@@ -486,7 +486,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         // ===== 1. Extract Fields =====
         String status = payload.get("status");
         String vendorTxnId = payload.get("tx_ref");
-        String bankRefId = payload.get("utrNo");
+        String utrNo = payload.get("utr");
 
         log.info("[1] Parsed Callback: orderId={}, requestId={}, status={}", vendorTxnId, vendorTxnId, status);
 
@@ -583,6 +583,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         dto.setHierarchyId(pendingTxn.getRetailerId());
         dto.setVendorName("IM Payout");
         dto.setVendorTxnId(vendorTxnId);
+        dto.setUtrNo(utrNo);
 
         log.info("[6] DTO ready for transaction processing: {}", dto);
 
@@ -608,6 +609,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
 
         // ===== 9. Update UTR =====
         pendingTxn.setStatus(finalStatus);
+        pendingTxn.setUtr(utrNo);
         payoutPendingTransactionRepository.save(pendingTxn);
 
         log.info("[9] Pending transaction updated with UTR={}, STATUS={}", vendorTxnId, finalStatus);

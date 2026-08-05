@@ -225,20 +225,33 @@ public class GlobalExceptionHandler {
         );
     }
 
+//    @ExceptionHandler(IllegalArgumentException.class)
+//    public ResponseEntity<Map<String, Object>>
+//    handleIllegalArgumentException(
+//            IllegalArgumentException exception
+//    ) {
+//
+//        log.warn(
+//                "Invalid hierarchy API request: {}",
+//                exception.getMessage()
+//        );
+//
+//        return buildErrorResponse(
+//                HttpStatus.BAD_REQUEST,
+//                exception.getMessage()
+//        );
+//    }
+
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>>
-    handleIllegalArgumentException(
-            IllegalArgumentException exception
-    ) {
+    public ResponseEntity<CommonResponse<Object>> handleIllegalArgumentException(
+            IllegalArgumentException ex) {
 
-        log.warn(
-                "Invalid hierarchy API request: {}",
-                exception.getMessage()
-        );
-
-        return buildErrorResponse(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage()
+        return ResponseEntity.badRequest().body(
+                new CommonResponse<>(
+                        400,
+                        ex.getMessage(),
+                        null
+                )
         );
     }
 }
