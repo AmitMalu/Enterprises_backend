@@ -3,16 +3,11 @@ package com.im.admin.util;
 import com.im.admin.controller.AESController;
 import com.im.admin.dto.*;
 import com.im.admin.entities.*;
-import com.im.admin.entities.enums.ServiceType;
 import com.im.admin.entities.enums.Status;
 import com.im.admin.entities.enums.TransactionType;
 import com.im.admin.entities.enums.WalletType;
-import com.im.admin.entities.product.Products;
 import com.im.admin.entities.vendor.Vendors;
 import com.im.admin.repositories.*;
-import com.im.admin.request.SendPayoutRequest;
-import com.im.admin.response.CommonResponse;
-import com.im.admin.service.impl.TransactionEngineServiceImpl;
 import jakarta.persistence.*;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -28,7 +23,6 @@ import org.springframework.web.client.RestTemplate;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Time;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -2496,7 +2490,7 @@ public class CommonMethods {
         }
     }
 
-    public <T> CommonResponse<T> validateDebitTransaction(
+    public <T> void validateDebitTransaction(
             String retailerId,
             WalletType walletType,
             BigDecimal availableBalance,
@@ -2545,7 +2539,6 @@ public class CommonMethods {
             );
         }
 
-        return null; // Validation passed
     }
 
 }
