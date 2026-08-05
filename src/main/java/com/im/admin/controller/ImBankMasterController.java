@@ -86,5 +86,11 @@ public class ImBankMasterController {
         return ResponseEntity.ok(CommonResponse.success(responseDtoList, "Record fetch successfully.."));
     }
 
+    @PostMapping("list")
+    public ResponseEntity<CommonResponse<List<BankResponseDto>>> getWhiteLabelBankDetails() {
+        List<BankResponseDto> responseDtoList = service.getWhiteLabelBankDetails();
+        return ResponseEntity.ok(CommonResponse.success(responseDtoList, "Record fetch successfully.."));
+    }
+
 }
 

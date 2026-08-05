@@ -8,6 +8,8 @@ import com.im.admin.response.CommonResponse;
 import com.im.admin.response.ImBankDropdownResponse;
 import com.im.admin.response.ImBankMasterResponseDTO;
 import com.im.admin.service.ImBankMasterService;
+import com.im.admin.util.CommonMethods;
+import com.im.admin.util.TokenUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -33,6 +36,12 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
 
     @Autowired
     private ImBankMasterRepository repository;
+
+    @Autowired
+    private CommonMethods commonMethods;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @Override
     public CommonResponse<ImBankMasterResponseDTO> create(ImBankMasterRequestDTO dto) {
@@ -134,12 +143,11 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
         entity.setChargesType(dto.getChargesType());
         entity.setIsActive(dto.getIsActive());
         entity.setIsBlocked(dto.getIsBlocked());
-        entity.setIsWhiteLabelAdmin(dto.getIsWhiteLabelAdmin());
-        entity.setWhiteLabelAdminId(dto.getWhiteLabelAdminId());
+        entity.setIsWhiteLabelAdmin(Boolean.TRUE);
+        entity.setWhitelabelId(dto.getWhitelabelId());
         entity.setCreatedBy(entity.getCreatedBy());
         entity.setEditedBy(dto.getEditedBy());
         entity.setEditedOn(LocalDateTime.now());
-        entity.setWhitelabelId(dto.getWhitelabelId());
     }
 
     private ImBankMasterResponseDTO mapToDto(ImBankMaster e) {
@@ -163,5 +171,31 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
         return repository.getActiveBankDetails();
     }
 
+    @Override
+    public List<BankResponseDto> getWhiteLabelBankDetails() {
+
+        try {
+            String loginHierarchyId = tokenUtil.getUserContext().getHierarchyId();
+            String hierarchyType = commonMethods.extractHierarchyType(loginHierarchyId);
+
+            String whiteLabelId = commonMethods.resolveEffectiveHierarchyId(loginHierarchyId, hierarchyType);
+
+            List<ImBankMaster> bankList =
+                    repository.findByWhitelabelIdAndIsActiveTrue(whiteLabelId);
+
+            return bankList.stream()
+                    .map(bank -> new BankResponseDto(
+                            bank.getBankName(),
+                            bank.getAccountNumber()
+                    ))
+                    .toList();
+
+
+        } catch (Exception e) {
+            log.error("Error fetching white label bank details", e);
+            return Collections.emptyList();
+        }
+
+    }
 }
 
