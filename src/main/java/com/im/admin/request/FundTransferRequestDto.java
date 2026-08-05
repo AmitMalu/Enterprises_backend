@@ -17,5 +17,6 @@ public class FundTransferRequestDto {
     private WalletType toWalletType;
     private String narration;
     private String subProductId;
+    private String schemeCode;
 }
 
