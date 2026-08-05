@@ -1,6 +1,7 @@
 package com.im.admin.service.impl;
 
 import com.im.admin.entities.ImBankMaster;
+import com.im.admin.entities.WhiteLabels;
 import com.im.admin.repositories.ImBankMasterRepository;
 import com.im.admin.request.ImBankMasterRequestDTO;
 import com.im.admin.response.BankResponseDto;
@@ -19,11 +20,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.springframework.data.jpa.domain.Specification;
@@ -175,34 +174,61 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
     public List<BankResponseDto> getWhiteLabelBankDetails() {
 
         try {
+
             String loginHierarchyId = tokenUtil.extractHierarchyId();
-//            String loginHierarchyId = tokenUtil.getUserContext().getHierarchyId();
-            log.info("Fetching bank details for loginHierarchyId: {}", loginHierarchyId);
+            log.info("Fetching White Label bank details for HierarchyId={}", loginHierarchyId);
 
-            String hierarchyType = commonMethods.extractHierarchyType(loginHierarchyId);
-            log.info("Hierarchy type: {}", hierarchyType);
+            String currentHierarchyId = loginHierarchyId;
 
-            String whiteLabelId = commonMethods.resolveEffectiveHierarchyId(loginHierarchyId, hierarchyType);
-            log.info("Resolved White Label ID: {}", whiteLabelId);
+            while (true) {
 
-            List<ImBankMaster> bankList =
-                    repository.findByWhitelabelIdAndIsActiveTrue(whiteLabelId);
+                Optional<String> parentOpt = commonMethods.findParentHierarchy(currentHierarchyId);
 
-            log.info("Found {} active bank(s) for White Label ID: {}", bankList.size(), whiteLabelId);
+                if (parentOpt.isEmpty()) {
+                    log.warn("No parent hierarchy found for {}. White Label not found.",
+                            currentHierarchyId);
+                    return Collections.emptyList();
+                }
 
-            List<BankResponseDto> response = bankList.stream()
-                    .map(bank -> new BankResponseDto(
-                            bank.getBankName(),
-                            bank.getAccountNumber()
-                    ))
-                    .toList();
+                String parentHierarchyId = parentOpt.get();
+                String parentHierarchyType = commonMethods.extractHierarchyType(parentHierarchyId);
 
-            log.info("Successfully returning {} bank detail(s)", response.size());
+                log.info("Parent Hierarchy Found | Id={} | Type={}",
+                        parentHierarchyId,
+                        parentHierarchyType);
 
-            return response;
+                if ("WL".equalsIgnoreCase(parentHierarchyType)) {
+
+                    log.info("White Label found. Fetching bank details for WL={}",
+                            parentHierarchyId);
+
+                    List<ImBankMaster> bankList =
+                            repository.findByWhitelabelIdAndIsActiveTrue(parentHierarchyId);
+
+                    log.info("Found {} active bank(s) for White Label={}",
+                            bankList.size(),
+                            parentHierarchyId);
+
+                    List<BankResponseDto> response =
+                            bankList.stream()
+                                    .map(bank -> new BankResponseDto(
+                                            bank.getBankName(),
+                                            bank.getAccountNumber()
+                                    ))
+                                    .toList();
+
+                    log.info("Returning {} bank detail(s).", response.size());
+
+                    return response;
+                }
+
+                // Continue traversing upward
+                currentHierarchyId = parentHierarchyId;
+            }
 
         } catch (Exception e) {
-            log.error("Error fetching White Label bank details", e);
+
+            log.error("Error fetching White Label bank details.", e);
             return Collections.emptyList();
         }
     }
