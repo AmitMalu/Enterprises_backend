@@ -785,9 +785,21 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
             BigDecimal txnAmount = BigDecimal.valueOf(dto.getAmount());
             String rateType = dto.getSchemeRate().getRateType().toString();
 
-            //processRetailerCommission(dto, txnAmount, tdsRate, baseTransactionId, tranStatus, request, rateType);
-            processRetailerCommission(dto, txnAmount, baseTransactionId, tranStatus, request, rateType);
-            //processParentHierarchyCommission(dto, txnAmount, tdsRate, baseTransactionId, tranStatus, request);
+            String hierarchyType = commonMethods.extractHierarchyType(dto.getHierarchyId());
+
+            log.info("[COMMISSION] HierarchyType={}", hierarchyType);
+
+            if ("RT".equalsIgnoreCase(hierarchyType)) {
+                processRetailerCommission(
+                        dto,
+                        txnAmount,
+                        baseTransactionId,
+                        tranStatus,
+                        request,
+                        rateType
+                );
+            }
+
             processParentHierarchyCommission(dto, txnAmount, baseTransactionId, tranStatus, request);
             processAdminCommission(dto, txnAmount, tdsRate, baseTransactionId, tranStatus, request, rateType);
 
@@ -868,22 +880,6 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
         );
     }
 
-
-
-//    private void processParentHierarchyCommission(TransactionSchemeDetailsRequestDto dto,
-//                                                  BigDecimal txnAmount, BigDecimal tdsRate,
-//                                                  String baseTxnId, String tranStatus,
-//                                                  TransactionSchemeDetailsRequestDto request) {
-//
-//        Retailer retailer = retailerRepository.findByRetailerId(dto.getHierarchyId())
-//                .orElseThrow(() -> new RuntimeException("Retailer not found: " + dto.getHierarchyId()));
-//
-//        log.info("[COMMISSION] Starting parent commission traversal | ParentId={}", retailer.getParentAccount());
-//
-//        distributeToHierarchyChain(txnAmount, retailer.getParentAccount(), dto.getSchemeRate(),
-//                dto.getWalletType(), tdsRate, baseTxnId, new HashSet<>(), tranStatus, request);
-//    }
-
     private void processParentHierarchyCommission(
             TransactionSchemeDetailsRequestDto dto,
             BigDecimal txnAmount,
@@ -930,26 +926,6 @@ public class TransactionEngineServiceImpl implements TransactionEngineService {
                 request
         );
     }
-
-//    private void processAdminCommission(TransactionSchemeDetailsRequestDto dto,
-//                                        BigDecimal txnAmount, BigDecimal tdsRate,
-//                                        String baseTxnId, String tranStatus,
-//                                        TransactionSchemeDetailsRequestDto request, String rateType) {
-//
-//        BigDecimal adminRate = BigDecimal.valueOf(dto.getSchemeRate().getIm());
-//        if (adminRate.compareTo(BigDecimal.ZERO) <= 0) {
-//            log.info("[COMMISSION] Admin commission skipped | Rate=0");
-//            return;
-//        }
-//
-//        BigDecimal adminCommission = calculateCommissionAmount(adminRate.doubleValue(), txnAmount, rateType);
-//        log.info("[COMMISSION] Admin Commission | Rate={} | Amount={}", adminRate, adminCommission);
-//
-//        getAdminHierarchyId(dto.getHierarchyId()).ifPresentOrElse(adminId -> {
-//            creditHierarchy("AD", adminId, adminCommission, dto.getWalletType(),
-//                    tdsRate, baseTxnId, tranStatus, request);
-//        }, () -> log.warn("[COMMISSION] Admin not found for HierarchyId={}", dto.getHierarchyId()));
-//    }
 
     private void processAdminCommission(TransactionSchemeDetailsRequestDto dto,
                                         BigDecimal txnAmount, BigDecimal tdsRate,
