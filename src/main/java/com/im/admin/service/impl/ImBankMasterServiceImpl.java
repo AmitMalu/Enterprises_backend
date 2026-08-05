@@ -175,27 +175,36 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
     public List<BankResponseDto> getWhiteLabelBankDetails() {
 
         try {
-            String loginHierarchyId = tokenUtil.getUserContext().getHierarchyId();
+            String loginHierarchyId = tokenUtil.extractHierarchyId();
+//            String loginHierarchyId = tokenUtil.getUserContext().getHierarchyId();
+            log.info("Fetching bank details for loginHierarchyId: {}", loginHierarchyId);
+
             String hierarchyType = commonMethods.extractHierarchyType(loginHierarchyId);
+            log.info("Hierarchy type: {}", hierarchyType);
 
             String whiteLabelId = commonMethods.resolveEffectiveHierarchyId(loginHierarchyId, hierarchyType);
+            log.info("Resolved White Label ID: {}", whiteLabelId);
 
             List<ImBankMaster> bankList =
                     repository.findByWhitelabelIdAndIsActiveTrue(whiteLabelId);
 
-            return bankList.stream()
+            log.info("Found {} active bank(s) for White Label ID: {}", bankList.size(), whiteLabelId);
+
+            List<BankResponseDto> response = bankList.stream()
                     .map(bank -> new BankResponseDto(
                             bank.getBankName(),
                             bank.getAccountNumber()
                     ))
                     .toList();
 
+            log.info("Successfully returning {} bank detail(s)", response.size());
+
+            return response;
 
         } catch (Exception e) {
-            log.error("Error fetching white label bank details", e);
+            log.error("Error fetching White Label bank details", e);
             return Collections.emptyList();
         }
-
     }
 }
 
