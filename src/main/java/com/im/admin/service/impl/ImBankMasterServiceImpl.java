@@ -176,13 +176,12 @@ public class ImBankMasterServiceImpl implements ImBankMasterService {
 
         try {
             String loginHierarchyId = tokenUtil.extractHierarchyId();
-//            String loginHierarchyId = tokenUtil.getUserContext().getHierarchyId();
             log.info("Fetching bank details for loginHierarchyId: {}", loginHierarchyId);
 
             String hierarchyType = commonMethods.extractHierarchyType(loginHierarchyId);
             log.info("Hierarchy type: {}", hierarchyType);
 
-            String whiteLabelId = commonMethods.resolveEffectiveHierarchyId(loginHierarchyId, hierarchyType);
+            String whiteLabelId = String.valueOf(commonMethods.findParentHierarchy(loginHierarchyId));
             log.info("Resolved White Label ID: {}", whiteLabelId);
 
             List<ImBankMaster> bankList =
