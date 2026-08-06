@@ -19,10 +19,7 @@ import com.im.admin.response.SuperDistributorResponseDTO;
 import com.im.admin.response.WhiteLabelResponseDTO;
 import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.WhiteLabelService;
-import com.im.admin.util.IdGenerator;
-import com.im.admin.util.ImageHandlerUtil;
-import com.im.admin.util.ImageUtil;
-import com.im.admin.util.TokenUtil;
+import com.im.admin.util.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -88,6 +85,9 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
     @Autowired
     private NetworkBankMasterRepository networkBankMasterRepository;
 
+    @Autowired
+    private CommonMethods commonMethods;
+
     @Transactional
     @Override
     public WhiteLabels saveWhiteLabel(WhiteLabels whiteLabels,
@@ -149,6 +149,16 @@ public class WhiteLabelServiceImpl implements WhiteLabelService {
                 }
                 whiteLabels.setAbbreviation(abbreviation);
             }
+
+            // Abbreviation extraction
+            String parentHierarchyType = commonMethods.extractHierarchyType(whiteLabels.getParentAccount());
+            String parentAccount = commonMethods.resolveEffectiveHierarchyId(
+                    whiteLabels.getParentAccount(),
+                    parentHierarchyType // or the field that contains AU / WLAU / AD / WL / SD etc.
+            );
+
+            // Set the resolved parent back into the entity
+            whiteLabels.setParentAccount(parentAccount);
 
             // Generate ID
             String folder = "White Label";

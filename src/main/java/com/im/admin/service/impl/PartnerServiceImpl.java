@@ -19,10 +19,7 @@ import com.im.admin.response.DistributorResponseDTO;
 import com.im.admin.response.PartnerResponseDTO;
 import com.im.admin.service.HierarchyAccessService;
 import com.im.admin.service.PartnerService;
-import com.im.admin.util.IdGenerator;
-import com.im.admin.util.ImageHandlerUtil;
-import com.im.admin.util.ImageUtil;
-import com.im.admin.util.TokenUtil;
+import com.im.admin.util.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -86,6 +83,9 @@ public class PartnerServiceImpl implements PartnerService {
     @Autowired
     private NetworkBankMasterRepository networkBankMasterRepository;
 
+    @Autowired
+    private CommonMethods commonMethods;
+
     @Transactional
     @Override
     public Partner savePartner(Partner partner,
@@ -133,7 +133,15 @@ public class PartnerServiceImpl implements PartnerService {
         }
 
         // Abbreviation extraction
-        String parentAccount = partner.getParentAccount();
+        String parentHierarchyType = commonMethods.extractHierarchyType(partner.getParentAccount());
+        String parentAccount = commonMethods.resolveEffectiveHierarchyId(
+                partner.getParentAccount(),
+                parentHierarchyType // or the field that contains AU / WLAU / AD / WL / SD etc.
+        );
+
+        // Set the resolved parent back into the entity
+        partner.setParentAccount(parentAccount);
+
         if (parentAccount == null || !parentAccount.contains("-")) {
             throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
         }
