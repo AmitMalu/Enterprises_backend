@@ -2519,7 +2519,7 @@ public class CommonMethods {
 
             throw new IllegalArgumentException(
                     String.format(
-                            "Transaction not allowed. ₹%s must remain as lean balance.",
+                            "Transaction not allowed. ₹%s must remain as lien balance.",
                             leanAmount
                     )
             );
@@ -2533,7 +2533,7 @@ public class CommonMethods {
 
             throw new IllegalArgumentException(
                     String.format(
-                            "Insufficient usable balance after charges. ₹%s must remain locked as lean amount.",
+                            "Insufficient usable balance after charges. ₹%s must remain locked as lien amount.",
                             leanAmount
                     )
             );

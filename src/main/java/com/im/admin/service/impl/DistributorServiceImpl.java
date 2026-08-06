@@ -146,6 +146,9 @@ public class DistributorServiceImpl implements DistributorService {
                     parentHierarchyType // or the field that contains AU / WLAU / AD / WL / SD etc.
             );
 
+            // Set the resolved parent back into the entity
+            distributor.setParentAccount(parentAccount);
+
             if (parentAccount == null || !parentAccount.contains("-")) {
                 log.error("Invalid parentAccount format: {}", parentAccount);
                 throw new IllegalArgumentException("Invalid parentAccount format. Expected format: 'ABC-XX-001'");
@@ -164,7 +167,7 @@ public class DistributorServiceImpl implements DistributorService {
             // Serialize request before DB save
             distributorRequest = objectMapper.writeValueAsString(distributor);
 
-            // 🔹 Upload images (clean & correct mapping)
+            // Upload images (clean & correct mapping)
             log.info("Uploading distributor images...");
             distributor.setAadhaarCardFrontImage(imageUtil.saveImage(aadhaarCardFrontImage, "Distributor"));
             distributor.setAadhaarCardBackImage(imageUtil.saveImage(aadhaarCardBackImage, "Distributor"));
