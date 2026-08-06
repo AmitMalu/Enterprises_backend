@@ -45,6 +45,9 @@ public class PayoutBeneficiaryServiceImpl implements PayoutBeneficiaryService {
     private PayoutPendingTransactionRepository payoutPendingTransactionRepository;
 
     @Autowired
+    private NetworkBankMasterRepository networkBankMasterRepository;
+
+    @Autowired
     private TokenUtil tokenUtil;
 
 
@@ -59,10 +62,18 @@ public class PayoutBeneficiaryServiceImpl implements PayoutBeneficiaryService {
             return CommonResponse.handleErrors("Maximum limit of 200 beneficiary records reached. Cannot add more.");
         }
 
-        //   Map DTO to Entity
+        // Fetch bank name from NetworkBankMaster
+        Long bankId = Long.valueOf(dto.getBankName());
+
+        NetworkBankMaster networkBank = networkBankMasterRepository
+                .findById(bankId)
+                .orElseThrow(() ->
+                        new RuntimeException("Bank not found for id: " + bankId));
+
+        // Map DTO to Entity
         BeneficiaryBankAccount entity = new BeneficiaryBankAccount();
         entity.setRetailerId(dto.getRetailerId());
-        entity.setBankName(dto.getBankName());
+        entity.setBankName(networkBank.getBankName());
         entity.setBankHolderName(dto.getBankHolderName());
         entity.setAccountNumber(dto.getAccountNumber());
         entity.setIfscCode(dto.getIfscCode());
@@ -70,10 +81,10 @@ public class PayoutBeneficiaryServiceImpl implements PayoutBeneficiaryService {
         entity.setMobileNo(dto.getMobileNo());
         entity.setCreatedBy(dto.getCreatedBy());
 
-        //   Save entity
+        // Save entity
         BeneficiaryBankAccount saved = beneficiaryBankAccountRepository.save(entity);
 
-        //   Return success response
+        // Return success response
         return CommonResponse.success(saved, "Bank account saved successfully");
     }
 
