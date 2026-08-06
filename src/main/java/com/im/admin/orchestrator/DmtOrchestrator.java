@@ -592,7 +592,14 @@ public class DmtOrchestrator {
         } catch (Exception e) {
 
             log.error("[PROCESS DMT] Exception occurred | orderId={}", orderId, e);
-            return new CommonResponse<>(500, "Error while processing DMT", null);
+
+            String message = e.getMessage();
+
+            if(message == null || message.isBlank()) {
+                message = "Error While Processing the DMT Transaction";
+            }
+
+            return new CommonResponse<>(500, message,null);
         }
     }
 
