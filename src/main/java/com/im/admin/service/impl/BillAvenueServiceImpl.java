@@ -44,10 +44,8 @@ public class BillAvenueServiceImpl implements BillAvenueService {
     @Autowired
     private BillPayConfigRepository billPayConfigRepository;
 
-
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
-
 
     @Autowired
     private BBPSRelatedTransactions bbpsRelatedTransactions;
@@ -60,7 +58,6 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 
     @Autowired
     private SubProductsRepository subProductsRepository;
-
 
     @Autowired
     private VendorCredentialsRepository vendorCredentialsRepository;
