@@ -1084,6 +1084,18 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     baseTransactionId
             );
 
+            //==========================================================
+            //  PROCEED COMMISSION
+            //==========================================================
+
+            if (Boolean.TRUE.equals(product.getIsCommissions())) {
+
+                transactionEngineServiceImpl.processCommission(
+                        dto,
+                        baseTransactionId,
+                        "SUCCESS",
+                        dto);
+            }
             // =========================================================
             // BUILD SUCCESS RESPONSE LOG
             // =========================================================

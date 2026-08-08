@@ -462,7 +462,12 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
 
         body.put("transaction_amount", String.valueOf(req.getAmount()));
         body.put("tx_mode", req.getPaymentMode().toLowerCase());
-        body.put("subproduct", req.getImSubProductName());
+
+        if (creds.getVendor().getVendorName().equalsIgnoreCase("IM MTB")) {
+            body.put("subproduct", "POBR2");
+        } else {
+            body.put("subproduct", req.getImSubProductName());
+        }
 
         Map<String, Object> bankData = new LinkedHashMap<>();
         bankData.put("bank_name", req.getBankName());
