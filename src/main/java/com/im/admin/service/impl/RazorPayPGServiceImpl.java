@@ -155,6 +155,7 @@ public class RazorPayPGServiceImpl implements RazorPayPGService {
             transaction.setVendorSessionId(plinkId);
             transaction.setLatitude(requestHeaderMetaDto.getLatitude());
             transaction.setLongitude(requestHeaderMetaDto.getLongitude());
+            transaction.setCreatedBy(retailer.get().getMobileNumber());
 
             pgTransactionMappingRepository.save(transaction);
 
@@ -359,6 +360,7 @@ public class RazorPayPGServiceImpl implements RazorPayPGService {
         dto.setMedium(txn.getMedium());
         dto.setClientIp(txn.getClientIp());
         dto.setRequestDomainName(txn.getRequestDomainName());
+        dto.setMobileNumber(txn.getCreatedBy());
 
         dto.setTransactionType("CREDIT");
 

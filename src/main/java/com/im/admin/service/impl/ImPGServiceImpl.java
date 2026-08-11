@@ -99,6 +99,8 @@ public class ImPGServiceImpl implements ImPGService {
             VendorRouting vendorRouting =
                     vendorRoutingRepository.findBySubProductId(req.getSubProductId());
 
+            String mobileNumber = commonMethods.getMobileNumberByHierarchyId(req.getInitiatedBy());
+
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
 
             VendorCredentials credentials =
@@ -177,6 +179,7 @@ public class ImPGServiceImpl implements ImPGService {
                 mapping.setVendorName(vendor.getVendorName());
                 mapping.setLatitude(requestHeaderMetaDtoMeta.getLatitude());
                 mapping.setLongitude(requestHeaderMetaDtoMeta.getLongitude());
+                mapping.setCreatedBy(mobileNumber);
 
                 pgTransactionMappingRepository.save(mapping);
 
@@ -435,6 +438,7 @@ public class ImPGServiceImpl implements ImPGService {
         dto.setMedium(pgTransactionMapping.getMedium());
         dto.setClientIp(pgTransactionMapping.getClientIp());
         dto.setRequestDomainName(pgTransactionMapping.getRequestDomainName());
+        dto.setMobileNumber(pgTransactionMapping.getCreatedBy());
 
         dto.setTransactionType("CREDIT");
 

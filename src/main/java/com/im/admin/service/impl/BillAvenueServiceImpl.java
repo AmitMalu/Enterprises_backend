@@ -5,10 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.im.admin.commons.CommonFunctions;
-import com.im.admin.dto.AbstractWalletAmountTable;
-import com.im.admin.dto.BbpsTranactionRequestDto;
-import com.im.admin.dto.BillRechargeRequestDTO;
-import com.im.admin.dto.RetailersExtraColumnsDto;
+import com.im.admin.dto.*;
 import com.im.admin.entities.*;
 import com.im.admin.entities.enums.WalletType;
 import com.im.admin.entities.product.Products;
@@ -480,9 +477,9 @@ public class BillAvenueServiceImpl implements BillAvenueService {
 }
 
 
-@Transactional
+    @Transactional
     @Override
-    public Object doBillPayment(BillPaymentRequest request, Double latitude, Double longitude, String ipAddress) throws Exception {
+    public Object doBillPayment(BillPaymentRequest request, RequestHeaderMetaDto requestHeaderMetaDtoMeta) throws Exception {
 
         String orderId = "TXN" + commonMethods.generateBaseTransactionId();
         log.info("[PROCESS BILL PAYMENT] Starting transaction | orderId={}", orderId);
@@ -493,6 +490,9 @@ public class BillAvenueServiceImpl implements BillAvenueService {
     String requestJson = null;
     String responseJson = null;
     String vendorId = null;
+    Double latitude = requestHeaderMetaDtoMeta.getLatitude();
+    Double longitude = requestHeaderMetaDtoMeta.getLongitude();
+    String ipAddress = requestHeaderMetaDtoMeta.getIpAddress();
 
         try {
             // ⃣ Validate SubProduct

@@ -117,6 +117,9 @@ public class CommonMethods {
     @Autowired
     private WhiteLabelUserRepository whiteLabelUserRepository;
 
+    @Autowired
+    private UserDetailsRepository userDetailsRepository;
+
     RestTemplate restTemplate = new RestTemplate();
 
 
@@ -2539,6 +2542,12 @@ public class CommonMethods {
             );
         }
 
+    }
+
+    public String getMobileNumberByHierarchyId(String hierarchyId) {
+        return userDetailsRepository.findByHierarchyId(hierarchyId)
+                .map(UserDetails::getMobileNumber)
+                .orElse(null);
     }
 
 }
