@@ -49,5 +49,8 @@ public class PgTransactionMapping {
 
     @Column(name = "request_domain_name")
     private String requestDomainName;
+
+    @Column(name = "created_by")
+    private String createdBy;
 }
 

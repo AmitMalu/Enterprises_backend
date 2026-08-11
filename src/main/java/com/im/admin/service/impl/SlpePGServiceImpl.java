@@ -142,6 +142,7 @@ public class SlpePGServiceImpl implements SlpePGService {
                 pgTransactionMapping.setVendorName("SLPE Payment Gateway");
                 pgTransactionMapping.setLatitude(requestHeaderMetaDto.getLatitude());
                 pgTransactionMapping.setLongitude(requestHeaderMetaDto.getLongitude());
+                pgTransactionMapping.setCreatedBy(retailer.get().getMobileNumber());
 
                 pgTransactionMappingRepository.save(pgTransactionMapping);
 

@@ -189,6 +189,7 @@ public class CashfreePGServiceImpl implements CashfreePGService {
                 mapping.setVendorName(vendor.getVendorName());
                 mapping.setLatitude(requestHeaderMetaDtoMeta.getLatitude());
                 mapping.setLongitude(requestHeaderMetaDtoMeta.getLongitude());
+                mapping.setCreatedBy(retailer.get().getMobileNumber());
 
                 pgTransactionMappingRepository.save(mapping);
 
