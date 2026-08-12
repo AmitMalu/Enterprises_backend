@@ -14,6 +14,7 @@ public class DmtReceiptResponseDto {
     private String beneficiaryName;
 
     private Double amount;
+    private String accNumber;
 
     private String orderId;
     private String vendorTxnId;
@@ -22,4 +23,5 @@ public class DmtReceiptResponseDto {
 
     private String message;
     private String remarks;
+    private String ifsc;
 }
