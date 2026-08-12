@@ -21,6 +21,9 @@ import java.util.Map;
 public class ReportReceiptServiceImpl implements ReportReceiptService {
 
     @Autowired
+    private BeneficiaryRepository beneficiaryRepository;
+
+    @Autowired
     private RetailerPrepaidTransactionDetailsRepository retailerPrepaidTransactionDetailsRepository;
 
     @Autowired
@@ -138,11 +141,23 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
                     dmtTransactionRepository.findByOrderId(request.getTxnId())
                             .orElseThrow(() -> new RuntimeException("DMT record not found"));
 
+            // Get beneficiary using account number
+            DmtBeneficiary beneficiary =
+                    beneficiaryRepository.findByAccountNo(dmt.getAccountNumber())
+                            .orElse(null);
+
+            // Get IFSC from beneficiary table
+            String ifscCode = beneficiary != null
+                    ? beneficiary.getIfscCode()
+                    : null;
+
             return DmtReceiptResponseDto.builder()
                     .status(dmt.getVendorStatus())
                     .dateTime(dmt.getCreatedAt().toString())
                     .txnType(dmt.getTransactionType())
                     .beneficiaryName(dmt.getBeneName())
+                    .accNumber(dmt.getAccountNumber())
+                    .ifsc(ifscCode)
                     .amount(Double.valueOf(dmt.getTxnAmount()))
                     .orderId(dmt.getOrderId())
                     .vendorTxnId(dmt.getAckno())
@@ -518,17 +533,14 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
 
             String txnMode = txn.getOperatorName();
 
+          String utrno=   txn.getBankRefId();
+
             LocalDate date = txn.getDateOfTransaction();
             LocalTime time = txn.getTimeOfTransaction();
 
             String dateTime = LocalDateTime.of(date, time).toString();
 
-//             UTR is currently not available in the transaction table.
-//             Later, after adding the UTR/bank reference column to the
-//             prepaid/postpaid transaction table, get it from txn:
-//              String utr = txn.getBankRefId();
-//             Currently keeping it null
-            String utr = null;
+            String utr = utrno;
 
             return PayoutReceiptResponseDto.builder()
                     .txnId(payout.getTransactionId())
@@ -588,12 +600,8 @@ public class ReportReceiptServiceImpl implements ReportReceiptService {
 
             String dateTime = LocalDateTime.of(date, time).toString();
 
-//             UTR is currently not available in the transaction table.
-//             Later, after adding the UTR/bank reference column to the
-//             prepaid/postpaid transaction table, get it from txn:
-//              String utr = txn.getBankRefId();
-//             Currently keeping it null
-            String utr = null;
+//
+            String utr = txn.getBankRefId();
 
             return PayoutReceiptResponseDto.builder()
                     .txnId(payout.getTransactionId())
