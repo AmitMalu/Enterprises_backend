@@ -170,6 +170,8 @@ public class RunpaisaPGServiceImpl {
             }
             log.debug("Vendor routing found: {}", vendorRouting);
 
+            String mobileNumber = commonMethods.getMobileNumberByHierarchyId(req.getInitiatedBy());
+
             Vendors vendor = CommonMethods.getVendors(vendorRouting);
             log.info("Selected Vendor: ID={}, Name={}, Product={}",
                     vendor.getId(), vendor.getVendorName(), vendor.getProduct() != null ? vendor.getProduct().getId() : "N/A");
@@ -205,6 +207,7 @@ public class RunpaisaPGServiceImpl {
             txnMap.setMedium(req.getMedium());
             txnMap.setClientIp(req.getClientIp());
             txnMap.setRequestDomainName(req.getRequestDomainName());
+            txnMap.setCreatedBy(mobileNumber);
 
             pgTransactionMappingRepository.save(txnMap);
 

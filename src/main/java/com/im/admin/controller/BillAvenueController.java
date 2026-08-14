@@ -1,12 +1,14 @@
 package com.im.admin.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.im.admin.dto.RequestHeaderMetaDto;
 import com.im.admin.request.BillFetchRequest;
 import com.im.admin.request.BillPaymentRequest;
 import com.im.admin.request.BillerRequest;
 import com.im.admin.request.TransactionStatusRequest;
 import com.im.admin.response.CommonResponse;
 import com.im.admin.service.BillAvenueService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -45,9 +47,11 @@ public class BillAvenueController {
 
 
     @PostMapping("/bill-payment")
-    public CommonResponse<Object> billPayment(@RequestBody BillPaymentRequest request, @RequestHeader Double latitude, @RequestHeader Double longitude, @RequestHeader("ipaddress") String ipAddress) throws Exception {
+    public CommonResponse<Object> billPayment(@RequestBody BillPaymentRequest request, HttpServletRequest httpServletRequest) throws Exception {
 
-        return (CommonResponse<Object>) billAvenueService.doBillPayment(request, latitude, longitude, ipAddress);
+        RequestHeaderMetaDto requestHeaderMetaDtoMeta = RequestHeaderMetaDto.from(httpServletRequest);
+
+        return (CommonResponse<Object>) billAvenueService.doBillPayment(request, requestHeaderMetaDtoMeta);
     }
 
     @PostMapping("/transaction-status")

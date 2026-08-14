@@ -208,7 +208,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         );
 
         // Save Transaction
-        savePgTransaction(orderId, req, "PENDING", orderId, requestHeaderMetaDto);
+        savePgTransaction(orderId, req, "PENDING", orderId, null, requestHeaderMetaDto);
 
         log.info("[NIXASOFT][AES] Order created successfully | orderId={}", orderId);
         return pgResponse.getPaymentLink();
@@ -305,7 +305,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
                 // Save failed transaction
                 log.info("[NIXASOFT] Saving failed transaction | orderId={} | status=FAILED", orderId);
 
-                savePgTransaction(orderId, req, "FAILED", null, requestHeaderMetaDto);
+                savePgTransaction(orderId, req, "FAILED", null, retailer.getMobileNumber(), requestHeaderMetaDto);
 
                 long totalDuration = System.currentTimeMillis() - startTime;
                 log.info("[NIXASOFT] Error handling completed | orderId={} | totalDuration={} ms", orderId, totalDuration);
@@ -333,7 +333,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
                 log.info("[NIXASOFT] Saving pending transaction | orderId={} | vendorOrderId={} | status=PENDING",
                         orderId, successResponse.getOrderId());
 
-                savePgTransaction(orderId, req, "PENDING", successResponse.getOrderId(), requestHeaderMetaDto);
+                savePgTransaction(orderId, req, "PENDING", successResponse.getOrderId(), retailer.getMobileNumber(), requestHeaderMetaDto);
 
                 long totalDuration = System.currentTimeMillis() - startTime;
                 log.info("[NIXASOFT] Success processing completed | orderId={} | totalDuration={} ms | paymentUrl={}",
@@ -349,7 +349,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
 
             // Save transaction as FAILED for unknown status
             log.info("[NIXASOFT] Saving transaction as FAILED due to unknown status | orderId={}", orderId);
-            savePgTransaction(orderId, req, "FAILED", null, requestHeaderMetaDto);
+            savePgTransaction(orderId, req, "FAILED", null, retailer.getMobileNumber(), requestHeaderMetaDto);
 
             long totalDuration = System.currentTimeMillis() - startTime;
             log.info("[NIXASOFT] Unknown status handling completed | orderId={} | totalDuration={} ms", orderId, totalDuration);
@@ -364,7 +364,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             // Save transaction as FAILED
             try {
                 log.info("[NIXASOFT] Saving failed transaction due to exception | orderId={}", orderId);
-                savePgTransaction(orderId, req, "FAILED", null, requestHeaderMetaDto);
+                savePgTransaction(orderId, req, "FAILED", null, retailer.getMobileNumber(), requestHeaderMetaDto);
             } catch (Exception saveEx) {
                 log.error("[NIXASOFT] Failed to save transaction after exception | orderId={}", orderId, saveEx);
             }
@@ -394,6 +394,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             NixaSoftCreateOrderRequest req,
             String status,
             String vendorSessionId,
+            String mobileNumber,
             RequestHeaderMetaDto requestHeaderMetaDto) {
 
         PgTransactionMapping transaction = new PgTransactionMapping();
@@ -407,6 +408,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
         transaction.setCardBinNo(req.getCardBinNo());
         transaction.setLatitude(requestHeaderMetaDto.getLatitude());
         transaction.setLongitude(requestHeaderMetaDto.getLongitude());
+        transaction.setCreatedBy(mobileNumber);
 
         pgTransactionMappingRepository.save(transaction);
 

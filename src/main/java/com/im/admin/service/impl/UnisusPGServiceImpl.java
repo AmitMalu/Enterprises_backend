@@ -65,6 +65,8 @@ public class UnisusPGServiceImpl implements UnisusPGService {
 
             log.info("Vendor credentials fetched successfully for vendorId={}", vendor.getId());
 
+            String mobileNumber = commonMethods.getMobileNumberByHierarchyId(req.getInitiatedBy());
+
             // ====== 2. Build Authenticate Request ======
             UnisusAuthRequest authRequest = new UnisusAuthRequest(
                     credentials.getClientId(),
@@ -116,6 +118,7 @@ public class UnisusPGServiceImpl implements UnisusPGService {
             entity.setVendorName(vendor.getVendorName());
             entity.setLatitude(requestHeaderMetaDto.getLatitude());
             entity.setLongitude(requestHeaderMetaDto.getLongitude());
+            entity.setCreatedBy(mobileNumber);
 
             pgTransactionMappingRepository.save(entity);
 
