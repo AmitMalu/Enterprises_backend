@@ -216,6 +216,9 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         Map<String, Object> body = buildPayoutRequestBody(req, creds, subProduct, requestHeaderMetaDto);
 
         String url = creds.getBaseUrlProd() + "/payoutAPI/transfer";
+        if (creds.getVendor().getVendorName().equalsIgnoreCase("IM MTB")) {
+            url = creds.getBaseUrlProd() + "/move_to_bankAPI/pobr";
+        }
         log.info("[IM PAYOUT] Sending payout request to: {}", url);
 
         // Call vendor API
@@ -464,7 +467,7 @@ public class ImPayoutServiceImpl implements PayoutVendorService, PayoutCallbackR
         body.put("tx_mode", req.getPaymentMode().toLowerCase());
 
         if (creds.getVendor().getVendorName().equalsIgnoreCase("IM MTB")) {
-            body.put("subproduct", "POBR2");
+            body.put("productCode", "POBR");
         } else {
             body.put("subproduct", req.getImSubProductName());
         }

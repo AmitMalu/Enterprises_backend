@@ -795,7 +795,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "CREDIT",
                             requestHeaderMetaDtoMeta,
                             transactionDetailsInfo,
-                            "Transaction Fund Transfer to " + fromWallet.name().toUpperCase() + " Wallet ",
+                            "Fund Transfer to " + fromWallet.name().toUpperCase() + " Wallet ",
                             "Fund Transfer Mirror Transaction to " + fromWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
                     );
 
@@ -831,7 +831,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "DEBIT",
                             requestHeaderMetaDtoMeta,
                             transactionDetailsInfo,
-                            "Transaction Fund Transfer to " + toWallet.name().toUpperCase() + " Wallet ",
+                            "Fund Transfer to " + toWallet.name().toUpperCase() + " Wallet ",
                             "Fund Transfer Mirror Transaction to " + toWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
                     );
 
@@ -907,7 +907,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "CREDIT",
                             requestHeaderMetaDtoMeta,
                             transactionDetailsInfo,
-                            "Transaction Fund Transfer to " + fromWallet.name().toUpperCase() + "Wallet",
+                            "Fund Transfer to " + fromWallet.name().toUpperCase() + " Wallet",
                             "Fund Transfer Mirror Transaction to " + fromWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
 
                     );
@@ -945,7 +945,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                             "DEBIT",
                             requestHeaderMetaDtoMeta,
                             transactionDetailsInfo,
-                            "Transaction Fund Transfer to " + toWallet.name().toUpperCase() + "Wallet",
+                            "Fund Transfer to " + toWallet.name().toUpperCase() + " Wallet",
                             "Fund Transfer Mirror Transaction to " + toWallet.name().toUpperCase() + " Wallet for Account" + "#" + parentId
                     );
 
@@ -1023,7 +1023,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     "CREDIT",
                     requestHeaderMetaDtoMeta,
                     transactionDetailsInfo,
-                    "Transaction Fund Transfer to " + toWallet.name().toUpperCase() + "Wallet",
+                    "Fund Transfer to " + toWallet.name().toUpperCase() + " Wallet",
                     "Fund Transfer Mirror Transaction to " + toWallet.name().toUpperCase() + " Wallet for Account" + "#" + hierarchyId
             );
 
@@ -1231,22 +1231,44 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
     }
 
 
-    private void insertTransaction(String walletType, String hierarchyId, String tranStatus, BigDecimal amount,
-                                   BigDecimal beforeBalance, BigDecimal afterBalance, String actionOnBalanceAmount,
-                                   String tranxId, String service, RequestHeaderMetaDto requestHeaderMetaDtoMeta, TransactionDetailsInfoDto transactionDetailsInfo,
-                                   String remarks, String narration) {
+    private void insertTransaction(
+            String walletType,
+            String hierarchyId,
+            String tranStatus,
+            BigDecimal amount,
+            BigDecimal beforeBalance,
+            BigDecimal afterBalance,
+            String actionOnBalanceAmount,
+            String tranxId,
+            String service,
+            RequestHeaderMetaDto requestHeaderMetaDtoMeta,
+            TransactionDetailsInfoDto transactionDetailsInfo,
+            String remarks,
+            String narration) {
 
         String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
         String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
         String columnName = commonMethods.getHierarchyColumnName(hierarchyType);
 
-        log.info("Inserting into {} | Type: {} | Amount: {} | Hierarchy ID: {} | Before Balance: {} | After Balance: {}",
-                transactionTableName, service, amount, hierarchyId, beforeBalance, afterBalance);
+        // Get mobile number using hierarchyId
+        String mobileNumber = commonMethods.getMobileNumberByHierarchyId(hierarchyId);
+
+        log.info(
+                "Inserting into {} | Type: {} | Amount: {} | Hierarchy ID: {} | Before Balance: {} | After Balance: {}",
+                transactionTableName,
+                service,
+                amount,
+                hierarchyId,
+                beforeBalance,
+                afterBalance
+        );
 
         boolean includeExtraColumns =
                 !"AD".equalsIgnoreCase(hierarchyType)
-                        && !"SD".equalsIgnoreCase(hierarchyType) && !"PT".equalsIgnoreCase(hierarchyType)
-                        && !"DT".equalsIgnoreCase(hierarchyType) && !"WL".equalsIgnoreCase(hierarchyType);
+                        && !"SD".equalsIgnoreCase(hierarchyType)
+                        && !"PT".equalsIgnoreCase(hierarchyType)
+                        && !"DT".equalsIgnoreCase(hierarchyType)
+                        && !"WL".equalsIgnoreCase(hierarchyType);
 
         String sql =
                 "INSERT INTO " + transactionTableName +
@@ -1260,7 +1282,7 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                         (includeExtraColumns
                                 ? "client_ip, medium, request_domain_name, vendor_name, "
                                 : "") +
-                        "latitude, longitude" +
+                        "mobile_no, latitude, longitude" +
                         ") VALUES (" +
                         ":hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                         ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, " +
@@ -1270,9 +1292,11 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                         (includeExtraColumns
                                 ? ":clientIp, :medium, :requestDomainName, :vendorName, "
                                 : "") +
-                        ":latitude, :longitude" +
+                        ":mobileNo, :latitude, :longitude" +
                         ")";
+
         try {
+
             Query query = entityManager.createNativeQuery(sql)
                     .setParameter("hierarchyId", hierarchyId)
                     .setParameter("service", service)
@@ -1285,11 +1309,27 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                     .setParameter("finalBalance", afterBalance)
                     .setParameter("tranxId", tranxId)
                     .setParameter("tranStatus", tranStatus)
-                    .setParameter("schemeName", transactionDetailsInfo != null ? transactionDetailsInfo.getSchemeName() : null)
-                    .setParameter("subProductName", transactionDetailsInfo != null ? transactionDetailsInfo.getSubProductCode() : null)
-                    .setParameter("operatorName", transactionDetailsInfo != null ? transactionDetailsInfo.getOperatorName() : null)
+                    .setParameter(
+                            "schemeName",
+                            transactionDetailsInfo != null
+                                    ? transactionDetailsInfo.getSchemeName()
+                                    : null
+                    )
+                    .setParameter(
+                            "subProductName",
+                            transactionDetailsInfo != null
+                                    ? transactionDetailsInfo.getSubProductCode()
+                                    : null
+                    )
+                    .setParameter(
+                            "operatorName",
+                            transactionDetailsInfo != null
+                                    ? transactionDetailsInfo.getOperatorName()
+                                    : null
+                    )
                     .setParameter("remarks", remarks)
                     .setParameter("narration", narration)
+                    .setParameter("mobileNo", mobileNumber)
                     .setParameter("latitude", requestHeaderMetaDtoMeta.getLatitude())
                     .setParameter("longitude", requestHeaderMetaDtoMeta.getLongitude());
 
@@ -1298,7 +1338,6 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
                         .setParameter("medium", requestHeaderMetaDtoMeta.getMedium())
                         .setParameter("requestDomainName", requestHeaderMetaDtoMeta.getRequestDomainName())
                         .setParameter("vendorName", "Internal Product");
-
             }
 
             query.executeUpdate();
@@ -1307,16 +1346,16 @@ public class WalletToWalletTransferServiceImpl implements WalletToWalletTransfer
 
         } catch (PersistenceException ex) {
 
-            // Handle duplicate safely
             if (ex.getMessage() != null &&
-                    (ex.getMessage().contains("constraint") || ex.getMessage().contains("Duplicate"))) {
+                    (ex.getMessage().contains("constraint")
+                            || ex.getMessage().contains("Duplicate"))) {
 
                 log.warn("Duplicate transaction skipped | TranxID={}", tranxId);
-                return; // skip insert, continue flow
+                return;
             }
 
             log.error("Failed to insert transaction | TranxID={}", tranxId, ex);
-            throw ex; // real error → propagate
+            throw ex;
         }
     }
 
