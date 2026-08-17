@@ -992,16 +992,19 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
         String transactionTableName = commonMethods.getTransactionTable(hierarchyType, walletType);
         String columnName = commonMethods.getHierarchyColumnName(hierarchyType);
 
+        // Get mobile number using hierarchyId
+        String mobileNumber = commonMethods.getMobileNumberByHierarchyId(hierarchyId);
+
         log.info("Inserting into {} | Type: {} | Amount: {} | Hierarchy ID: {} | Before Balance: {} | After Balance: {}",
                 transactionTableName, service, amount, hierarchyId, beforeBalance, afterBalance);
 
         String sql = "INSERT INTO " + transactionTableName +
                 " (" + columnName + "  ,service, amount, date_of_transaction, time_of_transaction, " +
                 "bal_before_tran, bal_after_tran, action_on_balance_amount, final_balance, transaction_id, tran_status, remarks, " +
-                "sub_product_name, scheme_name, operator_name) " +
+                "sub_product_name, scheme_name, operator_name, mobile_no) " +
                 "VALUES (:hierarchyId, :service, :amount, :dateOfTransaction, :timeOfTransaction, " +
                 ":beforeTransactionBalance, :afterTransactionBalance, :actionOnBalanceAmount, :finalBalance, :tranxId, :tranStatus, :remarks," +
-                ":subProductName, :schemeName, :operatorName)";
+                ":subProductName, :schemeName, :operatorName, :mobileNo)";
 
         try {
             entityManager.createNativeQuery(sql)
@@ -1020,6 +1023,7 @@ public class PrefundRequestServiceImpl implements PrefundRequestService {
                     .setParameter("subProductName", subProductName)
                     .setParameter("schemeName", schemeName)
                     .setParameter("operatorName", operatorName)
+                    .setParameter("mobileNo", mobileNumber)
                     .executeUpdate();
 
         } catch (PersistenceException ex) {
