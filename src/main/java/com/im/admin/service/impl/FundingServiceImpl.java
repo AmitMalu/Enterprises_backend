@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -91,6 +92,42 @@ public class FundingServiceImpl implements FundingService {
 
     @Autowired
     private RetailerPostpaidTransactionDetailsRepository retailerPostpaidTransactionDetailsRepository;
+
+    @Autowired
+    private DistributorPrepaidTransactionDetailsRepository distributorPrepaidTransactionDetailsRepository;
+
+    @Autowired
+    private DistributorPostpaidTransactionDetailsRepository distributorPostpaidTransactionDetailsRepository;
+
+    @Autowired
+    private SuperDistributorPrepaidTransactionDetailsRepository superDistributorPrepaidTransactionDetailsRepository;
+
+    @Autowired
+    private SuperDistributorPostpaidTransactionDetailsRepository superDistributorPostpaidTransactionDetailsRepository;
+
+    @Autowired
+    private PartnerPrepaidTransactionDetailsRepository partnerPrepaidTransactionDetailsRepository;
+
+    @Autowired
+    private PartnerPostpaidTransactionDetailsRepository partnerPostpaidTransactionDetailsRepository;
+
+    @Autowired
+    private EnterprisesPrepaidTransactionDetailsRepository enterprisesPrepaidTransactionDetailsRepository;
+
+    @Autowired
+    private EnterprisesPostpaidTransactionDetailsRepository enterprisesPostpaidTransactionDetailsRepository;
+
+    @Autowired
+    private WhiteLabelPrepaidTransactionDetailsRepository whiteLabelPrepaidTransactionDetailsRepository;
+
+    @Autowired
+    private WhiteLabelPostpaidTransactionDetailsRepository whiteLabelPostpaidTransactionDetailsRepository;
+
+    @Autowired
+    private AdminPrepaidTransactionDetailsRepository adminPrepaidTransactionDetailsRepository;
+
+    @Autowired
+    private AdminPostpaidTransactionDetailsRepository adminPostpaidTransactionDetailsRepository;
 
     @Autowired
     private SubProductsRepository subProductsRepository;
@@ -1465,13 +1502,15 @@ public class FundingServiceImpl implements FundingService {
 
         log.info("Fetching transactions for walletType: {}", request.getWalletType());
 
-        // network hierarchy logic
-        String hierarchyId = tokenUtil.extractHierarchyId();
+        // Scope to the logged-in user only (no child/network logic)
+        String loginHierarchyId = tokenUtil.extractHierarchyId();
+        String loginHierarchyType = commonMethods.extractHierarchyType(loginHierarchyId);
 
-        List<String> networkIds =
-                getRetailersUnderHierarchy(hierarchyId);
+        String hierarchyId = commonMethods.resolveWalletOwnerHierarchyId(loginHierarchyId);
+        String hierarchyType = commonMethods.extractHierarchyType(hierarchyId);
 
-        log.info("Network IDs for report: {}", networkIds);
+        log.info("Transaction report scope | loginHierarchyId={} | loginHierarchyType={} | resolvedHierarchyId={} | resolvedHierarchyType={}",
+                loginHierarchyId, loginHierarchyType, hierarchyId, hierarchyType);
 
         List<String> filteredSubProducts = null;
 
@@ -1540,75 +1579,14 @@ public class FundingServiceImpl implements FundingService {
                 )
         );
 
-        if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
-            return fetchPrepaidTXN(request, filteredSubProducts, vendorName, networkIds, pageable);
-        }
-        else if ("POSTPAID".equalsIgnoreCase(request.getWalletType())) {
-            return fetchPostpaidTXN(request, filteredSubProducts, vendorName, networkIds, pageable);
-        }
-        else {
-
-//            List<RetailerTransactionResponseDto> combinedList = new ArrayList<>();
-//            // walletType null → fetch both
-//            Page<RetailerTransactionResponseDto> prepaid =
-//                    fetchPrepaidTXN(request, filteredSubProducts, vendorName, networkIds, pageable);
-//
-//            Page<RetailerTransactionResponseDto> postpaid =
-//                    fetchPostpaidTXN(request, filteredSubProducts, vendorName, networkIds, pageable);
-//
-//            combinedList.add(prepaid);
-//            combinedList.add(postpaid);
-//
-//            List<RetailerTransactionResponseDto> combined =
-//                    Stream.concat(prepaid.getContent().stream(),
-//                                    postpaid.getContent().stream())
-//                            .sorted(Comparator.comparing(
-//                                    RetailerTransactionResponseDto::getUpdatedDateOfTransaction,
-//                                    Comparator.nullsLast(Comparator.reverseOrder())
-//                            ))
-//                            .collect(Collectors.toList());
-//
-//            return new PageImpl<>(
-//                    combined,
-//                    pageable,
-//                    prepaid.getTotalElements() + postpaid.getTotalElements()
-//            );
-
-
-            // ================= BOTH =================
-
-            List<RetailerTransactionResponseDto> combinedList = new ArrayList<>();
-
-            List<RetailerTransactionResponseDto> prepaid =
-                    fetchPrepaidTXN(request, filteredSubProducts, vendorName, networkIds, Pageable.unpaged())
-                            .getContent();
-
-            List<RetailerTransactionResponseDto> postpaid =
-                    fetchPostpaidTXN(request, filteredSubProducts, vendorName, networkIds, Pageable.unpaged())
-                            .getContent();
-
-            combinedList.addAll(prepaid);
-            combinedList.addAll(postpaid);
-
-            combinedList.sort(
-                    Comparator.comparing(
-                            RetailerTransactionResponseDto::getDateOfTransaction,
-                            Comparator.nullsLast(Comparator.reverseOrder())
-                    ).thenComparing(
-                            RetailerTransactionResponseDto::getTimeOfTransaction,
-                            Comparator.nullsLast(Comparator.reverseOrder())
-                    )
-            );
-
-            int start = (int) pageable.getOffset();
-            int end = Math.min(start + pageable.getPageSize(), combinedList.size());
-
-            List<RetailerTransactionResponseDto> paginatedList =
-                    start > end ? Collections.emptyList() : combinedList.subList(start, end);
-
-            return new PageImpl<>(paginatedList, pageable, combinedList.size());
-        }
-
+        return fetchTransactionReportByHierarchy(
+                hierarchyType,
+                hierarchyId,
+                request,
+                filteredSubProducts,
+                vendorName,
+                pageable
+        );
     }
 
 
@@ -1755,6 +1733,594 @@ public class FundingServiceImpl implements FundingService {
             dto.setProductName(sp != null ? sp.getProduct().getName() : null);
             return dto;
         });
+    }
+
+    private Page<RetailerTransactionResponseDto> fetchTransactionReportByHierarchy(
+            String hierarchyType,
+            String hierarchyId,
+            SettlementPendingRequestDto request,
+            List<String> subProductNames,
+            String vendorName,
+            Pageable pageable) {
+
+        String type = hierarchyType == null ? "" : hierarchyType.toUpperCase();
+
+        if ("PREPAID".equalsIgnoreCase(request.getWalletType())) {
+            if ("RT".equals(type)) {
+                return fetchPrepaidTXN(request, subProductNames, vendorName, List.of(hierarchyId), pageable);
+            }
+            return fetchLevelPrepaid(type, hierarchyId, request, subProductNames, pageable);
+        }
+
+        if ("POSTPAID".equalsIgnoreCase(request.getWalletType())) {
+            if ("RT".equals(type)) {
+                return fetchPostpaidTXN(request, subProductNames, vendorName, List.of(hierarchyId), pageable);
+            }
+            return fetchLevelPostpaid(type, hierarchyId, request, subProductNames, pageable);
+        }
+
+        // ================= BOTH =================
+        if ("RT".equals(type)) {
+            List<RetailerTransactionResponseDto> combinedList = new ArrayList<>();
+            combinedList.addAll(fetchPrepaidTXN(request, subProductNames, vendorName, List.of(hierarchyId), Pageable.unpaged()).getContent());
+            combinedList.addAll(fetchPostpaidTXN(request, subProductNames, vendorName, List.of(hierarchyId), Pageable.unpaged()).getContent());
+            return paginateCombined(combinedList, pageable);
+        }
+
+        List<RetailerTransactionResponseDto> combinedList = new ArrayList<>();
+        combinedList.addAll(fetchLevelPrepaid(type, hierarchyId, request, subProductNames, Pageable.unpaged()).getContent());
+        combinedList.addAll(fetchLevelPostpaid(type, hierarchyId, request, subProductNames, Pageable.unpaged()).getContent());
+        return paginateCombined(combinedList, pageable);
+    }
+
+    private Page<RetailerTransactionResponseDto> paginateCombined(
+            List<RetailerTransactionResponseDto> combinedList,
+            Pageable pageable) {
+
+        combinedList.sort(
+                Comparator.comparing(
+                        RetailerTransactionResponseDto::getDateOfTransaction,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ).thenComparing(
+                        RetailerTransactionResponseDto::getTimeOfTransaction,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                )
+        );
+
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), combinedList.size());
+
+        List<RetailerTransactionResponseDto> paginatedList =
+                start > end ? Collections.emptyList() : combinedList.subList(start, end);
+
+        return new PageImpl<>(paginatedList, pageable, combinedList.size());
+    }
+
+    private Page<RetailerTransactionResponseDto> fetchLevelPrepaid(
+            String hierarchyType,
+            String hierarchyId,
+            SettlementPendingRequestDto request,
+            List<String> subProductNames,
+            Pageable pageable) {
+
+        Map<String, SubProducts> subProductMap = getSubProductMap();
+        List<String> hierarchyIds = List.of(hierarchyId);
+
+        return switch (hierarchyType) {
+            case "DT" -> distributorPrepaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getDistributorId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "PREPAID",
+                    subProductMap));
+
+            case "SD" -> superDistributorPrepaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getSuperDistributorId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "PREPAID",
+                    subProductMap));
+
+            case "PT" -> partnerPrepaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getPartnerId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "PREPAID",
+                    subProductMap));
+
+            case "ET" -> enterprisesPrepaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getEnterprisesId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "PREPAID",
+                    subProductMap));
+
+            case "WL" -> whiteLabelPrepaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getWhitelabelId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "PREPAID",
+                    subProductMap));
+
+            case "AD", "IM" -> adminPrepaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getAdminId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "PREPAID",
+                    subProductMap));
+
+            default -> throw new IllegalArgumentException(
+                    "Unsupported hierarchy type for transaction report: " + hierarchyType);
+        };
+    }
+
+    private Page<RetailerTransactionResponseDto> fetchLevelPostpaid(
+            String hierarchyType,
+            String hierarchyId,
+            SettlementPendingRequestDto request,
+            List<String> subProductNames,
+            Pageable pageable) {
+
+        Map<String, SubProducts> subProductMap = getSubProductMap();
+        List<String> hierarchyIds = List.of(hierarchyId);
+
+        return switch (hierarchyType) {
+            case "DT" -> distributorPostpaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getDistributorId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "POSTPAID",
+                    subProductMap));
+
+            case "SD" -> superDistributorPostpaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getSuperDistributorId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "POSTPAID",
+                    subProductMap));
+
+            case "PT" -> partnerPostpaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getPartnerId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "POSTPAID",
+                    subProductMap));
+
+            case "ET" -> enterprisesPostpaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getEnterprisesId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "POSTPAID",
+                    subProductMap));
+
+            case "WL" -> whiteLabelPostpaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getWhitelabelId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "POSTPAID",
+                    subProductMap));
+
+            case "AD", "IM" -> adminPostpaidTransactionDetailsRepository.findFilteredTransactionTXN(
+                    request.getId(),
+                    request.getFromDate(),
+                    request.getToDate(),
+                    subProductNames,
+                    hierarchyIds,
+                    request.getUserId(),
+                    request.getMobileNo(),
+                    request.getSchemeName(),
+                    request.getAmount(),
+                    request.getTxId(),
+                    request.getRemarks(),
+                    request.getActionOnBalanceAmount(),
+                    request.getTxStatus(),
+                    request.getDateOfTransaction(),
+                    request.getTimeOfTransaction(),
+                    request.getUpdatedDateOfTransaction(),
+                    pageable
+            ).map(txn -> mapLevelTransaction(
+                    txn.getId(),
+                    txn.getUpdatedDateOfTransaction(),
+                    txn.getAdminId(),
+                    txn.getMobileNo(),
+                    txn.getSchemeName(),
+                    txn.getAmount(),
+                    txn.getTranStatus(),
+                    txn.getRemarks(),
+                    txn.getTransactionId(),
+                    txn.getSubProductName(),
+                    txn.getDateOfTransaction(),
+                    txn.getTimeOfTransaction(),
+                    txn.getLatitude(),
+                    txn.getLongitude(),
+                    txn.getOperatorName(),
+                    "POSTPAID",
+                    subProductMap));
+
+            default -> throw new IllegalArgumentException(
+                    "Unsupported hierarchy type for transaction report: " + hierarchyType);
+        };
+    }
+
+    private RetailerTransactionResponseDto mapLevelTransaction(
+            Integer id,
+            LocalDate updatedDateOfTransaction,
+            String userId,
+            String mobileNo,
+            String schemeName,
+            BigDecimal amount,
+            String tranStatus,
+            String remarks,
+            String transactionId,
+            String subProductName,
+            LocalDate dateOfTransaction,
+            LocalTime timeOfTransaction,
+            Double latitude,
+            Double longitude,
+            String operatorName,
+            String walletType,
+            Map<String, SubProducts> subProductMap) {
+
+        SubProducts sp = subProductMap.get(subProductName);
+
+        RetailerTransactionResponseDto dto =
+                new RetailerTransactionResponseDto(
+                        id,
+                        updatedDateOfTransaction,
+                        userId,
+                        mobileNo,
+                        schemeName,
+                        amount,
+                        tranStatus,
+                        null,   // transactionType not stored for this level's transaction tables
+                        remarks,
+                        transactionId,
+                        null,   // medium not stored for this level's transaction tables
+                        subProductName,
+                        "",     // vendorName not stored for this level's transaction tables
+                        dateOfTransaction,
+                        timeOfTransaction,
+                        updatedDateOfTransaction,
+                        null,   // updatedTimeOfTransaction not stored for this level's transaction tables
+                        null,   // vendorTransactionId not stored
+                        latitude,
+                        longitude,
+                        operatorName
+                );
+
+        dto.setWalletType(walletType);
+        dto.setProductName(sp != null ? sp.getProduct().getName() : null);
+        return dto;
     }
 
 
