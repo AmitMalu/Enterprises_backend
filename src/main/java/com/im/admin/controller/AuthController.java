@@ -252,29 +252,29 @@ public class AuthController {
         }
     }
 
-    private ResponseEntity<?> handlePasswordValidation(UserDetails user, String inputPassword, String requestJson, LocalDateTime requestTime) {
-        boolean passwordMatches = passwordEncoder.matches(inputPassword, user.getLoginPassword());
-        boolean fallbackMatches = inputPassword.equals(user.getLoginPassword());
-
-        if (!passwordMatches && !fallbackMatches) {
-            log.warn("Password mismatch for user ID: {}", user.getHierarchyId());
-            return handleFailedAttempt(user, requestJson, requestTime);
-        }
-
-        resetFailedAttempts(user);
-        String otp = generateOtpForUser(user);
-
-        // Determine role using the updated logic
-        String role = determineRole(user);
-
-        Map<String, String> responseData = new HashMap<>();
-        responseData.put("role", role);
-
-        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", responseData);
-        logLoginAttempt(requestJson, requestTime, response);
-        log.info("OTP sent successfully for user ID: {} with role: {}", user.getHierarchyId(), role);
-        return ResponseEntity.ok(response);
-    }
+//    private ResponseEntity<?> handlePasswordValidation(UserDetails user, String inputPassword, String requestJson, LocalDateTime requestTime) {
+//        boolean passwordMatches = passwordEncoder.matches(inputPassword, user.getLoginPassword());
+//        boolean fallbackMatches = inputPassword.equals(user.getLoginPassword());
+//
+//        if (!passwordMatches && !fallbackMatches) {
+//            log.warn("Password mismatch for user ID: {}", user.getHierarchyId());
+//            return handleFailedAttempt(user, requestJson, requestTime);
+//        }
+//
+//        resetFailedAttempts(user);
+//        String otp = generateOtpForUser(user);
+//
+//        // Determine role using the updated logic
+//        String role = determineRole(user);
+//
+//        Map<String, String> responseData = new HashMap<>();
+//        responseData.put("role", role);
+//
+//        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", responseData);
+//        logLoginAttempt(requestJson, requestTime, response);
+//        log.info("OTP sent successfully for user ID: {} with role: {}", user.getHierarchyId(), role);
+//        return ResponseEntity.ok(response);
+//    }
 
     /**
      * Determines the role for a user with proper WL/WLAU/WLAD distinction.
@@ -354,60 +354,55 @@ public class AuthController {
         log.debug("Resetting failed attempts for user ID: {}", user.getHierarchyId());
     }
 
-    private String generateOtpForUser(UserDetails user) {
-
-        String otp = OtpUtil.generateOtp();
-
-        try {
-
-            user.setOtp(otp);
-            user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
-            userDetailsRepository.save(user);
-            log.info("OTP generated for user ID: {}", user.getHierarchyId());
-
-            String fromId = resolveFromEmail(
-                    user.getHierarchyCode(),
-                    user.getHierarchyId()
-            );
-
-            String companyName = getCompanyName(fromId);
-
-//            SmsCredentialsMaster smsConfig = getSmsCredentials(
+//    private String generateOtpForUser(UserDetails user) {
+//
+//        String otp = OtpUtil.generateOtp();
+//
+//        try {
+//
+//            user.setOtp(otp);
+//            user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
+//            userDetailsRepository.save(user);
+//            log.info("OTP generated for user ID: {}", user.getHierarchyId());
+//
+//            String fromId = resolveFromEmail(
 //                    user.getHierarchyCode(),
 //                    user.getHierarchyId()
 //            );
-
-            SmsCredentialsMaster smsConfig =
-                    getSmsCredentials(
-                            user.getHierarchyCode(),
-                            user.getHierarchyId(),
-                            "LOGIN_ALERT"
-                    );
-
-            shivSmsService.sendOtpSms(
-                    smsConfig,
-                    user.getMobileNumber(),
-                    user.getLoginUserName(),
-                    otp,
-                    companyName
-            );
-
-            //Save SMS logs
-            commonFunctions.saveSmsLogs(
-                    LocalDateTime.now(),
-                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + otp,
-                    LocalDateTime.now(),
-                    otp,
-                    null // You can replace null with real IP if available
-            );
-
-            log.info("OTP sent via SMS to: {}", user.getMobileNumber());
-        } catch (Exception e) {
-            log.error("Failed to send OTP via SMS to {}", user.getMobileNumber(), e);
-        }
-
-        return otp;
-    }
+//
+//            String companyName = getCompanyName(fromId);
+//
+//            SmsCredentialsMaster smsConfig =
+//                    getSmsCredentials(
+//                            user.getHierarchyCode(),
+//                            user.getHierarchyId(),
+//                            "LOGIN_ALERT"
+//                    );
+//
+//            shivSmsService.sendOtpSms(
+//                    smsConfig,
+//                    user.getMobileNumber(),
+//                    user.getLoginUserName(),
+//                    otp,
+//                    companyName
+//            );
+//
+//            //Save SMS logs
+//            commonFunctions.saveSmsLogs(
+//                    LocalDateTime.now(),
+//                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + otp,
+//                    LocalDateTime.now(),
+//                    otp,
+//                    null // You can replace null with real IP if available
+//            );
+//
+//            log.info("OTP sent via SMS to: {}", user.getMobileNumber());
+//        } catch (Exception e) {
+//            log.error("Failed to send OTP via SMS to {}", user.getMobileNumber(), e);
+//        }
+//
+//        return otp;
+//    }
 
     private String getCompanyName(String fromId) {
 
@@ -438,12 +433,118 @@ public class AuthController {
 //                        .orElseThrow(() -> new RuntimeException("Default SMS credentials not found")));
 //    }
 
+    private ResponseEntity<?> handlePasswordValidation(UserDetails user, String inputPassword, String requestJson, LocalDateTime requestTime) {
+        log.debug("Starting password validation for user ID: {}", user.getHierarchyId());
+
+        boolean passwordMatches = passwordEncoder.matches(inputPassword, user.getLoginPassword());
+        boolean fallbackMatches = inputPassword.equals(user.getLoginPassword());
+        log.debug("Password validation results - encoder match: {}, fallback match: {} for user ID: {}",
+                passwordMatches, fallbackMatches, user.getHierarchyId());
+
+        if (!passwordMatches && !fallbackMatches) {
+            log.warn("Password mismatch for user ID: {}", user.getHierarchyId());
+            return handleFailedAttempt(user, requestJson, requestTime);
+        }
+
+        log.info("Password validated successfully for user ID: {}", user.getHierarchyId());
+
+        resetFailedAttempts(user);
+        log.debug("Failed attempts reset for user ID: {}", user.getHierarchyId());
+
+        String otp = generateOtpForUser(user);
+        log.debug("OTP generated for user ID: {}", user.getHierarchyId());
+
+        // Determine role using the updated logic
+        String role = determineRole(user);
+        log.info("Role determined for user ID {}: {}", user.getHierarchyId(), role);
+
+        Map<String, String> responseData = new HashMap<>();
+        responseData.put("role", role);
+
+        CommonResponse<?> response = new CommonResponse<>(200, "OTP sent successfully", responseData);
+        logLoginAttempt(requestJson, requestTime, response);
+        log.info("OTP sent successfully for user ID: {} with role: {}", user.getHierarchyId(), role);
+        return ResponseEntity.ok(response);
+    }
+
+    private String generateOtpForUser(UserDetails user) {
+        log.debug("Starting OTP generation for user ID: {}", user.getHierarchyId());
+
+        String otp = OtpUtil.generateOtp();
+        log.debug("OTP generated successfully for user ID: {}", user.getHierarchyId());
+
+        try {
+            user.setOtp(otp);
+            user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
+            userDetailsRepository.save(user);
+            log.info("OTP saved in database for user ID: {} with expiry at {}",
+                    user.getHierarchyId(), user.getOtpExpiryTime());
+
+            String fromId = resolveFromEmail(
+                    user.getHierarchyCode(),
+                    user.getHierarchyId()
+            );
+            log.debug("Resolved fromId: {} for user ID: {}", fromId, user.getHierarchyId());
+
+            String companyName = getCompanyName(fromId);
+            log.debug("Retrieved company name: {} for fromId: {}", companyName, fromId);
+
+            SmsCredentialsMaster smsConfig =
+                    getSmsCredentials(
+                            user.getHierarchyCode(),
+                            user.getHierarchyId(),
+                            "LOGIN_ALERT"
+                    );
+            log.debug("SMS credentials retrieved for user ID: {}, whitelabel ID: {}",
+                    user.getHierarchyId(), smsConfig.getWhitelabelId());
+
+            shivSmsService.sendOtpSms(
+                    smsConfig,
+                    user.getMobileNumber(),
+                    user.getLoginUserName(),
+                    otp,
+                    companyName
+            );
+            log.info("OTP SMS sent successfully to mobile: {} for user ID: {}",
+                    user.getMobileNumber(), user.getHierarchyId());
+
+            //Save SMS logs
+            commonFunctions.saveSmsLogs(
+                    LocalDateTime.now(),
+                    "Send OTP to: " + user.getMobileNumber() + ", OTP: " + otp,
+                    LocalDateTime.now(),
+                    otp,
+                    null // You can replace null with real IP if available
+            );
+            log.debug("SMS logs saved for user ID: {}", user.getHierarchyId());
+
+        } catch (Exception e) {
+            log.error("Failed to send OTP via SMS to {} for user ID: {}. Error: {}",
+                    user.getMobileNumber(), user.getHierarchyId(), e.getMessage(), e);
+            // Note: OTP is still returned even if SMS fails - consider if this is desired behavior
+        }
+
+        return otp;
+    }
+
     private SmsCredentialsMaster getSmsCredentials(String hierarchyType, String hierarchyId, String smsType) {
+        log.debug("Looking up SMS credentials for hierarchyType: {}, hierarchyId: {}, smsType: {}",
+                hierarchyType, hierarchyId, smsType);
+
         String fromId = resolveFromEmail(hierarchyType, hierarchyId);
+        log.debug("Resolved fromId: {} for hierarchyType: {}, hierarchyId: {}",
+                fromId, hierarchyType, hierarchyId);
 
         return smsCredentialsRepository.findByWhitelabelIdAndType(fromId, smsType)
-                .orElseGet(() -> smsCredentialsRepository.findByWhitelabelIdAndType("NFT-AD-001", smsType)
-                        .orElseThrow(() -> new RuntimeException("SMS credentials not found for type: " + smsType)));
+                .orElseGet(() -> {
+                    log.warn("SMS credentials not found for whitelabelId: {} and type: {}, falling back to default NFT-AD-001",
+                            fromId, smsType);
+                    return smsCredentialsRepository.findByWhitelabelIdAndType("NFT-AD-001", smsType)
+                            .orElseThrow(() -> {
+                                log.error("Default SMS credentials not found for type: {}", smsType);
+                                return new RuntimeException("SMS credentials not found for type: " + smsType);
+                            });
+                });
     }
 
     private String resolveFromEmail(String hierarchyType, String hierarchyId) {
