@@ -454,7 +454,10 @@ public class OnboardingServiceImpl implements OnboardingService {
                                     belongs
                             );
 
-                            return belongs;
+                            boolean isOwnRecord =
+                                    finalLoginHierarchyId.equalsIgnoreCase(recordHierarchyId);
+
+                            return belongs && !isOwnRecord;
                         })
                         .map(this::mapToDto)
                         .filter(Objects::nonNull)
