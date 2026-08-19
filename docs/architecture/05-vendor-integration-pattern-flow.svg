@@ -1,0 +1,101 @@
+<svg viewBox="0 0 1200 1030" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="1030" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-size="22" font-weight="700" fill="#1a1a1a">Multi-Vendor Integration Pattern — The Shape, and Where It Drifts</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+
+  <!-- SECTION A -->
+  <text x="600" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#2c3e50">The intended 3-layer pattern — worked example: AEPS merchant onboarding</text>
+
+  <rect x="30" y="90" width="340" height="70" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="200" y="112" text-anchor="middle" font-size="11" font-weight="700" fill="#1a1a1a">AepsVendorService (interface)</text>
+  <text x="200" y="128" text-anchor="middle" font-size="9.5" fill="#475569">one impl per vendor, e.g.</text>
+  <text x="200" y="143" text-anchor="middle" font-size="9.5" fill="#475569">FingPayAepsServiceImpl</text>
+
+  <line x1="370" y1="125" x2="410" y2="125" stroke="#475569" stroke-width="2" marker-end="url(#arrow5)"/>
+
+  <rect x="410" y="90" width="340" height="70" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="580" y="112" text-anchor="middle" font-size="11" font-weight="700" fill="#1a1a1a">AepsVendorFactory</text>
+  <text x="580" y="128" text-anchor="middle" font-size="9.5" fill="#475569">exact key match, falls back to</text>
+  <text x="580" y="143" text-anchor="middle" font-size="9.5" fill="#475569">substring key.contains(code)</text>
+
+  <line x1="750" y1="125" x2="790" y2="125" stroke="#475569" stroke-width="2" marker-end="url(#arrow5)"/>
+
+  <rect x="790" y="90" width="380" height="70" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="980" y="112" text-anchor="middle" font-size="11" font-weight="700" fill="#166534">AepsOrchestrator</text>
+  <text x="980" y="128" text-anchor="middle" font-size="9.5" fill="#166534">routing → credentials → vendor bean → call</text>
+  <text x="980" y="143" text-anchor="middle" font-size="9.5" fill="#166534">— but only 82 lines, ONE method: registerMerchant()</text>
+
+  <!-- SECTION B -->
+  <rect x="30" y="178" width="1140" height="100" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="46" y="200" font-size="11" font-weight="700" fill="#1a1a1a">VendorRouting — config model (per sub-product)</text>
+  <text x="46" y="218" font-size="9.7" fill="#475569">routingPriority1 / 2 / 3 (Vendors FK) — CommonMethods.getVendors() returns the first ACTIVE priority slot, in order</text>
+  <text x="46" y="234" font-size="9.7" fill="#475569">Also stores volume1-3 / value1-3 / volumeNumberOfTxn / volumeValueOfTxn / valueValueNumberOfTxn / valueValueOfTxn —</text>
+  <text x="46" y="250" font-size="9.7" fill="#475569">columns shaped for percentage/threshold-based traffic splitting across vendors</text>
+  <text x="46" y="268" font-size="9.7" font-weight="700" fill="#b45309">⚠ getVendors() never reads any of the volume/value columns — only simple priority failover is actually implemented</text>
+
+  <!-- SECTION C -->
+  <rect x="30" y="294" width="560" height="76" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="46" y="316" font-size="10.5" font-weight="700" fill="#1a1a1a">AEPS / DMT / Recharge / Payout factories</text>
+  <text x="46" y="334" font-size="9.5" fill="#475569">fallback match: registeredKey.contains(requestedCode)</text>
+  <text x="46" y="350" font-size="9.5" fill="#475569">— unordered HashMap iteration if multiple keys match</text>
+
+  <rect x="610" y="294" width="560" height="76" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="626" y="316" font-size="10.5" font-weight="700" fill="#1a1a1a">PaymentGatewayInitiatorFactory</text>
+  <text x="626" y="334" font-size="9.5" fill="#475569">fallback match: first whitespace-separated word only</text>
+  <text x="626" y="350" font-size="9.5" fill="#475569">— a completely different, independently-invented strategy</text>
+
+  <!-- SECTION D -->
+  <text x="600" y="404" text-anchor="middle" font-size="14" font-weight="700" fill="#b45309">Where the pattern drifts — three different shapes, all verified by line count</text>
+
+  <rect x="30" y="418" width="1140" height="120" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="440" font-size="11" font-weight="700" fill="#991b1b">AEPS — total bypass</text>
+  <text x="46" y="458" font-size="10" fill="#7f1d1d">AepsOrchestrator: <tspan font-weight="700">82 lines</tspan>, one method — merchant onboarding only.</text>
+  <text x="46" y="474" font-size="10" fill="#7f1d1d">InstantpayAepsTransactionServiceImpl: <tspan font-weight="700">1,171 lines</tspan> — balance inquiry, cash withdrawal, mini-statement,</text>
+  <text x="46" y="490" font-size="10" fill="#7f1d1d">ALL of it — resolves its own vendor routing independently, never calls AepsVendorFactory or AepsOrchestrator.</text>
+  <text x="46" y="508" font-size="10" font-weight="700" fill="#991b1b">14× the size of the "official" orchestrator, and it's the code path actually doing the work.</text>
+
+  <rect x="30" y="550" width="1140" height="120" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="46" y="572" font-size="11" font-weight="700" fill="#92400e">DMT — parallel duplication</text>
+  <text x="46" y="590" font-size="10" fill="#78350f">DmtOrchestrator: <tspan font-weight="700">2,207 lines</tspan> — large, and genuinely the active, used orchestration path.</text>
+  <text x="46" y="606" font-size="10" fill="#78350f">RemitterServiceImpl (<tspan font-weight="700">936 lines</tspan>) + DmtBeneficiaryServiceImpl (<tspan font-weight="700">829 lines</tspan>) — older, Paysprint-hardcoded</text>
+  <text x="46" y="622" font-size="10" fill="#78350f">implementations that run <tspan font-weight="700">alongside</tspan> the orchestrator, not replaced by it.</text>
+  <text x="46" y="640" font-size="10" font-weight="700" fill="#92400e">Two live code paths for the same domain — which one actually handles a given request depends on which controller/</text>
+  <text x="46" y="656" font-size="10" font-weight="700" fill="#92400e">endpoint was called, not on any single source of truth.</text>
+
+  <rect x="30" y="682" width="1140" height="100" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="46" y="704" font-size="11" font-weight="700" fill="#92400e">BBPS — hybrid: looks up config, then ignores it</text>
+  <text x="46" y="722" font-size="10" fill="#78350f">BBPSServiceImpl (759 lines) DOES query VendorRoutingRepository.findBySubProductId() — so it looks like</text>
+  <text x="46" y="738" font-size="10" fill="#78350f">config-driven routing — but then hardcodes the literal string "A2Z" into the transaction record and description</text>
+  <text x="46" y="754" font-size="10" fill="#78350f">regardless of what the routing actually resolved to. RechargeVendorFactory is never called from this file.</text>
+
+  <!-- SECTION E -->
+  <rect x="30" y="806" width="1140" height="110" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="46" y="828" font-size="11" font-weight="700" fill="#334155">Non-functional stub vendors — not even registered as Spring beans</text>
+  <text x="46" y="847" font-size="9.7" fill="#475569">AirtelAepsServiceImpl, A2ZRechargeServiceImpl, FingpayDmtServiceImpl — each implements its vendor interface but</text>
+  <text x="46" y="863" font-size="9.7" fill="#475569">carries <tspan font-weight="700">no @Service / @Component annotation</tspan>, so Spring never instantiates them — they're absent from the factory's</text>
+  <text x="46" y="879" font-size="9.7" fill="#475569">constructor-injected List&lt;VendorService&gt; entirely, on top of every method already returning null/empty. Routing to</text>
+  <text x="46" y="895" font-size="9.7" fill="#475569">"airtel" / "a2z" / "fingpay" fails at the factory lookup, before any stub method would even run.</text>
+
+  <!-- Legend -->
+  <rect x="30" y="950" width="14" height="14" rx="3" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="51" y="961" font-size="10.5" fill="#475569">Standard / as-designed</text>
+
+  <rect x="240" y="950" width="14" height="14" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="261" y="961" font-size="10.5" fill="#475569">Correctly-routed, factory/orchestrator path</text>
+
+  <rect x="530" y="950" width="14" height="14" rx="3" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="551" y="961" font-size="10.5" fill="#475569">Flagged drift / dead config</text>
+
+  <rect x="770" y="950" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="791" y="961" font-size="10.5" fill="#475569">Severe drift — pattern totally bypassed</text>
+
+  <text x="600" y="1000" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 5 of the architecture documentation set</text>
+</svg>

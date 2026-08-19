@@ -1,0 +1,78 @@
+<svg viewBox="0 0 1200 920" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow11" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="920" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-size="21" font-weight="700" fill="#1a1a1a">Notifications — Plaintext Password Leaks Across Email &amp; SMS</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+
+  <!-- SECTION A -->
+  <text x="600" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">⚠ CRITICAL — new user's plaintext password persisted to DB and written to the log file</text>
+
+  <rect x="30" y="90" width="1140" height="34" rx="17" fill="#2c3e50"/>
+  <text x="600" y="112" text-anchor="middle" font-size="10.5" font-weight="600" fill="#fff">OnboardingServiceImpl — welcome-email flow, on every new user created</text>
+
+  <rect x="30" y="134" width="1140" height="130" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="156" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">vars.put("password", randomPassword);</text>
+  <text x="46" y="172" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">String emailBody = emailService.buildEmailFromDB(EmailType.ONBOARD_USER, vars);   // real password substituted in</text>
+  <text x="46" y="188" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">emailService.sendSimpleEmail(credentials, fromEmail, fromPassword, email, subject, emailBody);</text>
+  <text x="46" y="210" font-size="10.3" font-weight="700" fill="#991b1b">→ EmailServiceImpl.sendSimpleEmail() logs request = "To: ...\nSubject: ...\nBody: " + emailBody</text>
+  <text x="46" y="226" font-size="10.3" font-weight="700" fill="#991b1b">→ emailLogRepository.save(emailLog) — the plaintext password is now a permanent row in the EmailLog table</text>
+  <text x="46" y="248" font-size="10.3" font-family="Consolas, monospace" font-weight="700" fill="#991b1b">log.info("SMS (mock) sent to mobile: " + mobileNo + " with password: " + randomPassword);   // ALSO in the app log</text>
+
+  <rect x="30" y="274" width="1140" height="40" rx="6" fill="#7f1d1d"/>
+  <text x="600" y="298" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff">Developer's own comment on the line returning this password: "For testing: return plain password (REMOVE THIS IN PRODUCTION!)"</text>
+
+  <!-- SECTION B -->
+  <text x="600" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">⚠ CRITICAL — SMSGatewayAPI (Gupshup fallback): hardcoded credential + logged OTP</text>
+
+  <rect x="30" y="366" width="1140" height="120" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="388" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">String fullUrl = "https://enterprise.smsgupshup.com/GatewayAPI/rest?userid=2000197160&amp;password=IMudra@2022&amp;" + data;</text>
+  <text x="46" y="406" font-size="10.3" font-weight="700" fill="#991b1b">— the Gupshup account password, hardcoded directly in Java source, not application.properties</text>
+  <text x="46" y="428" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">String requestLog = fullUrl;   // includes msg=&lt;urlencoded OTP text&gt; AND the password above</text>
+  <text x="46" y="446" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">commonFunctions.saveLoginLogs(requestLog, requestDateTime, response, responseDateTime, null);</text>
+  <text x="46" y="468" font-size="10.3" font-weight="700" fill="#991b1b">→ every OTP sent through this fallback, plus the gateway password, is persisted to the database in plaintext</text>
+
+  <!-- SECTION C -->
+  <text x="600" y="522" text-anchor="middle" font-size="13.5" font-weight="700" fill="#166534">Contrast — ShivSmsService (the primary provider) does neither</text>
+
+  <rect x="30" y="536" width="1140" height="90" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="46" y="558" font-size="10.3" fill="#166534">Its gateway password comes from @Value("${sms.shiv.password}") — application.properties, not hardcoded in source</text>
+  <text x="46" y="576" font-size="10.3" fill="#166534">(still plaintext config, per Module 1, but not committed inline in a .java file).</text>
+  <text x="46" y="598" font-size="10.3" font-weight="700" fill="#166534">No saveLoginLogs() / request-URL logging anywhere in this class — OTP content and the gateway password are</text>
+  <text x="46" y="614" font-size="10.3" font-weight="700" fill="#166534">never persisted. A rare case in this codebase where the fallback path is the worse-built one, not the primary.</text>
+
+  <!-- SECTION D -->
+  <text x="600" y="668" text-anchor="middle" font-size="13.5" font-weight="700" fill="#2c3e50">Minor findings</text>
+
+  <rect x="30" y="682" width="560" height="110" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="46" y="704" font-size="10.3" font-weight="700" fill="#334155">WebSocketService — old version left as a comment</text>
+  <text x="46" y="722" font-size="9.5" fill="#475569">An earlier, superseded version of sendToAll/sendToRole/</text>
+  <text x="46" y="737" font-size="9.5" fill="#475569">sendToUser (single-channel, no "channel" parameter) sits</text>
+  <text x="46" y="752" font-size="9.5" fill="#475569">commented out directly above the live multi-channel</text>
+  <text x="46" y="767" font-size="9.5" fill="#475569">versions — the same pattern seen in Modules 2 and 9.</text>
+
+  <rect x="610" y="682" width="560" height="110" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="626" y="704" font-size="10.3" font-weight="700" fill="#334155">Exception handling &amp; mail sender setup</text>
+  <text x="626" y="722" font-size="9.5" fill="#475569">SMSGatewayAPI and EmailServiceImpl both catch Exception</text>
+  <text x="626" y="737" font-size="9.5" fill="#475569">and call e.printStackTrace() rather than the SLF4J logger</text>
+  <text x="626" y="752" font-size="9.5" fill="#475569">used elsewhere. EmailServiceImpl builds a new</text>
+  <text x="626" y="767" font-size="9.5" fill="#475569">JavaMailSenderImpl per call with a hardcoded SMTP host.</text>
+
+  <!-- Legend -->
+  <rect x="30" y="830" width="14" height="14" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="51" y="841" font-size="10.5" fill="#475569">Correctly implemented, by contrast</text>
+
+  <rect x="300" y="830" width="14" height="14" rx="3" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="321" y="841" font-size="10.5" fill="#475569">Minor / dead code</text>
+
+  <rect x="500" y="830" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="521" y="841" font-size="10.5" fill="#475569">Critical — confirmed plaintext-credential leak</text>
+
+  <text x="600" y="890" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 11 of the architecture documentation set</text>
+</svg>

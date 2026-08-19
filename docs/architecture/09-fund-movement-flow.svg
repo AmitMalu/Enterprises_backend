@@ -1,0 +1,101 @@
+<svg viewBox="0 0 1200 1045" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="1045" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-size="21" font-weight="700" fill="#1a1a1a">Fund Movement — Two Silent-Failure Bugs, One Dead Approval Path</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+
+  <!-- SECTION A -->
+  <text x="600" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">⚠ CRITICAL — MoveToBankServiceImpl: AES branch never debits, always reports failure</text>
+
+  <rect x="30" y="90" width="1140" height="30" rx="6" fill="#2c3e50"/>
+  <text x="600" y="110" text-anchor="middle" font-size="10.5" font-weight="600" fill="#fff">sendPayoutRequest() — if ("AES".equalsIgnoreCase(credentials.getTokenType()))</text>
+
+  <rect x="30" y="130" width="560" height="140" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="152" font-size="10.5" font-weight="700" fill="#991b1b">AES branch (Admin Panel vendor)</text>
+  <text x="46" y="170" font-size="9.5" fill="#7f1d1d">1. generateTokenForAES()</text>
+  <text x="46" y="185" font-size="9.5" fill="#7f1d1d">2. restTemplate.exchange(...) — sends the payout</text>
+  <text x="46" y="200" font-size="9.5" fill="#7f1d1d">3. response received — never read or checked</text>
+  <text x="46" y="218" font-size="9.5" font-weight="700" fill="#991b1b">✗ NO commonMethods.updateWallet() call anywhere</text>
+  <text x="46" y="233" font-size="9.5" font-weight="700" fill="#991b1b">✗ NO return statement in this branch</text>
+  <text x="46" y="251" font-size="9.5" fill="#7f1d1d">→ falls through past the if/else entirely</text>
+
+  <rect x="610" y="130" width="560" height="140" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="626" y="152" font-size="10.5" font-weight="700" fill="#166534">else branch (RunPaisa / non-AES vendor) — for contrast</text>
+  <text x="626" y="170" font-size="9.5" fill="#166534">1. commonMethods.updateWallet(...) — debits FIRST</text>
+  <text x="626" y="185" font-size="9.5" fill="#166534">2. restTemplate.exchange(...) — sends the payout</text>
+  <text x="626" y="200" font-size="9.5" fill="#166534">3. checks payoutResponse.getStatus() == "ACCEPTED"</text>
+  <text x="626" y="218" font-size="9.5" fill="#166534">4. returns CommonResponse(200, ...) or (400, ...)</text>
+  <text x="626" y="236" font-size="9.5" fill="#166534">accordingly — correctly wired, real return either way</text>
+
+  <line x1="600" y1="270" x2="600" y2="290" stroke="#475569" stroke-width="2" marker-end="url(#arrow9)"/>
+  <rect x="330" y="290" width="540" height="50" rx="6" fill="#7f1d1d"/>
+  <text x="600" y="312" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">AES branch falls through to the method's final line:</text>
+  <text x="600" y="330" text-anchor="middle" font-size="11" font-family="Consolas, monospace" font-weight="700" fill="#fff">return new CommonResponse&lt;&gt;(500, "Something went wrong", null);</text>
+
+  <rect x="30" y="354" width="1140" height="40" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="600" y="378" text-anchor="middle" font-size="10.3" font-weight="700" fill="#991b1b">Every AES-flow payout — successful or not — is reported as HTTP 500 to the caller, and the retailer's wallet is never debited either way.</text>
+
+  <!-- SECTION B -->
+  <text x="600" y="428" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">⚠ CRITICAL — RazorpayPayoutServiceImpl.sendPayout() always returns null on success</text>
+
+  <rect x="30" y="442" width="1140" height="150" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="464" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">try {</text>
+  <text x="60" y="480" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">... create Razorpay contact + fund account if missing ...</text>
+  <text x="60" y="496" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">PayoutResponseDto payoutResponse = createPayoutAPI(...);   <tspan font-weight="700">// computed, never used</tspan></text>
+  <text x="46" y="512" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">} catch (Exception e) {</text>
+  <text x="60" y="528" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">return PayoutResponseDto.builder().status("FAILED")...build();   <tspan font-weight="700">// only path with a real return</tspan></text>
+  <text x="46" y="544" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">} finally { commonFunctions.saveVendorLogs(...); }</text>
+  <text x="46" y="562" font-size="11" font-family="Consolas, monospace" font-weight="700" fill="#991b1b">return null;   // ← unconditional, reached on every non-exception path</text>
+  <text x="46" y="582" font-size="10" font-weight="700" fill="#991b1b">A genuinely successful payout takes the try block to completion normally — and still returns null.</text>
+
+  <rect x="30" y="602" width="1140" height="40" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="600" y="626" text-anchor="middle" font-size="10.3" font-weight="700" fill="#991b1b">Successful Razorpay payouts are indistinguishable from null/failure to every caller — money moves, the system reports it didn't.</text>
+
+  <!-- SECTION C -->
+  <text x="600" y="676" text-anchor="middle" font-size="14" font-weight="700" fill="#2c3e50">FundRequestServiceImpl (dead approval path) vs. PrefundRequestServiceImpl (the live one)</text>
+
+  <rect x="30" y="690" width="560" height="140" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="712" font-size="10.5" font-weight="700" fill="#991b1b">FundRequestServiceImpl — approval is dead</text>
+  <text x="46" y="730" font-size="9.5" fill="#7f1d1d">✓ raiseFundRequest() — live, creates the request</text>
+  <text x="46" y="745" font-size="9.5" fill="#7f1d1d">✓ fetchAllRecords() — live, lists requests</text>
+  <text x="46" y="763" font-size="9.5" font-weight="700" fill="#991b1b">✗ takeActionOnFundRequest() — entirely commented</text>
+  <text x="46" y="778" font-size="9.5" fill="#7f1d1d">out (43 lines). No approve/reject path exists</text>
+  <text x="46" y="793" font-size="9.5" fill="#7f1d1d">through this service at all — a request raised</text>
+  <text x="46" y="808" font-size="9.5" fill="#7f1d1d">here can never be actioned here.</text>
+
+  <rect x="610" y="690" width="560" height="140" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="626" y="712" font-size="10.5" font-weight="700" fill="#166534">PrefundRequestServiceImpl — the flow actually used</text>
+  <text x="626" y="730" font-size="9.5" fill="#166534">takeActionOnFundRequest() (~380 lines, live) resolves</text>
+  <text x="626" y="745" font-size="9.5" fill="#166534">product/subproduct/scheme, validates visibility, and</text>
+  <text x="626" y="760" font-size="9.5" fill="#166534">guards against double-processing:</text>
+  <text x="626" y="778" font-size="9.5" font-family="Consolas, monospace" fill="#166534">if (status != PENDING) return 400 "already processed"</text>
+  <text x="626" y="800" font-size="9.5" fill="#78350f">⚠ An earlier, ~40-line commented-out version of this</text>
+  <text x="626" y="815" font-size="9.5" fill="#78350f">same method sits directly above the live one — the</text>
+  <text x="626" y="825" font-size="9.5" fill="#78350f">"old version left as a comment" pattern from Module 2.</text>
+
+  <!-- SECTION D -->
+  <rect x="30" y="854" width="1140" height="78" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="46" y="876" font-size="10.5" font-weight="700" fill="#92400e">Minor: raiseFundRequest() — a third independent tree-walk, no cycle guard</text>
+  <text x="46" y="894" font-size="9.5" fill="#78350f">while (true) { parentId = commonMethods.findParentHierarchy(currentId)... currentId = parentId; } climbs the parentAccount</text>
+  <text x="46" y="909" font-size="9.5" fill="#78350f">chain looking for a WL/AD approver, with no depth limit or cycle check — vulnerable to an infinite loop if Module 2's parentAccount desync ever produces a cycle.</text>
+  <text x="46" y="924" font-size="9.5" fill="#78350f">A third independent hierarchy-walking implementation, after Module 2's closure table and Module 8's DashboardServiceImpl.</text>
+
+  <!-- Legend -->
+  <rect x="30" y="966" width="14" height="14" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="51" y="977" font-size="10.5" fill="#475569">Correctly implemented</text>
+
+  <rect x="270" y="966" width="14" height="14" rx="3" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="291" y="977" font-size="10.5" fill="#475569">Flagged risk / minor bug</text>
+
+  <rect x="480" y="966" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="501" y="977" font-size="10.5" fill="#475569">Critical — confirmed financial-correctness bug</text>
+
+  <text x="600" y="1020" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 9 of the architecture documentation set</text>
+</svg>

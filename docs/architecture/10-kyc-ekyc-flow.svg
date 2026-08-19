@@ -1,0 +1,82 @@
+<svg viewBox="0 0 1200 930" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow10" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="930" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-size="21" font-weight="700" fill="#1a1a1a">KYC / eKYC — DigiLocker (Surepass) &amp; AEPS eKYC</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+
+  <!-- SECTION A -->
+  <text x="600" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#2c3e50">DigiLocker = Surepass — one integration, two names in the top-level docs</text>
+
+  <rect x="30" y="90" width="1140" height="34" rx="17" fill="#2c3e50"/>
+  <text x="600" y="112" text-anchor="middle" font-size="10.5" font-weight="600" fill="#fff">DigilockerController (/api/digilocker) → DigilockerServiceImpl → https://kyc-api.surepass.app/api/v1/digilocker/*</text>
+
+  <rect x="30" y="134" width="1140" height="40" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="600" y="158" text-anchor="middle" font-size="10" fill="#334155">Both call sites use one static bearer token (@Value("${surepass.digilocker.token}")) — "DigiLocker" and "Surepass" in the top-level review are the same vendor, not two.</text>
+
+  <!-- SECTION B -->
+  <text x="600" y="216" text-anchor="middle" font-size="13.5" font-weight="700" fill="#b45309">⚠ DigilockerServiceImpl — static token, zero response handling</text>
+
+  <rect x="30" y="230" width="560" height="110" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="46" y="252" font-size="10.5" font-weight="700" fill="#92400e">Static, non-refreshing bearer token</text>
+  <text x="46" y="270" font-size="9.5" fill="#78350f">digilockerToken injected once from application.properties</text>
+  <text x="46" y="285" font-size="9.5" fill="#78350f">(a long-lived Surepass JWT — documented, masked, in Module 1).</text>
+  <text x="46" y="300" font-size="9.5" fill="#78350f">No refresh/regeneration logic anywhere in this class — when</text>
+  <text x="46" y="315" font-size="9.5" fill="#78350f">the token expires, every DigiLocker call fails until someone</text>
+  <text x="46" y="330" font-size="9.5" fill="#78350f">manually rotates the config value.</text>
+
+  <rect x="610" y="230" width="560" height="110" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="626" y="252" font-size="10.5" font-weight="700" fill="#92400e">No response/error handling</text>
+  <text x="626" y="270" font-size="9.5" font-family="Consolas, monospace" fill="#78350f">return response.getBody();</text>
+  <text x="626" y="288" font-size="9.5" fill="#78350f">— both initializeDigilocker() and downloadAadhaar()</text>
+  <text x="626" y="303" font-size="9.5" fill="#78350f">return the raw body directly: no HTTP status check, no</text>
+  <text x="626" y="318" font-size="9.5" fill="#78350f">null check, no try/catch. A vendor error surfaces as an</text>
+  <text x="626" y="333" font-size="9.5" fill="#78350f">unhandled exception or a silent null downstream.</text>
+
+  <!-- SECTION C: critical -->
+  <text x="600" y="386" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">⚠ CRITICAL — authenticated IDOR exposing Aadhaar data</text>
+
+  <rect x="30" y="400" width="1140" height="120" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="422" font-size="10.5" font-family="Consolas, monospace" font-weight="700" fill="#991b1b">GET /api/digilocker/download-aadhaar/{clientId}</text>
+  <text x="46" y="440" font-size="10" fill="#7f1d1d">Requires a valid AESFilter-passed token — this path is absent from both whitelists (Module 4), so it's not anonymously public.</text>
+  <text x="46" y="458" font-size="10" fill="#7f1d1d">But nothing in DigilockerController or DigilockerServiceImpl checks that the requested clientId belongs to the caller's own</text>
+  <text x="46" y="476" font-size="10" fill="#7f1d1d">KYC session or hierarchy — clientId is taken as a raw path variable and forwarded straight to Surepass.</text>
+  <text x="46" y="498" font-size="10.5" font-weight="700" fill="#991b1b">Any authenticated user — any hierarchy level — can retrieve any OTHER person's Aadhaar data (name, photo, DOB, address)</text>
+  <text x="46" y="513" font-size="10.5" font-weight="700" fill="#991b1b">by supplying a different clientId. This is more consequential than a wallet-balance IDOR: Aadhaar is government-ID PII.</text>
+
+  <!-- SECTION D -->
+  <text x="600" y="562" text-anchor="middle" font-size="14" font-weight="700" fill="#2c3e50">AepsEkycOrchestrator — correctly wired, injected, and never called</text>
+
+  <rect x="30" y="576" width="1140" height="130" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="46" y="598" font-size="10.3" fill="#334155">AepsEkycController autowires <tspan font-weight="700">both</tspan> aepsEkycOrchestrator and aepsEkycService — but all 5 endpoints</text>
+  <text x="46" y="613" font-size="10.3" fill="#334155">(send-otp, validate-otp, resend-otp, biometric, validate-otp-biometric) call <tspan font-weight="700">only</tspan> aepsEkycService.XXX(req).</text>
+  <text x="46" y="635" font-size="10.3" font-weight="700" fill="#92400e">Confirmed by search: "AepsEkycOrchestrator" appears in exactly 2 files — its own definition, and this unused @Autowired field.</text>
+  <text x="46" y="657" font-size="10" fill="#475569">AepsEkycOrchestrator itself is correctly built: resolves VendorRouting → VendorCredentials → AepsVendorFactory → calls the</text>
+  <text x="46" y="672" font-size="10" fill="#475569">resolved vendor. Unlike Module 5's AEPS-transaction bypass (a separate legacy class did the work), here the dead orchestrator</text>
+  <text x="46" y="687" font-size="10" fill="#475569">was wired into the dependency graph and simply never invoked — someone injected it and never wrote the call.</text>
+
+  <!-- SECTION E -->
+  <rect x="30" y="722" width="1140" height="94" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="46" y="744" font-size="10.5" font-weight="700" fill="#92400e">AepsEkycServiceImpl duplicates the orchestrator's vendor-routing logic independently</text>
+  <text x="46" y="762" font-size="9.7" fill="#78350f">The class that's actually called resolves VendorRouting itself — vendorRoutingRepository.findBySubProductId(...) appears at</text>
+  <text x="46" y="777" font-size="9.7" fill="#78350f">5 separate call sites within AepsEkycServiceImpl (624 lines), each duplicating what AepsEkycOrchestrator already does once.</text>
+  <text x="46" y="795" font-size="9.7" fill="#78350f">Same "pattern exists, real traffic bypasses it" shape documented for AEPS transactions in Module 5 — now confirmed for eKYC too.</text>
+
+  <!-- Legend -->
+  <rect x="30" y="850" width="14" height="14" rx="3" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="51" y="861" font-size="10.5" fill="#475569">Standard / correctly wired</text>
+
+  <rect x="270" y="850" width="14" height="14" rx="3" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="291" y="861" font-size="10.5" fill="#475569">Flagged risk / dead code / duplication</text>
+
+  <rect x="560" y="850" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="581" y="861" font-size="10.5" fill="#475569">Critical — confirmed PII-exposure gap</text>
+
+  <text x="600" y="905" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 10 of the architecture documentation set</text>
+</svg>

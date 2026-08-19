@@ -1,0 +1,144 @@
+<svg viewBox="0 0 1200 1430" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="1430" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-size="22" font-weight="700" fill="#1a1a1a">Authentication &amp; Security — Token Issuance &amp; The Verification Gap</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+
+  <!-- SECTION A: issuance -->
+  <text x="600" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#2c3e50">Three token-issuing endpoints, one shared token format</text>
+
+  <rect x="30" y="90" width="370" height="82" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="215" y="112" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1a1a1a">/auth/login → /auth/verify-otp</text>
+  <text x="215" y="130" text-anchor="middle" font-size="9.5" fill="#475569">OTP-verified, real password check</text>
+  <text x="215" y="145" text-anchor="middle" font-size="9.5" fill="#475569">(BCrypt + plaintext fallback)</text>
+  <text x="215" y="163" text-anchor="middle" font-size="9.5" fill="#166534">salt: server-random (SecureRandom)</text>
+
+  <rect x="415" y="90" width="370" height="82" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="600" y="112" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1a1a1a">/auth/verify-forgot-mpin-otp</text>
+  <text x="600" y="130" text-anchor="middle" font-size="9.5" fill="#475569">Password-reset OTP flow</text>
+  <text x="600" y="145" text-anchor="middle" font-size="9.5" fill="#475569">(same token shape as login)</text>
+  <text x="600" y="163" text-anchor="middle" font-size="9.5" fill="#166534">salt: server-random (SecureRandom)</text>
+
+  <rect x="800" y="90" width="370" height="82" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="985" y="112" text-anchor="middle" font-size="10.5" font-weight="700" fill="#92400e">/api/aes/generate-token</text>
+  <text x="985" y="130" text-anchor="middle" font-size="9.5" fill="#78350f">OTP-less shortcut</text>
+  <text x="985" y="145" text-anchor="middle" font-size="9.5" fill="#78350f">(same password fallback)</text>
+  <text x="985" y="163" text-anchor="middle" font-size="9.5" fill="#92400e">⚠ salt: CLIENT-supplied in request body</text>
+
+  <line x1="215" y1="172" x2="600" y2="196" stroke="#475569" stroke-width="2"/>
+  <line x1="600" y1="172" x2="600" y2="196" stroke="#475569" stroke-width="2"/>
+  <line x1="985" y1="172" x2="600" y2="196" stroke="#475569" stroke-width="2"/>
+  <line x1="600" y1="196" x2="600" y2="210" stroke="#475569" stroke-width="2" marker-end="url(#arrow4)"/>
+
+  <rect x="30" y="210" width="1140" height="34" rx="6" fill="#2c3e50"/>
+  <text x="600" y="231" text-anchor="middle" font-size="10" font-weight="600" fill="#fff">fullToken = hierarchyId + "|" + salt + "|" + iv + "|" + AES-CBC(payload, key = PBKDF2(baseSecret, salt))</text>
+
+  <rect x="30" y="252" width="1140" height="30" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="600" y="271" text-anchor="middle" font-size="9.7" fill="#334155">payload = generationTimestamp + "/" + expirationTimestamp + "/" + mobileNumber</text>
+
+  <!-- SECTION B: verification -->
+  <line x1="600" y1="282" x2="600" y2="300" stroke="#475569" stroke-width="2" marker-end="url(#arrow4)"/>
+  <text x="600" y="320" text-anchor="middle" font-size="13.5" font-weight="700" fill="#2c3e50">AESFilter.doFilterInternal() — the real gatekeeper</text>
+  <text x="600" y="336" text-anchor="middle" font-size="10" fill="#64748b">(SecurityConfig permits anyRequest() regardless — see Module 1; only AESFilter's whitelist matters in practice)</text>
+
+  <rect x="200" y="350" width="800" height="32" rx="16" fill="#2c3e50"/>
+  <text x="600" y="371" text-anchor="middle" font-size="10" fill="#fff">path whitelisted? — matched by plain String.startsWith(), not exact path</text>
+  <line x1="600" y1="382" x2="600" y2="400" stroke="#475569" stroke-width="2" marker-end="url(#arrow4)"/>
+
+  <rect x="200" y="400" width="800" height="32" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="600" y="421" text-anchor="middle" font-size="9.7" fill="#334155">split Authorization on "|" → [hierarchyCode, salt, iv, encryptedToken]</text>
+  <line x1="600" y1="432" x2="600" y2="450" stroke="#475569" stroke-width="2" marker-end="url(#arrow4)"/>
+
+  <rect x="200" y="450" width="800" height="32" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="600" y="471" text-anchor="middle" font-size="9.7" fill="#334155">derive key = PBKDF2(baseSecret, salt-FROM-TOKEN, iterations, keyLength)</text>
+  <line x1="600" y1="482" x2="600" y2="500" stroke="#475569" stroke-width="2" marker-end="url(#arrow4)"/>
+
+  <rect x="200" y="500" width="800" height="32" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="600" y="521" text-anchor="middle" font-size="9.7" fill="#334155">decrypt encryptedToken with derived key + iv-from-token → decrypted payload</text>
+  <line x1="600" y1="532" x2="600" y2="550" stroke="#475569" stroke-width="2" marker-end="url(#arrow4)"/>
+
+  <rect x="200" y="550" width="800" height="32" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="600" y="571" text-anchor="middle" font-size="9.7" fill="#334155">split payload on "/" → check creds[0]/creds[1] (timestamps) only</text>
+  <line x1="600" y1="582" x2="600" y2="600" stroke="#475569" stroke-width="2" marker-end="url(#arrow4)"/>
+
+  <rect x="130" y="600" width="940" height="58" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="600" y="622" text-anchor="middle" font-size="10.3" font-weight="700" fill="#991b1b">⚠ hierarchyCode (the identity claim) is NEVER compared to the decrypted payload or anything else</text>
+  <text x="600" y="640" text-anchor="middle" font-size="10.3" font-weight="700" fill="#991b1b">⚠ creds[2] — the mobileNumber embedded in the payload — is decrypted but discarded, never checked</text>
+  <line x1="600" y1="658" x2="600" y2="676" stroke="#475569" stroke-width="2" marker-end="url(#arrow4)"/>
+
+  <rect x="470" y="676" width="260" height="34" rx="17" fill="#16a34a"/>
+  <text x="600" y="698" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">PASS — request authorized</text>
+
+  <!-- SECTION C: critical -->
+  <text x="600" y="748" text-anchor="middle" font-size="15" font-weight="700" fill="#b91c1c">⚠ CRITICAL — confirmed: identity spoofing via plaintext token prefix</text>
+
+  <rect x="30" y="762" width="1140" height="150" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="786" font-size="10.5" fill="#7f1d1d">Legitimate token, issued to a real Retailer:</text>
+  <text x="46" y="803" font-size="10.3" font-family="Consolas, monospace" fill="#7f1d1d">NFT-RT-045 | saltBase64 | ivBase64 | encryptedPayload</text>
+  <text x="46" y="828" font-size="10.5" fill="#7f1d1d">Attacker edits only the plaintext label — salt / iv / ciphertext copied verbatim, unchanged:</text>
+  <text x="46" y="845" font-size="10.3" font-family="Consolas, monospace" font-weight="700" fill="#991b1b">NFT-AD-001 | saltBase64 | ivBase64 | encryptedPayload</text>
+  <text x="46" y="870" font-size="10.3" fill="#7f1d1d">→ AESFilter re-derives the SAME key (salt unchanged) → decrypts successfully (ciphertext untouched)</text>
+  <text x="46" y="886" font-size="10.3" fill="#7f1d1d">→ timestamps still valid → PASSES. TokenUtil.extractHierarchyId() now returns "NFT-AD-001".</text>
+  <text x="46" y="903" font-size="10.5" font-weight="700" fill="#991b1b">Every downstream check that trusts this value (HierarchyAccessService's AD bypass, UserContext.isAdmin) now treats the caller as full Admin.</text>
+
+  <rect x="30" y="922" width="1140" height="50" rx="6" fill="#7f1d1d"/>
+  <text x="600" y="944" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">Any authenticated user, at any hierarchy level, can escalate to any other identity — including Admin —</text>
+  <text x="600" y="962" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">by editing plaintext in their own Authorization header. No key knowledge or server interaction required.</text>
+
+  <!-- SECTION D+E: other findings -->
+  <text x="600" y="1006" text-anchor="middle" font-size="13.5" font-weight="700" fill="#2c3e50">Other confirmed findings</text>
+
+  <rect x="30" y="1020" width="560" height="100" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="46" y="1042" font-size="10.5" font-weight="700" fill="#92400e">Dead per-hierarchy salt infrastructure</text>
+  <text x="46" y="1060" font-size="9.5" fill="#78350f">AESKeyService.getSecretKeyForHierarchy() and a near-duplicate</text>
+  <text x="46" y="1075" font-size="9.5" fill="#78350f">copy in AESController both maintain the same 8 hardcoded</text>
+  <text x="46" y="1090" font-size="9.5" fill="#78350f">HIERARCHY_SALTS — neither is ever called. Every live path uses</text>
+  <text x="46" y="1105" font-size="9.5" fill="#78350f">one shared baseSecret + an in-band, per-token salt instead.</text>
+
+  <rect x="610" y="1020" width="560" height="100" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="626" y="1042" font-size="10.5" font-weight="700" fill="#92400e">Plaintext-equality password fallback</text>
+  <text x="626" y="1060" font-size="9.5" fill="#78350f">AuthController.handlePasswordValidation() (the /auth/login</text>
+  <text x="626" y="1075" font-size="9.5" fill="#78350f">flow) and AESController.generateToken() both accept</text>
+  <text x="626" y="1090" font-size="9.5" fill="#78350f">inputPassword.equals(storedPassword) as a pass condition</text>
+  <text x="626" y="1105" font-size="9.5" fill="#78350f">alongside the real BCrypt check.</text>
+
+  <rect x="30" y="1132" width="560" height="90" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="46" y="1154" font-size="10.5" font-weight="700" fill="#92400e">Unauthenticated encryption mode</text>
+  <text x="46" y="1172" font-size="9.5" fill="#78350f">AES/CBC/PKCS5Padding everywhere — no HMAC/GCM tag, so</text>
+  <text x="46" y="1187" font-size="9.5" fill="#78350f">there is no integrity check over the ciphertext itself either,</text>
+  <text x="46" y="1202" font-size="9.5" fill="#78350f">consistent with the spoofing gap above.</text>
+
+  <rect x="610" y="1132" width="560" height="90" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="626" y="1154" font-size="10.5" font-weight="700" fill="#334155">JwtUtil — fully dead code</text>
+  <text x="626" y="1172" font-size="9.5" fill="#475569">A complete, correctly-implemented signed-JWT utility</text>
+  <text x="626" y="1187" font-size="9.5" fill="#475569">(jjwt, HS256) exists but has zero call sites anywhere</text>
+  <text x="626" y="1202" font-size="9.5" fill="#475569">in the codebase — confirmed by full-repo search.</text>
+
+  <!-- SECTION F: correction -->
+  <rect x="30" y="1244" width="1140" height="70" rx="6" fill="#eef2f7" stroke="#2c3e50" stroke-width="2"/>
+  <text x="46" y="1266" font-size="10.5" font-weight="700" fill="#1a1a1a">Correction to Module 2</text>
+  <text x="46" y="1284" font-size="9.7" fill="#334155">AESFilter matches its whitelist via plain String.startsWith(), not exact-path matching. "/api/hierarchies/tree" therefore</text>
+  <text x="46" y="1299" font-size="9.7" fill="#334155">DOES match "/api/hierarchies/tree-diagram" too — that JSON endpoint is also unauthenticated, not just /view and /data.</text>
+
+  <!-- Legend -->
+  <rect x="30" y="1350" width="14" height="14" rx="3" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="51" y="1361" font-size="10.5" fill="#475569">Standard step</text>
+
+  <rect x="180" y="1350" width="14" height="14" rx="3" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="201" y="1361" font-size="10.5" fill="#475569">Flagged risk</text>
+
+  <rect x="330" y="1350" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="351" y="1361" font-size="10.5" fill="#475569">Critical — confirmed authentication bypass</text>
+
+  <rect x="640" y="1350" width="14" height="14" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="661" y="1361" font-size="10.5" fill="#475569">Pass / allow outcome</text>
+
+  <text x="600" y="1400" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 4 of the architecture documentation set</text>
+</svg>

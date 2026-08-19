@@ -1,0 +1,100 @@
+<svg viewBox="0 0 1200 890" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow13" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="890" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-size="21" font-weight="700" fill="#1a1a1a">Exception Handling — Wrong HTTP Status Codes, Confirmed and New</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+
+  <!-- SECTION A -->
+  <text x="600" y="76" text-anchor="middle" font-size="13.5" font-weight="700" fill="#b45309">⚠ Two custom exceptions have no specific handler — both fall through to a generic 400</text>
+
+  <rect x="30" y="90" width="560" height="130" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="46" y="112" font-size="10.5" font-weight="700" fill="#92400e">ResourceNotFoundException (confirmed, top-level finding)</text>
+  <text x="46" y="130" font-size="9.5" font-family="Consolas, monospace" fill="#78350f">@ResponseStatus(HttpStatus.NOT_FOUND)</text>
+  <text x="46" y="145" font-size="9.5" font-family="Consolas, monospace" fill="#78350f">class ResourceNotFoundException extends RuntimeException</text>
+  <text x="46" y="167" font-size="9.5" fill="#78350f">No @ExceptionHandler(ResourceNotFoundException.class)</text>
+  <text x="46" y="182" font-size="9.5" fill="#78350f">exists — GlobalExceptionHandler's broader</text>
+  <text x="46" y="197" font-size="9.5" font-weight="700" fill="#92400e">@ExceptionHandler(RuntimeException.class) intercepts first.</text>
+  <text x="46" y="212" font-size="9.5" font-weight="700" fill="#92400e">Served as 400, never the intended 404.</text>
+
+  <rect x="610" y="90" width="560" height="130" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="626" y="112" font-size="10.5" font-weight="700" fill="#92400e">DuplicateEntryException (new — same shape)</text>
+  <text x="626" y="130" font-size="9.5" font-family="Consolas, monospace" fill="#78350f">class DuplicateEntryException extends RuntimeException</text>
+  <text x="626" y="145" font-size="9.5" fill="#78350f">(no @ResponseStatus annotation of its own)</text>
+  <text x="626" y="167" font-size="9.5" fill="#78350f">Also has no dedicated @ExceptionHandler — also falls</text>
+  <text x="626" y="182" font-size="9.5" font-weight="700" fill="#92400e">through to the same generic RuntimeException handler.</text>
+  <text x="626" y="197" font-size="9.5" fill="#78350f">Whatever status a "duplicate entry" case should return</text>
+  <text x="626" y="212" font-size="9.5" fill="#78350f">(409 Conflict?) — it's always 400 instead.</text>
+
+  <!-- SECTION B -->
+  <text x="600" y="256" text-anchor="middle" font-size="14.5" font-weight="700" fill="#b91c1c">⚠ CRITICAL — two handlers return HTTP 200 OK for error conditions</text>
+
+  <rect x="30" y="270" width="560" height="150" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="292" font-size="10.3" font-weight="700" fill="#991b1b">handleDataIntegrityViolationException()</text>
+  <text x="46" y="312" font-size="9.5" font-family="Consolas, monospace" fill="#7f1d1d">CommonResponse&lt;Object&gt; response = new CommonResponse&lt;&gt;();</text>
+  <text x="46" y="327" font-size="9.5" font-family="Consolas, monospace" fill="#7f1d1d">response.setStatusCode(HttpStatus.BAD_REQUEST.value());</text>
+  <text x="46" y="345" font-size="9.5" font-family="Consolas, monospace" font-weight="700" fill="#991b1b">return ResponseEntity.ok(response);   // HTTP 200</text>
+  <text x="46" y="367" font-size="9.5" fill="#7f1d1d">Body says "statusCode": 400 — the actual wire-level</text>
+  <text x="46" y="382" font-size="9.5" fill="#7f1d1d">HTTP status is 200 OK. A duplicate-entry/constraint</text>
+  <text x="46" y="397" font-size="9.5" fill="#7f1d1d">violation is indistinguishable from success by status code.</text>
+
+  <rect x="610" y="270" width="560" height="150" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="626" y="292" font-size="10.3" font-weight="700" fill="#991b1b">handleNoPendingRecords()</text>
+  <text x="626" y="312" font-size="9.5" font-family="Consolas, monospace" fill="#7f1d1d">return ResponseEntity.ok(</text>
+  <text x="626" y="327" font-size="9.5" font-family="Consolas, monospace" font-weight="700" fill="#991b1b">    new CommonResponse&lt;&gt;(404, ex.getMessage(), null));</text>
+  <text x="626" y="349" font-size="9.5" fill="#7f1d1d">Same pattern, second handler: HTTP 200 wrapping a</text>
+  <text x="626" y="364" font-size="9.5" fill="#7f1d1d">body that says "statusCode": 404. Two independent</text>
+  <text x="626" y="379" font-size="9.5" fill="#7f1d1d">handlers in the same file share this exact bug shape —</text>
+  <text x="626" y="394" font-size="9.5" fill="#7f1d1d">not a one-off typo.</text>
+
+  <rect x="30" y="436" width="1140" height="40" rx="6" fill="#7f1d1d"/>
+  <text x="600" y="460" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff">Any client that checks the HTTP status code rather than parsing the body treats both of these failure cases as success.</text>
+
+  <!-- SECTION C -->
+  <text x="600" y="512" text-anchor="middle" font-size="13.5" font-weight="700" fill="#2c3e50">Minor findings</text>
+
+  <rect x="30" y="526" width="560" height="120" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="46" y="548" font-size="10.3" font-weight="700" fill="#334155">Raw exception messages surfaced to API clients</text>
+  <text x="46" y="566" font-size="9.5" fill="#475569">handleRuntimeException(), handleGeneralException(), and</text>
+  <text x="46" y="581" font-size="9.5" fill="#475569">handleIllegalArgumentException() all return ex.getMessage()</text>
+  <text x="46" y="596" font-size="9.5" fill="#475569">directly in the response body — whatever a vendor library,</text>
+  <text x="46" y="611" font-size="9.5" fill="#475569">SQL driver, or internal exception happens to say is exposed</text>
+  <text x="46" y="626" font-size="9.5" fill="#475569">verbatim to the API caller.</text>
+
+  <rect x="610" y="526" width="560" height="120" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="626" y="548" font-size="10.3" font-weight="700" fill="#334155">Old handler left as a comment — pattern recurs again</text>
+  <text x="626" y="566" font-size="9.5" fill="#475569">An earlier IllegalArgumentException handler (15 lines,</text>
+  <text x="626" y="581" font-size="9.5" fill="#475569">"Invalid hierarchy API request" wording) sits commented</text>
+  <text x="626" y="596" font-size="9.5" fill="#475569">out directly above the live one — the same "old version</text>
+  <text x="626" y="611" font-size="9.5" fill="#475569">left as a comment" habit already confirmed in Modules 2,</text>
+  <text x="626" y="626" font-size="9.5" fill="#475569">9, and 11.</text>
+
+  <!-- SECTION D: positive -->
+  <text x="600" y="682" text-anchor="middle" font-size="13.5" font-weight="700" fill="#166534">By contrast: deliberate care taken to protect Swagger/OpenAPI endpoints</text>
+
+  <rect x="30" y="696" width="1140" height="70" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="46" y="718" font-size="10" fill="#166534">handleNoHandlerFound(), handleRuntimeException(), and handleGeneralException() all explicitly check whether the request</text>
+  <text x="46" y="733" font-size="10" fill="#166534">path contains "swagger" or "api-docs" and special-case the response so generic error handling doesn't break API</text>
+  <text x="46" y="748" font-size="10" fill="#166534">documentation — a small but genuinely deliberate, well-reasoned piece of defensive engineering in this file.</text>
+
+  <!-- Legend -->
+  <rect x="30" y="800" width="14" height="14" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="51" y="811" font-size="10.5" fill="#475569">Sound design, by contrast</text>
+
+  <rect x="270" y="800" width="14" height="14" rx="3" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="291" y="811" font-size="10.5" fill="#475569">Minor / dead code</text>
+
+  <rect x="440" y="800" width="14" height="14" rx="3" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="461" y="811" font-size="10.5" fill="#475569">Flagged bug — wrong status served</text>
+
+  <rect x="700" y="800" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="721" y="811" font-size="10.5" fill="#475569">Critical — confirmed success/failure status mismatch</text>
+
+  <text x="600" y="860" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 13 of the architecture documentation set</text>
+</svg>

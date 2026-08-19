@@ -1,0 +1,196 @@
+<svg viewBox="0 0 1200 1325" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="1325" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-size="22" font-weight="700" fill="#1a1a1a">Hierarchy &amp; Access Model — Structure &amp; Access Flow</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+
+  <!-- SECTION A: hierarchy chain -->
+  <text x="600" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#2c3e50">8-level reseller hierarchy — seeded by HierarchyMasterDataInitializer (Module 1)</text>
+
+  <!-- 8 boxes -->
+  <g font-size="9">
+    <rect x="37" y="90" width="132" height="58" rx="6" fill="#2c3e50"/>
+    <text x="103" y="114" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">SA</text>
+    <text x="103" y="132" text-anchor="middle" fill="#cbd5e1">SuperAdmin</text>
+
+    <rect x="179" y="90" width="132" height="58" rx="6" fill="#2c3e50"/>
+    <text x="245" y="114" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">AD</text>
+    <text x="245" y="132" text-anchor="middle" fill="#cbd5e1">Admin</text>
+
+    <rect x="321" y="90" width="132" height="58" rx="6" fill="#2c3e50"/>
+    <text x="387" y="114" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">ET</text>
+    <text x="387" y="132" text-anchor="middle" fill="#cbd5e1">Enterprises</text>
+
+    <rect x="463" y="90" width="132" height="58" rx="6" fill="#2c3e50"/>
+    <text x="529" y="114" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">WL</text>
+    <text x="529" y="132" text-anchor="middle" fill="#cbd5e1">Whitelabel</text>
+
+    <rect x="605" y="90" width="132" height="58" rx="6" fill="#2c3e50"/>
+    <text x="671" y="114" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">SD</text>
+    <text x="671" y="132" text-anchor="middle" fill="#cbd5e1">SuperDistributor</text>
+
+    <rect x="747" y="90" width="132" height="58" rx="6" fill="#2c3e50"/>
+    <text x="813" y="114" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">PT</text>
+    <text x="813" y="132" text-anchor="middle" fill="#cbd5e1">Partner</text>
+
+    <rect x="889" y="90" width="132" height="58" rx="6" fill="#2c3e50"/>
+    <text x="955" y="114" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">DT</text>
+    <text x="955" y="132" text-anchor="middle" fill="#cbd5e1">Distributor</text>
+
+    <rect x="1031" y="90" width="132" height="58" rx="6" fill="#2c3e50"/>
+    <text x="1097" y="114" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">RT</text>
+    <text x="1097" y="132" text-anchor="middle" fill="#cbd5e1">Retailer</text>
+  </g>
+
+  <!-- connecting arrows between chain boxes -->
+  <g stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow2)">
+    <line x1="169" y1="119" x2="177" y2="119"/>
+    <line x1="311" y1="119" x2="319" y2="119"/>
+    <line x1="453" y1="119" x2="461" y2="119"/>
+    <line x1="595" y1="119" x2="603" y2="119"/>
+    <line x1="737" y1="119" x2="745" y2="119"/>
+    <line x1="879" y1="119" x2="887" y2="119"/>
+    <line x1="1021" y1="119" x2="1029" y2="119"/>
+  </g>
+
+  <!-- AU / WLAU sub-users -->
+  <line x1="245" y1="148" x2="245" y2="172" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <rect x="145" y="172" width="200" height="38" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="245" y="187" text-anchor="middle" font-size="10.5" font-weight="700" fill="#334155">AU sub-users</text>
+  <text x="245" y="200" text-anchor="middle" font-size="9" fill="#64748b">AdminUser entity</text>
+
+  <line x1="529" y1="148" x2="529" y2="172" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <rect x="429" y="172" width="200" height="38" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="529" y="187" text-anchor="middle" font-size="10.5" font-weight="700" fill="#334155">WLAU sub-users</text>
+  <text x="529" y="200" text-anchor="middle" font-size="9" fill="#64748b">WhiteLabelUser entity</text>
+
+  <!-- SECTION B: dual representation -->
+  <text x="600" y="240" text-anchor="middle" font-size="13.5" font-weight="700" fill="#2c3e50">Two independent representations — kept in sync only by application code, no FK between them</text>
+
+  <rect x="30" y="255" width="560" height="160" rx="8" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="46" y="278" font-size="13" font-weight="700" fill="#1a1a1a">parentAccount (string field)</text>
+  <text x="46" y="298" font-size="10" fill="#475569">• Hand-copied onto 6 of 7 profile entities:</text>
+  <text x="58" y="313" font-size="10" fill="#475569">Enterprises, WhiteLabels, SuperDistributor,</text>
+  <text x="58" y="328" font-size="10" fill="#475569">Partner, Distributor, Retailer</text>
+  <text x="46" y="346" font-size="10" fill="#475569">• Also present on AdminUser / WhiteLabelUser (AU/WLAU)</text>
+  <text x="46" y="364" font-size="10" fill="#475569">• Admin &amp; SuperAdmin have NO parentAccount (top of chain)</text>
+  <text x="46" y="382" font-size="10" fill="#475569">• Plain VARCHAR — no foreign key, no shared base class</text>
+  <text x="46" y="400" font-size="10" fill="#475569">• 7 profile entities, no common interface between them</text>
+
+  <rect x="610" y="255" width="560" height="160" rx="8" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="626" y="278" font-size="13" font-weight="700" fill="#1a1a1a">AccessHierarchyNode + AccessHierarchyPath</text>
+  <text x="626" y="298" font-size="10" fill="#475569">• AccessHierarchyNode: hierarchy_id, hierarchy_type,</text>
+  <text x="638" y="313" font-size="10" fill="#475569">parent_hierarchy_id</text>
+  <text x="626" y="331" font-size="10" fill="#475569">• AccessHierarchyPath: real closure table —</text>
+  <text x="638" y="346" font-size="10" fill="#475569">{ancestor_id, descendant_id, depth}</text>
+  <text x="626" y="364" font-size="10" fill="#475569">• Built by HierarchyAccessService.registerHierarchyNode()</text>
+  <text x="638" y="379" font-size="10" fill="#475569">→ buildClosurePath()</text>
+  <text x="626" y="397" font-size="10" fill="#475569">• Gives O(1) ancestor/descendant lookups</text>
+
+  <rect x="30" y="425" width="1140" height="42" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="600" y="451" text-anchor="middle" font-size="10.5" fill="#92400e">⚠ No foreign key ties these together — every hierarchy create must remember to write BOTH the parentAccount column AND call registerHierarchyNode(), or the two views of the tree silently diverge</text>
+
+  <!-- SECTION C: access resolution -->
+  <text x="600" y="495" text-anchor="middle" font-size="13.5" font-weight="700" fill="#2c3e50">Access resolution — HierarchyAccessService / HierarchyAccessValidator</text>
+
+  <!-- left flow -->
+  <rect x="30" y="510" width="560" height="36" rx="18" fill="#2c3e50"/>
+  <text x="310" y="533" text-anchor="middle" font-size="11.5" font-weight="600" fill="#fff">hasAccessToHierarchy(loginId, targetId)</text>
+  <line x1="310" y1="546" x2="310" y2="565" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
+
+  <rect x="130" y="565" width="360" height="36" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="310" y="588" text-anchor="middle" font-size="10.5" fill="#334155">loginType == "AD" ?</text>
+
+  <line x1="200" y1="601" x2="130" y2="622" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow2)"/>
+  <text x="150" y="616" font-size="9.5" fill="#16a34a" font-weight="700">YES</text>
+  <rect x="35" y="622" width="150" height="34" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="110" y="643" text-anchor="middle" font-size="10" font-weight="700" fill="#166534">ALLOW (bypass)</text>
+
+  <line x1="420" y1="601" x2="480" y2="622" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow2)"/>
+  <text x="440" y="616" font-size="9.5" fill="#475569" font-weight="700">NO</text>
+  <rect x="210" y="622" width="370" height="36" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="395" y="644" text-anchor="middle" font-size="9.7" fill="#334155">closure table existsById(loginId → targetId) ?</text>
+  <line x1="395" y1="658" x2="395" y2="676" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
+  <rect x="245" y="676" width="300" height="30" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="395" y="696" text-anchor="middle" font-size="9.5" fill="#334155">row exists → ALLOW · missing → DENY</text>
+
+  <!-- right flow -->
+  <rect x="610" y="510" width="560" height="36" rx="18" fill="#2c3e50"/>
+  <text x="890" y="533" text-anchor="middle" font-size="11.5" font-weight="600" fill="#fff">resolveAccessibleHierarchyIds(hierarchyId)</text>
+  <line x1="890" y1="546" x2="890" y2="565" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
+
+  <rect x="610" y="565" width="175" height="80" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="697" y="585" text-anchor="middle" font-size="10" font-weight="700" fill="#166534">AD</text>
+  <text x="697" y="601" text-anchor="middle" font-size="9" fill="#166534">→ unrestricted</text>
+  <text x="697" y="614" text-anchor="middle" font-size="9" fill="#166534">(empty set =</text>
+  <text x="697" y="627" text-anchor="middle" font-size="9" fill="#166534">no filter applied)</text>
+
+  <rect x="797" y="565" width="175" height="80" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="884" y="585" text-anchor="middle" font-size="10" font-weight="700" fill="#92400e">type ends "AU"</text>
+  <text x="884" y="600" text-anchor="middle" font-size="9" fill="#78350f">(operational user)</text>
+  <text x="884" y="615" text-anchor="middle" font-size="9" fill="#78350f">→ parent + ALL of</text>
+  <text x="884" y="628" text-anchor="middle" font-size="9" fill="#78350f">parent's descendants</text>
+  <text x="884" y="641" text-anchor="middle" font-size="9" fill="#78350f">(sibling access)</text>
+
+  <rect x="984" y="565" width="186" height="80" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="1077" y="585" text-anchor="middle" font-size="10" font-weight="700" fill="#334155">else (owner/profile)</text>
+  <text x="1077" y="601" text-anchor="middle" font-size="9" fill="#475569">→ self + own</text>
+  <text x="1077" y="614" text-anchor="middle" font-size="9" fill="#475569">descendants only</text>
+
+  <!-- HierarchyAccessValidator -->
+  <rect x="30" y="716" width="1140" height="60" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="46" y="736" font-size="11" font-weight="700" fill="#92400e">HierarchyAccessValidator.findParentHierarchy(id)</text>
+  <text x="46" y="752" font-size="9.7" fill="#78350f">⚠ Fragile: type = id.split("-")[1] (breaks on malformed IDs) → repository lookup per type → reflectively calls getParentAccount()</text>
+  <text x="46" y="767" font-size="9.7" fill="#78350f">— silently returns null on any failure, e.g. for Admin/SuperAdmin which have no such method</text>
+
+  <!-- SECTION D: critical exposure -->
+  <text x="600" y="812" text-anchor="middle" font-size="15" font-weight="700" fill="#b91c1c">⚠ CRITICAL — unauthenticated endpoints leak OTPs and wallet balances</text>
+
+  <rect x="300" y="824" width="600" height="34" rx="17" fill="#2c3e50"/>
+  <text x="600" y="846" text-anchor="middle" font-size="11.5" font-weight="600" fill="#fff">TreeDiagramController — /api/hierarchies/*</text>
+  <line x1="600" y1="858" x2="600" y2="876" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
+
+  <rect x="30" y="876" width="1140" height="92" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="898" font-size="11.5" font-weight="700" fill="#991b1b">GET /view — PUBLIC (matches SecurityConfig + AESFilter whitelist exactly)</text>
+  <text x="46" y="916" font-size="10" fill="#7f1d1d">Calls HierarchyAccessService.getHierarchyTree() → renders the full org tree as HTML, including every node's</text>
+  <text x="46" y="932" font-size="10" fill="#7f1d1d">UserDetails (mobile number + live OTP) and prepaid/postpaid wallet balances across all 7 levels. No login required.</text>
+  <text x="46" y="950" font-size="10" fill="#7f1d1d">templates/hierarchy.html renders whatever the service returns — no per-node auth check applied.</text>
+
+  <rect x="30" y="980" width="1140" height="92" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="1002" font-size="11.5" font-weight="700" fill="#991b1b">GET /data?hierarchyId=…&amp;mobileNumber=… — PUBLIC (matches whitelist exactly)</text>
+  <text x="46" y="1020" font-size="10" fill="#7f1d1d">Calls HierarchyDataService.getCompleteHierarchyData() → JSON dump of userInformation (from the OTP-bearing</text>
+  <text x="46" y="1036" font-size="10" fill="#7f1d1d">UserDetails row), walletInformation, assignments, and the full subtree — lookup-able by raw mobile number,</text>
+  <text x="46" y="1052" font-size="10" fill="#7f1d1d">no login required.</text>
+
+  <rect x="30" y="1084" width="1140" height="72" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="1104" font-size="11" font-weight="700" fill="#991b1b">GET /tree-diagram — PUBLIC too (corrected — see Module 4)</text>
+  <text x="46" y="1121" font-size="9.7" fill="#7f1d1d">AESFilter matches its whitelist via plain String.startsWith(), not exact-path matching — "/api/hierarchies/tree"</text>
+  <text x="46" y="1137" font-size="9.7" fill="#7f1d1d">DOES match "/api/hierarchies/tree-diagram" too. Same OTP + wallet data as /view, exposed as JSON, unauthenticated.</text>
+  <text x="46" y="1150" font-size="9.7" fill="#7f1d1d">All three /view, /data, and /tree-diagram endpoints are confirmed public.</text>
+
+  <rect x="30" y="1168" width="1140" height="50" rx="6" fill="#7f1d1d"/>
+  <text x="600" y="1189" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">Net effect: any unauthenticated caller can retrieve any hierarchy's login OTP</text>
+  <text x="600" y="1207" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">and wallet balance, by hierarchy ID or by raw mobile number, via any of the three endpoints above.</text>
+
+  <!-- Legend -->
+  <rect x="30" y="1250" width="14" height="14" rx="3" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="51" y="1261" font-size="10.5" fill="#475569">Standard structure</text>
+
+  <rect x="190" y="1250" width="14" height="14" rx="3" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="211" y="1261" font-size="10.5" fill="#475569">Flagged risk / fragile design</text>
+
+  <rect x="400" y="1250" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="421" y="1261" font-size="10.5" fill="#475569">Critical — confirmed unauthenticated data exposure</text>
+
+  <rect x="700" y="1250" width="14" height="14" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="721" y="1261" font-size="10.5" fill="#475569">Allow / unrestricted outcome</text>
+
+  <text x="600" y="1300" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 2 of the architecture documentation set</text>
+</svg>

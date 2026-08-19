@@ -1,0 +1,96 @@
+<svg viewBox="0 0 1200 945" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="945" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-size="21" font-weight="700" fill="#1a1a1a">Dashboard &amp; Aggregation — The Live Path vs. Two Layers of Dead Strategy Code</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+
+  <!-- SECTION A -->
+  <text x="600" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">⚠ CRITICAL — DashboardController has zero access control</text>
+
+  <rect x="30" y="90" width="1140" height="106" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="46" y="112" font-size="10.5" font-weight="700" fill="#991b1b">@RequestMapping("/api/dashboard") — 4 endpoints, none call HierarchyAccessService or HierarchyAccessValidator</text>
+  <text x="46" y="130" font-size="9.7" font-family="Consolas, monospace" fill="#7f1d1d">POST /get · GET /wallet-balance/{hierarchyId} · GET /profile/{hierarchyId} · POST /data</text>
+  <text x="46" y="150" font-size="10" fill="#7f1d1d">Every method takes hierarchyId directly (path variable or request body) and passes it straight into</text>
+  <text x="46" y="166" font-size="10" fill="#7f1d1d">DashboardServiceImpl with no check that it belongs to, or is a descendant of, the caller's own identity.</text>
+  <text x="46" y="184" font-size="10" font-weight="700" fill="#991b1b">A classic IDOR — any authenticated user, at any level, can view any OTHER hierarchy's wallet balance and profile</text>
+
+  <rect x="30" y="200" width="1140" height="34" rx="6" fill="#7f1d1d"/>
+  <text x="600" y="222" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">by ID alone — no token spoofing required. This is distinct from, and compounds, the Module 4 identity-spoofing bug.</text>
+
+  <!-- SECTION B -->
+  <text x="600" y="270" text-anchor="middle" font-size="13.5" font-weight="700" fill="#b45309">⚠ Confirmed bug: Enterprises profile lookup is broken</text>
+
+  <rect x="30" y="284" width="1140" height="96" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="46" y="306" font-size="10.3" fill="#78350f">DashboardServiceImpl.getUserProfile(hierarchyId) switches on commonMethods.extractHierarchyType(hierarchyId):</text>
+  <text x="46" y="324" font-size="9.7" font-family="Consolas, monospace" fill="#78350f">case "EN" -&gt; enterprisesRepository.findByEnterpriseId(...)   // real Enterprises IDs extract to type "ET", never "EN"</text>
+  <text x="46" y="340" font-size="9.7" font-family="Consolas, monospace" fill="#78350f">default   -&gt; throw new RuntimeException("Unsupported hierarchy type: " + type)</text>
+  <text x="46" y="362" font-size="10.3" font-weight="700" fill="#92400e">Per Module 2/1, HierarchyMaster seeds the code "ET" for Enterprises — not "EN". Every real Enterprises hierarchyId falls</text>
+  <text x="46" y="377" font-size="10.3" font-weight="700" fill="#92400e">through to default and throws "Unsupported hierarchy type: ET" — this endpoint is broken for the entire ET level.</text>
+
+  <!-- SECTION C -->
+  <text x="600" y="424" text-anchor="middle" font-size="14" font-weight="700" fill="#2c3e50">Two dead layers of the intended strategy pattern</text>
+
+  <rect x="30" y="438" width="560" height="180" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="46" y="460" font-size="11" font-weight="700" fill="#1a1a1a">Layer 1 — DashboardStrategy (buildDashboard)</text>
+  <text x="46" y="480" font-size="9.5" fill="#475569">• ADDashboardStrategy — stub, returns Map.of() unconditionally</text>
+  <text x="46" y="496" font-size="9.5" fill="#475569">• RtDashboardStrategy — full, real implementation (150 lines):</text>
+  <text x="58" y="511" font-size="9.5" fill="#475569">balances, last-5 transactions, aggregation cards</text>
+  <text x="46" y="529" font-size="9.5" fill="#475569">• SdDashboardStrategy — full, real implementation (129 lines),</text>
+  <text x="58" y="544" font-size="9.5" fill="#475569">same shape for SuperDistributor</text>
+  <text x="46" y="566" font-size="10" font-weight="700" fill="#334155">Confirmed by search: referenced by NOTHING outside their</text>
+  <text x="46" y="581" font-size="10" font-weight="700" fill="#334155">own 4 files. No controller, no service ever selects one.</text>
+  <text x="46" y="601" font-size="9.5" fill="#64748b">Two real, working implementations sit completely unused.</text>
+
+  <rect x="610" y="438" width="560" height="180" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="626" y="460" font-size="11" font-weight="700" fill="#991b1b">Layer 2 — HierarchyAggregationStrategy</text>
+  <text x="626" y="480" font-size="9.5" fill="#7f1d1d">Exactly ONE implementation: HierarchyAggregationStrategyImpl</text>
+  <text x="626" y="495" font-size="9.5" fill="#7f1d1d">— a plain @Service, no name or @Qualifier given.</text>
+  <text x="626" y="515" font-size="9.5" font-family="Consolas, monospace" fill="#7f1d1d">Map&lt;String, HierarchyAggregationStrategy&gt; strategies</text>
+  <text x="626" y="530" font-size="9.5" fill="#7f1d1d">is keyed by Spring bean NAME, not hierarchy code —</text>
+  <text x="626" y="545" font-size="9.5" fill="#7f1d1d">so strategies.get("RT") / .get("SD") / .get(anything)</text>
+  <text x="626" y="562" font-size="10" font-weight="700" fill="#991b1b">always returns null → getStrategy() always throws</text>
+  <text x="626" y="577" font-size="10" font-weight="700" fill="#991b1b">IllegalArgumentException, for every type, no exceptions.</text>
+  <text x="626" y="599" font-size="9.5" fill="#7f1d1d">If Layer 1 were ever wired up, it would break here immediately</text>
+  <text x="626" y="614" font-size="9.5" fill="#7f1d1d">— RtDashboardStrategy calls getStrategy("RT") directly.</text>
+
+  <rect x="30" y="628" width="1140" height="40" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="600" y="652" text-anchor="middle" font-size="9.7" fill="#475569">Even setting the keying bug aside: HierarchyAggregationStrategyImpl.getTransactionVolume() and .getServicePieData()/.getLast4MonthsGraphData() are themselves stubs returning null/empty.</text>
+
+  <!-- SECTION D -->
+  <text x="600" y="712" text-anchor="middle" font-size="14" font-weight="700" fill="#2c3e50">The live path — DashboardServiceImpl (2,416 lines)</text>
+
+  <rect x="30" y="726" width="1140" height="34" rx="17" fill="#2c3e50"/>
+  <text x="600" y="748" text-anchor="middle" font-size="11" font-weight="600" fill="#fff">DashboardController → DashboardService → DashboardServiceImpl (the actual, working dashboard)</text>
+  <line x1="600" y1="760" x2="600" y2="778" stroke="#475569" stroke-width="2" marker-end="url(#arrow8)"/>
+
+  <rect x="30" y="778" width="560" height="80" rx="6" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="46" y="800" font-size="10.3" font-weight="700" fill="#334155">Switches on hierarchy type internally</text>
+  <text x="46" y="818" font-size="9.5" fill="#475569">commonMethods.extractHierarchyType() called 4×</text>
+  <text x="46" y="833" font-size="9.5" fill="#475569">inside this one class — its own type-branching,</text>
+  <text x="46" y="848" font-size="9.5" fill="#475569">independent of both dead strategy layers above.</text>
+
+  <rect x="610" y="778" width="560" height="80" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="626" y="800" font-size="10.3" font-weight="700" fill="#92400e">Its own recursive subtree walk</text>
+  <text x="626" y="818" font-size="9.5" fill="#78350f">userDetailsRepository.findByParentAccount(), walked</text>
+  <text x="626" y="833" font-size="9.5" fill="#78350f">recursively — rather than the AccessHierarchyPath</text>
+  <text x="626" y="848" font-size="9.5" fill="#78350f">closure table built for exactly this in Module 2.</text>
+
+  <!-- Legend -->
+  <rect x="30" y="878" width="14" height="14" rx="3" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="51" y="889" font-size="10.5" fill="#475569">Live path / standard structure</text>
+
+  <rect x="270" y="878" width="14" height="14" rx="3" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="291" y="889" font-size="10.5" fill="#475569">Flagged bug / dead code</text>
+
+  <rect x="470" y="878" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="491" y="889" font-size="10.5" fill="#475569">Critical — confirmed access-control gap or always-throws bug</text>
+
+  <text x="600" y="920" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 8 of the architecture documentation set</text>
+</svg>
