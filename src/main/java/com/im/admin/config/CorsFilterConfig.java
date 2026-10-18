@@ -3,6 +3,7 @@ package com.im.admin.config;
 /**
  * @author SHUBHAM KHOPADE
  */
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -11,10 +12,16 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 public class CorsFilterConfig {
+
+    /** Extra allowed origins per environment, e.g. the demo server (comma-separated). */
+    @Value("${app.cors.extra-origins:}")
+    private List<String> extraOrigins;
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -23,7 +30,7 @@ public class CorsFilterConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         // Allow specific origins
-        config.setAllowedOrigins(Arrays.asList(
+        List<String> allowedOrigins = new ArrayList<>(Arrays.asList(
                 "http://localhost:5173",
                 "http://localhost:5174",
                 "https://uat.decipay.in",
@@ -39,6 +46,8 @@ public class CorsFilterConfig {
                 "http://192.168.1.127:4173",         //Amaan public IP
                 "https://portal.mintpe.in"           //Mint pay
         ));
+        extraOrigins.stream().filter(o -> !o.isBlank()).forEach(allowedOrigins::add);
+        config.setAllowedOrigins(allowedOrigins);
 
         // Allow all HTTP methods
         config.setAllowedMethods(Arrays.asList(

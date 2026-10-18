@@ -1,5 +1,6 @@
 package com.im.admin.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -8,6 +9,10 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
+    /** Extra allowed origins per environment, e.g. the demo server (comma-separated). */
+    @Value("${app.cors.extra-origins:}")
+    private String[] extraOrigins;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
@@ -29,6 +34,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "https://portal.mintpe.in"           //Mint pay
 
                 )
+                .allowedOriginPatterns(extraOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true)  // Change to true for Authorization headers

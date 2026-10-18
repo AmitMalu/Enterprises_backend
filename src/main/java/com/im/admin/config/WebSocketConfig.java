@@ -1,5 +1,6 @@
 package com.im.admin.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.*;
@@ -7,6 +8,10 @@ import org.springframework.web.socket.config.annotation.*;
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    /** Extra allowed origins per environment, e.g. the demo server (comma-separated). */
+    @Value("${app.cors.extra-origins:}")
+    private String[] extraOrigins;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -33,6 +38,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         "https://portal.mintpe.in"           //Mint pay
 
                 )
+                .setAllowedOriginPatterns(extraOrigins)
                 .withSockJS();
 
         // Add endpoint without SockJS for simpler clients
@@ -42,6 +48,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         "http://localhost:5174",
                         "https://uat.decipay.in",
                         "http://10.1.3.4"
-                );
+                )
+                .setAllowedOriginPatterns(extraOrigins);
     }
 }

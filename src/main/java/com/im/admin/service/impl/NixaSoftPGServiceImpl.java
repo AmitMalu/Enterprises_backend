@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.im.admin.commons.CommonFunctions;
 import com.im.admin.commons.LoggableVendor;
@@ -40,6 +41,11 @@ import java.util.Map;
 @Service
 @LoggableVendor
 public class NixaSoftPGServiceImpl implements NixaSoftPGService {
+
+    /** Public base URL of the retailer portal, used for payment return/redirect links. */
+    @Value("${app.portal.base-url:https://portal.nfttech.in/enterprise}")
+    private String portalBaseUrl;
+
 
     @Autowired
     private VendorRoutingRepository vendorRoutingRepository;
@@ -241,7 +247,7 @@ public class NixaSoftPGServiceImpl implements NixaSoftPGService {
             requestBody.put("customer_phone", req.getMobileNo());
             requestBody.put("customer_email", retailer.getEmailId());
             requestBody.put("amount", req.getAmount());
-            requestBody.put("redirect_url", "https://portal.nfttech.in/enterprise/products/pgScreen");
+            requestBody.put("redirect_url", portalBaseUrl + "/products/pgScreen");
             requestBody.put("requestId", orderId);
 
             log.debug("Request body built: customer_name={}, customer_phone={}, customer_email={}, amount={}, requestId={}",
