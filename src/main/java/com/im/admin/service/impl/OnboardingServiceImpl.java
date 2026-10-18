@@ -866,7 +866,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 fromEmail,
                 fromPassword,
                 email,
-                "Welcome to NFT – Your Login Credentials",
+                "Welcome to Smart Credit Solution – Your Login Credentials",
                 emailBody
         );
 

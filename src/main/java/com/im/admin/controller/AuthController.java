@@ -45,6 +45,16 @@ public class AuthController {
     @Value("${file.access.config-assets-path}")
     private String assetBasePath;
 
+    /** Domains an admin / white-label login URL must contain (comma-separated, e.g. ".nfttech.in,.sslip.io"). */
+    @Value("${app.login.allowed-domains:.nfttech.in}")
+    private List<String> allowedLoginDomains;
+
+    private boolean isAllowedLoginDomain(String url) {
+        return url != null && allowedLoginDomains.stream()
+                .map(String::trim)
+                .anyMatch(domain -> !domain.isEmpty() && url.contains(domain));
+    }
+
     private boolean isValidMpin(String mpin) {
         return mpin != null && mpin.matches("\\d{6}");
     }
@@ -788,9 +798,9 @@ public class AuthController {
 //        // Case 1: WL / WLAU self-login (existing behavior)
 //        if ("WL".equals(originalType) || "WLAU".equals(originalType)) {
 //            log.info("[WL ADMIN VALIDATION] Executing WL/WLAU self-login validation");
-//            log.info("[WL ADMIN VALIDATION] Request URL={} | Expected contains=.nfttech.in", requestUrl);
+//            log.info("[WL ADMIN VALIDATION] Request URL={} | Expected one of={}", requestUrl, allowedLoginDomains);
 //
-//            match = requestUrl != null && requestUrl.contains(".nfttech.in");
+//            match = isAllowedLoginDomain(requestUrl);
 //
 //            log.debug("[WL ADMIN VALIDATION] Self-login validation result | match={}", match);
 //            return match;
@@ -1105,9 +1115,9 @@ public class AuthController {
         log.debug("[ADMIN VALIDATION] Validating admin access | requestUrl={} | adminLoginURL={}",
                 requestUrl, admin.getLoginURL());
 
-        // Both requestUrl and admin login URL must contain .nfttech.in
-        boolean requestUrlContainsTech = requestUrl != null && requestUrl.contains(".nfttech.in");
-        boolean adminUrlContainsTech = admin.getLoginURL() != null && admin.getLoginURL().contains(".nfttech.in");
+        // Both requestUrl and admin login URL must contain an allowed domain (app.login.allowed-domains)
+        boolean requestUrlContainsTech = isAllowedLoginDomain(requestUrl);
+        boolean adminUrlContainsTech = isAllowedLoginDomain(admin.getLoginURL());
         boolean match = requestUrlContainsTech && adminUrlContainsTech;
 
         log.debug("[ADMIN VALIDATION] Validation details | requestContainsTech={} | adminContainsTech={} | match={}",

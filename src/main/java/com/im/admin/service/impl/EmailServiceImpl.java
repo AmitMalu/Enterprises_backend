@@ -22,6 +22,11 @@ import java.util.Properties;
 @Service
 public class EmailServiceImpl implements EmailService {
 
+    /** Login link included in onboarding emails. */
+    @Value("${app.admin.login-url:https://admin.nfttech.in/enterprise-portal/login}")
+    private String portalLoginUrl;
+
+
     @Autowired
     private EmailLogRepository emailLogRepository;
 
@@ -82,14 +87,14 @@ public class EmailServiceImpl implements EmailService {
     @Override
     public String buildWelcomeEmail(String userName, String mobileNo, String password) {
         return "Dear " + userName + ",\n\n" +
-                "We’re delighted to welcome you to NFT!\n" +
+                "We’re delighted to welcome you to Smart Credit Solution!\n" +
                 "Your account has been successfully created, and you can now log in to your dashboard to start doing business with us.\n\n" +
                 "Below are your login credentials:\n\n" +
-                "Portal Link: https://admin.nfttech.in/enterprise-portal/login\n\n" +
+                "Portal Link: " + portalLoginUrl + "\n\n" +
                 "User ID: " + mobileNo + "\n" +
                 "Password: " + password + "\n\n" +
                 "For security reasons, we recommend changing your password after your first login.\n\n" +
-                "Best Regards,\nNFT Team";
+                "Best Regards,\nSmart Credit Solution Team";
     }
 
     public String buildEmailFromDB(EmailType type, Map<String, String> variables) {

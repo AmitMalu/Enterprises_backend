@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.hibernate5.jakarta.Hibernate5JakartaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -32,6 +33,10 @@ import java.io.IOException;
 
 @Configuration
 public class SecurityConfig {
+
+    /** Extra allowed origins per environment, e.g. the demo server (comma-separated). */
+    @Value("${app.cors.extra-origins:}")
+    private List<String> extraOrigins;
 
     private static final Set<String> PATHS_VIEWABLE_WITHOUT_AUTHENTICATION = Set.of("/images/**","/webjars/**", "cache",
             "/auth/login", "/auth/verify-otp", "/auth/resend-otp", "/auth/set-password", "/auth/forgot-password",
@@ -116,10 +121,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOriginPatterns(List.of(
+        List<String> originPatterns = new java.util.ArrayList<>(List.of(
                 "http://localhost:*",
                 "https://*.decipay.in"
         ));
+        extraOrigins.stream().filter(o -> !o.isBlank()).forEach(originPatterns::add);
+        configuration.setAllowedOriginPatterns(originPatterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true); //  IMPORTANT

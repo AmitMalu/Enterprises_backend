@@ -1,5 +1,6 @@
 package com.im.admin.service.impl;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.cashfree.pg.Cashfree;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,6 +55,11 @@ import java.util.stream.Stream;
 @Slf4j
 @LoggableVendor
 public class CashfreePGServiceImpl implements CashfreePGService {
+
+    /** Public base URL of the retailer portal, used for payment return/redirect links. */
+    @Value("${app.portal.base-url:https://portal.nfttech.in/enterprise}")
+    private String portalBaseUrl;
+
 
     @Autowired
     private SchemeRepository schemeRepository;
@@ -219,7 +225,7 @@ public class CashfreePGServiceImpl implements CashfreePGService {
 
             // ===== META (IMPORTANT) =====
             body.put("link_meta", Map.of(
-                    "return_url", "https://portal.nfttech.in/enterprise/products/pgScreen",
+                    "return_url", portalBaseUrl + "/products/pgScreen",
                     "notify_url", credentials.getCallbackUrl()
             ));
 
