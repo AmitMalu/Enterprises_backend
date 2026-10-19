@@ -39,7 +39,7 @@ public class SchemeRate {
     private RateType rateType; // FLAT or PERCENTAGE
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "slab_type", columnDefinition = "VARIABLE")
+    @Column(name = "slab_type", columnDefinition = "varchar(20) default 'VARIABLE'")
     private SlabType slabType = SlabType.VARIABLE; // FIXED or VARIABLE
 
     // For Variable slab type
@@ -53,7 +53,7 @@ public class SchemeRate {
     @Column(name = "gross")
     private Double gross;
 
-    @Column(name = "im")
+    @Column(name = "scs")
     private Double im;
 
     @Column(name = "enterprise")

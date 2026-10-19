@@ -15,6 +15,7 @@ import io.swagger.v3.oas.models.tags.Tag;
 import java.util.List;
 import java.util.Set;
 import org.springdoc.core.models.GroupedOpenApi;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -22,6 +23,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class SwaggerConfig implements WebMvcConfigurer {
+
+    /** API server shown in Swagger "Try it out"; set per environment (see application-*.properties). */
+    @Value("${springdoc.servers[0].url:https://api.nfttech.in/enterprises}")
+    private String swaggerServerUrl;
+
+    @Value("${springdoc.servers[0].description:Production Server (HTTPS)}")
+    private String swaggerServerDescription;
+
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -36,11 +45,8 @@ public class SwaggerConfig implements WebMvcConfigurer {
                 // ===== ADD SERVERS HERE =====
                 .servers(List.of(
                         new Server()
-                                .url("https://api.nfttech.in/enterprises")
-                                .description("Production Server (HTTPS)"),
-                        new Server()
-                                .url("http://api.nfttech.in/enterprises")
-                                .description("Development Server (HTTP)")
+                                .url(swaggerServerUrl)
+                                .description(swaggerServerDescription)
                 ))
                 // ===== END OF SERVERS CONFIGURATION =====
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
@@ -56,12 +62,11 @@ public class SwaggerConfig implements WebMvcConfigurer {
                                 .description("Authentication APIs")
                 ))
                 .info(new Info()
-                        .title("Enterprise Admin Portal API")
+                        .title("Smart Credit Solution API")
                         .version("1.0")
-                        .description("Enterprise Admin Portal API Documentation")
+                        .description("Smart Credit Solution platform API documentation")
                         .contact(new Contact()
-                                .name("Admin Team")
-                                .email("support@enterprise.com")));
+                                .name("Smart Credit Solution Team")));
     }
 
     @Bean

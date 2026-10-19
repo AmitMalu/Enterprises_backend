@@ -68,7 +68,7 @@ public class SubProducts {
     @NotNull(message = "Is Blocked is required")
     private Boolean isBlocked;
 
-    @Column(name = "is_im_sub_product")
+    @Column(name = "is_scs_sub_product")
     @NotNull(message = "Is Blocked is required")
     private Boolean isIMSubProduct;
 

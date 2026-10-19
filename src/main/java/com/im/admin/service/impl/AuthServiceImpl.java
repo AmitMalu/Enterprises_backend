@@ -29,6 +29,10 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private UserDetailsRepository userDetailsRepository;
 
+    /** Fixed OTP for demo accounts only; random OTP for everyone else (see DemoOtpProvider). */
+    @Autowired
+    private com.im.admin.util.DemoOtpProvider demoOtpProvider;
+
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
@@ -136,7 +140,7 @@ public class AuthServiceImpl implements AuthService {
 
         if ("REQUEST_OTP".equalsIgnoreCase(request.getStep())) {
             // Generate OTP
-            String otp = OtpUtil.generateOtp();
+            String otp = demoOtpProvider.otpFor(user.getMobileNumber());
             user.setOtp(otp);
             user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
             userDetailsRepository.save(user);

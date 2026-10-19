@@ -7,15 +7,15 @@ import java.time.LocalDateTime;
 
 @Entity
 @Data
-@Table(name = "im_master")
+@Table(name = "scs_master")
 public class ImMaster {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "im_master_id")
+    @Column(name = "scs_master_id")
     private Integer imMasterId;
 
-    @Column(name = "im_master_name")
+    @Column(name = "scs_master_name")
     private String imMasterName;
 
     @Column(name = "description")

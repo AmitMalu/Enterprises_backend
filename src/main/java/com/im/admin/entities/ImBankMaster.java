@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "im_bank_master")
+@Table(name = "scs_bank_master")
 @Entity
 public class ImBankMaster {
 

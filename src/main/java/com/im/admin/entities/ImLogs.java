@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "im_logs")
+@Table(name = "scs_logs")
 public class ImLogs {
 
     @Id
