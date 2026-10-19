@@ -15,7 +15,7 @@ public class VendorLogs {
     @Column(name = "sr_no")
     private Integer srNo;
 
-    @Column(name = "im_vendor_id")
+    @Column(name = "scs_vendor_id")
     private String imVendorId;
 
     @Lob

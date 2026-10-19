@@ -49,6 +49,10 @@ public class AuthController {
     @Value("${app.login.allowed-domains:.nfttech.in}")
     private List<String> allowedLoginDomains;
 
+    /** Fixed OTP for demo accounts only; random OTP for everyone else (see DemoOtpProvider). */
+    @Autowired
+    private com.im.admin.util.DemoOtpProvider demoOtpProvider;
+
     private boolean isAllowedLoginDomain(String url) {
         return url != null && allowedLoginDomains.stream()
                 .map(String::trim)
@@ -480,7 +484,7 @@ public class AuthController {
     private String generateOtpForUser(UserDetails user) {
         log.debug("Starting OTP generation for user ID: {}", user.getHierarchyId());
 
-        String otp = OtpUtil.generateOtp();
+        String otp = demoOtpProvider.otpFor(user.getMobileNumber());
         log.debug("OTP generated successfully for user ID: {}", user.getHierarchyId());
 
         try {
@@ -1997,7 +2001,7 @@ public class AuthController {
         }
 
 
-        String newOtp = OtpUtil.generateOtp();
+        String newOtp = demoOtpProvider.otpFor(user.getMobileNumber());
         user.setOtp(newOtp);
         user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
         userDetailsRepository.save(user);
@@ -2157,7 +2161,7 @@ public class AuthController {
             return ResponseEntity.ok(new CommonResponse<>(403, "User account is not active", null));
         }
 
-        String otp = OtpUtil.generateOtp();
+        String otp = demoOtpProvider.otpFor(user.getMobileNumber());
         user.setOtp(otp);
         user.setOtpExpiryTime(LocalTime.now().plusMinutes(5));
         userDetailsRepository.save(user);
