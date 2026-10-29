@@ -1,0 +1,41 @@
+package com.scs.admin.controller;
+
+import com.scs.admin.dto.RequestHeaderMetaDto;
+import com.scs.admin.orchestrator.PayoutOrchestrator;
+import com.scs.admin.request.PayoutResponseDto;
+import com.scs.admin.request.SendPayoutRequest;
+import com.scs.admin.response.CommonResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+
+@RequestMapping("/api/move-to-bank")
+@RestController
+@Slf4j
+public class MoveToBankController {
+
+    @Autowired
+    private PayoutOrchestrator payoutOrchestrator;
+
+    @PostMapping("/send-payout-request-VO")
+    public ResponseEntity<CommonResponse<PayoutResponseDto>> sendPayoutRequest(@RequestBody SendPayoutRequest sendPayoutRequest,  HttpServletRequest httpServletRequest) {
+        log.info("======= Calling payoutService.sendPayoutRequest =======");
+
+        try {
+            RequestHeaderMetaDto requestHeaderMetaDtoMeta = RequestHeaderMetaDto.from(httpServletRequest);
+
+            CommonResponse<PayoutResponseDto> response = payoutOrchestrator.processPayout(sendPayoutRequest, requestHeaderMetaDtoMeta);
+            log.info("======= sendPayoutRequest completed at {} =======", LocalDateTime.now());
+            return ResponseEntity.status(response.getStatusCode()).body(response);
+        } catch (Exception e) {
+            log.error("Error during payout request: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new CommonResponse<>(500, "Failed to process payout request", null));
+        }
+    }
+}

@@ -9,7 +9,7 @@
 
   <!-- Title -->
   <text x="600" y="30" text-anchor="middle" font-size="22" font-weight="700" fill="#1a1a1a">Callbacks &amp; Webhooks — Whitelist Coverage &amp; Processing Gaps</text>
-  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">Smart Credit Solution Enterprises Admin Portal</text>
 
   <!-- SECTION A -->
   <text x="600" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#2c3e50">Callback endpoint inventory — AESFilter whitelist status (String.startsWith() semantics, per Module 4)</text>
@@ -54,7 +54,7 @@
 
     <rect x="30" y="274" width="1140" height="26" fill="#f0fdf4"/>
     <text x="46" y="291" fill="#1a1a1a">PGCallbackController</text>
-    <text x="330" y="291" font-family="Consolas, monospace" fill="#1a1a1a">/api/pg/callback/im</text>
+    <text x="330" y="291" font-family="Consolas, monospace" fill="#1a1a1a">/api/pg/callback/scs</text>
     <text x="820" y="291" fill="#166534">✓ covered — exact match</text>
 
     <!-- Payout rows -->
@@ -80,7 +80,7 @@
 
     <rect x="30" y="404" width="1140" height="26" fill="#ffffff"/>
     <text x="46" y="421" fill="#1a1a1a">PayoutCallbackController</text>
-    <text x="330" y="421" font-family="Consolas, monospace" fill="#1a1a1a">/api/payout/callback/im</text>
+    <text x="330" y="421" font-family="Consolas, monospace" fill="#1a1a1a">/api/payout/callback/scs</text>
     <text x="820" y="421" fill="#166534">✓ covered — exact + prefix</text>
   </g>
 
@@ -165,5 +165,5 @@
   <rect x="700" y="1114" width="14" height="14" rx="3" fill="#f4f6f8" stroke="#cbd5e1" stroke-width="2"/>
   <text x="721" y="1125" font-size="10.5" fill="#475569">Dead / unreachable code</text>
 
-  <text x="600" y="1170" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 6 of the architecture documentation set</text>
+  <text x="600" y="1170" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — Smart Credit Solution Enterprises Admin Portal — module 6 of the architecture documentation set</text>
 </svg>

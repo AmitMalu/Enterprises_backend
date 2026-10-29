@@ -1,0 +1,53 @@
+package com.scs.admin.dto;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.persistence.Column;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class SettlementPendingRequestDto {
+    private String walletType;       // PREPAID / POSTPAID
+    private LocalDate fromDate;      // filter start date
+    private LocalDate toDate;        // filter end date
+    private String subProductId;
+    private String vendorId;
+    private String tranStatus;
+    private String vendor;
+    private Short productId;
+    private String subProductName;
+    private Integer id;
+    private String userId;
+    private String mobileNo;
+    private String schemeName;
+    private Double amount;
+    private String txId;
+    private String remarks;
+    private String medium;
+    private String txType;
+    private String txStatus;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
+    private LocalDate dateOfTransaction;
+    private LocalTime timeOfTransaction;
+    private LocalDate updatedDateOfTransaction;
+    private LocalTime updatedTimeOfTransaction;
+    private String actionOnBalanceAmount;
+    private String hierarchyId;
+    private String productName;
+
+    private Double commissionAmount;
+    private Double gstAmount;
+    private Double tdsAmount;
+    private Double chargeAmount;
+
+
+    private Double latitude;
+    private Double longitude;
+
+}

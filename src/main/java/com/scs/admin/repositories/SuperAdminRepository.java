@@ -1,0 +1,16 @@
+package com.scs.admin.repositories;
+
+import com.scs.admin.entities.SuperAdmin;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface SuperAdminRepository extends JpaRepository<SuperAdmin, String> {
+    List<SuperAdmin> findByStatusIgnoreCase(String status);
+
+
+//    List<SuperAdmin> findByParentAccount(String fromId);
+}
+

@@ -1,0 +1,309 @@
+package com.scs.admin.service.impl;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scs.admin.commons.CommonFunctions;
+import com.scs.admin.dto.TransactionSchemeDetailsRequestDto;
+import com.scs.admin.entities.*;
+import com.scs.admin.entities.enums.AepsResponseMapper;
+import com.scs.admin.entities.enums.DmtResponseMapper;
+import com.scs.admin.entities.enums.WalletType;
+import com.scs.admin.entities.product.Products;
+import com.scs.admin.entities.vendor.Vendors;
+import com.scs.admin.repositories.*;
+import com.scs.admin.request.AepsCashWithdrawalRequest;
+import com.scs.admin.response.AepsCashWithdrawalResponse;
+import com.scs.admin.response.CommonResponse;
+import com.scs.admin.service.AepsCashWithdrawalService;
+import com.scs.admin.service.AepsVendorService;
+import com.scs.admin.util.AepsVendorFactory;
+import com.scs.admin.util.CommonMethods;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestHeader;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Slf4j
+@Service
+public class AepsCashWithdrawalServiceImpl implements AepsCashWithdrawalService {
+    @Autowired
+    private OperatorsRepository operatorsRepository;
+
+    @Autowired private CommonMethods commonMethods;
+    @Autowired private SubProductsRepository subProductsRepository;
+    @Autowired private RetailerRepository retailerRepository;
+    @Autowired private VendorRoutingRepository vendorRoutingRepository;
+    @Autowired private VendorCredentialsRepository vendorCredentialsRepository;
+    @Autowired private AepsVendorFactory aepsVendorFactory;
+    @Autowired private AepsCashWithdrawalRepository cashWithdrawalRepository;
+    @Autowired private ObjectMapper objectMapper;
+    @Autowired
+    private SchemeRateRepository schemeRateRepository;
+
+    @Autowired
+    private TransactionEngineServiceImpl transactionEngineServiceImpl;
+
+    @Autowired
+    private CommonFunctions commonFunctions;
+
+
+    /** Fingpay super-merchant username: set aeps.fingpay.super-username to your own Fingpay account. */
+    @org.springframework.beans.factory.annotation.Value("${aeps.fingpay.super-username:}")
+    private String SUPER_USERNAME;
+    private static final String MERCHANT_MD5_PIN = "81dc9bdb52d04dc20036dbd8313ed055";  // 81dc9bdb52d04dc20036dbd8313ed055  //1234d
+    private static final int SUPER_MERCHANT_ID = 1396;
+
+    @Override
+    public CommonResponse<AepsCashWithdrawalResponse> cashWithdrawal(AepsCashWithdrawalRequest req,  Double latitude,  Double longitude) {
+
+        String orderId = "AEPS" + commonMethods.generateBaseTransactionId();
+        log.info("[AEPS CW] Start | orderId={}", orderId);
+
+        LocalDateTime requestDateTime = LocalDateTime.now();
+        String requestJson = "";
+        String responseJson = "";
+        String errorMsg = null;
+        String vendorId = null;
+
+
+        try {
+            // ================================
+            // STEP 1: Validate SubProduct
+            // ================================
+            SubProducts subProducts = subProductsRepository.findById(req.getSubProductId())
+                    .orElseThrow(() -> new RuntimeException("SubProduct not found"));
+
+            WalletType walletType = WalletType.valueOf(subProducts.getWalletType());
+
+            // ================================
+            // STEP 2: Check Retailer Balance
+            // ================================
+            BigDecimal availableBalance =
+                    commonMethods.getCurrentBalance(req.getRetailerId(), walletType.name());
+
+            if (availableBalance.compareTo(req.getTransactionAmount()) < 0) {
+                return new CommonResponse<>(400, "Insufficient Balance", null);
+            }
+
+            // ================================
+            // STEP 3: Load Vendor Routing
+            // ================================
+            VendorRouting routing = vendorRoutingRepository.findBySubProductId(req.getSubProductId());
+            Vendors vendor = CommonMethods.getVendors(routing);
+
+            vendorId=vendor.getId();
+
+            VendorCredentials credentials = vendorCredentialsRepository
+                    .findByVendorIdAndProductId(vendor.getId(), vendor.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("Vendor credentials missing"));
+
+            // ================================
+            // STEP 4: Fetch Retailer Details
+            // ================================
+            Retailer retailer = retailerRepository.findById(req.getRetailerId())
+                    .orElseThrow(() -> new RuntimeException("Retailer not found"));
+
+
+            String hardCodeInput = "CW";
+
+            Operators operator = operatorsRepository
+                    .findByHardCode(hardCodeInput)
+                    .orElseThrow(() -> new RuntimeException("Operator not found: " + hardCodeInput));
+
+
+            // ================================
+            // STEP 5: AUTO SET BACKEND VALUES
+            // ================================
+
+//            req.setMerchantLoginId(retailer.getRetailerId());
+
+            req.setLatitude(retailer.getLatitude());
+            req.setLongitude(retailer.getLongitude());
+//            req.setMobileNumber(retailer.getMobileNumber());
+            req.setMobileNumber(req.getMobileNumber());
+          req.setSubMerchantId(retailer.getRetailerId());
+//          req.setMerchantLoginId(retailer.getRetailerId());
+
+
+            // ================================
+            // STEP 6: UID DETAILS
+            // ================================
+            AepsCashWithdrawalRequest.P2CardnumberORUID uid =
+                    new AepsCashWithdrawalRequest.P2CardnumberORUID();
+
+//            uid.setAdhaarNumber(retailer.getAadhaarNumber());
+            uid.setAdhaarNumber(req.getAdhaarNumber());
+            uid.setIndicatorforUID("0");
+           uid.setNationalBankIdentificationNumber(req.getNationalBankIdentificationNumber());
+
+
+            req.setCardnumberORUID(uid);
+//            req.setTransactionType("CW");
+            req.setTransactionType(
+                    operator.getOperatorName() != null
+                            ? operator.getOperatorName()
+                            : "CW"
+            );
+
+            // ================================
+            // STEP 7: CALL VENDOR INTERNALLY
+            // ================================
+            AepsVendorService vendorService =
+                    aepsVendorFactory.getVendor(vendor.getVendorName());
+
+            if (vendorService == null) {
+                return new CommonResponse<>(500, "Vendor not implemented", null);
+            }
+
+            String baseTxnId = orderId.replace("AEPS", "");
+
+            CommonResponse<AepsCashWithdrawalResponse> vendorResp =
+                    vendorService.processCashWithdrawal(req, credentials);
+
+//            responseJson = objectMapper.writeValueAsString(vendorResp);
+
+//            commonFunctions.saveVendorLogs(
+//                    requestDateTime,
+//                    requestJson,
+//                    vendorId,
+//                    LocalDateTime.now(),
+//                    responseJson,
+//                    null
+//            );
+
+
+            if (vendorResp == null || vendorResp.getData() == null) {
+                return CommonResponse.error(500, "Vendor returned empty response");
+            }
+
+            AepsCashWithdrawalResponse responseBody = vendorResp.getData();
+
+
+            if (!responseBody.isStatus()) {
+                // Vendor failure – return as it is
+                return CommonResponse.failedResponse(
+                        responseBody.getStatusCode().intValue(),
+                        responseBody.getMessage(),
+                        responseBody
+                );
+            }
+
+
+            AepsCashWithdrawalResponse.CWData data = responseBody.getData();
+
+            if (data == null) {
+                return CommonResponse.failedResponse(
+                        400,
+                        "Transaction failed. No data received from vendor.",
+                        responseBody
+                );
+            }
+
+            String txnId = buildTransactionId("TXN", baseTxnId);
+
+
+            //  SAVE LOG (ONLY IF SUCCESS)
+            if (responseBody != null &&
+                    responseBody.isStatus() &&
+                    responseBody.getData() != null &&
+                    "00".equals(responseBody.getData().getResponseCode())) {
+
+                AepsCashWithdrawalLog logEntry = new AepsCashWithdrawalLog();
+                logEntry.setBankRrn(responseBody.getData().getBankRRN());
+                logEntry.setFingpayTransactionId(responseBody.getData().getFingpayTransactionId());
+                logEntry.setMerchantTxnId(responseBody.getData().getMerchantTxnId());
+                logEntry.setTransactionAmount(responseBody.getData().getTransactionAmount());
+                logEntry.setTransactionStatus(responseBody.getData().getTransactionStatus());
+                logEntry.setRequestPayload(objectMapper.writeValueAsString(req));
+                logEntry.setResponsePayload(objectMapper.writeValueAsString(responseBody));
+                logEntry.setRetailerId(req.getRetailerId());
+                logEntry.setVendorId(vendor.getId());
+                logEntry.setTransactionId(txnId);
+                logEntry.setTerminalId(responseBody.getData().getTerminalId());
+
+                cashWithdrawalRepository.save(logEntry);
+            }
+
+
+            //  FETCH SCHEME RATE
+            SchemeRate selectedScheme = schemeRateRepository
+                    .findSchemeRateByCodeAndOperatorAndAmount(
+                            req.getSchemeCode(),
+                            req.getTransactionType(),
+                            req.getTransactionAmount().doubleValue())
+                    .orElseThrow(() -> new RuntimeException(
+                            "No matching scheme rate found for amount: " + req.getTransactionAmount()
+                    ));
+
+
+            //  BUILD DTO FOR TRANSACTION ENGINE
+            TransactionSchemeDetailsRequestDto dto = new TransactionSchemeDetailsRequestDto();  //CW
+            dto.setBaseTranxId(baseTxnId);
+            dto.setAmount(req.getTransactionAmount().doubleValue());
+            dto.setConfirmAmount(req.getTransactionAmount().doubleValue());
+            dto.setOperatorName("CW");
+            dto.setOperatorCode(selectedScheme.getOperatorCode());
+            dto.setSchemeRate(selectedScheme);
+
+            Products product = subProducts.getProduct();
+
+            dto.setTransactionType("Credit");
+            dto.setWalletType(subProducts.getWalletType());
+            dto.setGstValue(String.valueOf(product.getSgst()));
+            dto.setTdsRate(String.valueOf(product.getTds()));
+            dto.setProductCode(product.getProductCode());
+            dto.setSubProductCode(subProducts.getSubProductCode());
+            dto.setIsCommission(product.getIsCommissions());
+            dto.setHasCharge(product.getHasCharges());
+            dto.setHierarchyId(req.getRetailerId());
+            dto.setLatitude(Double.valueOf(latitude));
+            dto.setLongitude(Double.valueOf(longitude));
+
+            // GET VENDOR STATUS
+
+//            AepsCashWithdrawalResponse.CWData data = responseBody.getData();
+
+            String vendorStatus = AepsResponseMapper.map(
+                    responseBody.isStatus(),
+                    data.getResponseCode(),
+                    data.getBankRRN()
+            );
+
+
+            //  PROCESS TRANSACTION ENGINE
+
+            transactionEngineServiceImpl.processTransaction(dto, vendorStatus);
+
+//            String txnId = buildTransactionId("TXN", baseTxnId);
+
+            if (responseBody != null && responseBody.getData() != null) {
+                responseBody.getData().setTransactionId(txnId);
+            }
+
+
+
+            //  RETURN FINAL RESPONSE
+
+            if ("SUCCESS".equalsIgnoreCase(vendorStatus)) {
+                return CommonResponse.success(responseBody, "Transaction Successful");
+            } else if ("PENDING".equalsIgnoreCase(vendorStatus)) {
+                return new CommonResponse<>(202, "Transaction Pending", responseBody);
+            } else {
+                return new CommonResponse<>(400, "Transaction Failed", responseBody);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new CommonResponse<>(500, "Exception: " + e.getMessage(), null);
+        }
+    }
+
+    public String buildTransactionId(String prefix, String baseId) {
+        return prefix + baseId;
+    }
+
+}
+

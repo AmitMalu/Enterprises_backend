@@ -1,6 +1,6 @@
 # Module 10: KYC / eKYC
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers the DigiLocker (Surepass) integration and AEPS eKYC — a confirmed authenticated IDOR exposing Aadhaar data, and a dead orchestrator sitting unused right next to the service that actually runs.
 
 ## Figure 1 — DigiLocker & AEPS eKYC flow diagram
@@ -13,9 +13,9 @@
 
 ## 1. DigiLocker = Surepass — one integration, not two
 
-The top-level project documentation lists "DigiLocker, Surepass, and various KYC/eKYC vendor integrations" as if they were separate items. Reading [`DigilockerServiceImpl`](../../src/main/java/com/im/admin/service/impl/DigilockerServiceImpl.java) directly clarifies that **DigiLocker access in this codebase is provided entirely through the Surepass API** (`https://kyc-api.surepass.app/api/v1/digilocker/*`), authenticated with the single bearer token configured as `surepass.digilocker.token` — the same live JWT documented (and masked) in [Module 1](01-core-bootstrap-config.md#31-applicationproperties-base--applies-to-every-profile). There is no separate, direct DigiLocker government API integration in this codebase; "DigiLocker" here means "DigiLocker data, via Surepass."
+The top-level project documentation lists "DigiLocker, Surepass, and various KYC/eKYC vendor integrations" as if they were separate items. Reading [`DigilockerServiceImpl`](../../src/main/java/com/scs/admin/service/impl/DigilockerServiceImpl.java) directly clarifies that **DigiLocker access in this codebase is provided entirely through the Surepass API** (`https://kyc-api.surepass.app/api/v1/digilocker/*`), authenticated with the single bearer token configured as `surepass.digilocker.token` — the same live JWT documented (and masked) in [Module 1](01-core-bootstrap-config.md#31-applicationproperties-base--applies-to-every-profile). There is no separate, direct DigiLocker government API integration in this codebase; "DigiLocker" here means "DigiLocker data, via Surepass."
 
-[`DigilockerController`](../../src/main/java/com/im/admin/controller/DigilockerController.java) (`@RequestMapping("/api/digilocker")`) exposes two endpoints — `POST /initialize` and `GET /download-aadhaar/{clientId}` — both delegating straight through to this one service.
+[`DigilockerController`](../../src/main/java/com/scs/admin/controller/DigilockerController.java) (`@RequestMapping("/api/digilocker")`) exposes two endpoints — `POST /initialize` and `GET /download-aadhaar/{clientId}` — both delegating straight through to this one service.
 
 ---
 
@@ -60,7 +60,7 @@ Checking `/api/digilocker/**` against both whitelists from [Module 4](04-authent
 
 ## 4. `AepsEkycOrchestrator` — correctly wired, injected, and never called
 
-[`AepsEkycController`](../../src/main/java/com/im/admin/controller/AepsEkycController.java) autowires **both** `AepsEkycOrchestrator` and `AepsEkycService`:
+[`AepsEkycController`](../../src/main/java/com/scs/admin/controller/AepsEkycController.java) autowires **both** `AepsEkycOrchestrator` and `AepsEkycService`:
 
 ```java
 @Autowired
@@ -78,13 +78,13 @@ public ResponseEntity<CommonResponse<AepsEkycResponseDto>> sendOtp(@RequestBody 
 
 All five endpoints in the controller call `aepsEkycService` exclusively. A repository-wide search confirms `AepsEkycOrchestrator` is referenced in **exactly two files: its own definition, and this unused `@Autowired` field** — it's never actually invoked anywhere.
 
-[`AepsEkycOrchestrator`](../../src/main/java/com/im/admin/service/impl/AepsEkycOrchestrator.java) itself is a **correctly-built** implementation of the intended pattern from [Module 5](05-vendor-integration-pattern.md#1-the-intended-pattern--worked-example-aeps-onboarding): resolve `VendorRouting` → resolve `VendorCredentials` → resolve the vendor bean via `AepsVendorFactory` → call it, for all five eKYC operations. This makes it a slightly different flavor of the "pattern bypassed" finding than Module 5's AEPS transactions: there, a completely separate 1,171-line legacy class did the real work. Here, the correctly-built orchestrator was wired directly into the controller's dependency graph — someone added the `@Autowired` field — and then the actual method calls were simply never written against it.
+[`AepsEkycOrchestrator`](../../src/main/java/com/scs/admin/service/impl/AepsEkycOrchestrator.java) itself is a **correctly-built** implementation of the intended pattern from [Module 5](05-vendor-integration-pattern.md#1-the-intended-pattern--worked-example-aeps-onboarding): resolve `VendorRouting` → resolve `VendorCredentials` → resolve the vendor bean via `AepsVendorFactory` → call it, for all five eKYC operations. This makes it a slightly different flavor of the "pattern bypassed" finding than Module 5's AEPS transactions: there, a completely separate 1,171-line legacy class did the real work. Here, the correctly-built orchestrator was wired directly into the controller's dependency graph — someone added the `@Autowired` field — and then the actual method calls were simply never written against it.
 
 ---
 
 ## 5. `AepsEkycServiceImpl` independently duplicates the orchestrator's vendor-routing logic
 
-The class that's actually called, [`AepsEkycServiceImpl`](../../src/main/java/com/im/admin/service/impl/AepsEkycServiceImpl.java) (624 lines), resolves `VendorRouting` itself rather than deferring to the orchestrator sitting unused next to it in the controller:
+The class that's actually called, [`AepsEkycServiceImpl`](../../src/main/java/com/scs/admin/service/impl/AepsEkycServiceImpl.java) (624 lines), resolves `VendorRouting` itself rather than deferring to the orchestrator sitting unused next to it in the controller:
 
 ```java
 VendorRouting vendorRouting = vendorRoutingRepository.findBySubProductId(req.getSubProductId());

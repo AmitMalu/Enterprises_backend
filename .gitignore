@@ -33,3 +33,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Database backups (contain user data, never commit)
+*smartcredit_full*.sql

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Spring Boot 3.4.2 / Java 17 backend (WAR deployment to Tomcat) for **InstantMudra Enterprises Admin Portal** — a fintech reseller/distribution admin backend. It manages a multi-level hierarchy of resellers (SuperAdmin → Admin → Enterprises → Whitelabel → SuperDistributor → Partner → Distributor → Retailer) and integrates with many third-party vendors for AEPS, DMT, BBPS/recharge, payment gateways, and payouts. Single module, single package root: `com.im.admin`.
+Spring Boot 3.4.2 / Java 17 backend (WAR deployment to Tomcat) for **Smart Credit Solution Enterprises Admin Portal** — a fintech reseller/distribution admin backend. It manages a multi-level hierarchy of resellers (SuperAdmin → Admin → Enterprises → Whitelabel → SuperDistributor → Partner → Distributor → Retailer) and integrates with many third-party vendors for AEPS, DMT, BBPS/recharge, payment gateways, and payouts. Single module, single package root: `com.scs.admin`.
 
 ## Common commands
 

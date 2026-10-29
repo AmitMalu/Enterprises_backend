@@ -1,6 +1,6 @@
 # Module 3: Wallets & Ledger
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers the per-level wallet/ledger table pairs, the raw-JDBC table-resolution layer, the balance update path, and a confirmed correctness bug in transaction reversal.
 
 ## Figure 1 — Table layout & balance update flow diagram
@@ -33,7 +33,7 @@ Every hierarchy level except `SuperAdmin` has its own **Prepaid** and **Postpaid
 
 ### 2.1 `AbstractWalletAmountTable`
 
-[`AbstractWalletAmountTable`](../../src/main/java/com/im/admin/dto/AbstractWalletAmountTable.java) is a `@MappedSuperclass` (oddly placed in the `dto/` package rather than `entities/`) declaring the common balance fields: `totalCash`, `availableBalance`, `usedCash`, `lastUpdatedAmount`, `lastUpdatedDate`, `lastUpdatedTime`. All 16 `*Amount` entities (e.g. [`RetailerPrepaidAmount`](../../src/main/java/com/im/admin/entities/RetailerPrepaidAmount.java), [`RetailerGullakAmount`](../../src/main/java/com/im/admin/entities/RetailerGullakAmount.java)) extend it.
+[`AbstractWalletAmountTable`](../../src/main/java/com/scs/admin/dto/AbstractWalletAmountTable.java) is a `@MappedSuperclass` (oddly placed in the `dto/` package rather than `entities/`) declaring the common balance fields: `totalCash`, `availableBalance`, `usedCash`, `lastUpdatedAmount`, `lastUpdatedDate`, `lastUpdatedTime`. All 16 `*Amount` entities (e.g. [`RetailerPrepaidAmount`](../../src/main/java/com/scs/admin/entities/RetailerPrepaidAmount.java), [`RetailerGullakAmount`](../../src/main/java/com/scs/admin/entities/RetailerGullakAmount.java)) extend it.
 
 **However, every subclass re-declares the exact same fields again**, each with its own `@Column` annotation, plus a couple of extras (`cutOfAmount`, `remark`) that aren't on the parent at all:
 
@@ -51,13 +51,13 @@ The parent class's fields carry no `@Column` mapping of their own, so in practic
 
 ### 2.2 Transaction-detail interfaces
 
-[`AbstractRetailerTransactionDetails`](../../src/main/java/com/im/admin/util/AbstractRetailerTransactionDetails.java) defines a getter contract (`getRetailerId()`, `getAmount()`, `getOperatorName()`, `getTranStatus()`, etc.) implemented by `RetailerPrepaidTransactionDetails` alongside a second interface, `CommonSearchTransactionDetails`. Despite the name being Retailer-specific, the shape (amount, operator, scheme, transaction ID, vendor references, geolocation) is generic across all 7 levels' ledger tables — each level's own `*TransactionDetails` entity duplicates this same ~30-column shape independently rather than sharing one contract with level-appropriate naming.
+[`AbstractRetailerTransactionDetails`](../../src/main/java/com/scs/admin/util/AbstractRetailerTransactionDetails.java) defines a getter contract (`getRetailerId()`, `getAmount()`, `getOperatorName()`, `getTranStatus()`, etc.) implemented by `RetailerPrepaidTransactionDetails` alongside a second interface, `CommonSearchTransactionDetails`. Despite the name being Retailer-specific, the shape (amount, operator, scheme, transaction ID, vendor references, geolocation) is generic across all 7 levels' ledger tables — each level's own `*TransactionDetails` entity duplicates this same ~30-column shape independently rather than sharing one contract with level-appropriate naming.
 
 ---
 
 ## 3. Table/column name resolution — `CommonMethods`
 
-[`CommonMethods`](../../src/main/java/com/im/admin/util/CommonMethods.java) (2,552 lines) is the central place that maps a hierarchy type to the physical table/column names used everywhere else in the wallet code:
+[`CommonMethods`](../../src/main/java/com/scs/admin/util/CommonMethods.java) (2,552 lines) is the central place that maps a hierarchy type to the physical table/column names used everywhere else in the wallet code:
 
 - **`getEntityName(hierarchyType)`** — a `switch` over the 8 known type codes (`AD`, `ET`, `WL`, `SD`, `PT`, `DT`, `RT`, plus `RU` for retailer users) returning a fixed table-name prefix (`"admin"`, `"enterprises"`, `"white_label"`, …). Anything else throws `IllegalArgumentException`.
 - **`getAmountTable(type, walletType)`** / **`getTransactionTable(type, walletType)`** — concatenate that prefix with `_prepaid_amount`/`_postpaid_amount` or `_..._transaction_details`.
@@ -83,15 +83,15 @@ This mirrors the access-resolution behavior in Module 2, where operational users
 
 ## 4. Balance update path — no locking anywhere
 
-The debit/credit write path, as used by [`TransactionEngineServiceImpl`](../../src/main/java/com/im/admin/service/impl/TransactionEngineServiceImpl.java) and others, is a plain three-step sequence:
+The debit/credit write path, as used by [`TransactionEngineServiceImpl`](../../src/main/java/com/scs/admin/service/impl/TransactionEngineServiceImpl.java) and others, is a plain three-step sequence:
 
 1. **`CommonMethods.getCurrentBalance()`** — a native `SELECT available_balance FROM {table} WHERE {column} = :hierarchyId`, with no `FOR UPDATE`, no pessimistic lock hint, no isolation-level override.
 2. **Java computes** `newBalance` by adding or subtracting the transaction amount from the value just read.
-3. **`DynamicWalletRepository.updateWallet()`** ([`DynamicWalletRepository.java`](../../src/main/java/com/im/admin/repositories/DynamicWalletRepository.java)) — a plain `UPDATE {table} SET available_balance = ?, ... WHERE {idColumn} = ?`, unconditional on the balance's prior value, with no optimistic-locking `@Version` column anywhere in any of the 16 `*Amount` entities.
+3. **`DynamicWalletRepository.updateWallet()`** ([`DynamicWalletRepository.java`](../../src/main/java/com/scs/admin/repositories/DynamicWalletRepository.java)) — a plain `UPDATE {table} SET available_balance = ?, ... WHERE {idColumn} = ?`, unconditional on the balance's prior value, with no optimistic-locking `@Version` column anywhere in any of the 16 `*Amount` entities.
 
 A full search of `CommonMethods.java` (2,552 lines) and the wallet repositories confirms **zero occurrences of `FOR UPDATE`, `@Lock`, or any pessimistic/optimistic locking construct**. This directly confirms the top-level finding: two concurrent requests against the same wallet can both read the same starting balance, both compute their own `newBalance`, and the second `UPDATE` silently overwrites the first — one of the two changes is lost with no error raised anywhere.
 
-**This is not just a theoretical race.** [`FundingServiceImpl`](../../src/main/java/com/im/admin/service/impl/FundingServiceImpl.java)'s bulk-fund-upload endpoint explicitly parallelizes row processing:
+**This is not just a theoretical race.** [`FundingServiceImpl`](../../src/main/java/com/scs/admin/service/impl/FundingServiceImpl.java)'s bulk-fund-upload endpoint explicitly parallelizes row processing:
 
 ```java
 ExecutorService executorService = Executors.newFixedThreadPool(threads);
@@ -135,7 +135,7 @@ for (String hierarchy : hierarchyList) {
 
 ## 6. Minor finding: dead code with schema-mismatched columns
 
-[`DynamicTransactionRepositoryImpl`](../../src/main/java/com/im/admin/repositories/DynamicTransactionRepositoryImpl.java) has two methods, `getBalance()` and `updateBalance()`, that reference columns that don't exist on the real wallet schema:
+[`DynamicTransactionRepositoryImpl`](../../src/main/java/com/scs/admin/repositories/DynamicTransactionRepositoryImpl.java) has two methods, `getBalance()` and `updateBalance()`, that reference columns that don't exist on the real wallet schema:
 
 ```java
 public BigDecimal getBalance(String amountTable, String hierarchyId) {

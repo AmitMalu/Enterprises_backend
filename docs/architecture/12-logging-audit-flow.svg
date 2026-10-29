@@ -9,7 +9,7 @@
 
   <!-- Title -->
   <text x="600" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#1a1a1a">Logging &amp; Audit — Blanket Unredacted Capture, and a Stale Attribution Bug</text>
-  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">Smart Credit Solution Enterprises Admin Portal</text>
 
   <!-- SECTION A -->
   <text x="600" y="76" text-anchor="middle" font-size="13.5" font-weight="700" fill="#b45309">⚠ AuditEntityListener always stamps "SYSTEM" — confirmed with exact code</text>
@@ -65,7 +65,7 @@
   <text x="46" y="708" font-size="10" fill="#78350f">Both aspects call VendorContext.clear() in their finally block after every request — but clear() only removes serviceCalled.</text>
   <text x="46" y="726" font-size="10" fill="#78350f">vendorHolder (the vendor ID) persists on the pooled servlet thread indefinitely.</text>
   <text x="46" y="744" font-size="10" font-weight="700" fill="#92400e">On a reused thread, a later, unrelated request that never calls setVendorId() can inherit a PREVIOUS request's stale</text>
-  <text x="46" y="759" font-size="10" font-weight="700" fill="#92400e">vendor ID — mis-attributing that log entry (im_vendor_id) to the wrong vendor.</text>
+  <text x="46" y="759" font-size="10" font-weight="700" fill="#92400e">vendor ID — mis-attributing that log entry (scs_vendor_id) to the wrong vendor.</text>
 
   <!-- SECTION D: positive -->
   <text x="600" y="806" text-anchor="middle" font-size="13.5" font-weight="700" fill="#166534">By contrast: the de-duplication between the two aspects is sound</text>
@@ -85,5 +85,5 @@
   <rect x="440" y="930" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
   <text x="461" y="941" font-size="10.5" fill="#475569">Critical — confirmed systemic unredacted-data leak</text>
 
-  <text x="600" y="990" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 12 of the architecture documentation set</text>
+  <text x="600" y="990" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — Smart Credit Solution Enterprises Admin Portal — module 12 of the architecture documentation set</text>
 </svg>

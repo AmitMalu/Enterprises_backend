@@ -4,8 +4,8 @@
 
 # Local project
 
-$ProjectDirectory = "D:\InstantMudra_Enterprises_Portal\admin"
-$TemporaryWorktree = "D:\InstantMudra_Deploy_Temp"
+$ProjectDirectory = "D:\Smart Credit Solution_Enterprises_Portal\admin"
+$TemporaryWorktree = "D:\Smart Credit Solution_Deploy_Temp"
 
 # Git
 
@@ -26,7 +26,7 @@ $ServerPort = 22
 
 $SshKeyPath = Join-Path `
     $env:USERPROFILE `
-    ".ssh\instantmudra_deploy"
+    ".ssh\ScsGateway_deploy"
 
 # Tomcat
 $TomcatHome = "/opt/tomcat-10.1.34"

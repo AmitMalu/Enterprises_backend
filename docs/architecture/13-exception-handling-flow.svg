@@ -9,7 +9,7 @@
 
   <!-- Title -->
   <text x="600" y="30" text-anchor="middle" font-size="21" font-weight="700" fill="#1a1a1a">Exception Handling — Wrong HTTP Status Codes, Confirmed and New</text>
-  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">Smart Credit Solution Enterprises Admin Portal</text>
 
   <!-- SECTION A -->
   <text x="600" y="76" text-anchor="middle" font-size="13.5" font-weight="700" fill="#b45309">⚠ Two custom exceptions have no specific handler — both fall through to a generic 400</text>
@@ -96,5 +96,5 @@
   <rect x="700" y="800" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
   <text x="721" y="811" font-size="10.5" fill="#475569">Critical — confirmed success/failure status mismatch</text>
 
-  <text x="600" y="860" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 13 of the architecture documentation set</text>
+  <text x="600" y="860" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — Smart Credit Solution Enterprises Admin Portal — module 13 of the architecture documentation set</text>
 </svg>

@@ -1,6 +1,6 @@
 # Module 7: Cron Jobs & Reconciliation
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers every scheduled job in `cronJob/`, cross-domain reconciliation coverage, and a copy-pasted cron-expression bug shared by three of the status-check schedulers.
 
 ## Figure 1 — Coverage & the copy-pasted cron bug diagram
@@ -19,7 +19,7 @@
 
 ## 2. Three reconciliation schedulers share one copy-pasted, buggy cron expression
 
-[`PgCheckStatusScheduler`](../../src/main/java/com/im/admin/cronJob/PgCheckStatusScheduler.java), [`PayoutCheckStatusScheduler`](../../src/main/java/com/im/admin/cronJob/PayoutCheckStatusScheduler.java), and [`BBPSRechargeCheckStatusScheduler`](../../src/main/java/com/im/admin/cronJob/BBPSRechargeCheckStatusScheduler.java) all use the **exact same cron expression**, each with a different, and each individually wrong, comment describing its interval:
+[`PgCheckStatusScheduler`](../../src/main/java/com/scs/admin/cronJob/PgCheckStatusScheduler.java), [`PayoutCheckStatusScheduler`](../../src/main/java/com/scs/admin/cronJob/PayoutCheckStatusScheduler.java), and [`BBPSRechargeCheckStatusScheduler`](../../src/main/java/com/scs/admin/cronJob/BBPSRechargeCheckStatusScheduler.java) all use the **exact same cron expression**, each with a different, and each individually wrong, comment describing its interval:
 
 ```java
 // PgCheckStatusScheduler
@@ -40,7 +40,7 @@ This doesn't just mean "misleading comments" — the practical effect is that th
 
 ## 3. PG reconciliation is completely inert
 
-The top-level project documentation notes that `PgCheckStatusScheduler` "fetches vendor status but discards it without persisting." Reading [`PGOrchestrator.checkStatusForPendingTransactions()`](../../src/main/java/com/im/admin/orchestrator/PGOrchestrator.java) directly confirms this precisely:
+The top-level project documentation notes that `PgCheckStatusScheduler` "fetches vendor status but discards it without persisting." Reading [`PGOrchestrator.checkStatusForPendingTransactions()`](../../src/main/java/com/scs/admin/orchestrator/PGOrchestrator.java) directly confirms this precisely:
 
 ```java
 public void checkStatusForPendingTransactions() {
@@ -64,7 +64,7 @@ The vendor's status API is genuinely called for every pending PG transaction, bu
 
 ## 4. Payout & Recharge reconciliation — properly wired, with partial vendor coverage
 
-In contrast to PG, both [`PayoutOrchestrator.checkStatusForPendingTransactions()`](../../src/main/java/com/im/admin/orchestrator/PayoutOrchestrator.java) and [`RechargeStatusScheduler.checkPendingTransactions()`](../../src/main/java/com/im/admin/cronJob/RechargeStatusScheduler.java) do the full job correctly: call the vendor's status-check API, map the response to a final status, **persist it**, build a `TransactionSchemeDetailsRequestDto`, and **forward it to `TransactionEngineServiceImpl.processTransaction()`** so the transaction (and any wallet effect) is actually finalized. This is the shape the PG job should have but doesn't.
+In contrast to PG, both [`PayoutOrchestrator.checkStatusForPendingTransactions()`](../../src/main/java/com/scs/admin/orchestrator/PayoutOrchestrator.java) and [`RechargeStatusScheduler.checkPendingTransactions()`](../../src/main/java/com/scs/admin/cronJob/RechargeStatusScheduler.java) do the full job correctly: call the vendor's status-check API, map the response to a final status, **persist it**, build a `TransactionSchemeDetailsRequestDto`, and **forward it to `TransactionEngineServiceImpl.processTransaction()`** so the transaction (and any wallet effect) is actually finalized. This is the shape the PG job should have but doesn't.
 
 Payout's coverage is gated by a marker interface, though:
 
@@ -107,7 +107,7 @@ Beyond the correctly-functioning reconciliation logic in §4, this file has some
 
 ## 6. Report schedulers — comparatively well-formed
 
-The five report-generation jobs — [`HourlyReportScheduler`](../../src/main/java/com/im/admin/cronJob/HourlyReportScheduler.java), [`TransactionReportScheduler`](../../src/main/java/com/im/admin/cronJob/TransactionReportScheduler.java), [`WalletHistoryReportScheduler`](../../src/main/java/com/im/admin/cronJob/WalletHistoryReportScheduler.java), [`WalletPreviewReportScheduler`](../../src/main/java/com/im/admin/cronJob/WalletPreviewReportScheduler.java), and [`ChargeCommissionReportScheduler`](../../src/main/java/com/im/admin/cronJob/ChargeCommissionReportScheduler.java) — each carry their own distinct, sensible cron expressions (hourly at `:05`, daily at `00:10`, hourly-during-business-hours at `1-23:00`, daily at `23:59`), with no copy-paste repetition found among them. Worth noting explicitly as a contrast: the bug in §2 is isolated specifically to the three PENDING-transaction status-check schedulers, not a codebase-wide carelessness with `@Scheduled` in general.
+The five report-generation jobs — [`HourlyReportScheduler`](../../src/main/java/com/scs/admin/cronJob/HourlyReportScheduler.java), [`TransactionReportScheduler`](../../src/main/java/com/scs/admin/cronJob/TransactionReportScheduler.java), [`WalletHistoryReportScheduler`](../../src/main/java/com/scs/admin/cronJob/WalletHistoryReportScheduler.java), [`WalletPreviewReportScheduler`](../../src/main/java/com/scs/admin/cronJob/WalletPreviewReportScheduler.java), and [`ChargeCommissionReportScheduler`](../../src/main/java/com/scs/admin/cronJob/ChargeCommissionReportScheduler.java) — each carry their own distinct, sensible cron expressions (hourly at `:05`, daily at `00:10`, hourly-during-business-hours at `1-23:00`, daily at `23:59`), with no copy-paste repetition found among them. Worth noting explicitly as a contrast: the bug in §2 is isolated specifically to the three PENDING-transaction status-check schedulers, not a codebase-wide carelessness with `@Scheduled` in general.
 
 ---
 
