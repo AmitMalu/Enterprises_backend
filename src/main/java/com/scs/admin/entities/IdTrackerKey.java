@@ -1,0 +1,19 @@
+package com.scs.admin.entities;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.io.Serializable;
+
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class IdTrackerKey implements Serializable {
+
+    private String entityType;
+    private String abbreviation;
+
+}

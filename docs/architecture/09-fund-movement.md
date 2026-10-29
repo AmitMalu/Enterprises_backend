@@ -1,6 +1,6 @@
 # Module 9: Fund Movement
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers wallet-load ("fund request") approval and outbound payout ("move to bank") paths — two confirmed silent-failure bugs and one entirely dead approval flow.
 
 ## Figure 1 — Fund movement bugs & dead path diagram
@@ -13,7 +13,7 @@
 
 ## 1. Critical: `MoveToBankServiceImpl`'s AES branch never debits, and always reports failure
 
-[`MoveToBankServiceImpl.sendPayoutRequest()`](../../src/main/java/com/im/admin/service/impl/MoveToBankServiceImpl.java) branches on the resolved vendor's credential type:
+[`MoveToBankServiceImpl.sendPayoutRequest()`](../../src/main/java/com/scs/admin/service/impl/MoveToBankServiceImpl.java) branches on the resolved vendor's credential type:
 
 ```java
 if ("AES".equalsIgnoreCase(credentials.getTokenType())) {
@@ -74,7 +74,7 @@ The **only** code path in this method that returns a populated `PayoutResponseDt
 
 ## 3. `FundRequestServiceImpl`'s approval path is entirely dead; `PrefundRequestServiceImpl` is the flow actually used
 
-[`FundRequestServiceImpl`](../../src/main/java/com/im/admin/service/impl/FundRequestServiceImpl.java) has exactly two live methods — `raiseFundRequest()` (creates a request, walking up the hierarchy to find an approver — see §4) and `fetchAllRecords()` (lists them). Its `takeActionOnFundRequest()` — the method that would actually approve or reject a request and move the money — is present only as **43 lines of commented-out code**:
+[`FundRequestServiceImpl`](../../src/main/java/com/scs/admin/service/impl/FundRequestServiceImpl.java) has exactly two live methods — `raiseFundRequest()` (creates a request, walking up the hierarchy to find an approver — see §4) and `fetchAllRecords()` (lists them). Its `takeActionOnFundRequest()` — the method that would actually approve or reject a request and move the money — is present only as **43 lines of commented-out code**:
 
 ```java
 //    @Transactional
@@ -90,7 +90,7 @@ The **only** code path in this method that returns a populated `PayoutResponseDt
 
 **There is no way to approve or reject a `FundRequest` raised through this service — the class that creates requests cannot action them.** This confirms the top-level finding directly.
 
-The flow that's actually live is [`PrefundRequestServiceImpl.takeActionOnFundRequest()`](../../src/main/java/com/im/admin/service/impl/PrefundRequestServiceImpl.java) (~380 lines) — a real, substantial implementation that resolves the product/sub-product/scheme, validates sub-product visibility, and includes a sensible idempotency guard against double-processing:
+The flow that's actually live is [`PrefundRequestServiceImpl.takeActionOnFundRequest()`](../../src/main/java/com/scs/admin/service/impl/PrefundRequestServiceImpl.java) (~380 lines) — a real, substantial implementation that resolves the product/sub-product/scheme, validates sub-product visibility, and includes a sensible idempotency guard against double-processing:
 
 ```java
 if (fundRequest.getStatus() != Status.PENDING) {
@@ -116,7 +116,7 @@ while (true) {
     String parentId = parentOpt.get();
     String parentType = commonMethods.extractHierarchyType(parentId);
     if ("WL".equals(parentType)) { ... if approver found, break; }
-    if ("IM".equals(parentType) || "AD".equals(parentType)) { ... if approver found, break; }
+    if ("SCS".equals(parentType) || "AD".equals(parentType)) { ... if approver found, break; }
     currentId = parentId;
 }
 ```

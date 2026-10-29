@@ -1,0 +1,21 @@
+package com.scs.admin.repositories;
+
+
+import com.scs.admin.entities.SchemeHierarchySelection;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+
+@Repository
+public interface HierarchySelectionRepository extends JpaRepository<SchemeHierarchySelection, String> {
+
+    boolean existsBySchemeHierarchyCombination(String schemeHierarchyCombination);
+
+    boolean existsBySchemeSelectionHierarchyName(String schemeSelectionHierarchyName);
+
+    @Query("SELECT MAX(s.id) FROM SchemeHierarchySelection s")
+    String findMaxId();
+
+}
+

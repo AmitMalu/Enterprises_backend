@@ -9,7 +9,7 @@
 
   <!-- Title -->
   <text x="600" y="30" text-anchor="middle" font-size="21" font-weight="700" fill="#1a1a1a">Deployment — A Careful Script With No Rollback</text>
-  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">Smart Credit Solution Enterprises Admin Portal</text>
 
   <!-- SECTION A: pipeline -->
   <text x="600" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#2c3e50">deploy.bat → deploy.ps1 — the deployment pipeline, step by step</text>
@@ -123,5 +123,5 @@
   <rect x="700" y="1140" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
   <text x="721" y="1151" font-size="10.5" fill="#475569">Critical — confirmed operational gap</text>
 
-  <text x="600" y="1200" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 14 of the architecture documentation set</text>
+  <text x="600" y="1200" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — Smart Credit Solution Enterprises Admin Portal — module 14 of the architecture documentation set</text>
 </svg>

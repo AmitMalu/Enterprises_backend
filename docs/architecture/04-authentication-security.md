@@ -1,6 +1,6 @@
 # Module 4: Authentication & Security
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers token issuance across all three login paths, `AESFilter`'s verification logic, and a confirmed critical authentication-bypass vulnerability.
 
 ## Figure 1 — Token issuance & verification flow diagram
@@ -17,9 +17,9 @@ All authenticated access is gated by a custom bearer-token scheme (not Spring Se
 
 | Endpoint | Flow | Salt source |
 |---|---|---|
-| `POST /auth/login` → `POST /auth/verify-otp` | Password check ([`AuthController.handlePasswordValidation()`](../../src/main/java/com/im/admin/controller/AuthController.java)) → OTP sent → OTP verified → token issued | Server-generated (`aesEncryptionUtil.generateRandomSalt()`, backed by `SecureRandom`) |
+| `POST /auth/login` → `POST /auth/verify-otp` | Password check ([`AuthController.handlePasswordValidation()`](../../src/main/java/com/scs/admin/controller/AuthController.java)) → OTP sent → OTP verified → token issued | Server-generated (`aesEncryptionUtil.generateRandomSalt()`, backed by `SecureRandom`) |
 | `POST /auth/verify-forgot-mpin-otp` | Password-reset OTP flow, same token-building code duplicated at a second call site | Server-generated |
-| `POST /api/aes/generate-token` ([`AESController`](../../src/main/java/com/im/admin/controller/AESController.java)) | OTP-less shortcut — password check only, no OTP step | **Client-supplied** — taken directly from the request body (`tokenGenerationRequest.getSalt()`) |
+| `POST /api/aes/generate-token` ([`AESController`](../../src/main/java/com/scs/admin/controller/AESController.java)) | OTP-less shortcut — password check only, no OTP step | **Client-supplied** — taken directly from the request body (`tokenGenerationRequest.getSalt()`) |
 
 All three build the token identically:
 
@@ -37,7 +37,7 @@ The encrypted **payload** contains the issue time, expiry time, and the user's m
 
 ## 2. Verification — `AESFilter`
 
-[`AESFilter`](../../src/main/java/com/im/admin/config/AESFilter.java) is a `OncePerRequestFilter` and, per the top-level project documentation, the actual gatekeeper — `SecurityConfig`'s Spring Security filter chain permits `anyRequest()` unconditionally (see [Module 1](01-core-bootstrap-config.md#4-config-package--spring-configuration-classes)), so whatever `AESFilter` decides is what actually governs access.
+[`AESFilter`](../../src/main/java/com/scs/admin/config/AESFilter.java) is a `OncePerRequestFilter` and, per the top-level project documentation, the actual gatekeeper — `SecurityConfig`'s Spring Security filter chain permits `anyRequest()` unconditionally (see [Module 1](01-core-bootstrap-config.md#4-config-package--spring-configuration-classes)), so whatever `AESFilter` decides is what actually governs access.
 
 For any path not on its whitelist, `doFilterInternal()`:
 
@@ -64,13 +64,13 @@ Because `hierarchyCode` is never bound to the encrypted payload, **any holder of
 
 ```
 Legitimate token, issued to a real Retailer:
-NFT-RT-045 | saltBase64 | ivBase64 | encryptedPayload
+SCS-RT-045 | saltBase64 | ivBase64 | encryptedPayload
 
 Attacker edits only the label before the first "|" — salt / iv / ciphertext copied verbatim:
-NFT-AD-001 | saltBase64 | ivBase64 | encryptedPayload
+SCS-AD-001 | saltBase64 | ivBase64 | encryptedPayload
 ```
 
-Walking through `AESFilter` with the edited token: the salt is unchanged, so the same key is derived; the ciphertext is unchanged, so it decrypts successfully; the timestamps inside are unchanged and still valid — **the request passes**. `TokenUtil.extractHierarchyId()` then reads the edited header and returns `"NFT-AD-001"`. Every piece of downstream logic that trusts this value now believes the caller is that Admin account:
+Walking through `AESFilter` with the edited token: the salt is unchanged, so the same key is derived; the ciphertext is unchanged, so it decrypts successfully; the timestamps inside are unchanged and still valid — **the request passes**. `TokenUtil.extractHierarchyId()` then reads the edited header and returns `"SCS-AD-001"`. Every piece of downstream logic that trusts this value now believes the caller is that Admin account:
 
 - `HierarchyAccessService.hasAccessToHierarchy()`'s `"AD"` bypass ([Module 2, §4.1](02-hierarchy-access-model.md#41-hierarchyaccessservice)) grants unrestricted access.
 - `TokenUtil.getUserContext().isAdmin()` returns `true` for any `hierarchyId` whose type segment is `AD` or `SA`, purely from string-parsing the (attacker-controlled) header.
@@ -86,7 +86,7 @@ This should be treated as the top-priority remediation item to come out of the w
 
 ### 4.1 Dead per-hierarchy salt infrastructure
 
-Two separate places define an identical `HIERARCHY_SALTS` map (8 hardcoded per-level salts) and a `getSecretKeyForHierarchy(hierarchyCode)` method to use them: [`AESKeyService`](../../src/main/java/com/im/admin/config/AESKeyService.java) (a `@Service` bean) and a near-duplicate, independently-typed-out copy inside [`AESController`](../../src/main/java/com/im/admin/controller/AESController.java). A repository-wide search confirms **neither method is ever called** — every real login/verification path (§1–§2) derives its key from `baseSecret` plus a salt carried in-band with the token instead. This looks like an earlier, more deliberate design (fixed per-hierarchy salts, harder to spoof across levels) that was superseded by the current in-band-salt scheme without removing the old code.
+Two separate places define an identical `HIERARCHY_SALTS` map (8 hardcoded per-level salts) and a `getSecretKeyForHierarchy(hierarchyCode)` method to use them: [`AESKeyService`](../../src/main/java/com/scs/admin/config/AESKeyService.java) (a `@Service` bean) and a near-duplicate, independently-typed-out copy inside [`AESController`](../../src/main/java/com/scs/admin/controller/AESController.java). A repository-wide search confirms **neither method is ever called** — every real login/verification path (§1–§2) derives its key from `baseSecret` plus a salt carried in-band with the token instead. This looks like an earlier, more deliberate design (fixed per-hierarchy salts, harder to spoof across levels) that was superseded by the current in-band-salt scheme without removing the old code.
 
 ### 4.2 Plaintext-equality password fallback
 
@@ -107,11 +107,11 @@ Both accept a **plain string-equality match** against the stored `loginPassword`
 
 ### 4.3 Unauthenticated encryption mode
 
-[`AESEncryptionUtil`](../../src/main/java/com/im/admin/util/AESEncryptionUtil.java) uses `AES/CBC/PKCS5Padding` throughout — a cipher mode with no built-in integrity check (no HMAC, no GCM authentication tag). This is consistent with, and part of the underlying reason for, §3: even if the plaintext-prefix issue were fixed, CBC alone doesn't protect the ciphertext or IV from tampering either — an authenticated mode (AES-GCM) or an HMAC-then-encrypt construction would be a stronger foundation for any redesign of this token scheme.
+[`AESEncryptionUtil`](../../src/main/java/com/scs/admin/util/AESEncryptionUtil.java) uses `AES/CBC/PKCS5Padding` throughout — a cipher mode with no built-in integrity check (no HMAC, no GCM authentication tag). This is consistent with, and part of the underlying reason for, §3: even if the plaintext-prefix issue were fixed, CBC alone doesn't protect the ciphertext or IV from tampering either — an authenticated mode (AES-GCM) or an HMAC-then-encrypt construction would be a stronger foundation for any redesign of this token scheme.
 
 ### 4.4 `JwtUtil` — fully dead code
 
-[`JwtUtil`](../../src/main/java/com/im/admin/util/JwtUtil.java) is a complete, correctly-implemented signed-JWT helper (HS256 via the JJWT library already in `pom.xml` — see [Module 1](01-core-bootstrap-config.md#2-build-definition-pomxml)) with `generateToken()`, `extractClaim()`, and `validateToken()`. A repository-wide search confirms it has **zero call sites anywhere in the codebase** outside its own file. Notably, a real JWT — signed and tamper-evident by construction — would not have the identity-spoofing problem described in §3, since any modification to its claims would invalidate the signature. It's presumably a discarded earlier design.
+[`JwtUtil`](../../src/main/java/com/scs/admin/util/JwtUtil.java) is a complete, correctly-implemented signed-JWT helper (HS256 via the JJWT library already in `pom.xml` — see [Module 1](01-core-bootstrap-config.md#2-build-definition-pomxml)) with `generateToken()`, `extractClaim()`, and `validateToken()`. A repository-wide search confirms it has **zero call sites anywhere in the codebase** outside its own file. Notably, a real JWT — signed and tamper-evident by construction — would not have the identity-spoofing problem described in §3, since any modification to its claims would invalidate the signature. It's presumably a discarded earlier design.
 
 ---
 

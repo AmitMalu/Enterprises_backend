@@ -1,6 +1,6 @@
 # Module 13: Exception Handling
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers `GlobalExceptionHandler` and the custom `exception/` package — confirms the top-level `ResourceNotFoundException` finding precisely, and surfaces two exception handlers that return HTTP 200 for genuine error conditions.
 
 ## Figure 1 — Wrong status codes diagram
@@ -13,7 +13,7 @@
 
 ## 1. Two custom exceptions have no specific handler and fall through to a generic 400
 
-[`GlobalExceptionHandler`](../../src/main/java/com/im/admin/controller/advice/GlobalExceptionHandler.java) (`@RestControllerAdvice`) declares 14 `@ExceptionHandler` methods, but the `exception/` package has 6 custom exception classes — and 2 of them have no matching handler:
+[`GlobalExceptionHandler`](../../src/main/java/com/scs/admin/controller/advice/GlobalExceptionHandler.java) (`@RestControllerAdvice`) declares 14 `@ExceptionHandler` methods, but the `exception/` package has 6 custom exception classes — and 2 of them have no matching handler:
 
 **`ResourceNotFoundException`** — the exact class the top-level project documentation flags:
 

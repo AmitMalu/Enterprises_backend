@@ -9,7 +9,7 @@
 
   <!-- Title -->
   <text x="600" y="30" text-anchor="middle" font-size="21" font-weight="700" fill="#1a1a1a">Notifications — Plaintext Password Leaks Across Email &amp; SMS</text>
-  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">Smart Credit Solution Enterprises Admin Portal</text>
 
   <!-- SECTION A -->
   <text x="600" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">⚠ CRITICAL — new user's plaintext password persisted to DB and written to the log file</text>
@@ -74,5 +74,5 @@
   <rect x="500" y="830" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
   <text x="521" y="841" font-size="10.5" fill="#475569">Critical — confirmed plaintext-credential leak</text>
 
-  <text x="600" y="890" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 11 of the architecture documentation set</text>
+  <text x="600" y="890" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — Smart Credit Solution Enterprises Admin Portal — module 11 of the architecture documentation set</text>
 </svg>

@@ -1,6 +1,6 @@
 # Module 8: Dashboard & Aggregation
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers `DashboardController`'s access-control gap, a confirmed hierarchy-type-code bug, and the two dead layers of the intended `DashboardStrategy`/`HierarchyAggregationStrategy` pattern sitting alongside the live 2,416-line `DashboardServiceImpl`.
 
 ## Figure 1 — Live path vs. dead strategy layers diagram
@@ -13,7 +13,7 @@
 
 ## 1. Critical: `DashboardController` has zero access control
 
-[`DashboardController`](../../src/main/java/com/im/admin/controller/DashboardController.java) (`@RequestMapping("/api/dashboard")`) exposes four endpoints:
+[`DashboardController`](../../src/main/java/com/scs/admin/controller/DashboardController.java) (`@RequestMapping("/api/dashboard")`) exposes four endpoints:
 
 ```java
 @PostMapping("/get")                              public ResponseEntity<DashboardResponseDto> getAdminDashboard()
@@ -56,15 +56,15 @@ The top-level documentation notes the `HierarchyAggregationStrategy`/`DashboardS
 
 Three implementations exist:
 
-- [`ADDashboardStrategy`](../../src/main/java/com/im/admin/strategy/ADDashboardStrategy.java) — a genuine stub: `return Map.of();` unconditionally.
-- [`RtDashboardStrategy`](../../src/main/java/com/im/admin/strategy/RtDashboardStrategy.java) — a **complete, real implementation** (150 lines): fetches the retailer's profile and wallet balances, its last 5 transactions, and builds aggregation cards.
-- [`SdDashboardStrategy`](../../src/main/java/com/im/admin/strategy/SdDashboardStrategy.java) — likewise a **complete, real implementation** (129 lines), same shape for SuperDistributor.
+- [`ADDashboardStrategy`](../../src/main/java/com/scs/admin/strategy/ADDashboardStrategy.java) — a genuine stub: `return Map.of();` unconditionally.
+- [`RtDashboardStrategy`](../../src/main/java/com/scs/admin/strategy/RtDashboardStrategy.java) — a **complete, real implementation** (150 lines): fetches the retailer's profile and wallet balances, its last 5 transactions, and builds aggregation cards.
+- [`SdDashboardStrategy`](../../src/main/java/com/scs/admin/strategy/SdDashboardStrategy.java) — likewise a **complete, real implementation** (129 lines), same shape for SuperDistributor.
 
 A repository-wide search for `DashboardStrategy` confirms it appears in exactly **4 files: the interface and its 3 implementations, and nowhere else** — no controller, service, or selector map references any of them. Two fully-written, working dashboard builders sit completely unused.
 
 ### 3.2 Layer 2 — `HierarchyAggregationStrategy`
 
-[`HierarchyAggregationService`](../../src/main/java/com/im/admin/strategy/HierarchyAggregationService.java) is a selector, structurally identical in spirit to the vendor factories from [Module 5](05-vendor-integration-pattern.md):
+[`HierarchyAggregationService`](../../src/main/java/com/scs/admin/strategy/HierarchyAggregationService.java) is a selector, structurally identical in spirit to the vendor factories from [Module 5](05-vendor-integration-pattern.md):
 
 ```java
 private final Map<String, HierarchyAggregationStrategy> strategies;
@@ -76,7 +76,7 @@ public HierarchyAggregationStrategy getStrategy(String type) {
 }
 ```
 
-There is exactly **one** implementation, [`HierarchyAggregationStrategyImpl`](../../src/main/java/com/im/admin/strategy/HierarchyAggregationStrategyImpl.java), declared as a plain `@Service` with **no bean name or `@Qualifier`** given. When Spring autowires a `Map<String, InterfaceType>`, it keys the map by **bean name**, not by any application-level identifier — so this map contains exactly one entry, keyed by the default bean name (`hierarchyAggregationStrategyImpl`), not by `"RT"`, `"SD"`, or any hierarchy code.
+There is exactly **one** implementation, [`HierarchyAggregationStrategyImpl`](../../src/main/java/com/scs/admin/strategy/HierarchyAggregationStrategyImpl.java), declared as a plain `@Service` with **no bean name or `@Qualifier`** given. When Spring autowires a `Map<String, InterfaceType>`, it keys the map by **bean name**, not by any application-level identifier — so this map contains exactly one entry, keyed by the default bean name (`hierarchyAggregationStrategyImpl`), not by `"RT"`, `"SD"`, or any hierarchy code.
 
 **The practical effect: `getStrategy(type)` throws `IllegalArgumentException` for every possible input, including `"RT"` and `"SD"`** — there is no type for which this lookup succeeds. This is a sharper finding than "only one aggregation strategy is ever registered, so looking one up by level throws for anything else" (the top-level phrasing, which could be read as implying one level works) — **none** do, because the single registered strategy isn't keyed by a hierarchy code at all.
 
@@ -88,7 +88,7 @@ Even setting the keying bug aside, `HierarchyAggregationStrategyImpl` itself is 
 
 ## 4. The live path — `DashboardServiceImpl` (2,416 lines)
 
-None of the above is what actually serves dashboard requests. [`DashboardServiceImpl`](../../src/main/java/com/im/admin/strategy/DashboardServiceImpl.java) — despite living in the same `strategy/` package as the dead classes above — is a single, large, monolithic implementation of the `DashboardService` interface that `DashboardController` actually calls. It:
+None of the above is what actually serves dashboard requests. [`DashboardServiceImpl`](../../src/main/java/com/scs/admin/strategy/DashboardServiceImpl.java) — despite living in the same `strategy/` package as the dead classes above — is a single, large, monolithic implementation of the `DashboardService` interface that `DashboardController` actually calls. It:
 
 - **Switches on hierarchy type internally**, independent of both dead layers above — `commonMethods.extractHierarchyType()` is called 4 separate times within this one class to branch behavior per level (confirmed at lines 236, 763, 2093, and 2132).
 - **Implements its own recursive subtree walk** — `userDetailsRepository.findByParentAccount()`, called and walked recursively (`fetchChildrenRecursively()`, confirmed at line 1865) — rather than using the `AccessHierarchyPath` closure table built specifically for ancestor/descendant queries in [Module 2](02-hierarchy-access-model.md#22-accesshierarchynode--accesshierarchypath--a-real-closure-table). This is a second, independent implementation of "find every hierarchy under this one," alongside `HierarchyAccessService.resolveAccessibleHierarchyIds()` and `AccessHierarchyPathRepository.findAllDescendants()`, neither of which this file uses.

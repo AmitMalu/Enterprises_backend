@@ -1,0 +1,32 @@
+package com.scs.admin.service;
+
+import com.scs.admin.dto.FundRequestActionDto;
+import com.scs.admin.dto.PrefundRequestDto;
+import com.scs.admin.dto.PrefundRequestResponseDTO;
+import com.scs.admin.dto.RequestHeaderMetaDto;
+import com.scs.admin.entities.PrefundRequest;
+import com.scs.admin.response.CommonResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.time.LocalDate;
+
+public interface PrefundRequestService {
+
+    CommonResponse<PrefundRequest> saveWalletLoadRequest(PrefundRequestDto dto, MultipartFile imageFile, RequestHeaderMetaDto requestHeaderMetaDtoMeta) throws IOException;
+
+    Page<PrefundRequestResponseDTO> getAllPrefundRequests(int page, int size,
+                                                          Long id, String requestedBy, String mobileNumber, Double depositAmount,
+                                                          String status, LocalDate depositDate, LocalDate fromDate,
+                                                          LocalDate toDate, LocalDate createDateTime,
+                                                          String bankHolderName, String bankAccountName, String bankAccountNumber,
+                                                          String bankTranId, String paymentMode, String narration, String ipAddress,
+                                                          LocalDate approveOrRejectDate, String approveOrRejectTime, String remarks, String depositType);
+
+
+    CommonResponse<String> takeActionOnFundRequest(FundRequestActionDto actionDto);
+
+    CommonResponse<PrefundRequestResponseDTO> getById(Long id);
+
+}

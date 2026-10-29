@@ -8,7 +8,7 @@
 		<version>3.4.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.im.admin</groupId>
+	<groupId>com.scs.admin</groupId>
 	<artifactId>enterprises</artifactId>
 	<packaging>war</packaging>
 	<name>Enterprise</name>

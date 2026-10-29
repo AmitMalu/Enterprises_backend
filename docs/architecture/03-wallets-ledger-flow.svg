@@ -9,7 +9,7 @@
 
   <!-- Title -->
   <text x="600" y="30" text-anchor="middle" font-size="22" font-weight="700" fill="#1a1a1a">Wallets &amp; Ledger — Table Layout &amp; Balance Update Flow</text>
-  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">InstantMudra Enterprises Admin Portal</text>
+  <text x="600" y="50" text-anchor="middle" font-size="12.5" fill="#64748b">Smart Credit Solution Enterprises Admin Portal</text>
 
   <!-- SECTION A -->
   <text x="600" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#2c3e50">32 physical wallet tables — no shared table, one pair per level × wallet type</text>
@@ -156,5 +156,5 @@
   <rect x="600" y="1160" width="14" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
   <text x="621" y="1171" font-size="10.5" fill="#475569">Critical — confirmed correctness bug</text>
 
-  <text x="600" y="1210" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — InstantMudra Enterprises Admin Portal — module 3 of the architecture documentation set</text>
+  <text x="600" y="1210" text-anchor="middle" font-size="10" fill="#94a3b8">Generated from source review — Smart Credit Solution Enterprises Admin Portal — module 3 of the architecture documentation set</text>
 </svg>

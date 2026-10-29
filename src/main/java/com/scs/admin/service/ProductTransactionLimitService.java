@@ -1,0 +1,24 @@
+package com.scs.admin.service;
+
+import com.scs.admin.dto.ProductLimitResponseDto;
+import com.scs.admin.dto.ProductTransactionLimitDTO;
+import com.scs.admin.entities.ProductTransactionLimit;
+import com.scs.admin.entities.enums.WalletType;
+import com.scs.admin.response.CommonResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+public interface ProductTransactionLimitService {
+
+    CommonResponse<ProductLimitResponseDto> save(ProductTransactionLimitDTO dto);
+
+    CommonResponse<ProductLimitResponseDto> getById(Long id);
+
+    CommonResponse<ProductLimitResponseDto> update(Long id, ProductTransactionLimitDTO dto);
+
+    CommonResponse<Page<ProductLimitResponseDto>> getAll(Long id, String description, WalletType walletType, String paymentCurrency, Boolean isAllowPerDayCardLimit, Boolean isAllowMonthlyCardLimit, Boolean checkAmountPattern, BigDecimal maxAmount, BigDecimal minAmount, String perDayTransactionLimit, String monthlyTransactionLimit, Short productId, String productName, String subProductId, String subProductName, Boolean blocked, String createdBy, String editedBy, Pageable pageable);
+
+}

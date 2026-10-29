@@ -1,6 +1,6 @@
 # Module 11: Notifications
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers email, SMS, and WebSocket notification paths — two confirmed plaintext-credential leaks (a new user's own password, and an SMS gateway's account password) persisted into database logs and application log files.
 
 ## Figure 1 — Notification credential-leak diagram
@@ -23,13 +23,13 @@ vars.put("password", randomPassword);
 
 String emailBody = emailService.buildEmailFromDB(EmailType.ONBOARD_USER, vars);
 
-emailService.sendSimpleEmail(credentials, fromEmail, fromPassword, email, "Welcome to NFT – Your Login Credentials", emailBody);
+emailService.sendSimpleEmail(credentials, fromEmail, fromPassword, email, "Welcome to SCS – Your Login Credentials", emailBody);
 
 log.info("User created for hierarchy: " + hierarchyType + ", mobile: " + mobileNo);
 log.info("SMS (mock) sent to mobile: " + mobileNo + " with password: " + randomPassword);
 ```
 
-`emailBody` is built from a database template with the real `randomPassword` substituted directly into the `{{password}}` placeholder — this is the literal plaintext password for the newly created account. Following it into [`EmailServiceImpl.sendSimpleEmail()`](../../src/main/java/com/im/admin/service/impl/EmailServiceImpl.java):
+`emailBody` is built from a database template with the real `randomPassword` substituted directly into the `{{password}}` placeholder — this is the literal plaintext password for the newly created account. Following it into [`EmailServiceImpl.sendSimpleEmail()`](../../src/main/java/com/scs/admin/service/impl/EmailServiceImpl.java):
 
 ```java
 public void sendSimpleEmail(EmailCredentialsMaster credentials, String fromEmail, String fromPassword, String toEmail, String subject, String body) {
@@ -57,14 +57,14 @@ A commented-out line just above (`//smsService.sendSms(mobile, "Your account has
 
 ## 2. Critical: `SMSGatewayAPI` (Gupshup fallback) hardcodes a live credential and logs OTPs in plaintext
 
-[`SMSGatewayAPI.sendOTPSms()`](../../src/main/java/com/im/admin/commons/SMSGatewayAPI.java) — the Gupshup-based fallback referenced in the top-level project documentation — builds its request URL like this:
+[`SMSGatewayAPI.sendOTPSms()`](../../src/main/java/com/scs/admin/commons/SMSGatewayAPI.java) — the Gupshup-based fallback referenced in the top-level project documentation — builds its request URL like this:
 
 ```java
-String requestMessage = "Your One Time Password is " + otp + " -Instant Mudra.";
+String requestMessage = "Your One Time Password is " + otp + " -Smart Credit Solution.";
 String encodedMsg = URLEncoder.encode(requestMessage, StandardCharsets.UTF_8);
 String data = "send_to=" + mobileNumber + "&method=sendMessage&msg=" + encodedMsg + "&...";
 
-String fullUrl = "https://enterprise.smsgupshup.com/GatewayAPI/rest?userid=2000197160&password=IMudra@2022&" + data;
+String fullUrl = "https://enterprise.smsgupshup.com/GatewayAPI/rest?userid=<user-id>&password=<password>&" + data;
 ```
 
 The Gupshup account password is **hardcoded directly in the Java source** — not `application.properties` like the credentials documented in [Module 1](01-core-bootstrap-config.md#31-applicationproperties-base--applies-to-every-profile), but committed inline in a `.java` file. Immediately after building this URL:
@@ -81,7 +81,7 @@ commonFunctions.saveLoginLogs(requestLog, requestDateTime, response, responseDat
 
 ## 3. Contrast: `ShivSmsService`, the primary provider, does neither of these things
 
-[`ShivSmsService`](../../src/main/java/com/im/admin/commons/ShivSmsService.java) is the SMS provider actually used first (per the top-level documentation's "primary" framing), and checking it directly shows it avoids both problems found in its own fallback:
+[`ShivSmsService`](../../src/main/java/com/scs/admin/commons/ShivSmsService.java) is the SMS provider actually used first (per the top-level documentation's "primary" framing), and checking it directly shows it avoids both problems found in its own fallback:
 
 - Its gateway password is sourced from `@Value("${sms.shiv.password}")` — plaintext in `application.properties` (already a documented risk from Module 1), but **not hardcoded inline in source** the way `SMSGatewayAPI`'s is.
 - A full-file search finds **no `saveLoginLogs()` call or request-URL logging anywhere in this class** — OTP content and the gateway credential are never written to a persistent log.
@@ -94,7 +94,7 @@ This is a notable, if narrow, positive finding: in this specific pair of impleme
 
 - **`WebSocketService`** carries an earlier, fully commented-out version of `sendToAll()`/`sendToRole()`/`sendToUser()` (a single-channel design, superseded by the live multi-channel versions) sitting directly above the code that's actually used — the same "old version left as a comment" habit already documented in [Module 2](02-hierarchy-access-model.md#41-hierarchyaccessservice) (`HierarchyAccessService`) and [Module 9](09-fund-movement.md#3-fundrequestserviceimpls-approval-path-is-entirely-dead-prefundrequestserviceimpl-is-the-flow-actually-used) (`PrefundRequestServiceImpl`).
 - **Inconsistent exception handling**: both `SMSGatewayAPI` and `EmailServiceImpl` catch `Exception e` and call `e.printStackTrace()` rather than using the SLF4J `log.error(...)` pattern used consistently elsewhere in the codebase — these failures go to stdout/stderr rather than wherever the application's structured logs are actually aggregated.
-- **`EmailServiceImpl.sendSimpleEmail()` constructs a brand-new `JavaMailSenderImpl` on every call**, with the SMTP host (`mail.networkfuturetech.co.in`) and port hardcoded rather than externally configurable — functional, but inflexible and slightly wasteful compared to a single configured Spring-managed mail sender bean.
+- **`EmailServiceImpl.sendSimpleEmail()` constructs a brand-new `JavaMailSenderImpl` on every call**, using the SMTP host and port saved in Email Credentials — functional, but and slightly wasteful compared to a single configured Spring-managed mail sender bean.
 
 ---
 

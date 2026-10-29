@@ -1,6 +1,6 @@
 # Module 12: Logging & Audit
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers `AuditEntityListener`, the AOP-based `GlobalApiLoggingAspect`/`VendorServiceLoggingAspect` request/response logging, and a `ThreadLocal` cleanup bug — generalizing Module 11's specific plaintext-credential leaks into a systemic, codebase-wide default.
 
 ## Figure 1 — Blanket capture & stale-attribution diagram
@@ -54,7 +54,7 @@ response = ...;
 log.info("Vendor Service Response : {}", response);
 ```
 
-Both aspects filter out only **non-serializable object types** (`HttpServletRequest`/`Response`, `MultipartFile`) — there is **no field-level redaction of any kind**. Whatever data the annotated method receives or returns is serialized whole and persisted into [`VendorLogs`](../../src/main/java/com/im/admin/entities/VendorLogs.java)'s `request`/`response` `TEXT` columns via `CommonFunctions.saveVendorLogs()`.
+Both aspects filter out only **non-serializable object types** (`HttpServletRequest`/`Response`, `MultipartFile`) — there is **no field-level redaction of any kind**. Whatever data the annotated method receives or returns is serialized whole and persisted into [`VendorLogs`](../../src/main/java/com/scs/admin/entities/VendorLogs.java)'s `request`/`response` `TEXT` columns via `CommonFunctions.saveVendorLogs()`.
 
 A repository-wide search for `@LoggableApi`/`@LoggableVendor` finds **13 files** carrying these annotations — essentially the entire payment-gateway and payout vendor surface:
 
@@ -68,7 +68,7 @@ A repository-wide search for `@LoggableApi`/`@LoggableVendor` finds **13 files**
 
 ## 3. `VendorContext.clear()` only clears half of what it tracks
 
-[`VendorContext`](../../src/main/java/com/im/admin/commons/VendorContext.java) backs both aspects with two `ThreadLocal`s:
+[`VendorContext`](../../src/main/java/com/scs/admin/commons/VendorContext.java) backs both aspects with two `ThreadLocal`s:
 
 ```java
 private static final ThreadLocal<Boolean> serviceCalled = new ThreadLocal<>();
@@ -79,7 +79,7 @@ public static void clear() {
 }
 ```
 
-Both `GlobalApiLoggingAspect` and `VendorServiceLoggingAspect` call `VendorContext.clear()` in their `finally` block after every request — but `clear()` only removes `serviceCalled`. **`vendorHolder` — the vendor ID — is never removed from the thread.** In a thread-pooled servlet container (Tomcat, per [Module 1](01-core-bootstrap-config.md)), the same worker thread handles many unrelated requests over its lifetime. If a later request on that same pooled thread never calls `VendorContext.setVendorId(...)` before something reads `getVendorId()`, it inherits whatever vendor ID a **previous, unrelated request** left behind — silently mis-attributing that log entry's `im_vendor_id` to the wrong vendor. This undermines exactly the kind of "which vendor handled this" question the logging aspects exist to answer.
+Both `GlobalApiLoggingAspect` and `VendorServiceLoggingAspect` call `VendorContext.clear()` in their `finally` block after every request — but `clear()` only removes `serviceCalled`. **`vendorHolder` — the vendor ID — is never removed from the thread.** In a thread-pooled servlet container (Tomcat, per [Module 1](01-core-bootstrap-config.md)), the same worker thread handles many unrelated requests over its lifetime. If a later request on that same pooled thread never calls `VendorContext.setVendorId(...)` before something reads `getVendorId()`, it inherits whatever vendor ID a **previous, unrelated request** left behind — silently mis-attributing that log entry's `scs_vendor_id` to the wrong vendor. This undermines exactly the kind of "which vendor handled this" question the logging aspects exist to answer.
 
 ---
 

@@ -1,0 +1,25 @@
+package com.scs.admin.dto;
+
+
+import com.scs.admin.entities.SchemeRate;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class TransactionSchemeDetailsResponseDto {
+
+    private SchemeRate matchedSchemeRate;
+    private String walletType;   //Prepaid, Postpaid, etc
+    private String gstRate;
+    private String tdsRate;
+
+    private Boolean hasCharge;
+    private Boolean isCommission;
+    private String transactionType;        //credit, debit
+
+}

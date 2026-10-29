@@ -1,6 +1,6 @@
 # Module 2: Hierarchy & Access Model
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers the reseller hierarchy structure, its two parallel representations, the access-resolution logic, and the profile entities that sit at each level.
 
 ## Figure 1 — Structure & access flow diagram
@@ -13,7 +13,7 @@
 
 ## 1. The hierarchy chain and its seed data
 
-[`HierarchyMaster`](../../src/main/java/com/im/admin/entities/HierarchyMaster.java) is a flat lookup table (`sr_no`, `name`, `code`) with 8 rows, seeded once at boot by [`HierarchyMasterDataInitializer`](../../src/main/java/com/im/admin/config/HierarchyMasterDataInitializer.java) (see [Module 1](01-core-bootstrap-config.md#4-config-package--spring-configuration-classes)) if the table is empty:
+[`HierarchyMaster`](../../src/main/java/com/scs/admin/entities/HierarchyMaster.java) is a flat lookup table (`sr_no`, `name`, `code`) with 8 rows, seeded once at boot by [`HierarchyMasterDataInitializer`](../../src/main/java/com/scs/admin/config/HierarchyMasterDataInitializer.java) (see [Module 1](01-core-bootstrap-config.md#4-config-package--spring-configuration-classes)) if the table is empty:
 
 | Code | Name |
 |---|---|
@@ -26,7 +26,7 @@
 | `DT` | Distributor |
 | `RT` | Retailer |
 
-These codes are embedded directly into every hierarchy ID string in the system (e.g. `NFT-RT-001`, `ABC-ET-001`) and are parsed back out by string-splitting in multiple places (`HierarchyType.fromId()`, `HierarchyAccessValidator.extractHierarchyType()`, `TokenUtil.extractHierarchyId()`) rather than through a single shared parser — see §4.
+These codes are embedded directly into every hierarchy ID string in the system (e.g. `SCS-RT-001`, `ABC-ET-001`) and are parsed back out by string-splitting in multiple places (`HierarchyType.fromId()`, `HierarchyAccessValidator.extractHierarchyType()`, `TokenUtil.extractHierarchyId()`) rather than through a single shared parser — see §4.
 
 Two hierarchy levels additionally have **operational sub-user** accounts, stored in their own entities rather than as rows in the main chain:
 
@@ -49,14 +49,14 @@ Six of the seven profile entities carry a plain `parentAccount` column pointing 
 
 | Entity | ID field | `parentAccount`? |
 |---|---|---|
-| [`SuperAdmin`](../../src/main/java/com/im/admin/entities/SuperAdmin.java) | `id` | **No** — root of the chain |
-| [`Admin`](../../src/main/java/com/im/admin/entities/Admin.java) | `id` | **No** — sits directly under SuperAdmin, not tracked via `parentAccount` |
-| [`Enterprises`](../../src/main/java/com/im/admin/entities/Enterprises.java) | `enterpriseId` | Yes |
-| [`WhiteLabels`](../../src/main/java/com/im/admin/entities/WhiteLabels.java) | `whiteLabelId` | Yes |
-| [`SuperDistributor`](../../src/main/java/com/im/admin/entities/SuperDistributor.java) | `superDistributorId` | Yes |
-| [`Partner`](../../src/main/java/com/im/admin/entities/Partner.java) | `partnerId` | Yes |
-| [`Distributor`](../../src/main/java/com/im/admin/entities/Distributor.java) | `distributorId` | Yes |
-| [`Retailer`](../../src/main/java/com/im/admin/entities/Retailer.java) | `retailerId` | Yes |
+| [`SuperAdmin`](../../src/main/java/com/scs/admin/entities/SuperAdmin.java) | `id` | **No** — root of the chain |
+| [`Admin`](../../src/main/java/com/scs/admin/entities/Admin.java) | `id` | **No** — sits directly under SuperAdmin, not tracked via `parentAccount` |
+| [`Enterprises`](../../src/main/java/com/scs/admin/entities/Enterprises.java) | `enterpriseId` | Yes |
+| [`WhiteLabels`](../../src/main/java/com/scs/admin/entities/WhiteLabels.java) | `whiteLabelId` | Yes |
+| [`SuperDistributor`](../../src/main/java/com/scs/admin/entities/SuperDistributor.java) | `superDistributorId` | Yes |
+| [`Partner`](../../src/main/java/com/scs/admin/entities/Partner.java) | `partnerId` | Yes |
+| [`Distributor`](../../src/main/java/com/scs/admin/entities/Distributor.java) | `distributorId` | Yes |
+| [`Retailer`](../../src/main/java/com/scs/admin/entities/Retailer.java) | `retailerId` | Yes |
 | `AdminUser` (`AU`) | `id` | Yes — points at the owning `AD` |
 | `WhiteLabelUser` (`WLAU`) | `id` | Yes — points at the owning `WL` |
 
@@ -66,17 +66,17 @@ There is **no shared base interface or superclass** across these entities for `p
 
 ### 2.2 `AccessHierarchyNode` + `AccessHierarchyPath` — a real closure table
 
-Alongside the string field, [`AccessHierarchyNode`](../../src/main/java/com/im/admin/entities/AccessHierarchyNode.java) and [`AccessHierarchyPath`](../../src/main/java/com/im/admin/entities/AccessHierarchyPath.java) implement a proper [closure table](https://en.wikipedia.org/wiki/Nested_set_model) pattern:
+Alongside the string field, [`AccessHierarchyNode`](../../src/main/java/com/scs/admin/entities/AccessHierarchyNode.java) and [`AccessHierarchyPath`](../../src/main/java/com/scs/admin/entities/AccessHierarchyPath.java) implement a proper [closure table](https://en.wikipedia.org/wiki/Nested_set_model) pattern:
 
 - **`AccessHierarchyNode`**: one row per hierarchy ID — `hierarchy_id` (PK), `hierarchy_type`, `parent_hierarchy_id`, `created_on`.
-- **`AccessHierarchyPath`**: one row per **(ancestor, descendant)** pair, keyed by the embeddable [`AccessHierarchyPathId`](../../src/main/java/com/im/admin/entities/AccessHierarchyPathId.java) (`ancestor_id`, `descendant_id`), plus `depth`. A node's self-relation (depth 0) is stored too.
+- **`AccessHierarchyPath`**: one row per **(ancestor, descendant)** pair, keyed by the embeddable [`AccessHierarchyPathId`](../../src/main/java/com/scs/admin/entities/AccessHierarchyPathId.java) (`ancestor_id`, `descendant_id`), plus `depth`. A node's self-relation (depth 0) is stored too.
 
-This is built by [`HierarchyAccessService`](../../src/main/java/com/im/admin/service/HierarchyAccessService.java):
+This is built by [`HierarchyAccessService`](../../src/main/java/com/scs/admin/service/HierarchyAccessService.java):
 
 - `registerHierarchyNode(request)` inserts the `AccessHierarchyNode` row, then calls `buildClosurePath(hierarchyId, parentHierarchyId)`.
 - `buildClosurePath()` inserts the self-path (depth 0), then — for every existing path ending at the parent — inserts a new path from that same ancestor to the new node at `parentDepth + 1`. This is the standard closure-table insert algorithm and is correct as written.
 
-[`AccessHierarchyPathRepository`](../../src/main/java/com/im/admin/repositories/AccessHierarchyPathRepository.java) backs this with well-formed JPQL/native queries — `findDescendantsByAncestor`, `findAllDescendants` (joined with `AccessHierarchyNode` for a full projection), `countHierarchyUnderWhiteLabel` (native SQL), `deleteByDescendantExcludingSelf`, etc. Of everything reviewed in this module, **the closure-table plumbing itself is solid** — the risk is not in this code, it's in the fact that a second, unrelated representation (`parentAccount`) exists alongside it.
+[`AccessHierarchyPathRepository`](../../src/main/java/com/scs/admin/repositories/AccessHierarchyPathRepository.java) backs this with well-formed JPQL/native queries — `findDescendantsByAncestor`, `findAllDescendants` (joined with `AccessHierarchyNode` for a full projection), `countHierarchyUnderWhiteLabel` (native SQL), `deleteByDescendantExcludingSelf`, etc. Of everything reviewed in this module, **the closure-table plumbing itself is solid** — the risk is not in this code, it's in the fact that a second, unrelated representation (`parentAccount`) exists alongside it.
 
 ### 2.3 The sync problem
 
@@ -93,7 +93,7 @@ If either step is skipped — a missed call, a failed transaction that rolls bac
 
 The seven profile entities (`Admin`, `Enterprises`, `WhiteLabels`, `SuperDistributor`, `Partner`, `Distributor`, `Retailer`) plus `SuperAdmin` all model roughly the same "reseller registration" shape — KYC fields (Aadhaar/PAN images and numbers), embedded `Address` (main + outlet), bank details, a `status` workflow (`PENDING`/approved/rejected with `rejectionReason`/`rejectedBy`/`rejectedOn`/`approvedBy`/`approvedOn`), and audit fields (`createdOn`/`createdBy`/`editedOn`/`editedBy`) — but **duplicate that shape independently rather than sharing it**:
 
-- [`BaseEntity`](../../src/main/java/com/im/admin/entities/BaseEntity.java) is a `@MappedSuperclass` providing `createdOn`/`createdBy`/`editedOn`/`editedBy`/`approvedOn`/`approvedBy`, watched by `AuditEntityListener` (which, per the top-level findings, always stamps `"SYSTEM"` since Spring Security's context is never populated under this app's AES-based auth).
+- [`BaseEntity`](../../src/main/java/com/scs/admin/entities/BaseEntity.java) is a `@MappedSuperclass` providing `createdOn`/`createdBy`/`editedOn`/`editedBy`/`approvedOn`/`approvedBy`, watched by `AuditEntityListener` (which, per the top-level findings, always stamps `"SYSTEM"` since Spring Security's context is never populated under this app's AES-based auth).
 - **Only `Admin` and `SuperAdmin` extend `BaseEntity`.** `Enterprises`, `Retailer`, `WhiteLabels`, `SuperDistributor`, `Partner`, and `Distributor` do **not** — each one hand-declares the same six audit columns inline instead. `Enterprises` even has its `@UpdateTimestamp` annotation commented out on `editedOn` (`//    @UpdateTimestamp`), so that field won't auto-update on edit the way `BaseEntity`'s does.
 - Every entity also hand-declares its own KYC/address/status fields rather than sharing a mixin — `Retailer` and `Enterprises` both have nearly identical `@PrePersist prePersistDefaults()` methods that null-fill the embedded `Address`/outlet `Address` with `"N/A"`, copy-pasted rather than shared.
 
@@ -137,7 +137,7 @@ Note that `HierarchyAccessService.hasAccessToHierarchy()` and `HierarchyAccessVa
 
 ## 5. Critical finding: unauthenticated hierarchy/OTP/wallet exposure
 
-[`TreeDiagramController`](../../src/main/java/com/im/admin/controller/TreeDiagramController.java) (`@RequestMapping("/api/hierarchies")`) exposes the entire tree, and **all three** of its read endpoints are reachable **without authentication**:
+[`TreeDiagramController`](../../src/main/java/com/scs/admin/controller/TreeDiagramController.java) (`@RequestMapping("/api/hierarchies")`) exposes the entire tree, and **all three** of its read endpoints are reachable **without authentication**:
 
 | Endpoint | Public? | What it returns |
 |---|---|---|

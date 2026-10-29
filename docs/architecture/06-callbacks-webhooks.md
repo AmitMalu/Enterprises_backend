@@ -1,6 +1,6 @@
 # Module 6: Callbacks & Webhooks
 
-> Part of the InstantMudra Enterprises Admin Portal architecture documentation.
+> Part of the Smart Credit Solution Enterprises Admin Portal architecture documentation.
 > Covers every vendor callback endpoint's whitelist status (re-verified against `AESFilter`'s real matching semantics from Module 4), signature verification, the `CallbackParserFactory` abstraction, and duplicate-delivery/failure handling.
 
 ## Figure 1 — Whitelist coverage & processing gaps diagram
@@ -13,22 +13,22 @@
 
 ## 1. Callback endpoint inventory
 
-Vendor callbacks (async webhooks from payment gateways and payout providers) land in three controllers: [`PGCallbackController`](../../src/main/java/com/im/admin/callbacks/PGCallbackController.java) (`/api/pg/callback/*`), [`PayoutCallbackController`](../../src/main/java/com/im/admin/callbacks/PayoutCallbackController.java) (`/api/payout/*`), and [`RechargeCallbackController`](../../src/main/java/com/im/admin/controller/RechargeCallbackController.java) (`/api/recharge/callback`). Since external vendors can't present an app-issued bearer token, every real callback path must be on `AESFilter`'s public whitelist — and [Module 4](04-authentication-security.md#21-whitelist-matching-is-stringstartswith-not-exact-path) established that whitelist is matched by plain `String.startsWith()`, not exact-path matching. Re-checking every callback endpoint against that actual semantics (rather than assuming exact-match, as the original top-level review did) gives:
+Vendor callbacks (async webhooks from payment gateways and payout providers) land in three controllers: [`PGCallbackController`](../../src/main/java/com/scs/admin/callbacks/PGCallbackController.java) (`/api/pg/callback/*`), [`PayoutCallbackController`](../../src/main/java/com/scs/admin/callbacks/PayoutCallbackController.java) (`/api/payout/*`), and [`RechargeCallbackController`](../../src/main/java/com/scs/admin/controller/RechargeCallbackController.java) (`/api/recharge/callback`). Since external vendors can't present an app-issued bearer token, every real callback path must be on `AESFilter`'s public whitelist — and [Module 4](04-authentication-security.md#21-whitelist-matching-is-stringstartswith-not-exact-path) established that whitelist is matched by plain `String.startsWith()`, not exact-path matching. Re-checking every callback endpoint against that actual semantics (rather than assuming exact-match, as the original top-level review did) gives:
 
 | Endpoint | Whitelist status |
 |---|---|
-| `POST /api/pg/callback/{runpaisa, unisus, nixasoft, slpe, im}` | ✓ covered — exact match on each specific entry |
+| `POST /api/pg/callback/{runpaisa, unisus, nixasoft, slpe, scs}` | ✓ covered — exact match on each specific entry |
 | `GET /api/pg/callback/razorpay` | ✓ covered — exact match |
 | `POST /api/pg/callback/cashfree` | ✓ covered — exact match |
 | `POST /api/payout/callback/runpaisa` | ✓ covered — exact match, also within the bare `/api/payout/callback` prefix |
 | `POST /api/payout/callback/{nixasoft, slpe}` | ✓ covered — **not** listed individually, but covered anyway by the bare `/api/payout/callback` prefix entry (see §1.1) |
-| `POST /api/payout/callback/{vimopay, im}` | ✓ covered — exact match, also within the bare prefix |
+| `POST /api/payout/callback/{vimopay, scs}` | ✓ covered — exact match, also within the bare prefix |
 | `POST /api/payout/unisus-callback` | **✗ NOT covered** — confirmed real gap, see §1.1 |
 | `POST /api/recharge/callback` | **✗ NOT covered** — confirmed real gap, no `/api/recharge/*` entry exists in either whitelist at all |
 
 ### 1.1 The prefix-matching nuance, and why one gap survives it
 
-Because `AESFilter` treats every whitelist entry as a prefix, the single bare entry `"/api/payout/callback"` (present in both `SecurityConfig` and `AESFilter`'s lists) already covers **every** path starting with those characters — `/api/payout/callback/nixasoft`, `/api/payout/callback/slpe`, and so on — regardless of whether that specific sub-path also has its own explicit whitelist entry. The individually-listed entries (`/api/payout/callback/runpaisa`, `/api/payout/callback/vimopay`, `/api/payout/callback/im`) are therefore redundant given how matching actually works.
+Because `AESFilter` treats every whitelist entry as a prefix, the single bare entry `"/api/payout/callback"` (present in both `SecurityConfig` and `AESFilter`'s lists) already covers **every** path starting with those characters — `/api/payout/callback/nixasoft`, `/api/payout/callback/slpe`, and so on — regardless of whether that specific sub-path also has its own explicit whitelist entry. The individually-listed entries (`/api/payout/callback/runpaisa`, `/api/payout/callback/vimopay`, `/api/payout/callback/scs`) are therefore redundant given how matching actually works.
 
 **`/api/payout/unisus-callback` doesn't benefit from this**, because its path doesn't start with `/api/payout/callback` at all — it's `/api/payout/` followed directly by `unisus-callback`, not `/api/payout/callback/unisus`. No entry, specific or prefix, matches it. This is the same endpoint the top-level `CLAUDE.md` flagged as missing from both whitelists, and re-checking it against `AESFilter`'s actual prefix-matching behavior **confirms the gap is real** — unlike the Module 2 hierarchy-endpoint case, this is not a finding that needed correcting.
 
@@ -64,9 +64,9 @@ None of the callback controllers verify a shared secret, HMAC, or vendor-issued 
 
 ## 3. `CallbackParserFactory` — a RunPaisa-shaped abstraction, RunPaisa-only in practice
 
-[`VendorCallbackParser`](../../src/main/java/com/im/admin/service/VendorCallbackParser.java)'s `parse()` method returns `RunPaisaCallback` specifically — the interface itself is modeled on RunPaisa's response shape, even though [`CashfreeCallbackParser`](../../src/main/java/com/im/admin/service/impl/CashfreeCallbackParser.java) and [`RazorpayCallbackParser`](../../src/main/java/com/im/admin/service/impl/RazorpayCallbackParser.java) also implement it (meaning each must map its own vendor's payload shape into a `RunPaisaCallback`-shaped DTO).
+[`VendorCallbackParser`](../../src/main/java/com/scs/admin/service/VendorCallbackParser.java)'s `parse()` method returns `RunPaisaCallback` specifically — the interface itself is modeled on RunPaisa's response shape, even though [`CashfreeCallbackParser`](../../src/main/java/com/scs/admin/service/impl/CashfreeCallbackParser.java) and [`RazorpayCallbackParser`](../../src/main/java/com/scs/admin/service/impl/RazorpayCallbackParser.java) also implement it (meaning each must map its own vendor's payload shape into a `RunPaisaCallback`-shaped DTO).
 
-A direct search confirms [`CallbackParserFactory.getParser()`](../../src/main/java/com/im/admin/service/impl/CallbackParserFactory.java) is called from **exactly one place in the entire codebase: `RunpaisaPGServiceImpl`**. Cashfree's `processWebhook()` and Razorpay's `processCallback()` — the methods that actually handle those vendors' live callbacks (§2) — never reference the factory at all. `CashfreeCallbackParser` and `RazorpayCallbackParser` are registered Spring beans (available in the factory's autowired `List<VendorCallbackParser>`), but nothing in the request path for their own vendors ever asks the factory to select them. This mirrors the "abstraction exists, real traffic bypasses it" pattern already documented for the vendor-impl/factory/orchestrator shape in [Module 5](05-vendor-integration-pattern.md#4-where-the-pattern-drifts--three-different-shapes).
+A direct search confirms [`CallbackParserFactory.getParser()`](../../src/main/java/com/scs/admin/service/impl/CallbackParserFactory.java) is called from **exactly one place in the entire codebase: `RunpaisaPGServiceImpl`**. Cashfree's `processWebhook()` and Razorpay's `processCallback()` — the methods that actually handle those vendors' live callbacks (§2) — never reference the factory at all. `CashfreeCallbackParser` and `RazorpayCallbackParser` are registered Spring beans (available in the factory's autowired `List<VendorCallbackParser>`), but nothing in the request path for their own vendors ever asks the factory to select them. This mirrors the "abstraction exists, real traffic bypasses it" pattern already documented for the vendor-impl/factory/orchestrator shape in [Module 5](05-vendor-integration-pattern.md#4-where-the-pattern-drifts--three-different-shapes).
 
 ---
 
@@ -74,7 +74,7 @@ A direct search confirms [`CallbackParserFactory.getParser()`](../../src/main/ja
 
 ### 4.1 Idempotency protection covers 1 of ~11 callback endpoints
 
-[`IdempotencyServiceUtil`](../../src/main/java/com/im/admin/util/IdempotencyServiceUtil.java) is a genuinely well-built guard — it inserts an `idempotencyKey` into a table with a unique constraint and treats the resulting `DataIntegrityViolationException` as "already processed":
+[`IdempotencyServiceUtil`](../../src/main/java/com/scs/admin/util/IdempotencyServiceUtil.java) is a genuinely well-built guard — it inserts an `idempotencyKey` into a table with a unique constraint and treats the resulting `DataIntegrityViolationException` as "already processed":
 
 ```java
 public boolean tryAcquire(String idempotencyKey) {
@@ -90,13 +90,13 @@ public boolean tryAcquire(String idempotencyKey) {
 }
 ```
 
-A direct search confirms this is called from **exactly one place**: the Cashfree PG callback. None of the other ten-or-so callback endpoints (RunPaisa/Unisus/NixaSoft/SLPE/Razorpay/IM on the PG side; RunPaisa/NixaSoft/SLPE/VimoPay/IM on the payout side; the Recharge callback) have any equivalent protection against a vendor's webhook retry being processed twice — whether that's actually safe depends entirely on each individual handler independently checking transaction status before re-applying a credit/debit, which is inconsistent to rely on given the wallet-locking gaps already documented in [Module 3](03-wallets-ledger.md#4-balance-update-path--no-locking-anywhere).
+A direct search confirms this is called from **exactly one place**: the Cashfree PG callback. None of the other ten-or-so callback endpoints (RunPaisa/Unisus/NixaSoft/SLPE/Razorpay/SCS on the PG side; RunPaisa/NixaSoft/SLPE/VimoPay/SCS on the payout side; the Recharge callback) have any equivalent protection against a vendor's webhook retry being processed twice — whether that's actually safe depends entirely on each individual handler independently checking transaction status before re-applying a credit/debit, which is inconsistent to rely on given the wallet-locking gaps already documented in [Module 3](03-wallets-ledger.md#4-balance-update-path--no-locking-anywhere).
 
 Even where it is used, the guard has a gap: the header that supplies `idempotencyKey` is declared `@RequestHeader(value = "x-idempotency-key", required = false)` — **optional**. A vendor retry that omits this header (or a vendor that never sends it at all) bypasses the protection entirely, since a `null`/absent key means `tryAcquire()` never has anything to collide against.
 
 ### 4.2 Async callback processing silently swallows failures
 
-[`UnisusCallbackAsyncProcessor.processAsync()`](../../src/main/java/com/im/admin/callbacks/UnisusCallbackAsyncProcessor.java) runs `@Async` — meaning the controller (`PGCallbackController.unisusCallback()`) has already returned `200 OK` to the vendor before this method's real work (looking up the transaction mapping, sub-product, scheme allocation, and forwarding to `TransactionEngineServiceImpl`) even executes. Its entire body is wrapped in a single `try`/`catch (Exception e)` with an explicit comment:
+[`UnisusCallbackAsyncProcessor.processAsync()`](../../src/main/java/com/scs/admin/callbacks/UnisusCallbackAsyncProcessor.java) runs `@Async` — meaning the controller (`PGCallbackController.unisusCallback()`) has already returned `200 OK` to the vendor before this method's real work (looking up the transaction mapping, sub-product, scheme allocation, and forwarding to `TransactionEngineServiceImpl`) even executes. Its entire body is wrapped in a single `try`/`catch (Exception e)` with an explicit comment:
 
 ```java
 } catch (Exception e) {
