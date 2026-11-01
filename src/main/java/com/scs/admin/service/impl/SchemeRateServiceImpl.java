@@ -124,7 +124,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
 
                     dto.setGross(applyRounding(slab.getGross(), factor, isPercentage));
                     dto.setScs(applyRounding(slab.getScs(), factor, isPercentage));
-                    dto.setEnterprise(allowedHierarchies.contains("enterprise") ? applyRounding(slab.getEnterprise(), factor, isPercentage) : null);
+                    dto.setEnterprise(hasHierarchy("enterprise", allowedHierarchies) ? applyRounding(slab.getEnterprise(), factor, isPercentage) : null);
                     dto.setWhitelabel(allowedHierarchies.contains("whitelabel") ? applyRounding(slab.getWhitelabel(), factor, isPercentage) : null);
                     dto.setSuperDistributor(hasHierarchy("superdistributor", allowedHierarchies) ? applyRounding(slab.getSuperDistributor(), factor, isPercentage) : null);
                     dto.setPartner(allowedHierarchies.contains("partner") ? applyRounding(slab.getPartner(), factor, isPercentage) : null);
@@ -178,7 +178,7 @@ public class SchemeRateServiceImpl implements SchemeRateService {
         dto.setSlabEnd(0.0);
         dto.setGross(0.0);
         dto.setScs(0.0);
-        dto.setEnterprise(allowedHierarchies.contains("enterprise") ? 0.0 : null);
+        dto.setEnterprise(hasHierarchy("enterprise", allowedHierarchies) ? 0.0 : null);
         dto.setWhitelabel(allowedHierarchies.contains("whitelabel") ? 0.0 : null);
         dto.setSuperDistributor(hasHierarchy("superdistributor", allowedHierarchies) ? 0.0 : null);
         dto.setPartner(allowedHierarchies.contains("partner") ? 0.0 : null);
@@ -188,7 +188,8 @@ public class SchemeRateServiceImpl implements SchemeRateService {
     }
 
     private boolean hasHierarchy(String key, Set<String> allowed) {
-        boolean result = allowed.contains(key) || allowed.contains(key.replace("_", ""));
+        // hierarchy_master names may be plural ("Enterprises")
+        boolean result = allowed.contains(key) || allowed.contains(key.replace("_", "")) || allowed.contains(key + "s");
         log.debug("Checking hierarchy '{}' in allowed set: {}", key, result);
         return result;
     }
