@@ -87,7 +87,7 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
                     r.tranStatus
                 )
                 FROM RetailerPostpaidTransactionDetails r
-                LEFT JOIN SubProducts sp ON sp.subProductTitle = r.subProductName
+                LEFT JOIN SubProducts sp ON (sp.subProductTitle = r.subProductName OR sp.subProductCode = r.subProductName)
                 LEFT JOIN sp.product p
                 WHERE r.retailerId = :retailerId
                 ORDER BY r.dateOfTransaction DESC, r.timeOfTransaction DESC
@@ -293,7 +293,7 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
                 SELECT sp.product.name AS productName,
                        COALESCE(SUM(r.amount), 0) AS totalAmount
                 FROM RetailerPostpaidTransactionDetails r
-                JOIN SubProducts sp ON r.subProductName = sp.subProductTitle
+                JOIN SubProducts sp ON (r.subProductName = sp.subProductTitle OR r.subProductName = sp.subProductCode)
                 WHERE r.retailerId IN :retailerIds
                   AND r.tranStatus = 'SUCCESS'
                   AND r.transactionId LIKE 'TXN%'
@@ -307,7 +307,7 @@ public interface RetailerPostpaidTransactionDetailsRepository extends JpaReposit
                 SELECT sp.product.name AS productName,
                        COUNT(r.id) AS transactionCount
                 FROM RetailerPostpaidTransactionDetails r
-                JOIN SubProducts sp ON r.subProductName = sp.subProductTitle
+                JOIN SubProducts sp ON (r.subProductName = sp.subProductTitle OR r.subProductName = sp.subProductCode)
                 WHERE r.retailerId IN :retailerIds
                   AND r.tranStatus = 'SUCCESS'
                   AND r.transactionId LIKE 'TXN%'

@@ -58,7 +58,7 @@ public interface PartnerPrepaidTransactionDetailsRepository extends JpaRepositor
         pt.tranStatus
     )
     FROM PartnerPrepaidTransactionDetails pt
-    LEFT JOIN SubProducts sp ON sp.subProductTitle = pt.subProductName
+    LEFT JOIN SubProducts sp ON (sp.subProductTitle = pt.subProductName OR sp.subProductCode = pt.subProductName)
     LEFT JOIN sp.product p
     WHERE pt.partnerId = :partnerId
     ORDER BY pt.dateOfTransaction DESC, pt.timeOfTransaction DESC
