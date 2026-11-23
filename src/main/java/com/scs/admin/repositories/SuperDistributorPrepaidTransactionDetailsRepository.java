@@ -59,7 +59,7 @@ public interface SuperDistributorPrepaidTransactionDetailsRepository extends Jpa
         t.tranStatus
     )
     FROM SuperDistributorPrepaidTransactionDetails t
-    LEFT JOIN SubProducts sp ON sp.subProductTitle = t.subProductName
+    LEFT JOIN SubProducts sp ON (sp.subProductTitle = t.subProductName OR sp.subProductCode = t.subProductName)
     LEFT JOIN sp.product p
     WHERE t.superDistributorId = :superDistributorId
     ORDER BY t.dateOfTransaction DESC, t.timeOfTransaction DESC
